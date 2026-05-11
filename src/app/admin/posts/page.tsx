@@ -20,14 +20,15 @@ async function excluirPost(id: string) {
 
 export default async function AdminPostsPage() {
   const supabase = createAdminClient()
-  const { data: posts } = await supabase
-    .from('posts')
-    .select('id, titulo, slug, categoria, publicado, created_at')
-    .order('created_at', { ascending: false })
+  const [{ data: posts }, { data: cats }] = await Promise.all([
+    supabase.from('posts').select('id, titulo, slug, categoria, publicado, created_at').order('created_at', { ascending: false }),
+    supabase.from('categorias').select('id, label'),
+  ])
 
-  const CAT_LABEL: Record<string, string> = {
-    geral: 'Geral', dicas: 'Dicas', mercado: 'Mercado',
-    legal: 'Legal', bairros: 'Bairros', financeiro: 'Financeiro',
+  const CAT_LABEL: Record<string, string> = {}
+  cats?.forEach(c => { CAT_LABEL[c.id] = c.label })
+  if (Object.keys(CAT_LABEL).length === 0) {
+    Object.assign(CAT_LABEL, { geral: 'Geral', dicas: 'Dicas', mercado: 'Mercado', legal: 'Legal', bairros: 'Bairros', financeiro: 'Financeiro' })
   }
 
   return (

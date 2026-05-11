@@ -72,6 +72,7 @@ export interface Foto {
 
 export interface Imovel {
   id: string
+  slug?: string | null
   user_id: string
   titulo: string
   descricao: string | null

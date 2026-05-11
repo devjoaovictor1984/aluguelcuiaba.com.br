@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import type { Bairro, TipoImovel } from '@/types'
 import { TIPOS_IMOVEL } from '@/lib/constants'
-import { validarWhatsApp } from '@/lib/utils'
+import { validarWhatsApp, slugify } from '@/lib/utils'
 import { Editor } from '@/components/editor'
 import {
   ChevronLeft, Camera, X, Plus, Loader2, AlertCircle,
@@ -371,6 +371,9 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
       }).select('id').single()
 
       if (imovelError || !imovel) throw new Error(imovelError?.message ?? 'Erro ao criar anúncio')
+
+      const slug = slugify(titulo.trim()) + '-' + imovel.id.slice(0, 8)
+      await supabase.from('imoveis').update({ slug }).eq('id', imovel.id)
 
       if (fotos.length > 0) {
         for (let i = 0; i < fotos.length; i++) {

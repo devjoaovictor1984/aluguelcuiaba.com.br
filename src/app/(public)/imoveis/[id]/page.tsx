@@ -23,9 +23,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params
   const { data } = await getImovelPorId(id)
   if (!data) return {}
+  const fotoUrl = data.fotos?.find((f: { principal: boolean }) => f.principal)?.url || data.fotos?.[0]?.url
+  const slug = (data.slug as string | null | undefined) ?? data.id
+  const pageUrl = `${process.env.NEXT_PUBLIC_APP_URL}/imoveis/${slug}`
+  const desc = `${data.tipo} para alugar em ${data.bairro?.nome ?? 'Cuiabá'} por ${formatarPreco(data.preco)}/mês.${data.descricao ? ' ' + data.descricao.replace(/<[^>]+>/g, '').slice(0, 120) : ''}`
   return {
     title: data.titulo,
-    description: `${data.tipo} para alugar em ${data.bairro?.nome ?? 'Cuiabá'} por ${formatarPreco(data.preco)}/mês.${data.descricao ? ' ' + data.descricao.slice(0, 100) : ''}`,
+    description: desc,
+    openGraph: {
+      title: data.titulo,
+      description: desc,
+      url: pageUrl,
+      type: 'website',
+      images: fotoUrl ? [{ url: fotoUrl, width: 1200, height: 630, alt: data.titulo }] : [],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: data.titulo,
+      description: desc,
+      images: fotoUrl ? [fotoUrl] : [],
+    },
   }
 }
 
@@ -55,6 +72,24 @@ export default async function ImovelPage({ params }: Props) {
     imovel.whatsapp,
     gerarMensagemWhatsApp(imovel.titulo, imovel.bairro?.nome)
   )
+
+  const imovelSlug = imovel.slug ?? imovel.id
+  const pageUrl = `${process.env.NEXT_PUBLIC_APP_URL}/imoveis/${imovelSlug}`
+  const partesCompartilhar: string[] = []
+  if (imovel.quartos > 0) partesCompartilhar.push(`${imovel.quartos} quarto${imovel.quartos > 1 ? 's' : ''}`)
+  if (imovel.banheiros > 0) partesCompartilhar.push(`${imovel.banheiros} banheiro${imovel.banheiros > 1 ? 's' : ''}`)
+  if (imovel.vagas > 0) partesCompartilhar.push(`${imovel.vagas} vaga${imovel.vagas > 1 ? 's' : ''}`)
+  if (imovel.area_m2) partesCompartilhar.push(`${imovel.area_m2}m²`)
+  const msgCompartilhar = [
+    `*${imovel.titulo}*`,
+    `📍 ${imovel.bairro?.nome ?? 'Cuiabá'}, MT`,
+    `💰 ${formatarPreco(imovel.preco)}/mês`,
+    partesCompartilhar.length > 0 ? `🏠 ${partesCompartilhar.join(' · ')}` : '',
+    '',
+    'Encontrei no AluguelCuiabá:',
+    pageUrl,
+  ].filter(Boolean).join('\n')
+  const linkCompartilhar = `https://wa.me/?text=${encodeURIComponent(msgCompartilhar)}`
 
   const diasExpira = Math.ceil(
     (new Date(imovel.expira_em).getTime() - Date.now()) / 86_400_000
@@ -226,7 +261,7 @@ export default async function ImovelPage({ params }: Props) {
 
             {/* Anunciante — mobile (desktop fica na sidebar) */}
             <div className="lg:hidden mt-6">
-              <AnuncianteCard imovel={imovel as Imovel} tipoAnunciante={tipoAnunciante} linkWpp={linkWpp} />
+              <AnuncianteCard imovel={imovel as Imovel} tipoAnunciante={tipoAnunciante} linkWpp={linkWpp} linkCompartilhar={linkCompartilhar} />
             </div>
 
             {/* ── Similares ── */}
@@ -287,7 +322,7 @@ export default async function ImovelPage({ params }: Props) {
           {/* ════════════════ SIDEBAR DESKTOP ════════════════ */}
           <aside className="hidden lg:block lg:col-span-2">
             <div className="sticky top-[68px] space-y-4">
-              <AnuncianteCard imovel={imovel as Imovel} tipoAnunciante={tipoAnunciante} linkWpp={linkWpp} showPrice />
+              <AnuncianteCard imovel={imovel as Imovel} tipoAnunciante={tipoAnunciante} linkWpp={linkWpp} linkCompartilhar={linkCompartilhar} showPrice />
             </div>
           </aside>
 
@@ -338,11 +373,12 @@ function Divider() {
 }
 
 function AnuncianteCard({
-  imovel, tipoAnunciante, linkWpp, showPrice = false,
+  imovel, tipoAnunciante, linkWpp, linkCompartilhar, showPrice = false,
 }: {
   imovel: Imovel
   tipoAnunciante: Record<string, string>
   linkWpp: string
+  linkCompartilhar: string
   showPrice?: boolean
 }) {
   const WPP_ICON = (
@@ -383,6 +419,17 @@ function AnuncianteCard({
       >
         {WPP_ICON}
         Falar pelo WhatsApp
+      </a>
+
+      {/* Compartilhar no WhatsApp */}
+      <a
+        href={linkCompartilhar}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-2 w-full flex items-center justify-center gap-2 border border-gray-200 hover:border-green-400 hover:bg-green-50 text-gray-500 hover:text-green-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
+      >
+        {WPP_ICON}
+        Compartilhar este imóvel
       </a>
 
       {/* Anunciante */}

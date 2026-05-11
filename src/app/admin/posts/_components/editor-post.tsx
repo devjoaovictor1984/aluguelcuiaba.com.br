@@ -17,23 +17,26 @@ interface Post {
   publicado?: boolean
 }
 
+interface Categoria { id: string; label: string }
+
 function gerarSlug(t: string) {
-  return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return t.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '')
     .replace(/[^a-z0-9\s-]/g, '').trim().replace(/\s+/g, '-')
 }
 
-const CATEGORIAS = [
-  { value: 'geral', label: 'Geral' },
-  { value: 'dicas', label: 'Dicas' },
-  { value: 'mercado', label: 'Mercado' },
-  { value: 'legal', label: 'Legal' },
-  { value: 'bairros', label: 'Bairros' },
-  { value: 'financeiro', label: 'Financeiro' },
+const CATEGORIAS_DEFAULT: Categoria[] = [
+  { id: 'geral', label: 'Geral' },
+  { id: 'dicas', label: 'Dicas' },
+  { id: 'mercado', label: 'Mercado' },
+  { id: 'legal', label: 'Legal' },
+  { id: 'bairros', label: 'Bairros' },
+  { id: 'financeiro', label: 'Financeiro' },
 ]
 
 const inputCls = "w-full px-4 py-3 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-gray-900 placeholder:text-gray-400 text-sm transition"
 
-export function EditorPost({ post }: { post?: Post }) {
+export function EditorPost({ post, categorias }: { post?: Post; categorias?: Categoria[] }) {
+  const cats = categorias && categorias.length > 0 ? categorias : CATEGORIAS_DEFAULT
   const router = useRouter()
   const capaRef = useRef<HTMLInputElement>(null)
 
@@ -139,7 +142,7 @@ export function EditorPost({ post }: { post?: Post }) {
           <div className="space-y-1.5">
             <label className="text-sm font-medium text-gray-700">Categoria</label>
             <select value={categoria} onChange={e => setCategoria(e.target.value)} className={`${inputCls} bg-white`}>
-              {CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+              {cats.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </div>
           <button type="button" onClick={() => setPublicado(v => !v)}

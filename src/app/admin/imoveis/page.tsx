@@ -46,7 +46,7 @@ export default async function AdminImoveisPage({
   const supabase = createAdminClient()
   let query = supabase
     .from('imoveis')
-    .select('id, titulo, tipo, preco, status, created_at, fotos(url), bairro:bairros(nome), perfil:perfis(nome)', { count: 'exact' })
+    .select('id, slug, titulo, tipo, preco, status, created_at, fotos(url), bairro:bairros(nome), perfil:perfis(nome)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + POR_PAGINA - 1)
 
@@ -125,7 +125,7 @@ export default async function AdminImoveisPage({
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <Link href={`/imoveis/${im.id}`} target="_blank"
+                        <Link href={`/imoveis/${(im as {slug?: string|null}).slug ?? im.id}`} target="_blank"
                           className="p-1.5 text-gray-400 hover:text-violet-600 rounded-lg hover:bg-violet-50 transition-colors">
                           <ExternalLink size={14} />
                         </Link>

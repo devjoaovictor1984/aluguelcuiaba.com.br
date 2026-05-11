@@ -44,3 +44,15 @@ export function diasParaExpirar(data: string): number {
   const diff = expira.getTime() - hoje.getTime()
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
+
+export function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim()
+    .replace(/^-|-$/g, '')
+}

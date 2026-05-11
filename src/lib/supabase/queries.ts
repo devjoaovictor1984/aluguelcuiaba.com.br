@@ -56,12 +56,19 @@ export async function getImoveis(filtros: FiltrosBusca = {}, pagina = 1, porPagi
   return query
 }
 
-export async function getImovelPorId(id: string) {
+export async function getImovelPorId(idOrSlug: string) {
   const supabase = await createClient()
+  const bySlug = await supabase
+    .from('imoveis')
+    .select(`*, bairro:bairros(*), condominio:condominios(*), fotos(*), perfil:perfis(*)`)
+    .eq('slug', idOrSlug)
+    .eq('status', 'ativo')
+    .maybeSingle()
+  if (bySlug.data) return { data: bySlug.data, error: null }
   return supabase
     .from('imoveis')
     .select(`*, bairro:bairros(*), condominio:condominios(*), fotos(*), perfil:perfis(*)`)
-    .eq('id', id)
+    .eq('id', idOrSlug)
     .eq('status', 'ativo')
     .single()
 }
