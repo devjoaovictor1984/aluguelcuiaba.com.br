@@ -24,8 +24,8 @@ export async function generateMetadata(): Promise<Metadata> {
         : BASE_METADATA.title,
       description: cfg.home_seo_descricao || BASE_METADATA.description,
       icons: {
-        icon: [{ url: '/api/favicon' }],
-        shortcut: '/api/favicon',
+        icon: [{ url: '/api/favicon', type: 'image/png', sizes: '32x32' }],
+        shortcut: [{ url: '/api/favicon', type: 'image/png' }],
       },
     }
   } catch {
