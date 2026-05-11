@@ -1,26 +1,46 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+}
+
+button, [role="button"], label[for], select { cursor: pointer; }
+
+/* ─── TipTap editor ─────────────────────────────────────────────────────── */
+.ProseMirror { outline: none; }
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #9ca3af; content: attr(data-placeholder);
+  float: left; height: 0; pointer-events: none;
+}
+.ProseMirror h2 { font-size: 1.2rem; font-weight: 700; margin: .75rem 0 .35rem; color: #111827; }
+.ProseMirror h3 { font-size: 1.05rem; font-weight: 600; margin: .5rem 0 .25rem; color: #1f2937; }
+.ProseMirror p { margin: .2rem 0; }
+.ProseMirror ul { list-style: disc; padding-left: 1.5rem; margin: .35rem 0; }
+.ProseMirror ol { list-style: decimal; padding-left: 1.5rem; margin: .35rem 0; }
+.ProseMirror blockquote { border-left: 3px solid #e5e7eb; padding-left: .75rem; color: #6b7280; margin: .5rem 0; }
+.ProseMirror pre { background: #f3f4f6; padding: .75rem 1rem; border-radius: .5rem; overflow-x: auto; font-size: .85em; }
+.ProseMirror code { background: #f3f4f6; padding: .1em .3em; border-radius: .25rem; font-size: .9em; }
+.ProseMirror pre code { background: none; padding: 0; }
+.ProseMirror table { border-collapse: collapse; width: 100%; margin: .5rem 0; table-layout: fixed; }
+.ProseMirror th, .ProseMirror td { border: 1px solid #d1d5db; padding: .4rem .6rem; vertical-align: top; position: relative; }
+.ProseMirror th { background: #f9fafb; font-weight: 600; text-align: left; }
+.ProseMirror .selectedCell::after { content: ''; position: absolute; inset: 0; background: rgba(124,58,237,.1); pointer-events: none; }
+.ProseMirror img { max-width: 100%; border-radius: .5rem; margin: .25rem 0; }
+.ProseMirror a { color: #7c3aed; text-decoration: underline; }
+.ProseMirror hr { border: none; border-top: 2px solid #e5e7eb; margin: .75rem 0; }
+
+/* Esconde scrollbar mas mantém scroll funcional */
+.scroll-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scroll-hide::-webkit-scrollbar {
+  display: none;
 }
