@@ -1,19 +1,37 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { Plus, User } from 'lucide-react'
+import { createAdminClient } from '@/lib/supabase/admin'
 
-export function Navbar() {
+async function getLogoUrl(): Promise<string> {
+  try {
+    const supabase = createAdminClient()
+    const { data } = await supabase
+      .from('site_config')
+      .select('valor')
+      .eq('chave', 'logo_url')
+      .single()
+    return data?.valor || '/logo.png'
+  } catch {
+    return '/logo.png'
+  }
+}
+
+export async function Navbar() {
+  const logoUrl = await getLogoUrl()
+
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
         <Link href="/" className="flex items-center shrink-0">
           <Image
-            src="/logo.png"
+            src={logoUrl}
             alt="AluguelCuiabá"
             width={200}
             height={28}
             className="h-6 w-auto max-w-[110px] sm:h-7 sm:max-w-none"
             priority
+            unoptimized={logoUrl.startsWith('http')}
           />
         </Link>
 
