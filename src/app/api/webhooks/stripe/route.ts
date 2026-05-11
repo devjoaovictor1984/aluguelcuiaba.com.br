@@ -51,8 +51,8 @@ export async function POST(request: NextRequest) {
 
   // Renovação mensal → atualiza data de expiração
   if (event.type === 'invoice.payment_succeeded') {
-    const invoice = event.data.object as Stripe.Invoice
-    const subscriptionId = invoice.subscription as string
+    const invoice = event.data.object as Stripe.Invoice & { subscription?: string }
+    const subscriptionId = invoice.subscription
     if (!subscriptionId) return NextResponse.json({ ok: true })
 
     const expiraEm = await getSubscriptionExpiry(subscriptionId)
