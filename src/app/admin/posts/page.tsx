@@ -22,7 +22,7 @@ export default async function AdminPostsPage() {
   const supabase = createAdminClient()
   const { data: posts } = await supabase
     .from('posts')
-    .select('id, titulo, categoria, publicado, created_at')
+    .select('id, titulo, slug, categoria, publicado, created_at')
     .order('created_at', { ascending: false })
 
   const CAT_LABEL: Record<string, string> = {
