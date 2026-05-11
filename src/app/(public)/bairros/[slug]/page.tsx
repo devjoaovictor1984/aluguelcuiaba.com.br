@@ -152,7 +152,7 @@ export default async function BairroPage({ params }: Props) {
               </Link>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {lista.slice(0, 6).map(imovel => <ImovelCard key={imovel.id} imovel={imovel} />)}
             </div>
           )}

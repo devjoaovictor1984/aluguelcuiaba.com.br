@@ -94,7 +94,7 @@ export default async function Home({ searchParams }: Props) {
             </div>
 
             {imoveis && imoveis.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                 {imoveis.map(imovel => (
                   <ImovelCard key={imovel.id} imovel={imovel as any} />
                 ))}
