@@ -20,6 +20,8 @@ export async function Footer() {
   const email = cfg.contato_email || 'contato@aluguelcuiaba.com.br'
   const whatsapp = cfg.contato_whatsapp || '5565999999999'
   const logo = cfg.logo_url || '/logo.png'
+  const instagram = cfg.instagram_url || 'https://instagram.com/aluguelcuiaba'
+  const facebook = cfg.facebook_url || 'https://facebook.com/aluguelcuiaba'
 
   const whatsappFormatado = whatsapp.replace(/^55(\d{2})9?(\d{4})(\d{4})$/, '($1) 9 $2-$3') || whatsapp
 
@@ -108,7 +110,7 @@ export async function Footer() {
             <h3 className="text-white font-semibold text-sm mb-3 mt-6 uppercase tracking-wider">Redes sociais</h3>
             <div className="flex gap-3">
               <a
-                href="https://instagram.com/aluguelcuiaba"
+                href={instagram}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Instagram"
@@ -119,7 +121,7 @@ export async function Footer() {
                 </svg>
               </a>
               <a
-                href="https://facebook.com/aluguelcuiaba"
+                href={facebook}
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label="Facebook"

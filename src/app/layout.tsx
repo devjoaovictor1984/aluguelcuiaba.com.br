@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import Script from 'next/script'
 import { createAdminClient } from '@/lib/supabase/admin'
 import './globals.css'
 
@@ -73,10 +74,44 @@ export const viewport: Viewport = {
   initialScale: 1,
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  let gaId = ''
+  let pixelId = ''
+  try {
+    const supabase = createAdminClient()
+    const { data } = await supabase
+      .from('site_config')
+      .select('chave, valor')
+      .in('chave', ['google_analytics_id', 'facebook_pixel_id'])
+    const cfg = Object.fromEntries((data ?? []).map(c => [c.chave, c.valor ?? '']))
+    gaId = cfg.google_analytics_id ?? ''
+    pixelId = cfg.facebook_pixel_id ?? ''
+  } catch {}
+
   return (
     <html lang="pt-BR">
       <body className={`${inter.className} flex flex-col min-h-screen`}>
+
+        {/* Google Analytics 4 */}
+        {gaId && (
+          <>
+            <Script
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaId}`}
+              strategy="afterInteractive"
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag('js',new Date());gtag('config','${gaId}');`}
+            </Script>
+          </>
+        )}
+
+        {/* Facebook Pixel */}
+        {pixelId && (
+          <Script id="fb-pixel" strategy="afterInteractive">
+            {`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${pixelId}');fbq('track','PageView');`}
+          </Script>
+        )}
+
         <div className="flex-1">
           {children}
         </div>
