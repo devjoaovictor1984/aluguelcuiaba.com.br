@@ -95,7 +95,7 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
 
   const switchToVisual = () => {
     if (editor) {
-      editor.commands.setContent(htmlRaw, false)
+      editor.commands.setContent(htmlRaw, { emitUpdate: false })
       onChange(htmlRaw)
     }
     setHtmlMode(false)
@@ -104,7 +104,7 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
   useEffect(() => {
     if (!editor || editor.isDestroyed) return
     if (content !== editor.getHTML()) {
-      editor.commands.setContent(content, false)
+      editor.commands.setContent(content, { emitUpdate: false })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
