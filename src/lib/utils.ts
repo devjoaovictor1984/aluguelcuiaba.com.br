@@ -29,8 +29,21 @@ export function gerarLinkWhatsApp(numero: string, mensagem: string): string {
   return `https://wa.me/${numeroLimpo}?text=${msg}`
 }
 
-export function gerarMensagemWhatsApp(titulo: string, bairro?: string): string {
-  return `Olá! Vi o anúncio "${titulo}"${bairro ? ` no ${bairro}` : ''} no AluguelCuiabá e tenho interesse. Poderia me dar mais informações?`
+export function gerarMensagemWhatsApp(
+  titulo: string,
+  bairro?: string,
+  opts?: { preco?: number; partes?: string[]; link?: string }
+): string {
+  const linhas: string[] = [
+    'Olá! Vi o imóvel abaixo no AluguelCuiabá e tenho interesse:',
+    `*${titulo}*`,
+  ]
+  if (bairro) linhas.push(`\u{1F4CD} ${bairro}, MT`)
+  if (opts?.preco) linhas.push(`\u{1F4B0} ${formatarPreco(opts.preco)}/mês`)
+  if (opts?.partes?.length) linhas.push(`\u{1F3E0} ${opts.partes.join(' · ')}`)
+  if (opts?.link) { linhas.push(''); linhas.push(opts.link) }
+  linhas.push('', 'Poderia me dar mais informações?')
+  return linhas.join('\n')
 }
 
 export function validarWhatsApp(numero: string): boolean {

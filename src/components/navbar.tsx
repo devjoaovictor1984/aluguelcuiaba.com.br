@@ -22,14 +22,14 @@ export async function Navbar() {
 
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 h-14 lg:h-24 flex items-center justify-between">
         <Link href="/" className="flex items-center shrink-0">
           <Image
             src={logoUrl}
             alt="AluguelCuiabá"
-            width={240}
-            height={40}
-            className="h-10 w-auto max-w-[200px] sm:h-8 sm:max-w-[220px]"
+            width={480}
+            height={80}
+            className="h-10 w-auto max-w-[200px] lg:h-20 lg:max-w-[400px]"
             priority
             unoptimized={logoUrl.startsWith('http')}
           />

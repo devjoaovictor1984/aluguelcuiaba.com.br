@@ -57,6 +57,7 @@ const BASE_METADATA: Metadata = {
     type: 'website',
     locale: 'pt_BR',
     siteName: 'AluguelCuiabá',
+    images: [{ url: '/og-default.jpg', width: 1200, height: 630, alt: 'AluguelCuiabá — Imóveis para alugar em Cuiabá/MT' }],
   },
   robots: {
     index: true,

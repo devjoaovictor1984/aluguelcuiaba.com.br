@@ -68,23 +68,26 @@ export default async function ImovelPage({ params }: Props) {
     [imovel.endereco_resumido, imovel.bairro?.nome, 'Cuiabá', 'MT'].filter(Boolean).join(', ')
   )}`
 
-  const linkWpp = gerarLinkWhatsApp(
-    imovel.whatsapp,
-    gerarMensagemWhatsApp(imovel.titulo, imovel.bairro?.nome)
-  )
-
   const imovelSlug = imovel.slug ?? imovel.id
   const pageUrl = `${process.env.NEXT_PUBLIC_APP_URL}/imoveis/${imovelSlug}`
-  const partesCompartilhar: string[] = []
-  if (imovel.quartos > 0) partesCompartilhar.push(`${imovel.quartos} quarto${imovel.quartos > 1 ? 's' : ''}`)
-  if (imovel.banheiros > 0) partesCompartilhar.push(`${imovel.banheiros} banheiro${imovel.banheiros > 1 ? 's' : ''}`)
-  if (imovel.vagas > 0) partesCompartilhar.push(`${imovel.vagas} vaga${imovel.vagas > 1 ? 's' : ''}`)
-  if (imovel.area_m2) partesCompartilhar.push(`${imovel.area_m2}m²`)
+  const partesDetalhes: string[] = []
+  if (imovel.quartos > 0) partesDetalhes.push(`${imovel.quartos} quarto${imovel.quartos > 1 ? 's' : ''}`)
+  if (imovel.banheiros > 0) partesDetalhes.push(`${imovel.banheiros} banheiro${imovel.banheiros > 1 ? 's' : ''}`)
+  if (imovel.vagas > 0) partesDetalhes.push(`${imovel.vagas} vaga${imovel.vagas > 1 ? 's' : ''}`)
+  if (imovel.area_m2) partesDetalhes.push(`${imovel.area_m2}m²`)
+  const linkWpp = gerarLinkWhatsApp(
+    imovel.whatsapp,
+    gerarMensagemWhatsApp(imovel.titulo, imovel.bairro?.nome, {
+      preco: imovel.preco,
+      partes: partesDetalhes,
+      link: pageUrl,
+    })
+  )
   const msgCompartilhar = [
     `*${imovel.titulo}*`,
-    `📍 ${imovel.bairro?.nome ?? 'Cuiabá'}, MT`,
-    `💰 ${formatarPreco(imovel.preco)}/mês`,
-    partesCompartilhar.length > 0 ? `🏠 ${partesCompartilhar.join(' · ')}` : '',
+    `\u{1F4CD} ${imovel.bairro?.nome ?? 'Cuiabá'}, MT`,
+    `\u{1F4B0} ${formatarPreco(imovel.preco)}/mês`,
+    partesDetalhes.length > 0 ? `\u{1F3E0} ${partesDetalhes.join(' · ')}` : '',
     '',
     'Encontrei no AluguelCuiabá:',
     pageUrl,
