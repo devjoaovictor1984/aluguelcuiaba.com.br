@@ -1,12 +1,12 @@
 import { Suspense } from 'react'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
-import { ImovelCard } from '@/components/imovel-card'
+import { ImoveisLista } from '@/components/imoveis-lista'
 import { FiltrosSidebar } from '@/components/filtros-sidebar'
 import { FiltrosMobileDrawer } from '@/components/filtros-mobile'
 import { getBairros, getImoveis } from '@/lib/supabase/queries'
 import { SlidersHorizontal, MapPin } from 'lucide-react'
-import type { FiltrosBusca, TipoImovel, TipoUsuario, OrdenarPor } from '@/types'
+import type { FiltrosBusca, Imovel, TipoImovel, TipoUsuario, OrdenarPor } from '@/types'
 
 interface Props {
   searchParams: Promise<Record<string, string | undefined>>
@@ -94,11 +94,11 @@ export default async function Home({ searchParams }: Props) {
             </div>
 
             {imoveis && imoveis.length > 0 ? (
-              <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                {imoveis.map(imovel => (
-                  <ImovelCard key={imovel.id} imovel={imovel as any} />
-                ))}
-              </div>
+              <ImoveisLista
+                initialItems={imoveis as Imovel[]}
+                total={count ?? imoveis.length}
+                filtros={filtros}
+              />
             ) : (
               <div className="text-center py-20 border-2 border-dashed border-gray-200 rounded-xl">
                 <SlidersHorizontal size={32} className="mx-auto mb-3 text-gray-300" />

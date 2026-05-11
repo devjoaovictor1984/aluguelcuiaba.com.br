@@ -447,6 +447,9 @@ function AnuncianteCard({
             </p>
             <p className="text-xs text-gray-400">
               {tipoAnunciante[imovel.perfil.tipo] ?? 'Anunciante'}
+              {imovel.perfil.creci && (imovel.perfil.tipo === 'corretor' || imovel.perfil.tipo === 'imobiliaria') && (
+                <span className="ml-1">· CRECI {imovel.perfil.creci}</span>
+              )}
             </p>
           </div>
           <span className="text-xs text-violet-500 group-hover:text-violet-700 font-medium transition-colors shrink-0">
