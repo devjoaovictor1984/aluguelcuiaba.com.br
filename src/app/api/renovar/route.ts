@@ -1,37 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { Resend } from 'resend'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { DIAS_AVISO_EXPIRACAO, DIAS_EXPIRACAO } from '@/lib/constants'
+import { DIAS_AVISO_EXPIRACAO } from '@/lib/constants'
 import { EmailAvisoVencimento } from '@/lib/email/renovacao'
+import { enviarEmail } from '@/lib/email/sender'
 
-const resend = new Resend(process.env.RESEND_API_KEY)
-
-// Protegido por Bearer token — configure CRON_SECRET no .env.local
-// e passe o mesmo valor no header Authorization ao chamar de um cron job.
-export async function POST(request: NextRequest) {
+// Vercel cron jobs e chamadas manuais passam Authorization: Bearer {CRON_SECRET}
+function autorizado(request: NextRequest) {
   const auth = request.headers.get('authorization')
-  if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
-    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
-  }
+  return process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`
+}
 
+async function executar() {
   const admin = createAdminClient()
   const agora = new Date()
 
-  // 1. Marcar como expirado todos os anúncios ativos que já passaram do prazo
+  // 1. Expirar anúncios ativos que passaram do prazo
   const { error: errExpirar } = await admin
     .from('imoveis')
     .update({ status: 'expirado' })
     .eq('status', 'ativo')
     .lt('expira_em', agora.toISOString())
 
-  if (errExpirar) {
-    console.error('[renovar] erro ao expirar anúncios:', errExpirar.message)
-  }
+  if (errExpirar) console.error('[renovar] expirar:', errExpirar.message)
 
-  // 2. Buscar anúncios ativos que vencem nos próximos DIAS_AVISO_EXPIRACAO dias
-  //    e ainda não receberam aviso
-  const limiteAviso = new Date(agora)
-  limiteAviso.setDate(limiteAviso.getDate() + DIAS_AVISO_EXPIRACAO)
+  // 2. Buscar anúncios que vencem nos próximos DIAS_AVISO_EXPIRACAO e ainda não receberam aviso
+  const limite = new Date(agora)
+  limite.setDate(limite.getDate() + DIAS_AVISO_EXPIRACAO)
 
   const { data: imoveis, error: errBusca } = await admin
     .from('imoveis')
@@ -39,17 +33,12 @@ export async function POST(request: NextRequest) {
     .eq('status', 'ativo')
     .eq('aviso_enviado', false)
     .gt('expira_em', agora.toISOString())
-    .lte('expira_em', limiteAviso.toISOString())
+    .lte('expira_em', limite.toISOString())
 
-  if (errBusca) {
-    return NextResponse.json({ error: errBusca.message }, { status: 500 })
-  }
+  if (errBusca) return { error: errBusca.message, status: 500 }
+  if (!imoveis?.length) return { expirados: true, enviados: 0 }
 
-  if (!imoveis?.length) {
-    return NextResponse.json({ expirados: true, enviados: 0 })
-  }
-
-  // 3. Enviar e-mail para cada dono e coletar IDs bem-sucedidos
+  // 3. Enviar e-mail para cada dono
   const idsEnviados: string[] = []
   const erros: string[] = []
 
@@ -58,7 +47,7 @@ export async function POST(request: NextRequest) {
     const email = userData?.user?.email
 
     if (errUser || !email) {
-      erros.push(`sem e-mail para imovel ${imovel.id}`)
+      erros.push(`sem e-mail: ${imovel.id}`)
       continue
     }
 
@@ -66,31 +55,51 @@ export async function POST(request: NextRequest) {
       (new Date(imovel.expira_em).getTime() - agora.getTime()) / 86_400_000
     )
 
-    const { error: errEmail } = await resend.emails.send({
-      from: `${process.env.NEXT_PUBLIC_APP_NAME} <nao-responda@${new URL(process.env.NEXT_PUBLIC_APP_URL!).hostname}>`,
+    const { error: errEmail } = await enviarEmail({
       to: email,
       subject: `Seu anúncio vence em ${dias} dia${dias !== 1 ? 's' : ''} — renove agora`,
-      react: EmailAvisoVencimento({ imovel: { id: imovel.id, titulo: imovel.titulo, dias } }),
+      element: EmailAvisoVencimento({ imovel: { id: imovel.id, titulo: imovel.titulo, dias } }),
     })
 
     if (errEmail) {
-      erros.push(`erro ao enviar para ${email}: ${errEmail.message}`)
+      erros.push(`${email}: ${errEmail}`)
     } else {
       idsEnviados.push(imovel.id)
     }
   }
 
-  // 4. Marcar aviso_enviado nos que foram enviados com sucesso
+  // 4. Marcar aviso_enviado nos que foram enviados
   if (idsEnviados.length) {
-    await admin
-      .from('imoveis')
-      .update({ aviso_enviado: true })
-      .in('id', idsEnviados)
+    await admin.from('imoveis').update({ aviso_enviado: true }).in('id', idsEnviados)
   }
 
-  return NextResponse.json({
+  return {
     enviados: idsEnviados.length,
     total: imoveis.length,
     erros: erros.length ? erros : undefined,
-  })
+  }
+}
+
+// GET — invocado pelo cron da Vercel (Authorization: Bearer CRON_SECRET automático)
+export async function GET(request: NextRequest) {
+  if (!autorizado(request)) {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  }
+  const resultado = await executar()
+  if ('status' in resultado) {
+    return NextResponse.json({ error: resultado.error }, { status: resultado.status as number })
+  }
+  return NextResponse.json(resultado)
+}
+
+// POST — para disparos manuais / testes
+export async function POST(request: NextRequest) {
+  if (!autorizado(request)) {
+    return NextResponse.json({ error: 'Não autorizado' }, { status: 401 })
+  }
+  const resultado = await executar()
+  if ('status' in resultado) {
+    return NextResponse.json({ error: resultado.error }, { status: resultado.status as number })
+  }
+  return NextResponse.json(resultado)
 }
