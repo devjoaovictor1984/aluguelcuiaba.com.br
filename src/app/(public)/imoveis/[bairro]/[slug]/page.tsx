@@ -424,19 +424,35 @@ function AnuncianteCard({
       </a>
 
       {imovel.perfil && (
-        <div className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3">
-          <div className="w-11 h-11 bg-violet-100 rounded-full flex items-center justify-center text-violet-700 font-bold text-lg shrink-0">
-            {imovel.perfil.nome?.charAt(0).toUpperCase() ?? 'A'}
+        <Link
+          href={`/anunciante/${imovel.perfil.id}`}
+          className="mt-4 pt-4 border-t border-gray-100 flex items-center gap-3 group"
+        >
+          <div className="w-11 h-11 rounded-full shrink-0 overflow-hidden bg-violet-100 flex items-center justify-center ring-2 ring-transparent group-hover:ring-violet-300 transition-all">
+            {imovel.perfil.foto_url ? (
+              <img
+                src={imovel.perfil.foto_url}
+                alt={imovel.perfil.nome ?? 'Anunciante'}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <span className="text-violet-700 font-bold text-lg">
+                {imovel.perfil.nome?.charAt(0).toUpperCase() ?? 'A'}
+              </span>
+            )}
           </div>
-          <div className="min-w-0">
-            <p className="font-semibold text-gray-900 text-sm truncate">
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold text-gray-900 text-sm truncate group-hover:text-violet-700 transition-colors">
               {imovel.perfil.nome ?? 'Anunciante'}
             </p>
             <p className="text-xs text-gray-400">
               {tipoAnunciante[imovel.perfil.tipo] ?? 'Anunciante'}
             </p>
           </div>
-        </div>
+          <span className="text-xs text-violet-500 group-hover:text-violet-700 font-medium transition-colors shrink-0">
+            Ver →
+          </span>
+        </Link>
       )}
 
       <p className="text-[11px] text-gray-400 text-center mt-4 leading-tight">

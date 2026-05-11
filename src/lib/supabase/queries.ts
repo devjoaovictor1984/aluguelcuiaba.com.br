@@ -125,3 +125,23 @@ export async function getMeusImoveis(userId: string) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
 }
+
+export async function getPerfilPublico(userId: string) {
+  const supabase = await createClient()
+  return supabase
+    .from('perfis')
+    .select('id, nome, foto_url, tipo, creci, created_at')
+    .eq('id', userId)
+    .single()
+}
+
+export async function getImoveisDoAnunciante(userId: string) {
+  const supabase = await createClient()
+  return supabase
+    .from('imoveis')
+    .select(`*, bairro:bairros(*), fotos(*), perfil:perfis(id, nome, foto_url, tipo)`)
+    .eq('user_id', userId)
+    .eq('status', 'ativo')
+    .order('destaque', { ascending: false })
+    .order('created_at', { ascending: false })
+}
