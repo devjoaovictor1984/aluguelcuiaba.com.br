@@ -7,10 +7,23 @@ export async function POST(request: NextRequest) {
     if (!imovelId || typeof imovelId !== 'string') {
       return NextResponse.json({ ok: false }, { status: 400 })
     }
+
     const supabase = createAdminClient()
-    await supabase.rpc('increment_imovel_views', { imovel_id: imovelId })
+
+    const { data } = await supabase
+      .from('imoveis')
+      .select('visualizacoes')
+      .eq('id', imovelId)
+      .single()
+
+    await supabase
+      .from('imoveis')
+      .update({ visualizacoes: (data?.visualizacoes ?? 0) + 1 })
+      .eq('id', imovelId)
+
     return NextResponse.json({ ok: true })
-  } catch {
+  } catch (err) {
+    console.error('[views]', err)
     return NextResponse.json({ ok: false }, { status: 500 })
   }
 }
