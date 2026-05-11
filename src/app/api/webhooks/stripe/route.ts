@@ -3,12 +3,21 @@ import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 
-// Compatibilidade com Stripe SDK v22 — current_period_end está no objeto mas
-// o tipo Response<Subscription> não o expõe diretamente nos type definitions.
+// Na API 2026-04-22.dahlia o campo current_period_end pode não existir diretamente.
+// Usamos fallback de 30 dias quando o valor não estiver disponível.
 async function getSubscriptionExpiry(subscriptionId: string): Promise<string> {
-  const sub = await stripe.subscriptions.retrieve(subscriptionId)
-  const periodEnd = (sub as unknown as { current_period_end: number }).current_period_end
-  return new Date(periodEnd * 1000).toISOString()
+  try {
+    const sub = await stripe.subscriptions.retrieve(subscriptionId)
+    const periodEnd = (sub as unknown as { current_period_end?: number }).current_period_end
+    if (periodEnd && Number.isFinite(periodEnd)) {
+      return new Date(periodEnd * 1000).toISOString()
+    }
+  } catch {
+    // ignora e usa fallback
+  }
+  const expiry = new Date()
+  expiry.setDate(expiry.getDate() + 30)
+  return expiry.toISOString()
 }
 
 export async function POST(request: NextRequest) {
