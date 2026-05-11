@@ -27,9 +27,9 @@ export async function Navbar() {
           <Image
             src={logoUrl}
             alt="AluguelCuiabá"
-            width={200}
-            height={28}
-            className="h-6 w-auto max-w-[110px] sm:h-7 sm:max-w-none"
+            width={240}
+            height={40}
+            className="h-10 w-auto max-w-[200px] sm:h-8 sm:max-w-[220px]"
             priority
             unoptimized={logoUrl.startsWith('http')}
           />

@@ -14,17 +14,22 @@ export async function generateMetadata(): Promise<Metadata> {
       .select('chave, valor')
       .in('chave', ['favicon_url', 'home_seo_titulo', 'home_seo_descricao'])
     const cfg = Object.fromEntries((data ?? []).map(c => [c.chave, c.valor ?? '']))
-    if (cfg.favicon_url) faviconUrl = cfg.favicon_url
+    // Remove cache-buster (?t=...) that the upload component adds — browsers reject it on favicons
+    const rawFavicon = (cfg.favicon_url || '').split('?')[0]
+    if (rawFavicon) faviconUrl = rawFavicon
     return {
       ...BASE_METADATA,
       title: cfg.home_seo_titulo
         ? { template: `%s | ${cfg.home_seo_titulo.split('—')[0].trim() || 'AluguelCuiabá'}`, default: cfg.home_seo_titulo }
         : BASE_METADATA.title,
       description: cfg.home_seo_descricao || BASE_METADATA.description,
-      icons: { icon: faviconUrl, shortcut: faviconUrl },
+      icons: {
+        icon: [{ url: '/api/favicon' }],
+        shortcut: '/api/favicon',
+      },
     }
   } catch {
-    return { ...BASE_METADATA, icons: { icon: faviconUrl, shortcut: faviconUrl } }
+    return { ...BASE_METADATA, icons: { icon: '/favicon.ico', shortcut: '/favicon.ico' } }
   }
 }
 
