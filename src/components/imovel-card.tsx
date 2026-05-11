@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, BedDouble, Bath, Car } from 'lucide-react'
-import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp } from '@/lib/utils'
+import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, tempoRelativo } from '@/lib/utils'
 import type { Imovel } from '@/types'
 
 interface Props {
@@ -81,7 +81,9 @@ export function ImovelCard({ imovel }: Props) {
           {imovel.area_m2 && <span>{imovel.area_m2}m²</span>}
         </div>
 
-        <div className="hidden sm:flex gap-2 mt-3">
+        <p className="text-[10px] text-gray-300 mt-1.5">{tempoRelativo(imovel.created_at)}</p>
+
+        <div className="hidden sm:flex gap-2 mt-2">
           <a
             href={linkWpp}
             target="_blank"
