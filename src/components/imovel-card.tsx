@@ -2,6 +2,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, BedDouble, Bath, Car } from 'lucide-react'
 import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, tempoRelativo, buildImovelUrl } from '@/lib/utils'
+import { BotaoFavorito } from '@/components/botao-favorito'
 import type { Imovel } from '@/types'
 
 interface Props {
@@ -17,29 +18,32 @@ export function ImovelCard({ imovel }: Props) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group">
-      <Link href={buildImovelUrl(imovel)} className="block relative h-32 sm:h-48 bg-gray-100 overflow-hidden">
-        {fotoUrl ? (
-          <Image
-            src={fotoUrl}
-            alt={imovel.titulo}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-            sizes="(max-width: 640px) 50vw, 50vw"
-          />
-        ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-gray-300">
-            <span className="text-sm">Sem foto</span>
-          </div>
-        )}
+      <div className="relative h-32 sm:h-48 bg-gray-100">
+        <Link href={buildImovelUrl(imovel)} className="absolute inset-0 overflow-hidden block">
+          {fotoUrl ? (
+            <Image
+              src={fotoUrl}
+              alt={imovel.titulo}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+              sizes="(max-width: 640px) 50vw, 50vw"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center text-gray-300">
+              <span className="text-sm">Sem foto</span>
+            </div>
+          )}
+        </Link>
         {imovel.destaque && (
-          <span className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full">
+          <span className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full z-10">
             Destaque
           </span>
         )}
-        <span className="absolute top-2 right-2 bg-white/90 text-gray-700 text-xs px-2 py-0.5 rounded-full capitalize font-medium">
+        <span className="absolute top-2 right-2 bg-white/90 text-gray-700 text-xs px-2 py-0.5 rounded-full capitalize font-medium z-10">
           {imovel.tipo}
         </span>
-      </Link>
+        <BotaoFavorito imovelId={imovel.id} />
+      </div>
 
       <div className="p-2.5 sm:p-3">
         <p className="font-bold text-orange-500 text-base sm:text-lg leading-none">

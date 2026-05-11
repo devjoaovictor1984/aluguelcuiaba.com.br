@@ -1,6 +1,6 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { Plus, User } from 'lucide-react'
+import { Plus, User, Heart } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 async function getLogoUrl(): Promise<string> {
@@ -48,6 +48,9 @@ export async function Navbar() {
           >
             <Plus size={15} />
             Anunciar
+          </Link>
+          <Link href="/favoritos" className="p-1.5 text-gray-400 hover:text-red-500 transition-colors" aria-label="Favoritos">
+            <Heart size={18} />
           </Link>
           <Link href="/painel" className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors">
             <User size={18} />
