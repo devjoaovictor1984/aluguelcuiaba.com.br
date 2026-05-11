@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { RefreshCw, CheckCircle2, Pause, RotateCcw, Pencil } from 'lucide-react'
+import { RefreshCw, CheckCircle2, Pause, RotateCcw, Pencil, Eye } from 'lucide-react'
 import { formatarPreco } from '@/lib/utils'
 import { renovarAnuncio, mudarStatusImovel } from './actions'
 
@@ -12,6 +12,7 @@ interface CardImovel {
   preco: number
   status: string
   expira_em: string
+  visualizacoes: number
   fotos?: Array<{ url: string }>
   bairro?: { nome: string } | null
 }
@@ -79,6 +80,12 @@ export function PainelImovelCard({ imovel }: { imovel: CardImovel }) {
             <Pencil size={10} /> Editar
           </Link>
         </div>
+      </div>
+
+      {/* ── Stats ── */}
+      <div className="px-4 py-2 border-t border-gray-50 flex items-center gap-1 text-xs text-gray-400">
+        <Eye size={11} />
+        <span>{imovel.visualizacoes.toLocaleString('pt-BR')} visualização{imovel.visualizacoes !== 1 ? 'ões' : ''}</span>
       </div>
 
       {/* ── Ações ── */}

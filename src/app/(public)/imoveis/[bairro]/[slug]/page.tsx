@@ -10,10 +10,11 @@ import { getImovelPorId, getImoveisSimilares } from '@/lib/supabase/queries'
 import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl } from '@/lib/utils'
 import {
   MapPin, BedDouble, Bath, Car, Maximize2,
-  PawPrint, Sofa, ChevronRight, CalendarClock,
+  PawPrint, Sofa, ChevronRight, CalendarClock, Eye,
 } from 'lucide-react'
 import type { Imovel } from '@/types'
 import { AvisarAlugado } from '@/components/avisar-alugado'
+import { RegistrarView } from '@/components/registrar-view'
 
 interface Props {
   params: Promise<{ bairro: string; slug: string }>
@@ -151,6 +152,13 @@ export default async function ImovelPage({ params }: Props) {
                 {[imovel.bairro?.nome, imovel.condominio?.nome, imovel.endereco_resumido]
                   .filter(Boolean).join(' · ')}
               </a>
+
+              {imovel.visualizacoes > 0 && (
+                <p className="flex items-center gap-1 text-xs text-gray-400 mt-1.5">
+                  <Eye size={12} />
+                  {imovel.visualizacoes.toLocaleString('pt-BR')} visualização{imovel.visualizacoes !== 1 ? 'ões' : ''}
+                </p>
+              )}
             </header>
 
             <div className="flex flex-wrap gap-2 mt-5">
@@ -317,6 +325,7 @@ export default async function ImovelPage({ params }: Props) {
         </div>
       </div>
 
+      <RegistrarView imovelId={imovel.id} />
       <BarraAcoesImovel imovel={imovel as Imovel} />
 
       <Footer />
