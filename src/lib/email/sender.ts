@@ -1,6 +1,4 @@
 import nodemailer from 'nodemailer'
-import { renderToStaticMarkup } from 'react-dom/server'
-import type { ReactElement } from 'react'
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST ?? 'smtp.hostinger.com',
@@ -15,14 +13,13 @@ const transporter = nodemailer.createTransport({
 export async function enviarEmail({
   to,
   subject,
-  element,
+  html,
 }: {
   to: string
   subject: string
-  element: ReactElement
+  html: string
 }): Promise<{ error?: string }> {
   try {
-    const html = renderToStaticMarkup(element)
     await transporter.sendMail({
       from: `${process.env.NEXT_PUBLIC_APP_NAME ?? 'AluguelCuiabá'} <${process.env.SMTP_USER}>`,
       to,

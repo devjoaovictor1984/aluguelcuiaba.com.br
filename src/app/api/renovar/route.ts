@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { DIAS_AVISO_EXPIRACAO } from '@/lib/constants'
-import { EmailAvisoVencimento } from '@/lib/email/renovacao'
+import { emailAvisoVencimentoHtml } from '@/lib/email/renovacao'
 import { enviarEmail } from '@/lib/email/sender'
 
 // Vercel cron jobs e chamadas manuais passam Authorization: Bearer {CRON_SECRET}
@@ -58,7 +58,7 @@ async function executar() {
     const { error: errEmail } = await enviarEmail({
       to: email,
       subject: `Seu anúncio vence em ${dias} dia${dias !== 1 ? 's' : ''} — renove agora`,
-      element: EmailAvisoVencimento({ imovel: { id: imovel.id, titulo: imovel.titulo, dias } }),
+      html: emailAvisoVencimentoHtml({ id: imovel.id, titulo: imovel.titulo, dias }),
     })
 
     if (errEmail) {
