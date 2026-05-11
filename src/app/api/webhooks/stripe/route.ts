@@ -3,6 +3,14 @@ import type Stripe from 'stripe'
 import { stripe } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
 
+// Compatibilidade com Stripe SDK v22 — current_period_end está no objeto mas
+// o tipo Response<Subscription> não o expõe diretamente nos type definitions.
+async function getSubscriptionExpiry(subscriptionId: string): Promise<string> {
+  const sub = await stripe.subscriptions.retrieve(subscriptionId)
+  const periodEnd = (sub as unknown as { current_period_end: number }).current_period_end
+  return new Date(periodEnd * 1000).toISOString()
+}
+
 export async function POST(request: NextRequest) {
   const body = await request.text()
   const sig = request.headers.get('stripe-signature')
@@ -28,8 +36,7 @@ export async function POST(request: NextRequest) {
 
     if (!userId || !plano) return NextResponse.json({ ok: true })
 
-    const subscription = await stripe.subscriptions.retrieve(session.subscription as string)
-    const expiraEm = new Date(subscription.current_period_end * 1000).toISOString()
+    const expiraEm = await getSubscriptionExpiry(session.subscription as string)
 
     await admin
       .from('perfis')
@@ -48,8 +55,7 @@ export async function POST(request: NextRequest) {
     const subscriptionId = invoice.subscription as string
     if (!subscriptionId) return NextResponse.json({ ok: true })
 
-    const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-    const expiraEm = new Date(subscription.current_period_end * 1000).toISOString()
+    const expiraEm = await getSubscriptionExpiry(subscriptionId)
 
     const { data: perfil } = await admin
       .from('perfis')
