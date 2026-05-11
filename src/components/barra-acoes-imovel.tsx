@@ -39,7 +39,7 @@ export function BarraAcoesImovel({ imovel }: { imovel: Imovel }) {
   const compartilharWhatsApp = () => {
     const msg = [
       `*${imovel.titulo}*`,
-      `\u{1F4CD} ${imovel.bairro?.nome ?? 'Cuiabá'}, MT`,
+      `\u{1F4CD} ${imovel.bairro?.nome ?? 'Cuiabá'}${imovel.bairro?.nome ? ', Cuiabá' : ''}`,
       `\u{1F4B0} ${formatarPreco(imovel.preco)}/mês`,
       partes.length > 0 ? `\u{1F3E0} ${partes.join(' · ')}` : '',
       '',

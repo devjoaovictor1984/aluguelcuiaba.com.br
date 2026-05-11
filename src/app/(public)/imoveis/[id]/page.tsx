@@ -85,7 +85,7 @@ export default async function ImovelPage({ params }: Props) {
   )
   const msgCompartilhar = [
     `*${imovel.titulo}*`,
-    `\u{1F4CD} ${imovel.bairro?.nome ?? 'Cuiabá'}, MT`,
+    `\u{1F4CD} ${imovel.bairro?.nome ?? 'Cuiabá'}${imovel.bairro?.nome ? ', Cuiabá' : ''}`,
     `\u{1F4B0} ${formatarPreco(imovel.preco)}/mês`,
     partesDetalhes.length > 0 ? `\u{1F3E0} ${partesDetalhes.join(' · ')}` : '',
     '',

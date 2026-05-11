@@ -38,7 +38,7 @@ export function gerarMensagemWhatsApp(
     'Olá! Vi o imóvel abaixo no AluguelCuiabá e tenho interesse:',
     `*${titulo}*`,
   ]
-  if (bairro) linhas.push(`\u{1F4CD} ${bairro}, MT`)
+  if (bairro) linhas.push(`\u{1F4CD} ${bairro}, Cuiabá`)
   if (opts?.preco) linhas.push(`\u{1F4B0} ${formatarPreco(opts.preco)}/mês`)
   if (opts?.partes?.length) linhas.push(`\u{1F3E0} ${opts.partes.join(' · ')}`)
   if (opts?.link) { linhas.push(''); linhas.push(opts.link) }
