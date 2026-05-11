@@ -10,6 +10,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/favicon.ico',
+        destination: '/api/favicon',
+        permanent: false,
+      },
+    ]
+  },
   async headers() {
     return [
       {

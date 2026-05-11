@@ -7,7 +7,7 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export async function generateMetadata(): Promise<Metadata> {
-  let faviconUrl = '/favicon.ico'
+  let faviconUrl = '/api/favicon'
   try {
     const supabase = createAdminClient()
     const { data } = await supabase
@@ -30,7 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
       },
     }
   } catch {
-    return { ...BASE_METADATA, icons: { icon: '/favicon.ico', shortcut: '/favicon.ico' } }
+    return { ...BASE_METADATA, icons: { icon: '/api/favicon', shortcut: '/api/favicon' } }
   }
 }
 
