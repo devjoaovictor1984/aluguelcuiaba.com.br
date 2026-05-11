@@ -126,6 +126,16 @@ export async function getMeusImoveis(userId: string) {
     .order('created_at', { ascending: false })
 }
 
+export async function getBannersSidebar() {
+  const supabase = await createClient()
+  return supabase
+    .from('banners_sidebar')
+    .select('id, imagem_url, link_url, ordem')
+    .eq('ativo', true)
+    .order('ordem')
+    .limit(10)
+}
+
 export async function getPerfilPublico(userId: string) {
   const supabase = await createClient()
   return supabase

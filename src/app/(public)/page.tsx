@@ -4,7 +4,8 @@ import { Footer } from '@/components/footer'
 import { ImoveisLista } from '@/components/imoveis-lista'
 import { FiltrosSidebar } from '@/components/filtros-sidebar'
 import { FiltrosMobileDrawer } from '@/components/filtros-mobile'
-import { getBairros, getImoveis } from '@/lib/supabase/queries'
+import { BannerSidebar } from '@/components/banner-sidebar'
+import { getBairros, getImoveis, getBannersSidebar } from '@/lib/supabase/queries'
 import { SlidersHorizontal, MapPin } from 'lucide-react'
 import type { FiltrosBusca, Imovel, TipoImovel, TipoUsuario, OrdenarPor } from '@/types'
 
@@ -28,9 +29,10 @@ export default async function Home({ searchParams }: Props) {
     ordenar: p.ordenar as OrdenarPor | undefined,
   }
 
-  const [{ data: imoveis, count }, { data: bairros }] = await Promise.all([
+  const [{ data: imoveis, count }, { data: bairros }, { data: banners }] = await Promise.all([
     getImoveis(filtros, 1, 24),
     getBairros(),
+    getBannersSidebar(),
   ])
 
   const totalStr = count != null
@@ -77,10 +79,13 @@ export default async function Home({ searchParams }: Props) {
         <div className="flex gap-6 items-start">
 
           {/* Sidebar — só desktop */}
-          <aside className="hidden lg:block w-[252px] shrink-0">
+          <aside className="hidden lg:block w-[252px] shrink-0 space-y-4">
             <Suspense fallback={<SidebarSkeleton />}>
               <FiltrosSidebar />
             </Suspense>
+            {banners && banners.length > 0 && (
+              <BannerSidebar banners={banners} />
+            )}
           </aside>
 
           {/* Conteúdo */}
