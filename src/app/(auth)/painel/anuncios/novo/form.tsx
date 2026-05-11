@@ -372,7 +372,8 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
 
       if (imovelError || !imovel) throw new Error(imovelError?.message ?? 'Erro ao criar anúncio')
 
-      const slug = slugify(titulo.trim()) + '-' + imovel.id.slice(0, 8)
+      const bairroNome = bairros.find(b => b.id === bairroId)?.nome ?? ''
+      const slug = slugify(`${titulo.trim()} ${bairroNome} cuiaba mt`) + '-' + imovel.id.slice(0, 8)
       await supabase.from('imoveis').update({ slug }).eq('id', imovel.id)
 
       if (fotos.length > 0) {

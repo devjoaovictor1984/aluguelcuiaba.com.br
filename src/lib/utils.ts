@@ -58,6 +58,16 @@ export function diasParaExpirar(data: string): number {
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
 }
 
+export function buildImovelUrl(imovel: {
+  id: string
+  slug?: string | null
+  bairro?: { slug: string } | null
+}): string {
+  const imovelSlug = imovel.slug ?? imovel.id
+  if (imovel.bairro?.slug) return `/imoveis/${imovel.bairro.slug}/${imovelSlug}`
+  return `/imoveis/${imovelSlug}`
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

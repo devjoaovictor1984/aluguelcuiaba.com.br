@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, BedDouble, Bath, Car } from 'lucide-react'
-import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, tempoRelativo } from '@/lib/utils'
+import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, tempoRelativo, buildImovelUrl } from '@/lib/utils'
 import type { Imovel } from '@/types'
 
 interface Props {
@@ -17,7 +17,7 @@ export function ImovelCard({ imovel }: Props) {
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group">
-      <Link href={`/imoveis/${imovel.slug ?? imovel.id}`} className="block relative h-32 sm:h-48 bg-gray-100 overflow-hidden">
+      <Link href={buildImovelUrl(imovel)} className="block relative h-32 sm:h-48 bg-gray-100 overflow-hidden">
         {fotoUrl ? (
           <Image
             src={fotoUrl}
@@ -48,7 +48,7 @@ export function ImovelCard({ imovel }: Props) {
         </p>
 
         <Link
-          href={`/imoveis/${imovel.slug ?? imovel.id}`}
+          href={buildImovelUrl(imovel)}
           className="block font-medium text-gray-900 text-xs sm:text-sm mt-1 sm:mt-1.5 hover:text-violet-700 line-clamp-2 sm:line-clamp-1 transition-colors"
         >
           {imovel.titulo}
@@ -93,7 +93,7 @@ export function ImovelCard({ imovel }: Props) {
             WhatsApp
           </a>
           <Link
-            href={`/imoveis/${imovel.slug ?? imovel.id}`}
+            href={buildImovelUrl(imovel)}
             className="px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
           >
             Ver
