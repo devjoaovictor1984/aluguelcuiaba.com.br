@@ -69,6 +69,13 @@ export default function CadastrarPage() {
         nome: nome.trim(),
         consentimento_lgpd_em: new Date().toISOString(),
       }, { onConflict: 'id' })
+
+      // Dispara e-mail de boas-vindas (sem aguardar — não bloqueia o fluxo)
+      fetch('/api/boas-vindas', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nome.trim(), email: email.trim().toLowerCase() }),
+      }).catch(() => {})
     }
 
     router.push('/painel/perfil?novo=1')

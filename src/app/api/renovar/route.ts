@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { DIAS_AVISO_EXPIRACAO } from '@/lib/constants'
-import { emailAvisoVencimentoHtml } from '@/lib/email/renovacao'
+import { getTemplate, renderTemplate } from '@/lib/email/templates'
 import { enviarEmail } from '@/lib/email/sender'
 
 // Vercel cron jobs e chamadas manuais passam Authorization: Bearer {CRON_SECRET}
@@ -41,6 +41,8 @@ async function executar() {
   // 3. Enviar e-mail para cada dono
   const idsEnviados: string[] = []
   const erros: string[] = []
+  const template = await getTemplate('aviso_vencimento')
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
 
   for (const imovel of imoveis) {
     const { data: userData, error: errUser } = await admin.auth.admin.getUserById(imovel.user_id)
@@ -55,10 +57,12 @@ async function executar() {
       (new Date(imovel.expira_em).getTime() - agora.getTime()) / 86_400_000
     )
 
+    const vars = { titulo: imovel.titulo, dias: String(dias), painel_url: `${appUrl}/painel`, nome: email }
+
     const { error: errEmail } = await enviarEmail({
       to: email,
-      subject: `Seu anúncio vence em ${dias} dia${dias !== 1 ? 's' : ''} — renove agora`,
-      html: emailAvisoVencimentoHtml({ id: imovel.id, titulo: imovel.titulo, dias }),
+      subject: renderTemplate(template.assunto, vars),
+      html: renderTemplate(template.corpo, vars),
     })
 
     if (errEmail) {
