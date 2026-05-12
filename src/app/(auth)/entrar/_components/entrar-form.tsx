@@ -100,7 +100,7 @@ function EntrarFormInner({ logoUrl }: Props) {
     <div className="w-full max-w-sm">
       <div className="flex justify-center mb-8">
         <Link href="/">
-          <Image src={logoUrl} alt="AluguelCuiabá" width={180} height={48} className="h-10 w-auto object-contain" priority unoptimized />
+          <Image src={logoUrl} alt="AluguelCuiabá" width={360} height={96} className="h-20 w-auto object-contain" priority unoptimized />
         </Link>
       </div>
 
