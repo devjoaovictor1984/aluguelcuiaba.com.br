@@ -5,6 +5,7 @@ import { getMeusImoveis, getPerfil } from '@/lib/supabase/queries'
 import { Plus, Home, LogOut, CheckCircle2, ShieldCheck, AlertCircle, Camera, UserCircle2, ExternalLink } from 'lucide-react'
 import { PLANOS } from '@/lib/constants'
 import { PainelImovelCard } from './imovel-card'
+import { PlanoActions } from './_components/plano-actions'
 
 async function logout() {
   'use server'
@@ -189,11 +190,12 @@ export default async function PainelPage({
                 {lista.length}/{limiteImoveis === 999 ? '∞' : limiteImoveis} anúncio{limiteImoveis !== 1 ? 's' : ''}
               </p>
             </div>
-            {plano === 'free' && (
-              <Link href="/planos" className="text-xs font-semibold text-violet-700 hover:text-violet-800 border border-violet-200 hover:border-violet-400 px-3 py-1.5 rounded-lg transition-colors shrink-0">
-                Fazer upgrade
-              </Link>
-            )}
+            {plano === 'free'
+              ? <Link href="/planos" className="text-xs font-semibold text-violet-700 hover:text-violet-800 border border-violet-200 hover:border-violet-400 px-3 py-1.5 rounded-lg transition-colors shrink-0">
+                  Fazer upgrade
+                </Link>
+              : <PlanoActions plano={plano} />
+            }
           </>
         )}
       </div>
