@@ -4,6 +4,7 @@ import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { ChevronDown, X, SlidersHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import type { Bairro } from '@/types'
 
 const TIPOS = [
   { value: '', label: 'Todos' },
@@ -106,9 +107,10 @@ function InputRange({
 interface FiltrosSidebarProps {
   inDrawer?: boolean
   onClose?: () => void
+  bairros?: Bairro[]
 }
 
-export function FiltrosSidebar({ inDrawer = false, onClose }: FiltrosSidebarProps = {}) {
+export function FiltrosSidebar({ inDrawer = false, onClose, bairros = [] }: FiltrosSidebarProps = {}) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -141,6 +143,7 @@ export function FiltrosSidebar({ inDrawer = false, onClose }: FiltrosSidebarProp
   const quartos = searchParams.get('quartos') ?? ''
   const anunciante = searchParams.get('anunciante') ?? ''
   const ordenar = searchParams.get('ordenar') ?? ''
+  const bairro = searchParams.get('bairro') ?? ''
   const temFiltros = searchParams.size > 0
 
   return (
@@ -179,6 +182,20 @@ export function FiltrosSidebar({ inDrawer = false, onClose }: FiltrosSidebarProp
           <option value="recentes">Mais recentes</option>
           <option value="menor_preco">Menor preço</option>
           <option value="maior_preco">Maior preço</option>
+        </select>
+      </Secao>
+
+      {/* Bairro */}
+      <Secao titulo="Bairro">
+        <select
+          value={bairro}
+          onChange={e => atualizar({ bairro: e.target.value })}
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-violet-200 bg-white"
+        >
+          <option value="">Todos os bairros</option>
+          {bairros.map(b => (
+            <option key={b.id} value={b.slug}>{b.nome}</option>
+          ))}
         </select>
       </Secao>
 

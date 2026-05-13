@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { SlidersHorizontal, X } from 'lucide-react'
 import { FiltrosSidebar } from './filtros-sidebar'
+import type { Bairro } from '@/types'
 
-export function FiltrosMobileDrawer({ count }: { count?: number }) {
+export function FiltrosMobileDrawer({ count, bairros = [] }: { count?: number; bairros?: Bairro[] }) {
   const [open, setOpen] = useState(false)
 
   return (
@@ -43,7 +44,7 @@ export function FiltrosMobileDrawer({ count }: { count?: number }) {
 
             {/* Sidebar content (scrollable) */}
             <div className="overflow-y-auto flex-1 bg-white">
-              <FiltrosSidebar inDrawer onClose={() => setOpen(false)} />
+              <FiltrosSidebar inDrawer onClose={() => setOpen(false)} bairros={bairros} />
             </div>
           </div>
         </>

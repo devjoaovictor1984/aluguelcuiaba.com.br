@@ -26,6 +26,7 @@ export default async function Home({ searchParams }: Props) {
     iptu_min: p.iptu_min ? Number(p.iptu_min) : undefined,
     iptu_max: p.iptu_max ? Number(p.iptu_max) : undefined,
     tipo_anunciante: p.anunciante as TipoUsuario | undefined,
+    bairro_slug: p.bairro,
     ordenar: p.ordenar as OrdenarPor | undefined,
   }
 
@@ -81,7 +82,7 @@ export default async function Home({ searchParams }: Props) {
           {/* Sidebar — só desktop */}
           <aside className="hidden lg:block w-[252px] shrink-0 space-y-4">
             <Suspense fallback={<SidebarSkeleton />}>
-              <FiltrosSidebar />
+              <FiltrosSidebar bairros={bairros ?? []} />
             </Suspense>
             {banners && banners.length > 0 && (
               <BannerSidebar banners={banners} />
@@ -95,7 +96,7 @@ export default async function Home({ searchParams }: Props) {
               <p className="text-sm text-gray-500 shrink-0">
                 <span className="font-semibold text-gray-800">{count ?? 0}</span> imóveis
               </p>
-              <FiltrosMobileDrawer count={count ?? 0} />
+              <FiltrosMobileDrawer count={count ?? 0} bairros={bairros ?? []} />
             </div>
 
             {imoveis && imoveis.length > 0 ? (
