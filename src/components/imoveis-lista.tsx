@@ -45,11 +45,15 @@ export function ImoveisLista({ initialItems, total, filtros }: Props) {
     try {
       const res = await fetch(`/api/imoveis?${params}`)
       const json = await res.json()
-      if (json.data) {
+      if (Array.isArray(json.data) && json.data.length > 0) {
         setItems(prev => [...prev, ...json.data])
         setPage(nextPage)
+      } else {
+        console.error('[carregarMais] resposta vazia', json)
       }
-    } catch {}
+    } catch (err) {
+      console.error('[carregarMais]', err)
+    }
     setLoading(false)
   }
 

@@ -101,6 +101,7 @@ export default async function Home({ searchParams }: Props) {
 
             {imoveis && imoveis.length > 0 ? (
               <ImoveisLista
+                key={JSON.stringify(filtros)}
                 initialItems={imoveis as Imovel[]}
                 total={count ?? imoveis.length}
                 filtros={filtros}
