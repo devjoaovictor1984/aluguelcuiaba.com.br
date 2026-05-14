@@ -38,6 +38,12 @@ export async function getImoveis(filtros: FiltrosBusca = {}, pagina = 1, porPagi
   if (filtros.iptu_min) query = query.gte('iptu', filtros.iptu_min)
   if (filtros.iptu_max) query = query.lte('iptu', filtros.iptu_max)
 
+  // Texto livre — busca em título + descrição
+  if (filtros.q) {
+    const termo = `%${filtros.q.replace(/[%_]/g, '')}%`
+    query = query.or(`titulo.ilike.${termo},descricao.ilike.${termo}`)
+  }
+
   // Filtro por tipo de anunciante (usa inner join)
   if (filtros.tipo_anunciante) {
     query = query.eq('perfis.tipo', filtros.tipo_anunciante)
@@ -51,6 +57,49 @@ export async function getImoveis(filtros: FiltrosBusca = {}, pagina = 1, porPagi
       .eq('slug', filtros.bairro_slug)
       .single()
     if (bairro) query = query.eq('bairro_id', bairro.id)
+  }
+
+  // Filtro por bounding box do mapa (lat/lng) — Airbnb-style
+  if (filtros.bbox) {
+    const [minLng, minLat, maxLng, maxLat] = filtros.bbox
+    query = query
+      .gte('lat', minLat).lte('lat', maxLat)
+      .gte('lng', minLng).lte('lng', maxLng)
+  }
+
+  return query
+}
+
+// Versão leve só para o mapa: retorna apenas lat/lng/preco/título/slug
+// + foto principal. Limite alto para mostrar todos os pins.
+export async function getImoveisParaMapa(filtros: FiltrosBusca = {}) {
+  const supabase = await createClient()
+
+  let query = supabase
+    .from('imoveis')
+    .select('id, slug, titulo, preco, lat, lng, bairro:bairros(slug, nome), fotos(url, principal, ordem)')
+    .eq('status', 'ativo')
+    .not('lat', 'is', null)
+    .not('lng', 'is', null)
+    .limit(500)
+
+  if (filtros.tipo) query = query.eq('tipo', filtros.tipo)
+  if (filtros.preco_min) query = query.gte('preco', filtros.preco_min)
+  if (filtros.preco_max) query = query.lte('preco', filtros.preco_max)
+  if (filtros.quartos_min) query = query.gte('quartos', filtros.quartos_min)
+
+  if (filtros.bairro_slug) {
+    const { data: bairro } = await supabase
+      .from('bairros')
+      .select('id')
+      .eq('slug', filtros.bairro_slug)
+      .single()
+    if (bairro) query = query.eq('bairro_id', bairro.id)
+  }
+
+  if (filtros.q) {
+    const termo = `%${filtros.q.replace(/[%_]/g, '')}%`
+    query = query.or(`titulo.ilike.${termo},descricao.ilike.${termo}`)
   }
 
   return query

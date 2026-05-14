@@ -127,6 +127,10 @@ export interface FiltrosBusca {
   mobiliado?: boolean
   tipo_anunciante?: TipoUsuario
   ordenar?: OrdenarPor
+  /** [minLng, minLat, maxLng, maxLat] — bounding box do mapa */
+  bbox?: [number, number, number, number]
+  /** Texto livre para busca em título + descrição (ILIKE) */
+  q?: string
 }
 
 export interface PostBlog {
