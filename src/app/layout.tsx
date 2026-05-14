@@ -65,6 +65,9 @@ const BASE_METADATA: Metadata = {
     follow: true,
     googleBot: { index: true, follow: true },
   },
+  verification: {
+    google: 'a1zvtre4qIwBK_g4twD-LW4r17Rocn0r-ZDT7kPoZDA',
+  },
   manifest: '/manifest.json',
 }
 
