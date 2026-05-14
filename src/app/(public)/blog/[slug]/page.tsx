@@ -1,10 +1,57 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Calendar, Clock, ChevronLeft, Tag, TrendingUp } from 'lucide-react'
 import { getCategorias, categoriasMap } from '@/lib/blog/categorias'
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { slug } = await params
+  if (!slug) return {}
+
+  const supabase = createAdminClient()
+  const { data: post } = await supabase
+    .from('posts')
+    .select('titulo, slug, descricao, capa_url, created_at')
+    .eq('slug', slug)
+    .eq('publicado', true)
+    .single()
+
+  if (!post) return {}
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://aluguelcuiaba.com.br'
+  const url = `${appUrl}/blog/${post.slug}`
+  const titulo = post.titulo
+  const descricao = post.descricao ?? `Leia o artigo "${post.titulo}" no blog do AluguelCuiabá.`
+  // Remove cache-buster (?t=...) que o upload adiciona — alguns crawlers rejeitam
+  const imagem = post.capa_url
+    ? post.capa_url.split('?')[0]
+    : `${appUrl}/og-default.jpg`
+
+  return {
+    title: titulo,
+    description: descricao,
+    alternates: { canonical: url },
+    openGraph: {
+      type: 'article',
+      url,
+      title: titulo,
+      description: descricao,
+      siteName: 'AluguelCuiabá',
+      locale: 'pt_BR',
+      publishedTime: post.created_at,
+      images: [{ url: imagem, width: 1200, height: 630, alt: titulo }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: titulo,
+      description: descricao,
+      images: [imagem],
+    },
+  }
+}
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
