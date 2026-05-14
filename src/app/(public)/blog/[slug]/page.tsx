@@ -4,15 +4,7 @@ import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Calendar, Clock, ChevronLeft, Tag, TrendingUp } from 'lucide-react'
-
-const CAT: Record<string, { label: string; bg: string; text: string; gradient: string }> = {
-  geral:      { label: 'Geral',       bg: 'bg-violet-100', text: 'text-violet-700', gradient: 'from-violet-600 to-violet-900' },
-  dicas:      { label: 'Dicas',       bg: 'bg-blue-100',   text: 'text-blue-700',   gradient: 'from-blue-600 to-blue-900'     },
-  mercado:    { label: 'Mercado',     bg: 'bg-orange-100', text: 'text-orange-700', gradient: 'from-orange-500 to-orange-900' },
-  legal:      { label: 'Legal',       bg: 'bg-teal-100',   text: 'text-teal-700',   gradient: 'from-teal-600 to-teal-900'     },
-  bairros:    { label: 'Bairros',     bg: 'bg-green-100',  text: 'text-green-700',  gradient: 'from-green-600 to-green-900'   },
-  financeiro: { label: 'Financeiro',  bg: 'bg-yellow-100', text: 'text-yellow-700', gradient: 'from-yellow-500 to-yellow-800' },
-}
+import { getCategorias, categoriasMap } from '@/lib/blog/categorias'
 
 function formatDate(d: string) {
   return new Date(d).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -49,7 +41,9 @@ export default async function BlogPostPage({ params }: Props) {
   if (!post) notFound()
 
   const p = post as Post
-  const cat = CAT[p.categoria] ?? CAT.geral
+  const cats = await getCategorias()
+  const catMap = categoriasMap(cats)
+  const cat = catMap[p.categoria] ?? { label: p.categoria, bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-300', gradient: 'from-violet-600 to-violet-900' }
   const minLeitura = p.tempo_leitura ?? lerTempo(p.conteudo ?? '')
 
   // Related posts (same category, exclude current)
@@ -187,7 +181,7 @@ export default async function BlogPostPage({ params }: Props) {
                 </h2>
                 <div className="grid sm:grid-cols-2 gap-4">
                   {relacionados.map(rel => {
-                    const rc = CAT[rel.categoria] ?? CAT.geral
+                    const rc = catMap[rel.categoria] ?? cat
                     return (
                       <Link key={rel.id} href={`/blog/${rel.slug}`}
                         className="group flex gap-3 rounded-2xl border border-gray-100 hover:border-violet-200 hover:shadow-sm p-3 transition-all">
@@ -221,15 +215,18 @@ export default async function BlogPostPage({ params }: Props) {
                 <Tag size={14} className="text-violet-600" /> Categorias
               </h3>
               <div className="space-y-1.5">
-                {Object.entries(CAT).map(([val, cfg]) => (
-                  <Link key={val} href={`/blog?categoria=${val}`}
-                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-colors hover:bg-gray-50 ${
-                      p.categoria === val ? `${cfg.bg} ${cfg.text}` : 'text-gray-700'
-                    }`}>
-                    <span>{cfg.label}</span>
-                    {countCat[val] ? <span className="text-xs text-gray-400 font-normal">{countCat[val]}</span> : null}
-                  </Link>
-                ))}
+                {cats.map(c => {
+                  const cfg = catMap[c.id]
+                  return (
+                    <Link key={c.id} href={`/blog?categoria=${c.id}`}
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-colors hover:bg-gray-50 ${
+                        p.categoria === c.id ? `${cfg.bg} ${cfg.text}` : 'text-gray-700'
+                      }`}>
+                      <span>{cfg.label}</span>
+                      {countCat[c.id] ? <span className="text-xs text-gray-400 font-normal">{countCat[c.id]}</span> : null}
+                    </Link>
+                  )
+                })}
               </div>
             </div>
 

@@ -3,18 +3,10 @@ import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Calendar, Clock, ChevronRight, TrendingUp, Tag } from 'lucide-react'
+import { getCategorias, categoriasMap, type CategoriaStyle } from '@/lib/blog/categorias'
 
-const CAT: Record<string, { label: string; bg: string; text: string; border: string }> = {
-  geral:     { label: 'Geral',       bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-300' },
-  dicas:     { label: 'Dicas',       bg: 'bg-blue-100',   text: 'text-blue-700',   border: 'border-blue-300'   },
-  mercado:   { label: 'Mercado',     bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' },
-  legal:     { label: 'Legal',       bg: 'bg-teal-100',   text: 'text-teal-700',   border: 'border-teal-300'   },
-  bairros:   { label: 'Bairros',     bg: 'bg-green-100',  text: 'text-green-700',  border: 'border-green-300'  },
-  financeiro:{ label: 'Financeiro',  bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300' },
-}
-
-function CatBadge({ cat, size = 'sm' }: { cat: string; size?: 'sm' | 'xs' }) {
-  const c = CAT[cat] ?? CAT.geral
+function CatBadge({ cat, catMap, size = 'sm' }: { cat: string; catMap: Record<string, CategoriaStyle>; size?: 'sm' | 'xs' }) {
+  const c = catMap[cat] ?? { label: cat, bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-300', gradient: 'from-violet-600 to-violet-900' }
   return (
     <span className={`inline-flex items-center font-semibold rounded-full ${c.bg} ${c.text} ${size === 'xs' ? 'text-[10px] px-2 py-0.5' : 'text-xs px-2.5 py-1'}`}>
       {c.label}
@@ -37,16 +29,9 @@ interface Post {
   created_at: string; tempo_leitura: number | null
 }
 
-function GradientCover({ cat, className }: { cat: string; className?: string }) {
-  const gradients: Record<string, string> = {
-    geral: 'from-violet-600 to-violet-900',
-    dicas: 'from-blue-600 to-blue-900',
-    mercado: 'from-orange-500 to-orange-900',
-    legal: 'from-teal-600 to-teal-900',
-    bairros: 'from-green-600 to-green-900',
-    financeiro: 'from-yellow-500 to-yellow-800',
-  }
-  return <div className={`bg-gradient-to-br ${gradients[cat] ?? gradients.geral} ${className}`} />
+function GradientCover({ cat, catMap, className }: { cat: string; catMap: Record<string, CategoriaStyle>; className?: string }) {
+  const c = catMap[cat]
+  return <div className={`bg-gradient-to-br ${c?.gradient ?? 'from-violet-600 to-violet-900'} ${className}`} />
 }
 
 export default async function BlogPage({
@@ -56,6 +41,9 @@ export default async function BlogPage({
 }) {
   const { categoria } = await searchParams
   const supabase = createAdminClient()
+
+  const cats = await getCategorias()
+  const catMap = categoriasMap(cats)
 
   let query = supabase
     .from('posts')
@@ -96,7 +84,7 @@ export default async function BlogPage({
       <div className="sticky top-[57px] z-30 bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 overflow-x-auto scroll-hide">
           <div className="flex gap-0.5 py-2 w-max min-w-full">
-            {[{ value: '', label: 'Tudo' }, ...Object.entries(CAT).map(([v, c]) => ({ value: v, label: c.label }))].map(tab => (
+            {[{ value: '', label: 'Tudo' }, ...cats.map(c => ({ value: c.id, label: c.label }))].map(tab => (
               <Link
                 key={tab.value}
                 href={tab.value ? `/blog?categoria=${tab.value}` : '/blog'}
@@ -128,11 +116,11 @@ export default async function BlogPage({
                 <div className="relative rounded-3xl overflow-hidden aspect-[16/7] mb-4">
                   {destaque.capa_url
                     ? <img src={destaque.capa_url} alt={destaque.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                    : <GradientCover cat={destaque.categoria} className="w-full h-full" />
+                    : <GradientCover cat={destaque.categoria} catMap={catMap} className="w-full h-full" />
                   }
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                   <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <CatBadge cat={destaque.categoria} />
+                    <CatBadge cat={destaque.categoria} catMap={catMap} />
                     <h2 className="text-white text-xl sm:text-2xl font-extrabold mt-2 mb-2 leading-snug group-hover:underline underline-offset-2">
                       {destaque.titulo}
                     </h2>
@@ -161,7 +149,7 @@ export default async function BlogPage({
               {lista.length > 0 && (
                 <h2 className="font-bold text-gray-900 text-base flex items-center gap-2">
                   <TrendingUp size={16} className="text-violet-600" />
-                  {categoria ? CAT[categoria]?.label : 'Últimas notícias'}
+                  {categoria ? catMap[categoria]?.label ?? categoria : 'Últimas notícias'}
                 </h2>
               )}
 
@@ -170,11 +158,11 @@ export default async function BlogPage({
                   <div className="w-24 h-20 sm:w-32 sm:h-24 rounded-2xl overflow-hidden shrink-0 bg-gray-100">
                     {post.capa_url
                       ? <img src={post.capa_url} alt={post.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                      : <GradientCover cat={post.categoria} className="w-full h-full" />
+                      : <GradientCover cat={post.categoria} catMap={catMap} className="w-full h-full" />
                     }
                   </div>
                   <div className="flex-1 min-w-0 py-1">
-                    <CatBadge cat={post.categoria} size="xs" />
+                    <CatBadge cat={post.categoria} catMap={catMap} size="xs" />
                     <h3 className="font-bold text-gray-900 text-sm sm:text-base mt-1.5 leading-snug line-clamp-2 group-hover:text-violet-700 transition-colors">
                       {post.titulo}
                     </h3>
@@ -200,18 +188,21 @@ export default async function BlogPage({
                 <Tag size={14} className="text-violet-600" /> Categorias
               </h3>
               <div className="space-y-2">
-                {Object.entries(CAT).map(([val, cfg]) => (
-                  <Link
-                    key={val}
-                    href={`/blog?categoria=${val}`}
-                    className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-colors hover:bg-gray-50 ${
-                      categoria === val ? `${cfg.bg} ${cfg.text}` : 'text-gray-700'
-                    }`}
-                  >
-                    <span>{cfg.label}</span>
-                    {countCat[val] ? <span className="text-xs text-gray-400 font-normal">{countCat[val]}</span> : null}
-                  </Link>
-                ))}
+                {cats.map(cat => {
+                  const cfg = catMap[cat.id]
+                  return (
+                    <Link
+                      key={cat.id}
+                      href={`/blog?categoria=${cat.id}`}
+                      className={`flex items-center justify-between px-3 py-2 rounded-xl text-sm font-medium transition-colors hover:bg-gray-50 ${
+                        categoria === cat.id ? `${cfg.bg} ${cfg.text}` : 'text-gray-700'
+                      }`}
+                    >
+                      <span>{cfg.label}</span>
+                      {countCat[cat.id] ? <span className="text-xs text-gray-400 font-normal">{countCat[cat.id]}</span> : null}
+                    </Link>
+                  )
+                })}
               </div>
             </div>
 
