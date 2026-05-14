@@ -5,6 +5,7 @@ import { useState, useTransition } from 'react'
 import { ChevronDown, X, SlidersHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { Bairro } from '@/types'
+import { BairroAutocomplete } from './bairro-autocomplete'
 
 const TIPOS = [
   { value: '', label: 'Todos' },
@@ -186,16 +187,11 @@ export function FiltrosSidebar({ inDrawer = false, onClose, bairros = [] }: Filt
 
       {/* Bairro */}
       <Secao titulo="Bairro">
-        <select
+        <BairroAutocomplete
+          bairros={bairros}
           value={bairro}
-          onChange={e => atualizar({ bairro: e.target.value })}
-          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none focus:ring-2 focus:ring-violet-200 bg-white"
-        >
-          <option value="">Todos os bairros</option>
-          {bairros.map(b => (
-            <option key={b.id} value={b.slug}>{b.nome}</option>
-          ))}
-        </select>
+          onChange={slug => atualizar({ bairro: slug, bbox: '' })}
+        />
       </Secao>
 
       {/* Tipo do imóvel */}

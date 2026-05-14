@@ -59,6 +59,14 @@ export default async function Home({ searchParams }: Props) {
     getImoveisParaMapa(filtrosMapa),
   ])
 
+  // Centro focal do mapa: bairro selecionado (do filtro ou da busca)
+  const bairroSelecionado = filtros.bairro_slug
+    ? bairros.find(b => b.slug === filtros.bairro_slug)
+    : null
+  const focusCenter = bairroSelecionado?.lat != null && bairroSelecionado?.lng != null
+    ? { lat: bairroSelecionado.lat, lng: bairroSelecionado.lng, zoom: 15 }
+    : null
+
   const totalStr = count != null
     ? `${count} imóv${count === 1 ? 'el' : 'eis'} encontrado${count === 1 ? '' : 's'}`
     : 'Carregando...'
@@ -119,14 +127,18 @@ export default async function Home({ searchParams }: Props) {
           <div className="flex-1 min-w-0">
 
             {/* Mapa horizontal com os pins dos imóveis */}
-            {pinsMapa && pinsMapa.length > 0 && (
+            {((pinsMapa && pinsMapa.length > 0) || focusCenter) && (
               <div className="mb-6">
-                <MapaImoveisWrapper imoveis={pinsMapa as unknown as Parameters<typeof MapaImoveisWrapper>[0]['imoveis']} />
+                <MapaImoveisWrapper
+                  key={filtros.bairro_slug ?? 'todos'}
+                  imoveis={(pinsMapa ?? []) as unknown as Parameters<typeof MapaImoveisWrapper>[0]['imoveis']}
+                  focusCenter={focusCenter}
+                />
                 <div className="flex items-center justify-between mt-1.5 px-1 text-[11px] text-gray-400">
                   <span>Arraste e dê zoom no mapa para filtrar os imóveis pela área visível.</span>
-                  {count != null && pinsMapa.length < count && (
+                  {count != null && (pinsMapa?.length ?? 0) < count && (
                     <span className="text-amber-600">
-                      {count - pinsMapa.length} sem localização (só na lista)
+                      {count - (pinsMapa?.length ?? 0)} sem localização (só na lista)
                     </span>
                   )}
                 </div>

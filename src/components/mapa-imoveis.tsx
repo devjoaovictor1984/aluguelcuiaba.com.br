@@ -33,6 +33,8 @@ interface Props {
   imoveis: PinImovel[]
   height?: number | string
   onBoundsChange?: (bbox: [number, number, number, number]) => void
+  /** Centro forçado (ex: ao filtrar por bairro) */
+  focusCenter?: { lat: number; lng: number; zoom?: number } | null
 }
 
 function formatarPreco(v: number) {
@@ -97,28 +99,34 @@ function MapEventsHandler({ onBoundsChange }: { onBoundsChange?: (bbox: [number,
   return null
 }
 
-// Ajusta o zoom inicial para caber todos os pins
-function FitBounds({ imoveis }: { imoveis: PinImovel[] }) {
+// Ajusta o zoom: prioriza focusCenter (bairro selecionado), senão fitBounds nos pins
+function FitBounds({ imoveis, focusCenter }: { imoveis: PinImovel[]; focusCenter?: Props['focusCenter'] }) {
   const map = useMap()
   useEffect(() => {
+    if (focusCenter) {
+      map.flyTo([focusCenter.lat, focusCenter.lng], focusCenter.zoom ?? 15, { duration: 0.8 })
+      return
+    }
     if (!imoveis.length) return
     const points = imoveis.map(i => [i.lat, i.lng] as [number, number])
     const bounds = L.latLngBounds(points)
     map.fitBounds(bounds, { padding: [40, 40], maxZoom: 15 })
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [focusCenter?.lat, focusCenter?.lng, focusCenter?.zoom])
   return null
 }
 
-export default function MapaImoveis({ imoveis, height = 360, onBoundsChange }: Props) {
+export default function MapaImoveis({ imoveis, height = 360, onBoundsChange, focusCenter }: Props) {
   const validos = useMemo(
     () => imoveis.filter(i => Number.isFinite(i.lat) && Number.isFinite(i.lng)),
     [imoveis]
   )
 
-  const center: [number, number] = validos.length
-    ? [validos[0].lat, validos[0].lng]
-    : CUIABA
+  const center: [number, number] = focusCenter
+    ? [focusCenter.lat, focusCenter.lng]
+    : validos.length
+      ? [validos[0].lat, validos[0].lng]
+      : CUIABA
 
   return (
     <div style={{ height }} className="rounded-2xl overflow-hidden border border-gray-200 relative z-0">
@@ -133,7 +141,7 @@ export default function MapaImoveis({ imoveis, height = 360, onBoundsChange }: P
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <FitBounds imoveis={validos} />
+        <FitBounds imoveis={validos} focusCenter={focusCenter} />
         <MapEventsHandler onBoundsChange={onBoundsChange} />
 
         {validos.map(im => {

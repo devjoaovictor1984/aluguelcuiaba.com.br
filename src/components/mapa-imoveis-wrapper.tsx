@@ -21,9 +21,11 @@ interface Props {
   imoveis: PinImovel[]
   /** Se true, mover/zoom do mapa atualiza o filtro bbox na URL */
   filtraAoMover?: boolean
+  /** Centro forçado — usado quando um bairro é selecionado */
+  focusCenter?: { lat: number; lng: number; zoom?: number } | null
 }
 
-export function MapaImoveisWrapper({ imoveis, filtraAoMover = true }: Props) {
+export function MapaImoveisWrapper({ imoveis, filtraAoMover = true, focusCenter }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -37,7 +39,7 @@ export function MapaImoveisWrapper({ imoveis, filtraAoMover = true }: Props) {
     startTransition(() => router.push(`${pathname}?${params.toString()}`))
   }
 
-  if (!pinsAtuais.length) {
+  if (!pinsAtuais.length && !focusCenter) {
     return (
       <div className="h-[200px] rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center text-gray-400 text-sm">
         <MapPin size={24} className="mb-2 opacity-50" />
@@ -46,5 +48,11 @@ export function MapaImoveisWrapper({ imoveis, filtraAoMover = true }: Props) {
     )
   }
 
-  return <MapaImoveis imoveis={pinsAtuais} onBoundsChange={filtraAoMover ? handleBoundsChange : undefined} />
+  return (
+    <MapaImoveis
+      imoveis={pinsAtuais}
+      onBoundsChange={filtraAoMover ? handleBoundsChange : undefined}
+      focusCenter={focusCenter}
+    />
+  )
 }
