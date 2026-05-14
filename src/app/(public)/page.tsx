@@ -5,7 +5,10 @@ import { ImoveisLista } from '@/components/imoveis-lista'
 import { FiltrosSidebar } from '@/components/filtros-sidebar'
 import { FiltrosMobileDrawer } from '@/components/filtros-mobile'
 import { BannerSidebar } from '@/components/banner-sidebar'
-import { getBairros, getImoveis, getBannersSidebar } from '@/lib/supabase/queries'
+import { MapaImoveisWrapper } from '@/components/mapa-imoveis-wrapper'
+import { BuscaBar } from '@/components/busca-bar'
+import { getBairros, getImoveis, getBannersSidebar, getImoveisParaMapa } from '@/lib/supabase/queries'
+import { parseBusca } from '@/lib/parse-busca'
 import { SlidersHorizontal, MapPin } from 'lucide-react'
 import type { FiltrosBusca, Imovel, TipoImovel, TipoUsuario, OrdenarPor } from '@/types'
 
@@ -16,24 +19,44 @@ interface Props {
 export default async function Home({ searchParams }: Props) {
   const p = await searchParams
 
+  // bbox=minLng,minLat,maxLng,maxLat — vem do mapa ao mover/dar zoom
+  const bbox = p.bbox?.split(',').map(Number)
+  const bboxValido = bbox?.length === 4 && bbox.every(n => Number.isFinite(n))
+    ? bbox as [number, number, number, number]
+    : undefined
+
+  // Carrega bairros primeiro porque o parser precisa deles
+  const { data: bairrosData } = await getBairros()
+  const bairros = bairrosData ?? []
+
+  // Busca inteligente — parser extrai tipo/bairro/quartos da frase
+  const buscaInteligente = p.busca ? parseBusca(p.busca, bairros) : {}
+
   const filtros: FiltrosBusca = {
-    tipo: p.tipo as TipoImovel | undefined,
+    tipo: (p.tipo as TipoImovel | undefined) ?? buscaInteligente.tipo,
     preco_min: p.preco_min ? Number(p.preco_min) : undefined,
     preco_max: p.preco_max ? Number(p.preco_max) : undefined,
-    quartos_min: p.quartos ? Number(p.quartos) : undefined,
+    quartos_min: p.quartos ? Number(p.quartos) : buscaInteligente.quartos_min,
     taxa_condo_min: p.condo_min ? Number(p.condo_min) : undefined,
     taxa_condo_max: p.condo_max ? Number(p.condo_max) : undefined,
     iptu_min: p.iptu_min ? Number(p.iptu_min) : undefined,
     iptu_max: p.iptu_max ? Number(p.iptu_max) : undefined,
     tipo_anunciante: p.anunciante as TipoUsuario | undefined,
-    bairro_slug: p.bairro,
+    bairro_slug: p.bairro ?? buscaInteligente.bairro_slug,
     ordenar: p.ordenar as OrdenarPor | undefined,
+    bbox: bboxValido,
+    aceita_pets: buscaInteligente.aceita_pets,
+    mobiliado: buscaInteligente.mobiliado,
+    q: buscaInteligente.q,
   }
 
-  const [{ data: imoveis, count }, { data: bairros }, { data: banners }] = await Promise.all([
+  // Filtros que vão para o mapa (sem bbox — o mapa busca todos da região)
+  const filtrosMapa: FiltrosBusca = { ...filtros, bbox: undefined }
+
+  const [{ data: imoveis, count }, { data: banners }, { data: pinsMapa }] = await Promise.all([
     getImoveis(filtros, 1, 24),
-    getBairros(),
     getBannersSidebar(),
+    getImoveisParaMapa(filtrosMapa),
   ])
 
   const totalStr = count != null
@@ -46,12 +69,15 @@ export default async function Home({ searchParams }: Props) {
 
       {/* Header slim com cor brand */}
       <div className="bg-violet-700 py-5 px-4">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-white leading-tight">
               Imóveis para alugar em Cuiabá/MT
             </h1>
             <p className="text-violet-200 text-sm mt-0.5">{totalStr}</p>
+            <div className="mt-3">
+              <BuscaBar inicial={p.busca ?? ''} />
+            </div>
           </div>
 
           {/* Bairros chips — só desktop */}
@@ -80,7 +106,7 @@ export default async function Home({ searchParams }: Props) {
         <div className="flex gap-6 items-start">
 
           {/* Sidebar — só desktop */}
-          <aside className="hidden lg:block w-[252px] shrink-0 space-y-4">
+          <aside className="hidden lg:block w-[252px] shrink-0 space-y-6">
             <Suspense fallback={<SidebarSkeleton />}>
               <FiltrosSidebar bairros={bairros ?? []} />
             </Suspense>
@@ -91,6 +117,21 @@ export default async function Home({ searchParams }: Props) {
 
           {/* Conteúdo */}
           <div className="flex-1 min-w-0">
+
+            {/* Mapa horizontal com os pins dos imóveis */}
+            {pinsMapa && pinsMapa.length > 0 && (
+              <div className="mb-6">
+                <MapaImoveisWrapper imoveis={pinsMapa as unknown as Parameters<typeof MapaImoveisWrapper>[0]['imoveis']} />
+                <div className="flex items-center justify-between mt-1.5 px-1 text-[11px] text-gray-400">
+                  <span>Arraste e dê zoom no mapa para filtrar os imóveis pela área visível.</span>
+                  {count != null && pinsMapa.length < count && (
+                    <span className="text-amber-600">
+                      {count - pinsMapa.length} sem localização (só na lista)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between mb-5 gap-3">
               <p className="text-sm text-gray-500 shrink-0">
