@@ -389,6 +389,14 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
       }
 
       await supabase.from('perfis').upsert({ id: userId, telefone: whatsappLimpo }, { onConflict: 'id', ignoreDuplicates: false })
+
+      // Geocoda em background — não bloqueia o redirect
+      fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imovel_id: imovel.id }),
+      }).catch(() => {})
+
       router.push('/painel?publicado=1')
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro inesperado. Tente novamente.')

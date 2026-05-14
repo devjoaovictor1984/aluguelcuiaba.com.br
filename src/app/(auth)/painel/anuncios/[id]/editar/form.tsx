@@ -322,6 +322,13 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
         }
       }
 
+      // Geocoda em background — endereço pode ter mudado
+      fetch('/api/geocode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imovel_id: imovel.id }),
+      }).catch(() => {})
+
       router.push('/painel?atualizado=1')
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro inesperado.')
