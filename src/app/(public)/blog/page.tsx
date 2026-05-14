@@ -4,6 +4,8 @@ import { Footer } from '@/components/footer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Calendar, Clock, ChevronRight, TrendingUp, Tag } from 'lucide-react'
 import { getCategorias, categoriasMap, type CategoriaStyle } from '@/lib/blog/categorias'
+import { getBannersSidebar } from '@/lib/supabase/queries'
+import { BannerSidebar } from '@/components/banner-sidebar'
 
 function CatBadge({ cat, catMap, size = 'sm' }: { cat: string; catMap: Record<string, CategoriaStyle>; size?: 'sm' | 'xs' }) {
   const c = catMap[cat] ?? { label: cat, bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-300', gradient: 'from-violet-600 to-violet-900' }
@@ -44,6 +46,7 @@ export default async function BlogPage({
 
   const cats = await getCategorias()
   const catMap = categoriasMap(cats)
+  const { data: banners } = await getBannersSidebar()
 
   let query = supabase
     .from('posts')
@@ -228,13 +231,8 @@ export default async function BlogPage({
               </div>
             )}
 
-            {/* Anúncio/Patrocínio */}
-            <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-5 text-center">
-              <p className="text-xs text-gray-400 font-medium mb-2">PATROCÍNIO</p>
-              <div className="h-32 flex items-center justify-center text-gray-300 text-xs">
-                Espaço disponível para anúncio
-              </div>
-            </div>
+            {/* Patrocínio */}
+            {banners && banners.length > 0 && <BannerSidebar banners={banners} />}
           </aside>
         </div>
       </div>

@@ -6,6 +6,8 @@ import { Footer } from '@/components/footer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { Calendar, Clock, ChevronLeft, Tag, TrendingUp } from 'lucide-react'
 import { getCategorias, categoriasMap } from '@/lib/blog/categorias'
+import { getBannersSidebar } from '@/lib/supabase/queries'
+import { BannerSidebar } from '@/components/banner-sidebar'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
@@ -90,6 +92,7 @@ export default async function BlogPostPage({ params }: Props) {
   const p = post as Post
   const cats = await getCategorias()
   const catMap = categoriasMap(cats)
+  const { data: banners } = await getBannersSidebar()
   const cat = catMap[p.categoria] ?? { label: p.categoria, bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-300', gradient: 'from-violet-600 to-violet-900' }
   const minLeitura = p.tempo_leitura ?? lerTempo(p.conteudo ?? '')
 
@@ -125,7 +128,7 @@ export default async function BlogPostPage({ params }: Props) {
       <Navbar />
 
       {/* Hero */}
-      <div className="relative w-full aspect-[21/7] sm:aspect-[21/6] max-h-[420px] overflow-hidden bg-gray-900">
+      <div className="relative w-full aspect-[16/9] sm:aspect-[16/7] max-h-[560px] overflow-hidden bg-gray-900">
         {p.capa_url
           ? <img src={p.capa_url} alt={p.titulo} className="w-full h-full object-cover opacity-80" />
           : <div className={`w-full h-full bg-gradient-to-br ${cat.gradient}`} />
@@ -195,7 +198,7 @@ export default async function BlogPostPage({ params }: Props) {
 
             {/* Article body */}
             <div
-              className="prose prose-gray prose-sm sm:prose-base max-w-none
+              className="post-content prose prose-gray prose-sm sm:prose-base max-w-none overflow-hidden
                 prose-headings:font-extrabold prose-headings:text-gray-900
                 prose-h2:text-xl prose-h2:mt-8 prose-h2:mb-3
                 prose-h3:text-lg prose-h3:mt-6 prose-h3:mb-2
@@ -204,7 +207,9 @@ export default async function BlogPostPage({ params }: Props) {
                 prose-strong:text-gray-900
                 prose-blockquote:border-l-4 prose-blockquote:border-violet-400 prose-blockquote:bg-violet-50 prose-blockquote:rounded-r-xl prose-blockquote:py-1 prose-blockquote:px-5 prose-blockquote:italic prose-blockquote:text-violet-900
                 prose-ul:list-disc prose-ul:pl-5 prose-li:text-gray-700 prose-li:mb-1
-                prose-ol:list-decimal prose-ol:pl-5"
+                prose-ol:list-decimal prose-ol:pl-5
+                prose-img:rounded-xl prose-img:max-w-full prose-img:h-auto
+                prose-pre:overflow-x-auto"
               dangerouslySetInnerHTML={{ __html: p.conteudo ?? '' }}
             />
 
@@ -303,12 +308,7 @@ export default async function BlogPostPage({ params }: Props) {
             )}
 
             {/* Patrocínio */}
-            <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-5 text-center">
-              <p className="text-xs text-gray-400 font-medium mb-2">PATROCÍNIO</p>
-              <div className="h-32 flex items-center justify-center text-gray-300 text-xs">
-                Espaço disponível para anúncio
-              </div>
-            </div>
+            {banners && banners.length > 0 && <BannerSidebar banners={banners} />}
 
             {/* CTA anunciar */}
             <div className="bg-violet-700 rounded-2xl p-5 text-center">

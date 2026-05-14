@@ -149,8 +149,7 @@ export function FiltrosSidebar({ inDrawer = false, onClose, bairros = [] }: Filt
   return (
     <div
       className={cn(
-        'bg-white rounded-xl border border-gray-200 px-4 overflow-y-auto',
-        !inDrawer && 'sticky top-[60px] max-h-[calc(100vh-76px)]',
+        'bg-white rounded-xl border border-gray-200 px-4',
         isPending && 'opacity-60 pointer-events-none'
       )}
     >

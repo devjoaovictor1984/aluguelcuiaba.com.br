@@ -44,3 +44,29 @@ button, [role="button"], label[for], select { cursor: pointer; }
 .scroll-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ─── Post do blog: conteúdo vazado dentro do container ─────────────────── */
+.post-content { word-wrap: break-word; overflow-wrap: anywhere; }
+.post-content img,
+.post-content video,
+.post-content iframe { max-width: 100%; height: auto; }
+.post-content iframe { width: 100%; aspect-ratio: 16/9; }
+.post-content pre { overflow-x: auto; max-width: 100%; }
+/* Tabelas largas — wrapper rolável */
+.post-content table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  border-collapse: collapse;
+}
+.post-content table th,
+.post-content table td {
+  border: 1px solid #e5e7eb;
+  padding: .4rem .6rem;
+  white-space: nowrap;
+}
+
+/* ─── Leaflet popup ─────────────────────────────────────────────────────── */
+.leaflet-popup-content a[style*="color"] { color: #ffffff !important; }
+.leaflet-popup-content { margin: 12px !important; }
+.leaflet-popup-content-wrapper { border-radius: 12px !important; }

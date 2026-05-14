@@ -6,7 +6,8 @@ import { Footer } from '@/components/footer'
 import { GaleriaFotos } from '@/components/galeria-fotos'
 import { BarraAcoesImovel } from '@/components/barra-acoes-imovel'
 import { ImovelCard } from '@/components/imovel-card'
-import { getImovelPorId, getImoveisSimilares } from '@/lib/supabase/queries'
+import { getImovelPorId, getImoveisSimilares, getBannersSidebar } from '@/lib/supabase/queries'
+import { BannerSidebar } from '@/components/banner-sidebar'
 import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl } from '@/lib/utils'
 import {
   MapPin, BedDouble, Bath, Car, Maximize2,
@@ -54,9 +55,12 @@ export default async function ImovelPage({ params }: Props) {
   const { data: imovel } = await getImovelPorId(slug)
   if (!imovel) notFound()
 
-  const similares = imovel.bairro_id
-    ? (await getImoveisSimilares(imovel.bairro_id, imovel.id)).data ?? []
-    : []
+  const [similares, { data: banners }] = await Promise.all([
+    imovel.bairro_id
+      ? getImoveisSimilares(imovel.bairro_id, imovel.id).then(r => r.data ?? [])
+      : Promise.resolve([]),
+    getBannersSidebar(),
+  ])
 
   const tipoLabel: Record<string, string> = {
     apartamento: 'Apartamento', casa: 'Casa', kitnet: 'Kitnet/Studio',
@@ -319,6 +323,7 @@ export default async function ImovelPage({ params }: Props) {
           <aside className="hidden lg:block lg:col-span-2">
             <div className="sticky top-[68px] space-y-4">
               <AnuncianteCard imovel={imovel as Imovel} tipoAnunciante={tipoAnunciante} linkWpp={linkWpp} linkCompartilhar={linkCompartilhar} showPrice />
+              {banners && banners.length > 0 && <BannerSidebar banners={banners} />}
             </div>
           </aside>
 

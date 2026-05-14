@@ -10,9 +10,16 @@ export async function adicionarBanner(formData: FormData) {
   if (!imagem_url) return { error: 'Imagem obrigatória' }
 
   const supabase = createAdminClient()
-  const { count } = await supabase
+  const { count, error: errCount } = await supabase
     .from('banners_sidebar')
     .select('*', { count: 'exact', head: true })
+
+  if (errCount) {
+    if (errCount.code === '42P01') {
+      return { error: 'Tabela banners_sidebar não existe. Execute o SQL no Supabase SQL Editor (veja o aviso amarelo na página).' }
+    }
+    return { error: errCount.message }
+  }
 
   const { error } = await supabase.from('banners_sidebar').insert({
     imagem_url,
@@ -24,6 +31,7 @@ export async function adicionarBanner(formData: FormData) {
   if (error) return { error: error.message }
   revalidatePath('/admin/banners')
   revalidatePath('/')
+  revalidatePath('/blog')
   return { ok: true }
 }
 
