@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, Eye, EyeOff, Save, Upload, X } from 'lucide-react'
 import { TipTapEditor } from './tiptap-editor'
+import { TagsInput } from './tags-input'
 
 interface Post {
   id?: string
@@ -15,7 +16,15 @@ interface Post {
   categoria?: string
   capa_url?: string | null
   publicado?: boolean
+  tags?: string[] | null
 }
+
+// Sugestões comuns para portal de aluguel
+const TAGS_SUGERIDAS = [
+  'aluguel', 'contrato', 'fiador', 'caucao', 'iptu', 'condominio',
+  'mobiliado', 'pets', 'documentacao', 'inquilino', 'proprietario',
+  'reforma', 'mudanca', 'cuiaba', 'pantanal', 'investimento',
+]
 
 interface Categoria { id: string; label: string }
 
@@ -47,6 +56,7 @@ export function EditorPost({ post, categorias }: { post?: Post; categorias?: Cat
   const [conteudo, setConteudo] = useState(post?.conteudo ?? '')
   const [categoria, setCategoria] = useState(post?.categoria ?? 'geral')
   const [publicado, setPublicado] = useState(post?.publicado ?? false)
+  const [tags, setTags] = useState<string[]>(post?.tags ?? [])
   const [preview, setPreview] = useState(false)
   const [salvando, setSalvando] = useState(false)
   const [uploadandoCapa, setUploadandoCapa] = useState(false)
@@ -81,6 +91,7 @@ export function EditorPost({ post, categorias }: { post?: Post; categorias?: Cat
       conteudo,
       categoria,
       publicado,
+      tags: tags.length > 0 ? tags : null,
     }
 
     if (post?.id) {
@@ -191,6 +202,12 @@ export function EditorPost({ post, categorias }: { post?: Post; categorias?: Cat
           </div>
         )}
         <p className="text-xs text-gray-400">Recomendado: 1200×630 px. Upload vai para o bucket <code className="bg-gray-100 px-1 rounded">post-images</code> do Supabase.</p>
+      </div>
+
+      {/* Tags */}
+      <div className="space-y-2">
+        <label className="text-sm font-medium text-gray-700">Tags / Palavras-chave</label>
+        <TagsInput value={tags} onChange={setTags} sugestoes={TAGS_SUGERIDAS} />
       </div>
 
       {/* Editor */}

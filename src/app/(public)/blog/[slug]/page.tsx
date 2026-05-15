@@ -16,7 +16,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const supabase = createAdminClient()
   const { data: post } = await supabase
     .from('posts')
-    .select('titulo, slug, descricao, capa_url, created_at')
+    .select('titulo, slug, descricao, capa_url, created_at, tags')
     .eq('slug', slug)
     .eq('publicado', true)
     .single()
@@ -35,6 +35,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: titulo,
     description: descricao,
+    keywords: post.tags && post.tags.length > 0 ? post.tags : undefined,
     alternates: { canonical: url },
     openGraph: {
       type: 'article',
@@ -67,7 +68,8 @@ function lerTempo(conteudo: string) {
 interface Post {
   id: string; titulo: string; slug: string; descricao: string | null
   conteudo: string | null; categoria: string; capa_url: string | null
-  created_at: string; tempo_leitura: number | null
+  created_at: string; updated_at?: string | null; tempo_leitura: number | null
+  tags?: string[] | null
 }
 
 interface Props {
@@ -82,7 +84,7 @@ export default async function BlogPostPage({ params }: Props) {
 
   const { data: post } = await supabase
     .from('posts')
-    .select('id, titulo, slug, descricao, conteudo, categoria, capa_url, created_at, tempo_leitura')
+    .select('id, titulo, slug, descricao, conteudo, categoria, capa_url, created_at, updated_at, tempo_leitura, tags')
     .eq('slug', slug)
     .eq('publicado', true)
     .single()
@@ -120,11 +122,51 @@ export default async function BlogPostPage({ params }: Props) {
   const countCat: Record<string, number> = {}
   contagens?.forEach(row => { countCat[row.categoria] = (countCat[row.categoria] ?? 0) + 1 })
 
-  const shareUrl = `https://alugasecuiaba.com.br/blog/${p.slug}`
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://aluguelcuiaba.com.br'
+  const shareUrl = `${appUrl}/blog/${p.slug}`
   const shareTitle = encodeURIComponent(p.titulo)
+
+  // Schema.org BlogPosting — ajuda o Google a entender que é um artigo
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: p.titulo,
+    description: p.descricao ?? undefined,
+    image: p.capa_url ? [p.capa_url.split('?')[0]] : [`${appUrl}/og-default.jpg`],
+    datePublished: p.created_at,
+    dateModified: p.updated_at ?? p.created_at,
+    author: { '@type': 'Organization', name: 'AluguelCuiabá', url: appUrl },
+    publisher: {
+      '@type': 'Organization',
+      name: 'AluguelCuiabá',
+      logo: { '@type': 'ImageObject', url: `${appUrl}/logo.png` },
+    },
+    mainEntityOfPage: { '@type': 'WebPage', '@id': shareUrl },
+    keywords: p.tags?.join(', ') ?? undefined,
+    articleSection: cat.label,
+  }
+
+  // Breadcrumb estruturado
+  const breadcrumbLd = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Início', item: appUrl },
+      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${appUrl}/blog` },
+      { '@type': 'ListItem', position: 3, name: p.titulo, item: shareUrl },
+    ],
+  }
 
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
+      />
       <Navbar />
 
       {/* Hero */}
@@ -212,6 +254,22 @@ export default async function BlogPostPage({ params }: Props) {
                 prose-pre:overflow-x-auto"
               dangerouslySetInnerHTML={{ __html: p.conteudo ?? '' }}
             />
+
+            {/* Tags */}
+            {p.tags && p.tags.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-gray-100">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Tags</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {p.tags.map(t => (
+                    <span key={t}
+                      className="inline-flex items-center gap-1 text-xs font-medium bg-gray-100 hover:bg-violet-50 text-gray-700 hover:text-violet-700 px-2.5 py-1 rounded-full transition-colors">
+                      <Tag size={10} />
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Author / credit strip */}
             <div className="mt-10 pt-6 border-t border-gray-100 flex items-center gap-3">
