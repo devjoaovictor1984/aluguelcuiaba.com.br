@@ -8,6 +8,7 @@ import { Calendar, Clock, ChevronLeft, Tag, TrendingUp } from 'lucide-react'
 import { getCategorias, categoriasMap } from '@/lib/blog/categorias'
 import { getBannersSidebar } from '@/lib/supabase/queries'
 import { BannerSidebar } from '@/components/banner-sidebar'
+import { RegistrarViewPost } from '@/components/registrar-view-post'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
@@ -167,6 +168,7 @@ export default async function BlogPostPage({ params }: Props) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
       />
+      <RegistrarViewPost postId={p.id} />
       <Navbar />
 
       {/* Hero */}
