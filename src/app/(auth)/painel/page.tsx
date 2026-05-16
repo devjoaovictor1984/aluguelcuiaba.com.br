@@ -37,6 +37,8 @@ export default async function PainelPage({
   const plano = perfil?.plano ?? 'free'
   const limiteImoveis = PLANOS[plano as keyof typeof PLANOS]?.imoveis ?? 1
   const atingiuLimite = !isAdmin && plano === 'free' && lista.length >= limiteImoveis
+  const crmAtivo = !!(perfil as { crm_ativo?: boolean } | null)?.crm_ativo
+  const podeUsarCRM = isAdmin || crmAtivo || plano === 'basico' || plano === 'profissional'
 
   const nomeExibido = perfil?.nome ?? user.email ?? ''
   const iniciais = nomeExibido.split(' ').slice(0, 2).map((p: string) => p[0]?.toUpperCase()).join('')
@@ -199,6 +201,25 @@ export default async function PainelPage({
           </>
         )}
       </div>
+
+      {/* Card CRM (apenas para quem tem acesso) */}
+      {podeUsarCRM && (
+        <Link
+          href="/painel/contratos"
+          className="block bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 rounded-2xl p-5 mb-6 text-white shadow-sm transition-colors"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+              <ShieldCheck size={22} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold">CRM Locação</p>
+              <p className="text-xs text-violet-100 mt-0.5">Gerencie contratos, parcelas, recibos e repasses.</p>
+            </div>
+            <ExternalLink size={18} className="opacity-70" />
+          </div>
+        </Link>
+      )}
 
       {/* CTA novo anúncio */}
       {atingiuLimite ? (
