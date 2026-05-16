@@ -1,22 +1,34 @@
 import Link from 'next/link'
-import { ArrowLeft, Clock } from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { WizardContrato } from './_components/wizard-contrato'
 
 export default async function NovoContratoPage() {
-  await exigirAcessoCRM()
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const [{ data: imoveis }, { data: pessoas }] = await Promise.all([
+    supabase
+      .from('imoveis')
+      .select('id, titulo, preco, endereco_resumido, proprietario_id, bairro:bairros(nome)')
+      .eq('user_id', acesso.userId)
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('pessoas')
+      .select('id, tipo, nome, cpf_cnpj')
+      .eq('user_id', acesso.userId)
+      .order('nome', { ascending: true }),
+  ])
+
   return (
-    <div className="px-6 pt-6 max-w-2xl">
+    <div className="px-6 pt-6">
       <Link href="/painel/contratos" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-violet-700 mb-2">
         <ArrowLeft size={12} /> Voltar
       </Link>
       <h1 className="text-xl font-bold text-gray-900">Novo contrato</h1>
-      <div className="mt-6 bg-white rounded-2xl border-2 border-dashed border-gray-200 p-10 text-center">
-        <Clock size={32} className="mx-auto mb-3 text-gray-300" />
-        <p className="text-sm font-medium text-gray-700 mb-1">Wizard em construção</p>
-        <p className="text-xs text-gray-500">
-          Próxima fase: imóvel → inquilino → garantia → valores → gerar parcelas.
-        </p>
-      </div>
+      <p className="text-sm text-gray-500 mb-4">Wizard em 4 etapas. Você pode voltar a qualquer momento.</p>
+      <WizardContrato imoveis={imoveis ?? []} pessoas={pessoas ?? []} />
     </div>
   )
 }
