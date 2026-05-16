@@ -7,6 +7,8 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 
 export type TipoPessoa = 'proprietario' | 'inquilino' | 'fiador' | 'testemunha' | 'outro'
 
+export type TipoPix = 'cpf' | 'cnpj' | 'email' | 'telefone' | 'aleatoria'
+
 export interface PessoaInput {
   tipo: TipoPessoa
   nome: string
@@ -26,6 +28,15 @@ export interface PessoaInput {
   endereco_bairro?: string | null
   endereco_cidade?: string | null
   endereco_estado?: string | null
+  // Recebimento
+  pix_tipo?: TipoPix | null
+  pix_chave?: string | null
+  banco_nome?: string | null
+  banco_codigo?: string | null
+  banco_agencia?: string | null
+  banco_conta?: string | null
+  banco_tipo_conta?: 'corrente' | 'poupanca' | null
+  banco_titular?: string | null
   observacoes?: string | null
 }
 

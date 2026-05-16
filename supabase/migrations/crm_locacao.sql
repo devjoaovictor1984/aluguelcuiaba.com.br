@@ -38,6 +38,17 @@ CREATE TABLE IF NOT EXISTS pessoas (
   endereco_cidade     TEXT,
   endereco_estado     TEXT,
 
+  -- Dados para recebimento (usado principalmente em proprietário p/ repasse)
+  pix_tipo     TEXT CHECK (pix_tipo IN ('cpf','cnpj','email','telefone','aleatoria')),
+  pix_chave    TEXT,
+
+  banco_nome       TEXT,
+  banco_codigo     TEXT,
+  banco_agencia    TEXT,
+  banco_conta      TEXT,
+  banco_tipo_conta TEXT CHECK (banco_tipo_conta IN ('corrente','poupanca')),
+  banco_titular    TEXT,           -- caso a conta esteja em nome diferente
+
   observacoes   TEXT,
 
   created_at    TIMESTAMPTZ DEFAULT NOW(),
@@ -47,6 +58,15 @@ CREATE TABLE IF NOT EXISTS pessoas (
 CREATE INDEX IF NOT EXISTS idx_pessoas_user ON pessoas(user_id);
 CREATE INDEX IF NOT EXISTS idx_pessoas_tipo ON pessoas(tipo);
 CREATE INDEX IF NOT EXISTS idx_pessoas_cpf  ON pessoas(cpf_cnpj);
+
+-- ─── Vínculo proprietário ↔ imóvel ─────────────────────────────────────
+ALTER TABLE imoveis
+  ADD COLUMN IF NOT EXISTS proprietario_id UUID REFERENCES pessoas(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_imoveis_proprietario ON imoveis(proprietario_id);
+
+COMMENT ON COLUMN imoveis.proprietario_id IS
+  'Vínculo opcional ao cadastro do proprietário no CRM. Quem anuncia (user_id) pode ser diferente do dono real do imóvel.';
 
 -- ─── Contratos de locação ──────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS contratos_locacao (

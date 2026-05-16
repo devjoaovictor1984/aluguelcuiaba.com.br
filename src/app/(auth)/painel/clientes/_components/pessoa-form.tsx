@@ -3,7 +3,7 @@
 import { useState, useTransition, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Save, AlertCircle, Trash2 } from 'lucide-react'
-import { criarPessoa, atualizarPessoa, excluirPessoa, type PessoaInput, type TipoPessoa } from '../actions'
+import { criarPessoa, atualizarPessoa, excluirPessoa, type PessoaInput, type TipoPessoa, type TipoPix } from '../actions'
 
 interface Props {
   modo: 'novo' | 'editar'
@@ -44,6 +44,18 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
   const [estado, setEstado] = useState(inicial.endereco_estado ?? 'MT')
   const [observacoes, setObservacoes] = useState(inicial.observacoes ?? '')
 
+  // Recebimento
+  const [pixTipo, setPixTipo] = useState<TipoPix | ''>((inicial.pix_tipo as TipoPix) ?? '')
+  const [pixChave, setPixChave] = useState(inicial.pix_chave ?? '')
+  const [bancoNome, setBancoNome] = useState(inicial.banco_nome ?? '')
+  const [bancoCodigo, setBancoCodigo] = useState(inicial.banco_codigo ?? '')
+  const [bancoAgencia, setBancoAgencia] = useState(inicial.banco_agencia ?? '')
+  const [bancoConta, setBancoConta] = useState(inicial.banco_conta ?? '')
+  const [bancoTipoConta, setBancoTipoConta] = useState<'corrente' | 'poupanca' | ''>(
+    (inicial.banco_tipo_conta as 'corrente' | 'poupanca') ?? ''
+  )
+  const [bancoTitular, setBancoTitular] = useState(inicial.banco_titular ?? '')
+
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
 
@@ -72,6 +84,14 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
       endereco_cep: cep, endereco_logradouro: logradouro,
       endereco_numero: numero, endereco_complemento: complemento,
       endereco_bairro: bairroEnd, endereco_cidade: cidade, endereco_estado: estado,
+      pix_tipo: pixTipo || null,
+      pix_chave: pixChave,
+      banco_nome: bancoNome,
+      banco_codigo: bancoCodigo,
+      banco_agencia: bancoAgencia,
+      banco_conta: bancoConta,
+      banco_tipo_conta: bancoTipoConta || null,
+      banco_titular: bancoTitular,
       observacoes,
     }
 
@@ -194,6 +214,69 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
           <div className="sm:col-span-2">
             <label className="text-xs font-medium text-gray-600 block mb-1">UF</label>
             <input value={estado ?? ''} onChange={e => setEstado(e.target.value.toUpperCase())} maxLength={2} className={inputCls} />
+          </div>
+        </div>
+      </section>
+
+      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Recebimento</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            {tipo === 'proprietario'
+              ? 'Conta onde o repasse mensal será creditado.'
+              : 'Opcional. Caso precise reembolsar ou transferir valores.'}
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-3 gap-3">
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Tipo de PIX</label>
+            <select value={pixTipo} onChange={e => setPixTipo(e.target.value as TipoPix | '')} className={inputCls}>
+              <option value="">—</option>
+              <option value="cpf">CPF</option>
+              <option value="cnpj">CNPJ</option>
+              <option value="email">E-mail</option>
+              <option value="telefone">Telefone</option>
+              <option value="aleatoria">Chave aleatória</option>
+            </select>
+          </div>
+          <div className="sm:col-span-2">
+            <label className="text-xs font-medium text-gray-600 block mb-1">Chave PIX</label>
+            <input value={pixChave ?? ''} onChange={e => setPixChave(e.target.value)} className={inputCls} placeholder="Cole a chave do PIX" />
+          </div>
+        </div>
+
+        <div className="pt-3 border-t border-gray-50">
+          <p className="text-xs font-medium text-gray-500 mb-2">Dados bancários (alternativa ao PIX)</p>
+          <div className="grid sm:grid-cols-4 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-gray-600 block mb-1">Banco</label>
+              <input value={bancoNome ?? ''} onChange={e => setBancoNome(e.target.value)} className={inputCls} placeholder="Ex: Itaú" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Código</label>
+              <input value={bancoCodigo ?? ''} onChange={e => setBancoCodigo(e.target.value)} className={inputCls} placeholder="341" maxLength={4} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Tipo conta</label>
+              <select value={bancoTipoConta} onChange={e => setBancoTipoConta(e.target.value as 'corrente' | 'poupanca' | '')} className={inputCls}>
+                <option value="">—</option>
+                <option value="corrente">Corrente</option>
+                <option value="poupanca">Poupança</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Agência</label>
+              <input value={bancoAgencia ?? ''} onChange={e => setBancoAgencia(e.target.value)} className={inputCls} placeholder="0001" />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Conta</label>
+              <input value={bancoConta ?? ''} onChange={e => setBancoConta(e.target.value)} className={inputCls} placeholder="00000-0" />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-gray-600 block mb-1">Titular (se diferente)</label>
+              <input value={bancoTitular ?? ''} onChange={e => setBancoTitular(e.target.value)} className={inputCls} placeholder="Em branco se for o próprio cadastro" />
+            </div>
           </div>
         </div>
       </section>
