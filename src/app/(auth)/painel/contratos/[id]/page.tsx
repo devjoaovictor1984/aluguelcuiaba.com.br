@@ -1,11 +1,13 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Home, User, Shield, Calendar, DollarSign, Pencil,
+  ArrowLeft, Home, User, Shield, Calendar, DollarSign, Pencil, Repeat, XCircle,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { ParcelaRow, type Parcela } from './_components/parcela-row'
+import { AcoesContrato } from './_components/acoes-contrato'
+import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -52,11 +54,40 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
 
   if (!contrato) notFound()
 
-  const { data: parcelas } = await supabase
-    .from('parcelas_aluguel')
-    .select('*')
-    .eq('contrato_id', id)
-    .order('numero', { ascending: true })
+  const [{ data: parcelas }, { data: moradoresRaw }, { data: pessoasUser }] = await Promise.all([
+    supabase
+      .from('parcelas_aluguel')
+      .select('*')
+      .eq('contrato_id', id)
+      .order('numero', { ascending: true }),
+    supabase
+      .from('contratos_moradores')
+      .select(`
+        id, parentesco, observacao,
+        pessoa:pessoas(id, nome, cpf_cnpj, telefone)
+      `)
+      .eq('contrato_id', id)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('pessoas')
+      .select('id, nome, tipo, cpf_cnpj')
+      .eq('user_id', acesso.userId)
+      .order('nome', { ascending: true }),
+  ])
+
+  const moradores: MoradorRow[] = (moradoresRaw ?? []).map((m: {
+    id: string
+    parentesco: string
+    observacao: string | null
+    pessoa: { id: string; nome: string; cpf_cnpj: string | null; telefone: string | null } | { id: string; nome: string; cpf_cnpj: string | null; telefone: string | null }[] | null
+  }) => ({
+    id: m.id,
+    parentesco: m.parentesco as MoradorRow['parentesco'],
+    observacao: m.observacao,
+    pessoa: Array.isArray(m.pessoa) ? m.pessoa[0] ?? null : m.pessoa,
+  }))
+
+  const pessoasDisponiveis: PessoaOpcao[] = (pessoasUser ?? []) as PessoaOpcao[]
 
   const lista = parcelas ?? []
   const pagas = lista.filter(p => p.status_pagamento === 'pago').length
@@ -88,14 +119,42 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
               {atrasadas > 0 && <span className="text-red-600 font-semibold ml-2">· {atrasadas} atrasada{atrasadas === 1 ? '' : 's'}</span>}
             </span>
           </div>
-          <Link
-            href={`/painel/contratos/${id}/editar`}
-            className="flex items-center gap-1.5 text-sm text-violet-700 hover:text-violet-800 border border-violet-200 hover:border-violet-400 hover:bg-violet-50 px-3 py-1.5 rounded-xl transition-colors"
-          >
-            <Pencil size={13} /> Editar
-          </Link>
+          <div className="flex items-center gap-2 flex-wrap">
+            <AcoesContrato
+              contratoId={id}
+              contratoCodigo={contrato.codigo}
+              dataTerminoAtual={contrato.data_termino}
+              valorAluguelAtual={contrato.valor_aluguel}
+              valorSeguroAtual={contrato.valor_seguro_fianca_mensal ?? 0}
+              duracaoMesesAtual={contrato.duracao_meses}
+              diaVencimentoAtual={contrato.dia_vencimento}
+              jaEncerrado={['encerrado', 'rescindido'].includes(contrato.status)}
+            />
+            <Link
+              href={`/painel/contratos/${id}/editar`}
+              className="flex items-center gap-1.5 text-sm text-violet-700 hover:text-violet-800 border border-violet-200 hover:border-violet-400 hover:bg-violet-50 px-3 py-1.5 rounded-xl transition-colors"
+            >
+              <Pencil size={13} /> Editar
+            </Link>
+          </div>
         </div>
       </div>
+
+      {contrato.contrato_anterior_id && (
+        <div className="bg-violet-50 border border-violet-100 text-violet-900 text-sm rounded-xl px-4 py-2.5 flex items-center gap-2">
+          <Repeat size={14} className="text-violet-600" />
+          <span>Este contrato é uma renovação. <Link href={`/painel/contratos/${contrato.contrato_anterior_id}`} className="font-semibold underline hover:no-underline">Ver contrato anterior</Link></span>
+        </div>
+      )}
+
+      {contrato.motivo_encerramento && (
+        <div className="bg-red-50 border border-red-100 text-red-900 text-sm rounded-xl px-4 py-2.5 flex items-center gap-2">
+          <XCircle size={14} className="text-red-600" />
+          <span>
+            Encerrado em {fmtData(contrato.data_encerramento)} — motivo: <span className="font-semibold capitalize">{String(contrato.motivo_encerramento).replace(/_/g, ' ')}</span>
+          </span>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
@@ -116,6 +175,13 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
           </p>
         </div>
       </div>
+
+      <MoradoresSecao
+        contratoId={id}
+        moradores={moradores}
+        pessoasDisponiveis={pessoasDisponiveis}
+        inquilinoId={inquilino?.id ?? ''}
+      />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
@@ -163,6 +229,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
                 <th className="px-2 py-2 text-center" title="Repasse ao proprietário">Repasse</th>
                 <th className="px-2 py-2 text-center" title="Seguro fiança">Seg.</th>
                 <th className="px-2 py-2 text-center" title="Boleto enviado">Bol.</th>
+                <th className="px-2 py-2 text-center" title="Recibo em PDF">Rec.</th>
               </tr>
             </thead>
             <tbody>

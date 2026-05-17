@@ -317,3 +317,251 @@ export async function excluirContrato(id: string) {
   revalidatePath('/painel/contratos')
   return { ok: true }
 }
+
+// ───────────────── Moradores adicionais ─────────────────
+
+export type ParentescoMorador =
+  | 'conjuge' | 'filho' | 'pai_mae' | 'irmao' | 'socio' | 'dependente' | 'outro'
+
+export interface AdicionarMoradorInput {
+  contrato_id: string
+  pessoa_id: string
+  parentesco: ParentescoMorador
+  observacao?: string
+}
+
+export async function adicionarMorador(input: AdicionarMoradorInput) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  // Garante que o contrato é do user (RLS já cobre, mas falha rápido aqui)
+  const { data: contrato } = await supabase
+    .from('contratos_locacao')
+    .select('id')
+    .eq('id', input.contrato_id)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!contrato) return { error: 'Contrato não encontrado.' }
+
+  const { error } = await supabase.from('contratos_moradores').insert({
+    contrato_id: input.contrato_id,
+    pessoa_id: input.pessoa_id,
+    parentesco: input.parentesco,
+    observacao: input.observacao ?? null,
+  })
+  if (error) {
+    if (error.code === '23505') return { error: 'Essa pessoa já está cadastrada como morador.' }
+    return { error: error.message }
+  }
+  revalidatePath(`/painel/contratos/${input.contrato_id}`)
+  return { ok: true }
+}
+
+export async function atualizarMorador(
+  moradorId: string,
+  dados: { parentesco?: ParentescoMorador; observacao?: string | null }
+) {
+  await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('contratos_moradores')
+    .update(dados)
+    .eq('id', moradorId)
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  return { ok: true }
+}
+
+export async function removerMorador(moradorId: string) {
+  await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('contratos_moradores')
+    .delete()
+    .eq('id', moradorId)
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  return { ok: true }
+}
+
+// ───────────────── Encerramento ─────────────────
+
+export type MotivoEncerramento =
+  | 'fim_natural'        // contrato chegou ao fim do prazo
+  | 'rescisao_inquilino' // inquilino quis sair antes
+  | 'rescisao_proprietario' // proprietário pediu o imóvel
+  | 'inadimplencia'      // saída por falta de pagamento
+  | 'acordo'             // saída por acordo entre as partes
+  | 'outro'
+
+export interface EncerrarContratoInput {
+  motivo: MotivoEncerramento
+  data_encerramento: string  // YYYY-MM-DD
+  observacao?: string        // detalhamento livre
+}
+
+export async function encerrarContrato(id: string, input: EncerrarContratoInput) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  // fim_natural → 'encerrado'; demais motivos → 'rescindido'
+  const novoStatus = input.motivo === 'fim_natural' ? 'encerrado' : 'rescindido'
+
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({
+      status: novoStatus,
+      motivo_encerramento: input.motivo,
+      data_encerramento: input.data_encerramento,
+      data_termino: input.data_encerramento,
+      observacoes: input.observacao
+        ? `[${novoStatus.toUpperCase()} em ${input.data_encerramento}] ${input.observacao}`
+        : undefined,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', acesso.userId)
+
+  if (error) return { error: error.message }
+
+  // O trigger sincronizar_status_imovel libera o imóvel se não houver outro contrato ativo.
+  revalidatePath('/painel/contratos')
+  revalidatePath(`/painel/contratos/${id}`)
+  revalidatePath('/painel/financeiro')
+  return { ok: true }
+}
+
+// ───────────────── Renovação ─────────────────
+
+export interface RenovarContratoInput {
+  contrato_anterior_id: string
+  data_inicio: string              // YYYY-MM-DD
+  data_primeiro_aluguel: string    // YYYY-MM-DD
+  duracao_meses: number
+  dia_vencimento: number
+  valor_aluguel: number            // novo valor (pode ter reajuste)
+  valor_seguro_fianca_mensal?: number
+  encerrar_anterior?: boolean      // default true
+}
+
+export async function renovarContrato(input: RenovarContratoInput) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  // 1. Busca o contrato anterior pra copiar os campos
+  const { data: anterior, error: errAnt } = await supabase
+    .from('contratos_locacao')
+    .select('*')
+    .eq('id', input.contrato_anterior_id)
+    .eq('user_id', acesso.userId)
+    .single()
+  if (errAnt || !anterior) return { error: errAnt?.message ?? 'Contrato anterior não encontrado.' }
+
+  // 2. Novo código sequencial
+  const codigo = await proximoCodigo(acesso.userId, supabase)
+
+  const dataTermino = (() => {
+    const d = new Date(input.data_inicio + 'T00:00:00')
+    d.setMonth(d.getMonth() + input.duracao_meses)
+    return d.toISOString().slice(0, 10)
+  })()
+
+  // 3. Cria o novo contrato espelhando o anterior + overrides
+  const seguroMensal = input.valor_seguro_fianca_mensal ?? anterior.valor_seguro_fianca_mensal
+
+  const { data: novo, error } = await supabase
+    .from('contratos_locacao')
+    .insert({
+      user_id: acesso.userId,
+      codigo,
+      imovel_id: anterior.imovel_id,
+      inquilino_id: anterior.inquilino_id,
+      proprietario_id: anterior.proprietario_id,
+      valor_aluguel: input.valor_aluguel,
+      valor_seguro_fianca_mensal: seguroMensal,
+      valor_seguro_incendio_anual: anterior.valor_seguro_incendio_anual,
+      seguro_incendio_data: anterior.seguro_incendio_data,
+      iptu_mensal: anterior.iptu_mensal,
+      condominio_mensal: anterior.condominio_mensal,
+      taxa_admin_tipo: anterior.taxa_admin_tipo,
+      taxa_admin_valor: anterior.taxa_admin_valor,
+      // Em renovação a 1ª parcela cheia não se repete (já foi cobrada na original)
+      primeira_parcela_cheia: false,
+      garantia_tipo: anterior.garantia_tipo,
+      fiador_id: anterior.fiador_id,
+      caucao_valor: anterior.caucao_valor,
+      seguro_fianca_seguradora: anterior.seguro_fianca_seguradora,
+      seguro_fianca_apolice: anterior.seguro_fianca_apolice,
+      data_inicio: input.data_inicio,
+      data_primeiro_aluguel: input.data_primeiro_aluguel,
+      data_termino: dataTermino,
+      duracao_meses: input.duracao_meses,
+      dia_vencimento: input.dia_vencimento,
+      status: 'ativo',
+      forma_pagamento: anterior.forma_pagamento,
+      clausulas_extras: anterior.clausulas_extras,
+      indice_reajuste: anterior.indice_reajuste,
+      data_proximo_reajuste: anterior.data_proximo_reajuste,
+      contrato_anterior_id: anterior.id,
+      observacoes: `Renovação do contrato ${anterior.codigo}`,
+    })
+    .select('id, codigo')
+    .single()
+
+  if (error || !novo) return { error: error?.message ?? 'Falha ao criar renovação.' }
+
+  // 4. Gera parcelas do novo contrato
+  const calcInput: InputCalculoParcelas = {
+    duracao_meses: input.duracao_meses,
+    data_primeiro_aluguel: input.data_primeiro_aluguel,
+    dia_vencimento: input.dia_vencimento,
+    valor_aluguel: input.valor_aluguel,
+    valor_seguro_fianca_mensal: seguroMensal,
+    iptu_mensal: anterior.iptu_mensal,
+    condominio_mensal: anterior.condominio_mensal,
+    taxa_admin_tipo: anterior.taxa_admin_tipo,
+    taxa_admin_valor: anterior.taxa_admin_valor,
+    primeira_parcela_cheia: false,
+  }
+  const parcelas = gerarParcelas(calcInput)
+  const parcelasPayload = parcelas.map(p => ({
+    contrato_id: novo.id,
+    numero: p.numero,
+    mes_referencia: p.mes_referencia,
+    vencimento: p.vencimento,
+    valor_aluguel: p.valor_aluguel,
+    valor_seguro: p.valor_seguro,
+    valor_iptu: p.valor_iptu,
+    valor_condominio: p.valor_condominio,
+    valor_total: p.valor_total,
+    valor_comissao: p.valor_comissao,
+    valor_repasse_proprietario: p.valor_repasse_proprietario,
+    status_seguro: p.valor_seguro > 0 ? 'pendente' : 'sem_seguro',
+  }))
+
+  const { error: errParc } = await supabase.from('parcelas_aluguel').insert(parcelasPayload)
+  if (errParc) {
+    await supabase.from('contratos_locacao').delete().eq('id', novo.id)
+    return { error: `Falha ao gerar parcelas: ${errParc.message}` }
+  }
+
+  // 5. Encerra o anterior (se solicitado) — mantém imóvel sempre alugado durante a transição
+  if (input.encerrar_anterior !== false) {
+    await supabase
+      .from('contratos_locacao')
+      .update({
+        status: 'encerrado',
+        motivo_encerramento: 'fim_natural',
+        data_encerramento: input.data_inicio,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', anterior.id)
+      .eq('user_id', acesso.userId)
+  }
+
+  revalidatePath('/painel/contratos')
+  revalidatePath(`/painel/contratos/${anterior.id}`)
+  revalidatePath('/painel/financeiro')
+
+  return { ok: true, id: novo.id, codigo: novo.codigo }
+}

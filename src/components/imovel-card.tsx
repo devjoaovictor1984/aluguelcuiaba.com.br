@@ -15,9 +15,10 @@ export function ImovelCard({ imovel }: Props) {
     imovel.whatsapp,
     gerarMensagemWhatsApp(imovel.titulo, imovel.bairro?.nome)
   )
+  const alugado = imovel.status === 'alugado'
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md transition-shadow group relative">
       <div className="relative h-32 sm:h-48 bg-gray-100">
         <Link href={buildImovelUrl(imovel)} className="absolute inset-0 overflow-hidden block">
           {fotoUrl ? (
@@ -34,16 +35,29 @@ export function ImovelCard({ imovel }: Props) {
             </div>
           )}
         </Link>
-        {imovel.destaque && (
+        {imovel.destaque && !alugado && (
           <span className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-semibold px-2 py-0.5 rounded-full z-10">
             Destaque
           </span>
         )}
-        <span className="absolute top-2 right-2 bg-white/90 text-gray-700 text-xs px-2 py-0.5 rounded-full capitalize font-medium z-10">
-          {imovel.tipo}
-        </span>
+        {!alugado && (
+          <span className="absolute top-2 right-2 bg-white/90 text-gray-700 text-xs px-2 py-0.5 rounded-full capitalize font-medium z-10">
+            {imovel.tipo}
+          </span>
+        )}
         <BotaoFavorito imovelId={imovel.id} />
+        {alugado && (
+          <div className="absolute inset-0 bg-black/15 pointer-events-none z-[5]" />
+        )}
       </div>
+
+      {alugado && (
+        <div className="absolute top-0 right-0 w-28 h-28 overflow-hidden pointer-events-none z-30">
+          <div className="absolute top-[22px] -right-[34px] w-36 rotate-45 bg-red-600 text-white text-center py-1 text-[11px] font-extrabold uppercase tracking-widest shadow-lg ring-1 ring-red-900/30">
+            Alugado
+          </div>
+        </div>
+      )}
 
       <div className="p-2.5 sm:p-3">
         <p className="font-bold text-orange-500 text-base sm:text-lg leading-none">

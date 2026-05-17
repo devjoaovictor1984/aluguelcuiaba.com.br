@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  CheckCircle2, Clock, AlertTriangle, X, Loader2, Send, Shield, DollarSign,
+  CheckCircle2, Clock, AlertTriangle, X, Loader2, Send, Shield, DollarSign, FileText,
 } from 'lucide-react'
 import { InputMoeda } from '@/components/inputs/input-mascarado'
 import { parseMoney, formatarBRL, formatarData } from '@/lib/formatters'
@@ -165,6 +165,19 @@ export function ParcelaRow({ parcela }: Props) {
           >
             <Send size={13} />
           </button>
+        </td>
+
+        {/* Recibo PDF */}
+        <td className="px-2 py-2 text-center">
+          <a
+            href={`/api/recibos/${parcela.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir recibo em PDF (nova aba)"
+            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors bg-gray-100 hover:bg-pink-100 text-gray-400 hover:text-pink-700 inline-flex"
+          >
+            <FileText size={13} />
+          </a>
         </td>
       </tr>
 
