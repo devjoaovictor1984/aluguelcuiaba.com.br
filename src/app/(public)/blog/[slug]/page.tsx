@@ -179,13 +179,15 @@ export default async function BlogPostPage({ params }: Props) {
         }
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
         <div className="absolute bottom-0 left-0 right-0 max-w-4xl mx-auto px-4 pb-8 pt-4">
-          <Link href="/blog" className="inline-flex items-center gap-1 text-white/70 text-xs mb-3 hover:text-white transition-colors">
-            <ChevronLeft size={14} /> Blog
-          </Link>
-          <span className={`inline-flex items-center font-semibold rounded-full text-xs px-2.5 py-1 ${cat.bg} ${cat.text} mb-3`}>
-            {cat.label}
-          </span>
-          <h1 className="text-white text-2xl sm:text-3xl lg:text-4xl font-extrabold leading-tight">
+          <div className="flex flex-col items-start gap-3">
+            <Link href="/blog" className="inline-flex items-center gap-1 text-white/70 text-xs hover:text-white transition-colors">
+              <ChevronLeft size={14} /> Blog
+            </Link>
+            <span className={`inline-flex items-center font-semibold rounded-full text-xs px-2.5 py-1 ${cat.bg} ${cat.text}`}>
+              {cat.label}
+            </span>
+          </div>
+          <h1 className="text-white text-2xl sm:text-3xl lg:text-4xl font-extrabold leading-tight mt-3">
             {p.titulo}
           </h1>
           {p.descricao && (
