@@ -29,6 +29,11 @@ export interface ReciboData {
   emitente_telefone: string | null
   cidade: string
   logo_url: string | null
+  // Personalização da assinatura
+  assinatura_url?: string | null
+  assinatura_nome?: string | null    // nome impresso embaixo da linha
+  mostrar_linha_assinatura?: boolean
+  assinatura_sobre_linha?: boolean
 }
 
 const styles = StyleSheet.create({
@@ -298,18 +303,56 @@ export function ReciboDocument({ data }: { data: ReciboData }) {
         </Text>
 
         {/* Assinatura + Data */}
-        <View style={styles.assinatura}>
-          <View style={{ flex: 1 }} />
-          <View style={{ flex: 2 }}>
-            <Text style={styles.linhaAssinatura}>{data.emitente_nome}</Text>
-          </View>
-          <View style={{ flex: 1 }} />
-        </View>
+        <Assinatura data={data} />
 
         <Text style={styles.data}>
           {data.cidade}, {fmtData(data.data_pagamento)}
         </Text>
       </Page>
     </Document>
+  )
+}
+
+function Assinatura({ data }: { data: ReciboData }) {
+  const mostrarLinha = data.mostrar_linha_assinatura !== false
+  const sobreLinha = data.assinatura_sobre_linha !== false
+  const nome = data.assinatura_nome || data.emitente_nome
+
+  return (
+    <View style={{ marginTop: 50 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
+        <View style={{ flex: 1 }} />
+        <View style={{ flex: 2, position: 'relative' }}>
+          {/* Imagem da assinatura, posicionada sobre a linha ou logo acima */}
+          {data.assinatura_url && (
+            <Image
+              src={data.assinatura_url}
+              style={{
+                width: '70%',
+                height: 50,
+                alignSelf: 'center',
+                marginBottom: sobreLinha && mostrarLinha ? -42 : -6,
+                objectFit: 'contain',
+              }}
+            />
+          )}
+
+          {/* Linha + nome (opcionais) */}
+          {mostrarLinha ? (
+            <View style={{
+              borderTopWidth: 1,
+              borderTopColor: '#1f2937',
+              borderTopStyle: 'solid',
+              paddingTop: 4,
+            }}>
+              <Text style={{ fontSize: 8, textAlign: 'center' }}>{nome}</Text>
+            </View>
+          ) : data.assinatura_url ? (
+            <Text style={{ fontSize: 8, textAlign: 'center', marginTop: 4 }}>{nome}</Text>
+          ) : null}
+        </View>
+        <View style={{ flex: 1 }} />
+      </View>
+    </View>
   )
 }

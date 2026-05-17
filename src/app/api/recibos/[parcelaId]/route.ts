@@ -60,10 +60,15 @@ export async function GET(
       .eq('id', parcelaId)
   }
 
-  // Dados do emitente (perfil + site_config)
+  // Dados do emitente (perfil + site_config como fallback de logo)
   const { data: perfil } = await admin
     .from('perfis')
-    .select('nome, cpf, telefone, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado')
+    .select(`
+      nome, cpf, telefone,
+      endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado,
+      recibo_logo_url, recibo_emitente_nome, recibo_assinatura_url,
+      recibo_mostrar_linha, recibo_assinatura_sobre_linha
+    `)
     .eq('id', user.id)
     .single()
 
@@ -71,7 +76,10 @@ export async function GET(
     .from('site_config')
     .select('chave, valor')
     .in('chave', ['logo_url'])
-  const logoUrl = configs?.find(c => c.chave === 'logo_url')?.valor ?? null
+  // Logo do recibo personalizada tem prioridade; fallback é o logo do portal.
+  const logoUrl = perfil?.recibo_logo_url
+    ?? configs?.find(c => c.chave === 'logo_url')?.valor
+    ?? null
 
   const endereco = [
     perfil?.endereco_logradouro && perfil.endereco_numero
@@ -114,6 +122,10 @@ export async function GET(
     emitente_telefone: perfil?.telefone ?? null,
     cidade: perfil?.endereco_cidade ?? 'Cuiabá',
     logo_url: logoUrl,
+    assinatura_url: perfil?.recibo_assinatura_url ?? null,
+    assinatura_nome: perfil?.recibo_emitente_nome ?? null,
+    mostrar_linha_assinatura: perfil?.recibo_mostrar_linha ?? true,
+    assinatura_sobre_linha: perfil?.recibo_assinatura_sobre_linha ?? true,
   }
 
   const element = React.createElement(ReciboDocument, { data: recibo }) as unknown as React.ReactElement<DocumentProps>

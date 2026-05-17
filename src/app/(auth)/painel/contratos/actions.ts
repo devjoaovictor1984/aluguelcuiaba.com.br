@@ -318,6 +318,116 @@ export async function excluirContrato(id: string) {
   return { ok: true }
 }
 
+// ───────────────── Reajuste ─────────────────
+
+export interface AplicarReajusteInput {
+  contrato_id: string
+  novo_valor_aluguel: number
+  data_efetiva: string           // YYYY-MM-DD — primeira parcela afetada (mes_referencia)
+  indice_usado?: string          // IGPM / IPCA / INPC / manual
+  observacao?: string
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+export async function aplicarReajuste(input: AplicarReajusteInput) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  if (input.novo_valor_aluguel <= 0) return { error: 'Valor do aluguel inválido.' }
+  if (!input.data_efetiva) return { error: 'Data efetiva obrigatória.' }
+
+  // 1. Contrato (precisa pegar taxa_admin pra recalcular comissão)
+  const { data: contrato, error: errCtr } = await supabase
+    .from('contratos_locacao')
+    .select('id, valor_aluguel, taxa_admin_tipo, taxa_admin_valor, data_proximo_reajuste')
+    .eq('id', input.contrato_id)
+    .eq('user_id', acesso.userId)
+    .single()
+  if (errCtr || !contrato) return { error: 'Contrato não encontrado.' }
+
+  const valorAntigo = Number(contrato.valor_aluguel)
+  const valorNovo = round2(input.novo_valor_aluguel)
+  if (valorNovo === valorAntigo) return { error: 'Novo valor é igual ao atual.' }
+
+  const percentual = round2(((valorNovo / valorAntigo) - 1) * 100)
+
+  // 2. Parcelas afetadas: não pagas, com mes_referencia >= data_efetiva
+  const { data: parcelas, error: errPar } = await supabase
+    .from('parcelas_aluguel')
+    .select('id, valor_seguro, valor_iptu, valor_condominio, status_pagamento')
+    .eq('contrato_id', input.contrato_id)
+    .gte('mes_referencia', input.data_efetiva)
+    .neq('status_pagamento', 'pago')
+
+  if (errPar) return { error: errPar.message }
+  if (!parcelas || parcelas.length === 0) {
+    return { error: 'Nenhuma parcela elegível (todas pagas ou data efetiva no futuro demais).' }
+  }
+
+  // 3. Recalcula cada uma e atualiza em série (poderia ser bulk via RPC, mas N é pequeno)
+  const tipo = contrato.taxa_admin_tipo as 'percentual' | 'fixo'
+  const taxa = Number(contrato.taxa_admin_valor)
+
+  for (const p of parcelas) {
+    const seguro = Number(p.valor_seguro) || 0
+    const iptu = Number(p.valor_iptu) || 0
+    const condo = Number(p.valor_condominio) || 0
+    const total = round2(valorNovo + seguro + iptu + condo)
+    const comissao = tipo === 'fixo' ? round2(taxa) : round2((valorNovo * taxa) / 100)
+    const repasse = round2(valorNovo - comissao)
+
+    const { error: errUp } = await supabase
+      .from('parcelas_aluguel')
+      .update({
+        valor_aluguel: valorNovo,
+        valor_total: total,
+        valor_comissao: comissao,
+        valor_repasse_proprietario: repasse,
+      })
+      .eq('id', p.id)
+    if (errUp) return { error: `Falha ao atualizar parcela: ${errUp.message}` }
+  }
+
+  // 4. Atualiza valor de referência + próxima janela de reajuste (+12 meses)
+  const proxReajuste = (() => {
+    const d = new Date(input.data_efetiva + 'T00:00:00')
+    d.setMonth(d.getMonth() + 12)
+    return d.toISOString().slice(0, 10)
+  })()
+
+  await supabase
+    .from('contratos_locacao')
+    .update({
+      valor_aluguel: valorNovo,
+      data_proximo_reajuste: proxReajuste,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.contrato_id)
+
+  // 5. Registra no histórico
+  const { error: errHist } = await supabase
+    .from('reajustes_historico')
+    .insert({
+      contrato_id: input.contrato_id,
+      user_id: acesso.userId,
+      data_efetiva: input.data_efetiva,
+      valor_antigo: valorAntigo,
+      valor_novo: valorNovo,
+      percentual,
+      indice_usado: input.indice_usado ?? null,
+      parcelas_afetadas: parcelas.length,
+      observacao: input.observacao ?? null,
+    })
+  if (errHist) return { error: errHist.message }
+
+  revalidatePath(`/painel/contratos/${input.contrato_id}`)
+  revalidatePath('/painel/financeiro')
+  return { ok: true, parcelas_afetadas: parcelas.length, percentual }
+}
+
 // ───────────────── Moradores adicionais ─────────────────
 
 export type ParentescoMorador =

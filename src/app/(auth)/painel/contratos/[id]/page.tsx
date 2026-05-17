@@ -8,6 +8,7 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { ParcelaRow, type Parcela } from './_components/parcela-row'
 import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
+import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -54,7 +55,12 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
 
   if (!contrato) notFound()
 
-  const [{ data: parcelas }, { data: moradoresRaw }, { data: pessoasUser }] = await Promise.all([
+  const [
+    { data: parcelas },
+    { data: moradoresRaw },
+    { data: pessoasUser },
+    { data: reajustesRaw },
+  ] = await Promise.all([
     supabase
       .from('parcelas_aluguel')
       .select('*')
@@ -73,6 +79,11 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
       .select('id, nome, tipo, cpf_cnpj')
       .eq('user_id', acesso.userId)
       .order('nome', { ascending: true }),
+    supabase
+      .from('reajustes_historico')
+      .select('id, data_efetiva, valor_antigo, valor_novo, percentual, indice_usado, parcelas_afetadas, observacao, created_at')
+      .eq('contrato_id', id)
+      .order('data_efetiva', { ascending: false }),
   ])
 
   const moradores: MoradorRow[] = (moradoresRaw ?? []).map((m: {
@@ -88,6 +99,12 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   }))
 
   const pessoasDisponiveis: PessoaOpcao[] = (pessoasUser ?? []) as PessoaOpcao[]
+  const reajustes: ReajusteRow[] = ((reajustesRaw ?? []) as ReajusteRow[]).map(r => ({
+    ...r,
+    percentual: Number(r.percentual),
+    valor_antigo: Number(r.valor_antigo),
+    valor_novo: Number(r.valor_novo),
+  }))
 
   const lista = parcelas ?? []
   const pagas = lista.filter(p => p.status_pagamento === 'pago').length
@@ -95,6 +112,8 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     if (p.status_pagamento === 'pago') return false
     return new Date(p.vencimento) < new Date()
   }).length
+  const parcelasFuturas = lista.filter(p => p.status_pagamento !== 'pago').length
+  const proximaParcela = lista.find(p => p.status_pagamento !== 'pago')
 
   const imovel = Array.isArray(contrato.imovel) ? contrato.imovel[0] : contrato.imovel
   const inquilino = Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino
@@ -175,6 +194,17 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
           </p>
         </div>
       </div>
+
+      <ReajusteSecao
+        contratoId={id}
+        contratoCodigo={contrato.codigo}
+        valorAluguelAtual={contrato.valor_aluguel}
+        dataProximoReajuste={contrato.data_proximo_reajuste}
+        jaEncerrado={['encerrado', 'rescindido'].includes(contrato.status)}
+        parcelasFuturas={parcelasFuturas}
+        proximaParcelaMesRef={proximaParcela?.mes_referencia ?? null}
+        reajustes={reajustes}
+      />
 
       <MoradoresSecao
         contratoId={id}
