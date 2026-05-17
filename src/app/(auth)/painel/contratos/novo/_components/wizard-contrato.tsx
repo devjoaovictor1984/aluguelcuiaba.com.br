@@ -9,6 +9,8 @@ import {
 } from 'lucide-react'
 import { criarContrato, type ContratoInput } from '../../actions'
 import { gerarParcelas, resumirParcelas } from '@/lib/crm/calculos'
+import { InputMoeda, InputPercentual } from '@/components/inputs/input-mascarado'
+import { parseMoney, parsePercentual } from '@/lib/formatters'
 import type { ImovelLite, PessoaLite, WizardState } from './wizard-types'
 import { ESTADO_INICIAL } from './wizard-types'
 
@@ -32,8 +34,12 @@ function fmtBRL(v: number): string {
 }
 
 function parseNumero(s: string): number {
-  if (!s) return 0
-  return parseFloat(s.replace(',', '.')) || 0
+  return parseMoney(s)
+}
+
+function formatarValorInicial(n: number | null | undefined): string {
+  if (!n) return ''
+  return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 export function WizardContrato({ imoveis, pessoas }: Props) {
@@ -58,7 +64,7 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
     setField('imovel_id', id)
     const im = imoveis.find(x => x.id === id)
     if (im) {
-      if (!s.valor_aluguel) setField('valor_aluguel', String(im.preco))
+      if (!s.valor_aluguel) setField('valor_aluguel', formatarValorInicial(im.preco))
       if (!s.proprietario_id && im.proprietario_id) setField('proprietario_id', im.proprietario_id)
     }
   }
@@ -77,7 +83,9 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
       iptu_mensal: parseNumero(s.iptu_mensal),
       condominio_mensal: parseNumero(s.condominio_mensal),
       taxa_admin_tipo: s.taxa_admin_tipo,
-      taxa_admin_valor: parseNumero(s.taxa_admin_valor),
+      taxa_admin_valor: s.taxa_admin_tipo === 'percentual'
+        ? parsePercentual(s.taxa_admin_valor)
+        : parseMoney(s.taxa_admin_valor),
       primeira_parcela_cheia: s.primeira_parcela_cheia,
     })
   }, [s])
@@ -132,7 +140,9 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
       iptu_mensal: parseNumero(s.iptu_mensal),
       condominio_mensal: parseNumero(s.condominio_mensal),
       taxa_admin_tipo: s.taxa_admin_tipo,
-      taxa_admin_valor: parseNumero(s.taxa_admin_valor),
+      taxa_admin_valor: s.taxa_admin_tipo === 'percentual'
+        ? parsePercentual(s.taxa_admin_valor)
+        : parseMoney(s.taxa_admin_valor),
       primeira_parcela_cheia: s.primeira_parcela_cheia,
       garantia_tipo: s.garantia_tipo,
       fiador_id: s.garantia_tipo === 'fiador' ? s.fiador_id : null,
@@ -295,8 +305,8 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
 
           {s.garantia_tipo === 'caucao' && (
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Valor da caução (R$) *</label>
-              <input type="text" value={s.caucao_valor} onChange={e => setField('caucao_valor', e.target.value)} placeholder="3000" className={inputCls} />
+              <label className="text-xs font-medium text-gray-600 block mb-1">Valor da caução *</label>
+              <InputMoeda value={s.caucao_valor} onChange={v => setField('caucao_valor', v)} className={inputCls} />
               <p className="text-[11px] text-gray-400 mt-0.5">Geralmente 3 aluguéis. Pode ser depositado em poupança vinculada.</p>
             </div>
           )}
@@ -323,26 +333,26 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
 
           <div className="grid sm:grid-cols-3 gap-3">
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Aluguel (R$) *</label>
-              <input value={s.valor_aluguel} onChange={e => setField('valor_aluguel', e.target.value)} placeholder="1700" className={inputCls} />
+              <label className="text-xs font-medium text-gray-600 block mb-1">Aluguel *</label>
+              <InputMoeda value={s.valor_aluguel} onChange={v => setField('valor_aluguel', v)} className={inputCls} />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Seguro fiança mensal (R$)</label>
-              <input value={s.valor_seguro_fianca_mensal} onChange={e => setField('valor_seguro_fianca_mensal', e.target.value)} placeholder="155.28" className={inputCls} />
-              <p className="text-[11px] text-gray-400 mt-0.5">Vai somar no boleto do inquilino</p>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Seguro fiança mensal</label>
+              <InputMoeda value={s.valor_seguro_fianca_mensal} onChange={v => setField('valor_seguro_fianca_mensal', v)} className={inputCls} />
+              <p className="text-[11px] text-gray-400 mt-0.5">Soma no boleto do inquilino</p>
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">IPTU mensal (R$)</label>
-              <input value={s.iptu_mensal} onChange={e => setField('iptu_mensal', e.target.value)} placeholder="0" className={inputCls} />
+              <label className="text-xs font-medium text-gray-600 block mb-1">IPTU mensal</label>
+              <InputMoeda value={s.iptu_mensal} onChange={v => setField('iptu_mensal', v)} className={inputCls} />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Condomínio mensal (R$)</label>
-              <input value={s.condominio_mensal} onChange={e => setField('condominio_mensal', e.target.value)} placeholder="0" className={inputCls} />
+              <label className="text-xs font-medium text-gray-600 block mb-1">Condomínio mensal</label>
+              <InputMoeda value={s.condominio_mensal} onChange={v => setField('condominio_mensal', v)} className={inputCls} />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Seguro incêndio anual (R$)</label>
-              <input value={s.valor_seguro_incendio_anual} onChange={e => setField('valor_seguro_incendio_anual', e.target.value)} placeholder="opcional" className={inputCls} />
-              <p className="text-[11px] text-gray-400 mt-0.5">Pago uma vez, não vai no boleto mensal</p>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Seguro incêndio anual</label>
+              <InputMoeda value={s.valor_seguro_incendio_anual} onChange={v => setField('valor_seguro_incendio_anual', v)} className={inputCls} />
+              <p className="text-[11px] text-gray-400 mt-0.5">Pago 1x, não entra no boleto mensal</p>
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Data do seguro incêndio</label>
@@ -350,25 +360,57 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
             </div>
           </div>
 
-          <div className="grid sm:grid-cols-3 gap-3 pt-3 border-t border-gray-50">
-            <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">Administração</label>
-              <div className="flex gap-2">
-                <select value={s.taxa_admin_tipo} onChange={e => setField('taxa_admin_tipo', e.target.value as 'percentual' | 'fixo')} className={`${inputCls} w-32`}>
-                  <option value="percentual">%</option>
-                  <option value="fixo">R$ fixo</option>
-                </select>
-                <input value={s.taxa_admin_valor} onChange={e => setField('taxa_admin_valor', e.target.value)} className={`${inputCls} flex-1`} />
+          <div className="pt-3 border-t border-gray-50 space-y-3">
+            <p className="text-xs font-medium text-gray-600">Taxa de administração da imobiliária</p>
+
+            <div className="grid grid-cols-2 gap-2">
+              <button type="button"
+                onClick={() => setField('taxa_admin_tipo', 'percentual')}
+                className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
+                  s.taxa_admin_tipo === 'percentual' ? 'border-violet-700 bg-violet-50 text-violet-700' : 'border-gray-100 text-gray-600 hover:border-violet-300'
+                }`}>
+                Percentual sobre o aluguel (%)
+              </button>
+              <button type="button"
+                onClick={() => setField('taxa_admin_tipo', 'fixo')}
+                className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
+                  s.taxa_admin_tipo === 'fixo' ? 'border-violet-700 bg-violet-50 text-violet-700' : 'border-gray-100 text-gray-600 hover:border-violet-300'
+                }`}>
+                Valor fixo em R$
+              </button>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3 items-end">
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">
+                  {s.taxa_admin_tipo === 'percentual' ? 'Quanto % sobre o aluguel?' : 'Quanto em reais por parcela?'}
+                </label>
+                {s.taxa_admin_tipo === 'percentual' ? (
+                  <InputPercentual value={s.taxa_admin_valor} onChange={v => setField('taxa_admin_valor', v)} className={inputCls} />
+                ) : (
+                  <InputMoeda value={s.taxa_admin_valor} onChange={v => setField('taxa_admin_valor', v)} className={inputCls} />
+                )}
               </div>
-              <p className="text-[11px] text-gray-400 mt-0.5">Comissão da imobiliária (descontada do repasse)</p>
+              <div className="text-xs text-gray-500">
+                Exemplo: aluguel de R$ 1.900 com {s.taxa_admin_tipo === 'percentual' ? (parsePercentual(s.taxa_admin_valor) || 10) + '%' : 'R$ ' + (parseMoney(s.taxa_admin_valor) || 0).toFixed(2)}
+                {' → comissão de '}
+                <strong className="text-violet-700">
+                  R$ {(s.taxa_admin_tipo === 'percentual'
+                    ? (1900 * (parsePercentual(s.taxa_admin_valor) || 10)) / 100
+                    : parseMoney(s.taxa_admin_valor)
+                  ).toFixed(2).replace('.', ',')}
+                </strong>
+              </div>
             </div>
-            <div className="sm:col-span-2 flex items-end">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={s.primeira_parcela_cheia} onChange={e => setField('primeira_parcela_cheia', e.target.checked)}
-                  className="w-4 h-4 rounded accent-violet-600" />
-                <span className="text-sm text-gray-700"><strong>1ª parcela 100% pra imobiliária</strong> (proprietário recebe R$ 0 no 1º mês)</span>
-              </label>
-            </div>
+
+            <label className="flex items-start gap-2 cursor-pointer p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+              <input type="checkbox" checked={s.primeira_parcela_cheia} onChange={e => setField('primeira_parcela_cheia', e.target.checked)}
+                className="w-4 h-4 rounded accent-violet-600 mt-0.5 shrink-0" />
+              <span className="text-sm text-gray-700">
+                <strong>1ª parcela 100% pra imobiliária</strong>
+                <p className="text-xs text-gray-500 mt-0.5">No primeiro mês, todo o aluguel fica com a imobiliária (proprietário recebe R$ 0).</p>
+              </span>
+            </label>
           </div>
 
           <div className="grid sm:grid-cols-4 gap-3 pt-3 border-t border-gray-50">

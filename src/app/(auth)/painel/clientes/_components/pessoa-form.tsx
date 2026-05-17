@@ -4,6 +4,8 @@ import { useState, useTransition, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Save, AlertCircle, Trash2 } from 'lucide-react'
 import { criarPessoa, atualizarPessoa, excluirPessoa, type PessoaInput, type TipoPessoa, type TipoPix } from '../actions'
+import { InputCpfCnpj, InputTelefone, InputCep } from '@/components/inputs/input-mascarado'
+import { maskCep } from '@/lib/formatters'
 
 interface Props {
   modo: 'novo' | 'editar'
@@ -132,7 +134,7 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">CPF/CNPJ</label>
-            <input value={cpfCnpj} onChange={e => setCpfCnpj(e.target.value)} placeholder="000.000.000-00" className={inputCls} />
+            <InputCpfCnpj value={cpfCnpj ?? ''} onChange={setCpfCnpj} className={inputCls} />
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">RG</label>
@@ -173,12 +175,12 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Telefone</label>
-            <input value={telefone ?? ''} onChange={e => setTelefone(e.target.value)} placeholder="(65) 99999-9999" className={inputCls} />
+            <InputTelefone value={telefone ?? ''} onChange={setTelefone} className={inputCls} />
           </div>
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">WhatsApp</label>
-            <input value={whatsapp ?? ''} onChange={e => setWhatsapp(e.target.value)} placeholder="65999999999" className={inputCls} />
-            <p className="text-[10px] text-gray-400 mt-0.5">Só números, com DDD (para links wa.me)</p>
+            <InputTelefone value={whatsapp ?? ''} onChange={setWhatsapp} className={inputCls} />
+            <p className="text-[10px] text-gray-400 mt-0.5">Usado para gerar links wa.me</p>
           </div>
         </div>
       </section>
@@ -188,7 +190,7 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
         <div className="grid sm:grid-cols-6 gap-3">
           <div className="sm:col-span-2">
             <label className="text-xs font-medium text-gray-600 block mb-1">CEP</label>
-            <input value={cep ?? ''} onChange={e => setCep(e.target.value)} onBlur={buscaCep} placeholder="00000-000" className={inputCls} />
+            <InputCep value={cep ?? ''} onChange={v => setCep(maskCep(v))} onBlur={buscaCep} className={inputCls} />
             <p className="text-[10px] text-gray-400 mt-0.5">Preenche endereço automaticamente</p>
           </div>
           <div className="sm:col-span-4">
