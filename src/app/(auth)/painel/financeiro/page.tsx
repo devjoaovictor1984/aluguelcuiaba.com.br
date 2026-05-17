@@ -6,6 +6,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { formatarBRL, formatarData } from '@/lib/formatters'
+import { FiltroMesAno } from './_components/filtro-mes-ano'
 
 interface ParcelaRow {
   id: string
@@ -59,13 +60,28 @@ function StatCard({ label, value, sub, icon: Icon, cor, bg, sufixo, hint }: {
   )
 }
 
-export default async function FinanceiroPage() {
+interface Props {
+  searchParams: Promise<{ mes?: string; ano?: string }>
+}
+
+export default async function FinanceiroPage({ searchParams }: Props) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
   const hoje = new Date()
-  const inicioMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1)
-  const fimMes = new Date(hoje.getFullYear(), hoje.getMonth() + 1, 0, 23, 59, 59)
+  const sp = await searchParams
+  const mesParam = parseInt(sp.mes ?? '')
+  const anoParam = parseInt(sp.ano ?? '')
+
+  // Mês selecionado (default = atual)
+  const mesAlvoNum = (mesParam >= 1 && mesParam <= 12) ? mesParam : (hoje.getMonth() + 1)
+  const anoAlvo = Number.isFinite(anoParam) && anoParam > 1900 ? anoParam : hoje.getFullYear()
+  const ehMesAtual = mesAlvoNum === (hoje.getMonth() + 1) && anoAlvo === hoje.getFullYear()
+
+  const inicioMes = new Date(anoAlvo, mesAlvoNum - 1, 1)
+  const fimMes = new Date(anoAlvo, mesAlvoNum, 0, 23, 59, 59)
+
+  // Relativos a HOJE (não mudam com filtro)
   const em30Dias = new Date(hoje.getTime() + 30 * 86400000)
   const em7Dias = new Date(hoje.getTime() + 7 * 86400000)
   const ha12Meses = new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1)
@@ -206,10 +222,10 @@ export default async function FinanceiroPage() {
     .filter(c => c.seguro_incendio_data && new Date(c.seguro_incendio_data) <= em30Dias)
     .slice(0, 5)
 
-  // ─── Receita por mês (últimos 12 meses + próximos 6) ─────────────────
+  // ─── Receita por mês (centrado no mês selecionado: 11 antes + 6 depois) ──
   const meses: { rotulo: string; key: string; receita: number; recebido: number }[] = []
   for (let i = -11; i <= 6; i++) {
-    const m = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1)
+    const m = new Date(anoAlvo, mesAlvoNum - 1 + i, 1)
     const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`
     const rotulo = m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
       + '/' + String(m.getFullYear()).slice(2)
@@ -230,6 +246,7 @@ export default async function FinanceiroPage() {
   }
 
   const maxReceita = Math.max(...meses.map(m => m.receita), 1)
+  const mesAlvoKey = `${anoAlvo}-${String(mesAlvoNum).padStart(2, '0')}`
   const mesAtualKey = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
 
   // ─── Recebido nos últimos 12 meses ───────────────────────────────────
@@ -246,26 +263,30 @@ export default async function FinanceiroPage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Wallet size={20} className="text-violet-600" /> Financeiro
-        </h1>
-        <p className="text-sm text-gray-500">
-          {hoje.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })} · {contratosAtivos.length} contrato{contratosAtivos.length === 1 ? '' : 's'} ativo{contratosAtivos.length === 1 ? '' : 's'}
-        </p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Wallet size={20} className="text-violet-600" /> Financeiro
+          </h1>
+          <p className="text-sm text-gray-500">
+            {inicioMes.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })} · {contratosAtivos.length} contrato{contratosAtivos.length === 1 ? '' : 's'} ativo{contratosAtivos.length === 1 ? '' : 's'}
+            {!ehMesAtual && <span className="text-amber-600 font-medium"> · filtro aplicado</span>}
+          </p>
+        </div>
+        <FiltroMesAno mes={mesAlvoNum} ano={anoAlvo} ehAtual={ehMesAtual} />
       </div>
 
-      {/* KPIs do mês */}
+      {/* KPIs do mês selecionado */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label="Receita do mês"
+          label={ehMesAtual ? 'Receita do mês' : 'Receita do mês selecionado'}
           value={formatarBRL(totalReceitaMes)}
           sub={`${formatarBRL(recebidoMes)} recebido · ${formatarBRL(aReceberMes)} a receber`}
           icon={DollarSign}
           cor="text-violet-600" bg="bg-violet-50"
         />
         <StatCard
-          label="Comissão do mês"
+          label="Comissão"
           value={formatarBRL(comissaoMes)}
           sub="Fica com a imobiliária"
           icon={TrendingUp}
@@ -274,7 +295,7 @@ export default async function FinanceiroPage() {
         <StatCard
           label="A repassar"
           value={formatarBRL(repasseMes)}
-          sub={`${formatarBRL(repassePendenteMes)} pendente este mês`}
+          sub={`${formatarBRL(repassePendenteMes)} ainda pendente`}
           icon={ArrowUpRight}
           cor="text-blue-600" bg="bg-blue-50"
         />
@@ -395,34 +416,35 @@ export default async function FinanceiroPage() {
       {/* Gráfico de receita */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <h2 className="font-semibold text-gray-900 mb-4 text-sm flex items-center gap-2">
-          <Calendar size={15} className="text-violet-600" /> Receita por mês (12 meses anteriores + 6 futuros)
+          <Calendar size={15} className="text-violet-600" /> Receita por mês (11 meses antes + mês selecionado + 6 depois)
         </h2>
         <div className="overflow-x-auto">
           <div className="flex items-end gap-1 min-w-[600px] h-32">
             {meses.map(m => {
               const altura = (m.receita / maxReceita) * 100
               const alturaRecebida = m.receita > 0 ? (m.recebido / m.receita) * altura : 0
+              const isSelecionado = m.key === mesAlvoKey
               const isAtual = m.key === mesAtualKey
               const isFuturo = m.key > mesAtualKey
               return (
                 <div key={m.key} className="flex-1 flex flex-col items-center gap-1 group" title={`${m.rotulo}: ${formatarBRL(m.receita)} previsto · ${formatarBRL(m.recebido)} recebido`}>
                   <div className="w-full relative h-24 flex items-end">
                     <div className={`w-full rounded-t transition-colors ${
-                      isFuturo ? 'bg-gray-200' : isAtual ? 'bg-violet-200' : 'bg-violet-100'
-                    } group-hover:opacity-80`} style={{ height: `${altura}%` }}>
-                      <div className={`w-full rounded-t ${isAtual ? 'bg-violet-700' : isFuturo ? 'bg-gray-400' : 'bg-green-500'}`}
+                      isSelecionado ? 'bg-violet-200' : isFuturo ? 'bg-gray-200' : 'bg-violet-100'
+                    } group-hover:opacity-80 ${isSelecionado ? 'ring-2 ring-violet-500' : ''}`} style={{ height: `${altura}%` }}>
+                      <div className={`w-full rounded-t ${isSelecionado ? 'bg-violet-700' : isFuturo ? 'bg-gray-400' : 'bg-green-500'}`}
                         style={{ height: `${(alturaRecebida / Math.max(altura, 1)) * 100}%` }} />
                     </div>
                   </div>
-                  <span className={`text-[9px] ${isAtual ? 'font-bold text-violet-700' : 'text-gray-400'}`}>{m.rotulo}</span>
+                  <span className={`text-[9px] ${isSelecionado ? 'font-bold text-violet-700' : isAtual ? 'font-semibold text-gray-700' : 'text-gray-400'}`}>{m.rotulo}</span>
                 </div>
               )
             })}
           </div>
         </div>
-        <div className="flex items-center gap-4 mt-3 text-[11px] text-gray-500">
+        <div className="flex items-center gap-4 mt-3 text-[11px] text-gray-500 flex-wrap">
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-green-500"></span> Recebido</span>
-          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-violet-200"></span> A receber (mês atual)</span>
+          <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-violet-200 ring-2 ring-violet-500"></span> Mês selecionado</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-violet-100"></span> Histórico</span>
           <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded bg-gray-200"></span> Projetado</span>
         </div>
