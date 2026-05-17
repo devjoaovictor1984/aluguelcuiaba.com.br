@@ -45,8 +45,13 @@ function inteiroPorExtenso(n: number): string {
   for (let i = grupos.length - 1; i >= 0; i--) {
     const valor = parseInt(grupos[i])
     if (valor === 0) continue
+    // Caso especial: "mil" sozinho (1.000..1.999) — não dizemos "um mil"
+    if (i === 1 && valor === 1) {
+      partes.push('mil')
+      continue
+    }
     const sufixo = valor === 1 && i > 0 ? SUFIXOS_SING[i] : SUFIXOS_PLUR[i]
-    const texto = i === 1 && valor === 1 ? 'mil' : ateNovecentosENoventaENove(valor)
+    const texto = ateNovecentosENoventaENove(valor)
     partes.push(sufixo ? `${texto} ${sufixo}`.trim() : texto)
   }
 
