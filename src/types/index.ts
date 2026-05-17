@@ -100,6 +100,7 @@ export interface Imovel {
   observacoes: string | null
   whatsapp: string
   status: StatusImovel
+  data_alugado: string | null
   destaque: boolean
   destaque_expira_em: string | null
   visualizacoes: number
