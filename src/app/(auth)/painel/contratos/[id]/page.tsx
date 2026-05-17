@@ -1,11 +1,11 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Home, User, Shield, Calendar, DollarSign,
-  CheckCircle2, Clock, AlertTriangle,
+  ArrowLeft, Home, User, Shield, Calendar, DollarSign, Pencil,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { ParcelaRow, type Parcela } from './_components/parcela-row'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -77,15 +77,23 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         <Link href="/painel/contratos" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-violet-700 mb-2">
           <ArrowLeft size={12} /> Contratos
         </Link>
-        <div className="flex items-center gap-3 flex-wrap">
-          <h1 className="text-xl font-bold text-gray-900 font-mono">{contrato.codigo}</h1>
-          <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COR[contrato.status]}`}>
-            {contrato.status}
-          </span>
-          <span className="text-xs text-gray-400">
-            {pagas}/{lista.length} parcelas pagas
-            {atrasadas > 0 && <span className="text-red-600 font-semibold ml-2">· {atrasadas} atrasada{atrasadas === 1 ? '' : 's'}</span>}
-          </span>
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
+            <h1 className="text-xl font-bold text-gray-900 font-mono">{contrato.codigo}</h1>
+            <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COR[contrato.status]}`}>
+              {contrato.status}
+            </span>
+            <span className="text-xs text-gray-400">
+              {pagas}/{lista.length} parcelas pagas
+              {atrasadas > 0 && <span className="text-red-600 font-semibold ml-2">· {atrasadas} atrasada{atrasadas === 1 ? '' : 's'}</span>}
+            </span>
+          </div>
+          <Link
+            href={`/painel/contratos/${id}/editar`}
+            className="flex items-center gap-1.5 text-sm text-violet-700 hover:text-violet-800 border border-violet-200 hover:border-violet-400 hover:bg-violet-50 px-3 py-1.5 rounded-xl transition-colors"
+          >
+            <Pencil size={13} /> Editar
+          </Link>
         </div>
       </div>
 
@@ -138,51 +146,29 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
 
       {/* Parcelas */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-900">Parcelas ({lista.length})</h2>
+          <p className="text-[11px] text-gray-400">Clique nos ícones para marcar/desmarcar</p>
         </div>
-        <div className="max-h-[500px] overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 sticky top-0">
+        <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
+          <table className="w-full text-sm min-w-[700px]">
+            <thead className="bg-gray-50 sticky top-0 z-10">
               <tr className="text-left text-xs font-semibold text-gray-500">
-                <th className="px-4 py-2">#</th>
-                <th className="px-4 py-2">Vencimento</th>
-                <th className="px-4 py-2 text-right">Boleto</th>
-                <th className="px-4 py-2 text-right">Comissão</th>
-                <th className="px-4 py-2 text-right">Repasse</th>
-                <th className="px-4 py-2 text-center">Pgto</th>
-                <th className="px-4 py-2 text-center">Repasse</th>
+                <th className="px-3 py-2">#</th>
+                <th className="px-3 py-2">Vencimento</th>
+                <th className="px-3 py-2 text-right">Boleto</th>
+                <th className="px-3 py-2 text-right">Comissão</th>
+                <th className="px-3 py-2 text-right">Repasse</th>
+                <th className="px-2 py-2 text-center" title="Pagamento">Pgto</th>
+                <th className="px-2 py-2 text-center" title="Repasse ao proprietário">Repasse</th>
+                <th className="px-2 py-2 text-center" title="Seguro fiança">Seg.</th>
+                <th className="px-2 py-2 text-center" title="Boleto enviado">Bol.</th>
               </tr>
             </thead>
             <tbody>
-              {lista.map(p => {
-                const atrasada = p.status_pagamento !== 'pago' && new Date(p.vencimento) < new Date()
-                return (
-                  <tr key={p.id} className="border-t border-gray-50 hover:bg-gray-50">
-                    <td className="px-4 py-2 text-gray-500 font-mono text-xs">{p.numero}</td>
-                    <td className={`px-4 py-2 ${atrasada ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
-                      {fmtData(p.vencimento)}
-                    </td>
-                    <td className="px-4 py-2 text-right font-medium">{fmtBRL(p.valor_total)}</td>
-                    <td className="px-4 py-2 text-right text-violet-700">{fmtBRL(p.valor_comissao)}</td>
-                    <td className="px-4 py-2 text-right text-green-700">{fmtBRL(p.valor_repasse_proprietario)}</td>
-                    <td className="px-4 py-2 text-center">
-                      {p.status_pagamento === 'pago' ? (
-                        <CheckCircle2 size={14} className="text-green-600 inline" />
-                      ) : atrasada ? (
-                        <AlertTriangle size={14} className="text-red-500 inline" />
-                      ) : (
-                        <Clock size={14} className="text-gray-300 inline" />
-                      )}
-                    </td>
-                    <td className="px-4 py-2 text-center">
-                      {p.status_repasse === 'pago'
-                        ? <CheckCircle2 size={14} className="text-green-600 inline" />
-                        : <Clock size={14} className="text-gray-300 inline" />}
-                    </td>
-                  </tr>
-                )
-              })}
+              {lista.map(p => (
+                <ParcelaRow key={p.id} parcela={p as unknown as Parcela} />
+              ))}
             </tbody>
           </table>
         </div>

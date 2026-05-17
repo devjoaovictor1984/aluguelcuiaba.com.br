@@ -179,3 +179,141 @@ export async function criarContrato(input: ContratoInput) {
 
   return { ok: true, id: contrato.id, codigo: contrato.codigo }
 }
+
+// ───────────────── Ações sobre parcelas ─────────────────
+
+export interface MarcarPagamentoInput {
+  parcela_id: string
+  data_pagamento: string    // YYYY-MM-DD
+  valor_pago: number
+  juros_multa?: number
+  desconto?: number
+  observacoes?: string
+}
+
+export async function marcarPagamento(input: MarcarPagamentoInput) {
+  await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('parcelas_aluguel')
+    .update({
+      status_pagamento: 'pago',
+      data_pagamento: input.data_pagamento,
+      valor_pago: input.valor_pago,
+      juros_multa: input.juros_multa ?? 0,
+      desconto: input.desconto ?? 0,
+      observacoes: input.observacoes ?? null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.parcela_id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  revalidatePath('/painel/financeiro')
+  return { ok: true }
+}
+
+export async function desfazerPagamento(parcelaId: string) {
+  await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('parcelas_aluguel')
+    .update({
+      status_pagamento: 'pendente',
+      data_pagamento: null,
+      valor_pago: null,
+      juros_multa: 0,
+      desconto: 0,
+    })
+    .eq('id', parcelaId)
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  return { ok: true }
+}
+
+export async function alternarRepasse(parcelaId: string, novo: 'pendente' | 'pago') {
+  await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('parcelas_aluguel')
+    .update({ status_repasse: novo })
+    .eq('id', parcelaId)
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  return { ok: true }
+}
+
+export async function alternarSeguro(parcelaId: string, novo: 'pendente' | 'pago' | 'sem_seguro') {
+  await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('parcelas_aluguel')
+    .update({ status_seguro: novo })
+    .eq('id', parcelaId)
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  return { ok: true }
+}
+
+export async function alternarBoletoEnviado(parcelaId: string, enviado: boolean) {
+  await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('parcelas_aluguel')
+    .update({ boleto_enviado: enviado })
+    .eq('id', parcelaId)
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  return { ok: true }
+}
+
+// ───────────────── Edição do contrato ─────────────────
+
+export interface ContratoEditavel {
+  status?: 'ativo' | 'encerrado' | 'rescindido' | 'inadimplente' | 'rascunho'
+  data_termino?: string | null
+  observacoes?: string | null
+  clausulas_extras?: string | null
+  indice_reajuste?: string | null
+  data_proximo_reajuste?: string | null
+  vistoria_ok?: boolean
+  termo_chaves_ok?: boolean
+  forma_pagamento?: 'boleto' | 'pix' | 'transferencia' | 'dinheiro' | 'cheque'
+}
+
+export async function atualizarContrato(id: string, dados: ContratoEditavel) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({
+      ...dados,
+      status_data: dados.status ? new Date().toISOString() : undefined,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('user_id', acesso.userId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  revalidatePath(`/painel/contratos/${id}`)
+  return { ok: true }
+}
+
+export async function excluirContrato(id: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  // Cascata: parcelas e documentos deletam junto pelo ON DELETE CASCADE
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', acesso.userId)
+
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  return { ok: true }
+}
