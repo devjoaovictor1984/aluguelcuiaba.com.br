@@ -6,7 +6,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { formatarBRL, formatarData } from '@/lib/formatters'
-import { FiltroMesAno } from './_components/filtro-mes-ano'
+import { FiltroMesAno, type ModoPeriodo } from './_components/filtro-mes-ano'
 
 interface ParcelaRow {
   id: string
@@ -61,8 +61,13 @@ function StatCard({ label, value, sub, icon: Icon, cor, bg, sufixo, hint }: {
 }
 
 interface Props {
-  searchParams: Promise<{ mes?: string; ano?: string }>
+  searchParams: Promise<{ modo?: string; mes?: string; ano?: string }>
 }
+
+const MESES_NOMES = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+]
 
 export default async function FinanceiroPage({ searchParams }: Props) {
   const acesso = await exigirAcessoCRM()
@@ -72,14 +77,38 @@ export default async function FinanceiroPage({ searchParams }: Props) {
   const sp = await searchParams
   const mesParam = parseInt(sp.mes ?? '')
   const anoParam = parseInt(sp.ano ?? '')
+  const modoParam = sp.modo
+  const modo: ModoPeriodo = modoParam === 'anual' ? 'anual' : modoParam === 'tudo' ? 'tudo' : 'mensal'
 
-  // Mês selecionado (default = atual)
+  // Mês/Ano selecionados (default = atual)
   const mesAlvoNum = (mesParam >= 1 && mesParam <= 12) ? mesParam : (hoje.getMonth() + 1)
   const anoAlvo = Number.isFinite(anoParam) && anoParam > 1900 ? anoParam : hoje.getFullYear()
-  const ehMesAtual = mesAlvoNum === (hoje.getMonth() + 1) && anoAlvo === hoje.getFullYear()
+  const ehMesAtual = modo === 'mensal' && mesAlvoNum === (hoje.getMonth() + 1) && anoAlvo === hoje.getFullYear()
+  const ehAnoAtual = modo === 'anual' && anoAlvo === hoje.getFullYear()
+  const ehPeriodoAtual = ehMesAtual || ehAnoAtual || modo === 'tudo'
 
-  const inicioMes = new Date(anoAlvo, mesAlvoNum - 1, 1)
-  const fimMes = new Date(anoAlvo, mesAlvoNum, 0, 23, 59, 59)
+  // Range do período selecionado (null = sem filtro de tempo)
+  const inicioRange: Date | null =
+    modo === 'mensal' ? new Date(anoAlvo, mesAlvoNum - 1, 1)
+    : modo === 'anual' ? new Date(anoAlvo, 0, 1)
+    : null
+  const fimRange: Date | null =
+    modo === 'mensal' ? new Date(anoAlvo, mesAlvoNum, 0, 23, 59, 59)
+    : modo === 'anual' ? new Date(anoAlvo, 11, 31, 23, 59, 59)
+    : null
+
+  // Helpers de filtro de tempo
+  const dentroDoRange = (dataIso: string | null): boolean => {
+    if (!dataIso) return false
+    if (!inicioRange || !fimRange) return true // modo "tudo"
+    const d = new Date(dataIso.slice(0, 10) + 'T00:00:00')
+    return d >= inicioRange && d <= fimRange
+  }
+
+  const rotuloPeriodo =
+    modo === 'mensal' ? `${MESES_NOMES[mesAlvoNum - 1]} de ${anoAlvo}`
+    : modo === 'anual' ? `${anoAlvo}`
+    : 'todo o período'
 
   // Relativos a HOJE (não mudam com filtro)
   const em30Dias = new Date(hoje.getTime() + 30 * 86400000)
@@ -117,23 +146,26 @@ export default async function FinanceiroPage({ searchParams }: Props) {
   const contratoPorId: Record<string, ContratoRow> = {}
   contratos.forEach(c => { contratoPorId[c.id] = c })
 
-  // ─── KPIs do mês ─────────────────────────────────────────────────────
-  const parcelasMes = parcelas.filter(p => {
+  // ─── KPIs do período (regime de CAIXA: usa data_pagamento) ───────────
+  // Parcelas efetivamente pagas dentro do período → recebido / comissão / repasse
+  const pagasNoCaixa = parcelas.filter(
+    p => p.status_pagamento === 'pago' && dentroDoRange(p.data_pagamento)
+  )
+
+  const recebidoPeriodo = pagasNoCaixa.reduce((acc, p) => acc + (p.valor_pago ?? p.valor_total), 0)
+  const comissaoPeriodo = pagasNoCaixa.reduce((acc, p) => acc + p.valor_comissao, 0)
+  const repassePeriodo = pagasNoCaixa.reduce((acc, p) => acc + p.valor_repasse_proprietario, 0)
+  const seguroPeriodo = pagasNoCaixa.reduce((acc, p) => acc + p.valor_seguro, 0)
+
+  // Parcelas a receber: NÃO pagas, com mes_referencia dentro do período (regime de competência)
+  const aReceberNoPeriodo = parcelas.filter(p => {
+    if (p.status_pagamento === 'pago') return false
+    if (!inicioRange || !fimRange) return true
     const ref = new Date(p.mes_referencia + 'T00:00:00')
-    return ref >= inicioMes && ref <= fimMes
+    return ref >= inicioRange && ref <= fimRange
   })
-
-  const recebidoMes = parcelasMes
-    .filter(p => p.status_pagamento === 'pago')
-    .reduce((acc, p) => acc + (p.valor_pago ?? p.valor_total), 0)
-  const aReceberMes = parcelasMes
-    .filter(p => p.status_pagamento !== 'pago')
-    .reduce((acc, p) => acc + p.valor_total, 0)
-  const totalReceitaMes = recebidoMes + aReceberMes
-
-  const comissaoMes = parcelasMes.reduce((acc, p) => acc + p.valor_comissao, 0)
-  const repasseMes = parcelasMes.reduce((acc, p) => acc + p.valor_repasse_proprietario, 0)
-  const seguroMes = parcelasMes.reduce((acc, p) => acc + p.valor_seguro, 0)
+  const aReceberValor = aReceberNoPeriodo.reduce((acc, p) => acc + p.valor_total, 0)
+  const totalReceitaPeriodo = recebidoPeriodo + aReceberValor
 
   // ─── Pendências operacionais ─────────────────────────────────────────
   const atrasadas = parcelas.filter(p => {
@@ -142,8 +174,9 @@ export default async function FinanceiroPage({ searchParams }: Props) {
   })
   const valorAtrasado = atrasadas.reduce((acc, p) => acc + p.valor_total, 0)
 
-  const repassePendenteMes = parcelasMes
-    .filter(p => p.status_repasse !== 'pago' && p.status_pagamento === 'pago')
+  // Repasse pendente: dinheiro JÁ recebido no período, mas ainda não repassado ao proprietário
+  const repassePendentePeriodo = pagasNoCaixa
+    .filter(p => p.status_repasse !== 'pago')
     .reduce((acc, p) => acc + p.valor_repasse_proprietario, 0)
 
   const boletosNaoEnviados = parcelas.filter(p => {
@@ -222,31 +255,58 @@ export default async function FinanceiroPage({ searchParams }: Props) {
     .filter(c => c.seguro_incendio_data && new Date(c.seguro_incendio_data) <= em30Dias)
     .slice(0, 5)
 
-  // ─── Receita por mês (centrado no mês selecionado: 11 antes + 6 depois) ──
+  // ─── Receita por mês (gráfico) ───────────────────────────────────────
+  // Caixa (recebido): usa data_pagamento. Previsto (a receber): usa mes_referencia.
+  // Em modo "anual" mostra 12 meses do ano; "mensal" 11 antes + 6 depois; "tudo" últimos 12 meses.
   const meses: { rotulo: string; key: string; receita: number; recebido: number }[] = []
-  for (let i = -11; i <= 6; i++) {
-    const m = new Date(anoAlvo, mesAlvoNum - 1 + i, 1)
-    const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`
-    const rotulo = m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
-      + '/' + String(m.getFullYear()).slice(2)
-    meses.push({ rotulo, key, receita: 0, recebido: 0 })
+  if (modo === 'anual') {
+    for (let i = 0; i < 12; i++) {
+      const m = new Date(anoAlvo, i, 1)
+      const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`
+      const rotulo = m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+      meses.push({ rotulo, key, receita: 0, recebido: 0 })
+    }
+  } else if (modo === 'tudo') {
+    // Últimos 12 meses até hoje
+    for (let i = -11; i <= 0; i++) {
+      const m = new Date(hoje.getFullYear(), hoje.getMonth() + i, 1)
+      const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`
+      const rotulo = m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+        + '/' + String(m.getFullYear()).slice(2)
+      meses.push({ rotulo, key, receita: 0, recebido: 0 })
+    }
+  } else {
+    // Mensal: centrado no mês selecionado
+    for (let i = -11; i <= 6; i++) {
+      const m = new Date(anoAlvo, mesAlvoNum - 1 + i, 1)
+      const key = `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}`
+      const rotulo = m.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')
+        + '/' + String(m.getFullYear()).slice(2)
+      meses.push({ rotulo, key, receita: 0, recebido: 0 })
+    }
   }
   const mesIndex: Record<string, number> = {}
   meses.forEach((m, i) => { mesIndex[m.key] = i })
 
   for (const p of parcelas) {
-    const ref = new Date(p.mes_referencia + 'T00:00:00')
-    const key = `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, '0')}`
-    const idx = mesIndex[key]
-    if (idx === undefined) continue
-    meses[idx].receita += p.valor_total
-    if (p.status_pagamento === 'pago') {
-      meses[idx].recebido += p.valor_pago ?? p.valor_total
+    // Recebido cai no mês do PAGAMENTO (regime de caixa)
+    if (p.status_pagamento === 'pago' && p.data_pagamento) {
+      const dp = p.data_pagamento.slice(0, 7)
+      const idx = mesIndex[dp]
+      if (idx !== undefined) {
+        meses[idx].recebido += p.valor_pago ?? p.valor_total
+        meses[idx].receita += p.valor_pago ?? p.valor_total
+      }
+    } else {
+      // A receber cai no mês de REFERÊNCIA (previsão)
+      const refKey = p.mes_referencia.slice(0, 7)
+      const idx = mesIndex[refKey]
+      if (idx !== undefined) meses[idx].receita += p.valor_total
     }
   }
 
   const maxReceita = Math.max(...meses.map(m => m.receita), 1)
-  const mesAlvoKey = `${anoAlvo}-${String(mesAlvoNum).padStart(2, '0')}`
+  const mesAlvoKey = modo === 'mensal' ? `${anoAlvo}-${String(mesAlvoNum).padStart(2, '0')}` : ''
   const mesAtualKey = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`
 
   // ─── Recebido nos últimos 12 meses ───────────────────────────────────
@@ -268,48 +328,49 @@ export default async function FinanceiroPage({ searchParams }: Props) {
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <Wallet size={20} className="text-violet-600" /> Financeiro
           </h1>
-          <p className="text-sm text-gray-500">
-            {inicioMes.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })} · {contratosAtivos.length} contrato{contratosAtivos.length === 1 ? '' : 's'} ativo{contratosAtivos.length === 1 ? '' : 's'}
-            {!ehMesAtual && <span className="text-amber-600 font-medium"> · filtro aplicado</span>}
+          <p className="text-sm text-gray-500 capitalize">
+            {rotuloPeriodo} · {contratosAtivos.length} contrato{contratosAtivos.length === 1 ? '' : 's'} ativo{contratosAtivos.length === 1 ? '' : 's'}
+            {!ehPeriodoAtual && <span className="text-amber-600 font-medium normal-case"> · filtro aplicado</span>}
           </p>
         </div>
-        <FiltroMesAno mes={mesAlvoNum} ano={anoAlvo} ehAtual={ehMesAtual} />
+        <FiltroMesAno modo={modo} mes={mesAlvoNum} ano={anoAlvo} ehAtual={ehPeriodoAtual} />
       </div>
 
-      {/* KPIs do mês selecionado */}
+      {/* KPIs do período selecionado */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
-          label={ehMesAtual ? 'Receita do mês' : 'Receita do mês selecionado'}
-          value={formatarBRL(totalReceitaMes)}
-          sub={`${formatarBRL(recebidoMes)} recebido · ${formatarBRL(aReceberMes)} a receber`}
+          label="Recebido no período"
+          value={formatarBRL(recebidoPeriodo)}
+          sub={`${pagasNoCaixa.length} pagamento${pagasNoCaixa.length === 1 ? '' : 's'} · regime de caixa`}
           icon={DollarSign}
           cor="text-violet-600" bg="bg-violet-50"
+          hint={modo === 'tudo' ? 'desde o início' : undefined}
         />
         <StatCard
           label="Comissão"
-          value={formatarBRL(comissaoMes)}
-          sub="Fica com a imobiliária"
+          value={formatarBRL(comissaoPeriodo)}
+          sub="Receita da imobiliária (de pagamentos confirmados)"
           icon={TrendingUp}
           cor="text-green-600" bg="bg-green-50"
         />
         <StatCard
-          label="A repassar"
-          value={formatarBRL(repasseMes)}
-          sub={`${formatarBRL(repassePendenteMes)} ainda pendente`}
+          label="Repasse devido"
+          value={formatarBRL(repassePeriodo)}
+          sub={`${formatarBRL(repassePendentePeriodo)} ainda não repassado`}
           icon={ArrowUpRight}
           cor="text-blue-600" bg="bg-blue-50"
         />
         <StatCard
-          label="Seguro a repassar"
-          value={formatarBRL(seguroMes)}
-          sub="Pagar à seguradora"
+          label="A receber (previsto)"
+          value={formatarBRL(aReceberValor)}
+          sub={`${aReceberNoPeriodo.length} parcela${aReceberNoPeriodo.length === 1 ? '' : 's'} em aberto · total ${formatarBRL(totalReceitaPeriodo)}`}
           icon={Shield}
           cor="text-orange-600" bg="bg-orange-50"
         />
       </div>
 
       {/* Pendências (só aparecem se houver) */}
-      {(atrasadas.length > 0 || repassePendenteMes > 0 || boletosNaoEnviados.length > 0 || vencendo7Dias.length > 0) && (
+      {(atrasadas.length > 0 || repassePendentePeriodo > 0 || boletosNaoEnviados.length > 0 || vencendo7Dias.length > 0) && (
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {atrasadas.length > 0 && (
             <div className="bg-red-50 border border-red-100 rounded-2xl p-4">
@@ -341,13 +402,13 @@ export default async function FinanceiroPage({ searchParams }: Props) {
               <p className="text-xs text-violet-600 mt-0.5">próximos 7 dias</p>
             </div>
           )}
-          {repassePendenteMes > 0 && (
+          {repassePendentePeriodo > 0 && (
             <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4">
               <div className="flex items-center gap-2 text-blue-700 mb-2">
                 <ArrowUpRight size={14} />
                 <span className="text-xs font-semibold">REPASSES PENDENTES</span>
               </div>
-              <p className="text-xl font-bold text-blue-700">{formatarBRL(repassePendenteMes)}</p>
+              <p className="text-xl font-bold text-blue-700">{formatarBRL(repassePendentePeriodo)}</p>
               <p className="text-xs text-blue-600 mt-0.5">já recebido, falta repassar</p>
             </div>
           )}
@@ -416,7 +477,12 @@ export default async function FinanceiroPage({ searchParams }: Props) {
       {/* Gráfico de receita */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
         <h2 className="font-semibold text-gray-900 mb-4 text-sm flex items-center gap-2">
-          <Calendar size={15} className="text-violet-600" /> Receita por mês (11 meses antes + mês selecionado + 6 depois)
+          <Calendar size={15} className="text-violet-600" /> Receita por mês —
+          <span className="font-normal text-gray-500">
+            {modo === 'anual' && `meses de ${anoAlvo}`}
+            {modo === 'mensal' && '11 antes + selecionado + 6 depois'}
+            {modo === 'tudo' && 'últimos 12 meses'}
+          </span>
         </h2>
         <div className="overflow-x-auto">
           <div className="flex items-end gap-1 min-w-[600px] h-32">
