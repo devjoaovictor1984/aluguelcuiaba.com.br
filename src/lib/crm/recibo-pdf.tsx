@@ -80,6 +80,9 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: 'bold',
     color: '#111827',
+    marginTop: 2,
+    marginBottom: 4,
+    lineHeight: 1,
   },
   titulo: {
     fontSize: 16,

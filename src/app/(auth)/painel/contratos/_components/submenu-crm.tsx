@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { FileSignature, Users, Wallet, Cake, ArrowLeft } from 'lucide-react'
+import { FileSignature, Users, Wallet, Cake, Receipt, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ITENS = [
@@ -10,6 +10,7 @@ const ITENS = [
   { href: '/painel/clientes',    label: 'Clientes',   icon: Users,         match: 'clientes' },
   { href: '/painel/financeiro',  label: 'Financeiro', icon: Wallet,        match: 'financeiro' },
   { href: '/painel/agenda',      label: 'Agenda',     icon: Cake,          match: 'agenda' },
+  { href: '/painel/perfil/recibo', label: 'Recibo', icon: Receipt,        match: 'perfil/recibo' },
 ]
 
 export function SubmenuCRM() {
