@@ -104,7 +104,9 @@ export async function salvarConfigRecibo(input: ConfigReciboInput) {
   const user = await userAtual()
   if (!user) return { error: 'Não autenticado.' }
 
-  const supabase = await createClient()
+  // Admin client: alinha com uploadArquivoRecibo e descarta RLS como causa
+  // de campos que "salvam mas não pegam no recibo".
+  const admin = createAdminClient()
   const payload: Record<string, unknown> = {}
   if ('recibo_emitente_nome' in input) {
     payload.recibo_emitente_nome = input.recibo_emitente_nome?.trim() || null
@@ -116,7 +118,7 @@ export async function salvarConfigRecibo(input: ConfigReciboInput) {
     payload.recibo_assinatura_sobre_linha = input.recibo_assinatura_sobre_linha
   }
 
-  const { error } = await supabase.from('perfis').update(payload).eq('id', user.id)
+  const { error } = await admin.from('perfis').update(payload).eq('id', user.id)
   if (error) return { error: error.message }
 
   revalidatePath('/painel/perfil/recibo')

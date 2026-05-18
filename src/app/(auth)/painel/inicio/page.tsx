@@ -121,7 +121,8 @@ export default async function InicioCRMPage() {
           imovel:imoveis(id, titulo, bairro:bairros(nome))
         )
       `)
-      .eq('contrato.user_id', acesso.userId),
+      .eq('contrato.user_id', acesso.userId)
+      .is('contrato.deleted_at', null),
     supabase
       .from('perfis')
       .select('nome')

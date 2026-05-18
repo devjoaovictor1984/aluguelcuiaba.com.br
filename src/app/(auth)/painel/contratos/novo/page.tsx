@@ -18,6 +18,7 @@ export default async function NovoContratoPage() {
       .from('pessoas')
       .select('id, tipo, nome, cpf_cnpj')
       .eq('user_id', acesso.userId)
+      .is('deleted_at', null)
       .order('nome', { ascending: true }),
   ])
 

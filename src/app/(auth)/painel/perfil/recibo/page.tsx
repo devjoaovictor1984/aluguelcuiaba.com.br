@@ -17,8 +17,8 @@ export default async function PersonalizarReciboPage() {
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      <Link href="/painel/perfil" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-violet-700 mb-2">
-        <ArrowLeft size={12} /> Perfil
+      <Link href="/painel/inicio" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-violet-700 mb-2">
+        <ArrowLeft size={12} /> Início
       </Link>
       <div className="mb-5">
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">

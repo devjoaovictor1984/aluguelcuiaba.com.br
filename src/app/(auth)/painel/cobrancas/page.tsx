@@ -50,6 +50,7 @@ export default async function CobrancasPage({ searchParams }: Props) {
         )
       `)
       .eq('contrato.user_id', acesso.userId)
+      .is('contrato.deleted_at', null)
       .neq('status_pagamento', 'pago')
       .lte('vencimento', limiteVencimento)
       .order('vencimento', { ascending: true }),

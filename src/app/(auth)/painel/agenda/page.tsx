@@ -70,6 +70,7 @@ export default async function AgendaPage({
       .from('pessoas')
       .select('id, nome, tipo, telefone, whatsapp, data_nascimento')
       .eq('user_id', acesso.userId)
+      .is('deleted_at', null)
       .not('data_nascimento', 'is', null),
     supabase
       .from('perfis')

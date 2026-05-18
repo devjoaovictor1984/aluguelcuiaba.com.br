@@ -205,7 +205,7 @@ export default async function PainelPage({
       {/* Card CRM (apenas para quem tem acesso) */}
       {podeUsarCRM && (
         <Link
-          href="/painel/contratos"
+          href="/painel/inicio"
           className="block bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-700 hover:to-indigo-700 rounded-2xl p-5 mb-6 text-white shadow-sm transition-colors"
         >
           <div className="flex items-center gap-4">

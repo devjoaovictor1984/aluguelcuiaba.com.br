@@ -101,10 +101,46 @@ export async function atualizarPessoa(id: string, input: PessoaInput) {
 }
 
 export async function excluirPessoa(id: string) {
-  await exigirAcessoCRM()
+  const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
-  const { error } = await supabase.from('pessoas').delete().eq('id', id)
+  // Soft delete: marca deleted_at; pode ser restaurado em /painel/lixeira
+  const { error } = await supabase
+    .from('pessoas')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', acesso.userId)
+    .is('deleted_at', null)
   if (error) return { error: error.message }
   revalidatePath('/painel/clientes')
+  revalidatePath('/painel/lixeira')
   redirect('/painel/clientes')
+}
+
+export async function restaurarPessoa(id: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('pessoas')
+    .update({ deleted_at: null })
+    .eq('id', id)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath('/painel/clientes')
+  revalidatePath('/painel/lixeira')
+  return { ok: true }
+}
+
+export async function excluirDefinitivoPessoa(id: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  // Hard delete — só permite se já estava soft-deleted
+  const { error } = await supabase
+    .from('pessoas')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', acesso.userId)
+    .not('deleted_at', 'is', null)
+  if (error) return { error: error.message }
+  revalidatePath('/painel/lixeira')
+  return { ok: true }
 }

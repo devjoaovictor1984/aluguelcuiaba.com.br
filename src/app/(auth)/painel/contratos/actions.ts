@@ -388,15 +388,46 @@ export async function excluirContrato(id: string) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
-  // Cascata: parcelas e documentos deletam junto pelo ON DELETE CASCADE
+  // Soft delete: marca deleted_at; pode ser restaurado em /painel/lixeira
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+    .eq('user_id', acesso.userId)
+    .is('deleted_at', null)
+
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  revalidatePath('/painel/lixeira')
+  return { ok: true }
+}
+
+export async function restaurarContrato(id: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({ deleted_at: null })
+    .eq('id', id)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath('/painel/contratos')
+  revalidatePath('/painel/lixeira')
+  return { ok: true }
+}
+
+export async function excluirDefinitivoContrato(id: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  // Hard delete — só se já estava soft-deleted. Cascata em parcelas/moradores/documentos.
   const { error } = await supabase
     .from('contratos_locacao')
     .delete()
     .eq('id', id)
     .eq('user_id', acesso.userId)
-
+    .not('deleted_at', 'is', null)
   if (error) return { error: error.message }
-  revalidatePath('/painel/contratos')
+  revalidatePath('/painel/lixeira')
   return { ok: true }
 }
 

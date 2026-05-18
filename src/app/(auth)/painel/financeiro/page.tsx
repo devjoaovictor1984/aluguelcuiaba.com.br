@@ -128,8 +128,9 @@ export default async function FinanceiroPage({ searchParams }: Props) {
         inquilino:pessoas!inquilino_id(id, nome),
         proprietario:pessoas!proprietario_id(id, nome)
       `)
-      .eq('user_id', acesso.userId),
-    supabase.from('pessoas').select('id, tipo').eq('user_id', acesso.userId),
+      .eq('user_id', acesso.userId)
+      .is('deleted_at', null),
+    supabase.from('pessoas').select('id, tipo').eq('user_id', acesso.userId).is('deleted_at', null),
     supabase.from('parcelas_aluguel').select(`
       id, contrato_id, mes_referencia, vencimento,
       valor_total, valor_aluguel, valor_seguro, valor_comissao, valor_repasse_proprietario,
@@ -353,13 +354,18 @@ export default async function FinanceiroPage({ searchParams }: Props) {
           cor="text-violet-600" bg="bg-violet-50"
           hint={modo === 'tudo' ? 'desde o início' : undefined}
         />
-        <StatCard
-          label="Comissão"
-          value={formatarBRL(comissaoPeriodo)}
-          sub="Receita da imobiliária (de pagamentos confirmados)"
-          icon={TrendingUp}
-          cor="text-green-600" bg="bg-green-50"
-        />
+        <Link
+          href={{ pathname: '/painel/financeiro/comissoes', query: { modo, ...(modo !== 'tudo' && { ano: String(anoAlvo) }), ...(modo === 'mensal' && { mes: String(mesAlvoNum) }) } }}
+          className="group"
+        >
+          <StatCard
+            label="Comissão"
+            value={formatarBRL(comissaoPeriodo)}
+            sub="Detalhar por proprietário (NF) →"
+            icon={TrendingUp}
+            cor="text-green-600" bg="bg-green-50"
+          />
+        </Link>
         <StatCard
           label="Repasse devido"
           value={formatarBRL(repassePeriodo)}

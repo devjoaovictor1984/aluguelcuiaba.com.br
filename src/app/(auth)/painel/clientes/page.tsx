@@ -29,6 +29,7 @@ export default async function ClientesPage({ searchParams }: Props) {
     .from('pessoas')
     .select('id, tipo, nome, cpf_cnpj, telefone, whatsapp, email')
     .eq('user_id', acesso.userId)
+    .is('deleted_at', null)
     .order('nome', { ascending: true })
 
   if (tipo) query = query.eq('tipo', tipo)
@@ -45,6 +46,7 @@ export default async function ClientesPage({ searchParams }: Props) {
     .from('pessoas')
     .select('tipo')
     .eq('user_id', acesso.userId)
+    .is('deleted_at', null)
 
   const contagem: Record<string, number> = {}
   todasParaContagem?.forEach(r => { contagem[r.tipo] = (contagem[r.tipo] ?? 0) + 1 })

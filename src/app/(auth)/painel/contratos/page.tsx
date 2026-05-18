@@ -11,10 +11,16 @@ export default async function ContratosPage() {
     .from('contratos_locacao')
     .select('id, codigo, status, valor_aluguel, data_inicio, inquilino:pessoas!inquilino_id(nome)')
     .eq('user_id', acesso.userId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
     .limit(50)
 
   const lista = contratos ?? []
+  const totalAluguel = lista.reduce((s, c) => s + (c.valor_aluguel ?? 0), 0)
+  const ativos = lista.filter(c => c.status === 'ativo')
+  const totalAtivos = ativos.reduce((s, c) => s + (c.valor_aluguel ?? 0), 0)
+  const fmtBRL = (v: number) =>
+    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 
   return (
     <div className="p-6 space-y-6">
@@ -57,7 +63,7 @@ export default async function ContratosPage() {
                   <span className="text-xs font-mono text-gray-400 w-24">{c.codigo}</span>
                   <span className="flex-1 text-sm font-medium text-gray-900 truncate">{inqNome}</span>
                   <span className="text-sm text-gray-600">
-                    {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(c.valor_aluguel)}
+                    {fmtBRL(c.valor_aluguel)}
                   </span>
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
                     c.status === 'ativo' ? 'bg-green-100 text-green-700' :
@@ -70,6 +76,20 @@ export default async function ContratosPage() {
                 </Link>
               )
             })}
+          </div>
+
+          <div className="border-t border-gray-100 bg-gray-50 px-5 py-3 flex items-center justify-between gap-4 text-sm">
+            <span className="text-gray-500">
+              Total da carteira <span className="text-gray-400">({lista.length} contrato{lista.length === 1 ? '' : 's'})</span>
+            </span>
+            <div className="flex items-center gap-4">
+              {ativos.length > 0 && ativos.length !== lista.length && (
+                <span className="text-xs text-gray-500">
+                  Ativos: <span className="font-semibold text-green-700">{fmtBRL(totalAtivos)}</span>
+                </span>
+              )}
+              <span className="font-bold text-violet-700">{fmtBRL(totalAluguel)}<span className="text-xs font-normal text-gray-400">/mês</span></span>
+            </div>
           </div>
         </div>
       )}

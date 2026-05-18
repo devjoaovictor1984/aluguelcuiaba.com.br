@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, FileSignature, Users, Wallet, Cake, FileText, Receipt, MessageCircle, ArrowLeft } from 'lucide-react'
+import { LayoutDashboard, FileSignature, Users, Wallet, Cake, FileText, Receipt, MessageCircle, Trash2, ArrowLeft } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ITENS = [
@@ -14,6 +14,7 @@ const ITENS = [
   { href: '/painel/relatorios',    label: 'Relatórios', icon: FileText,        match: 'relatorios' },
   { href: '/painel/agenda',        label: 'Agenda',     icon: Cake,            match: 'agenda' },
   { href: '/painel/perfil/recibo', label: 'Recibo',     icon: Receipt,         match: 'perfil/recibo' },
+  { href: '/painel/lixeira',       label: 'Lixeira',    icon: Trash2,          match: 'lixeira' },
 ]
 
 export function SubmenuCRM() {

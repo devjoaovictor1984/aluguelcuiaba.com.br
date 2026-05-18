@@ -61,6 +61,7 @@ export default async function RelatoriosPage({ searchParams }: Props) {
     .from('pessoas')
     .select('id, nome, tipo')
     .eq('user_id', acesso.userId)
+    .is('deleted_at', null)
     .in('tipo', ['inquilino', 'proprietario'])
     .order('nome', { ascending: true })
 
