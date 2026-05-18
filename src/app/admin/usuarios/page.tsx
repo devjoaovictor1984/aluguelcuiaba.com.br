@@ -29,10 +29,26 @@ async function alterarPlano(userId: string, plano: string): Promise<{ erro?: str
 export default async function AdminUsuariosPage() {
   const supabase = createAdminClient()
 
-  const [{ data: perfis }, { data: { users } }] = await Promise.all([
-    supabase.from('perfis').select('id, nome, tipo, plano, role, banido_em, created_at').order('created_at', { ascending: false }),
-    supabase.auth.admin.listUsers({ perPage: 1000 }),
-  ])
+  // Tenta com banido_em (v10). Se a migration ainda não rodou, faz fallback.
+  type PerfilRow = {
+    id: string; nome: string | null; tipo: string | null; plano: string | null
+    role: string | null; banido_em: string | null; created_at: string
+  }
+  const tentar = await supabase
+    .from('perfis')
+    .select('id, nome, tipo, plano, role, banido_em, created_at')
+    .order('created_at', { ascending: false })
+
+  let perfis: PerfilRow[] | null = (tentar.data ?? null) as PerfilRow[] | null
+  if (!perfis && tentar.error?.message?.includes('banido_em')) {
+    const fb = await supabase
+      .from('perfis')
+      .select('id, nome, tipo, plano, role, created_at')
+      .order('created_at', { ascending: false })
+    perfis = (fb.data ?? []).map(p => ({ ...p, banido_em: null }) as PerfilRow)
+  }
+
+  const { data: { users } } = await supabase.auth.admin.listUsers({ perPage: 1000 })
 
   const emailMap = new Map(users.map(u => [u.id, u.email ?? '']))
 
@@ -95,10 +111,10 @@ export default async function AdminUsuariosPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-gray-600">{TIPO_LABEL[u.tipo] ?? u.tipo ?? '—'}</td>
+                    <td className="px-4 py-3 text-gray-600">{TIPO_LABEL[u.tipo ?? ''] ?? u.tipo ?? '—'}</td>
                     <td className="px-4 py-3 text-center font-semibold text-gray-700">{countMap.get(u.id) ?? 0}</td>
                     <td className="px-4 py-3">
-                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${PLANO_COR[u.plano] ?? 'bg-gray-100 text-gray-600'}`}>
+                      <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${PLANO_COR[u.plano ?? 'free'] ?? 'bg-gray-100 text-gray-600'}`}>
                         {u.plano ?? 'free'}
                       </span>
                     </td>
@@ -145,7 +161,7 @@ export default async function AdminUsuariosPage() {
                     <p className="text-xs text-gray-400 truncate">{email}</p>
                     <p className="text-xs text-gray-400">{countMap.get(u.id) ?? 0} imóvel(is)</p>
                   </div>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${PLANO_COR[u.plano] ?? ''}`}>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${PLANO_COR[u.plano ?? 'free'] ?? ''}`}>
                     {u.plano ?? 'free'}
                   </span>
                 </div>

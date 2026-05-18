@@ -18,19 +18,40 @@ export default async function AdminUsuarioDetalhePage({
   const { id } = await params
   const admin = createAdminClient()
 
-  const [
-    { data: perfil },
-    { data: authData },
-    { count: imoveisCount },
-    { count: contratosCount },
-  ] = await Promise.all([
-    admin.from('perfis').select(`
-      id, nome, tipo, plano, role, cpf, telefone,
-      endereco_logradouro, endereco_numero, endereco_bairro,
-      endereco_cidade, endereco_estado,
-      banido_em, banido_motivo,
-      crm_ativo, created_at
-    `).eq('id', id).single(),
+  // SELECT com as colunas do v10. Se a migration ainda não rodou, faz
+  // fallback sem banido_em/banido_motivo para a página não quebrar.
+  const BASE = `id, nome, tipo, plano, role, cpf, telefone,
+    endereco_logradouro, endereco_numero, endereco_bairro,
+    endereco_cidade, endereco_estado,
+    crm_ativo, created_at`
+
+  type PerfilDetalhe = {
+    id: string; nome: string | null; tipo: string | null; plano: string | null
+    role: string | null; cpf: string | null; telefone: string | null
+    endereco_logradouro: string | null; endereco_numero: string | null
+    endereco_bairro: string | null; endereco_cidade: string | null
+    endereco_estado: string | null; crm_ativo: boolean | null
+    created_at: string
+    banido_em: string | null; banido_motivo: string | null
+  }
+
+  const tentar = await admin
+    .from('perfis')
+    .select(`${BASE}, banido_em, banido_motivo`)
+    .eq('id', id)
+    .maybeSingle()
+
+  let perfil: PerfilDetalhe | null = tentar.data as PerfilDetalhe | null
+  let v10Faltando = false
+  if (!perfil && tentar.error?.message?.includes('banido_em')) {
+    v10Faltando = true
+    const fb = await admin.from('perfis').select(BASE).eq('id', id).maybeSingle()
+    perfil = fb.data
+      ? ({ ...fb.data, banido_em: null, banido_motivo: null } as PerfilDetalhe)
+      : null
+  }
+
+  const [{ data: authData }, { count: imoveisCount }, { count: contratosCount }] = await Promise.all([
     admin.auth.admin.getUserById(id),
     admin.from('imoveis').select('id', { count: 'exact', head: true }).eq('user_id', id),
     admin.from('contratos_locacao').select('id', { count: 'exact', head: true })
@@ -86,12 +107,21 @@ export default async function AdminUsuarioDetalhePage({
         </div>
       )}
 
+      {v10Faltando && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <p className="text-sm font-semibold text-amber-900 mb-1">⚠️ Migration pendente</p>
+          <p className="text-xs text-amber-800 leading-relaxed">
+            Banimento e motivo só funcionam após rodar <code className="bg-white px-1 rounded">supabase/migrations/crm_v10_admin_user_mgmt.sql</code> no Supabase SQL Editor. Sem isso, o botão "Banir" vai dar erro.
+          </p>
+        </div>
+      )}
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <Stat label="Imóveis" valor={imoveisCount ?? 0} sub={ilimitado ? 'plano ilimitado' : `cota ${limiteImoveis}`} />
         <Stat label="Contratos" valor={contratosCount ?? 0} sub={ilimitado ? 'plano ilimitado' : `cota ${limiteImoveis}`} />
         <Stat label="Plano" valor={PLANOS[plano]?.nome ?? plano} sub={`R$ ${PLANOS[plano]?.preco?.toFixed(2) ?? '—'}/mês`} />
-        <Stat label="Tipo" valor={TIPO_LABEL[perfil.tipo] ?? perfil.tipo ?? '—'} sub={perfil.crm_ativo ? 'CRM cortesia' : ''} />
+        <Stat label="Tipo" valor={TIPO_LABEL[perfil.tipo ?? ''] ?? perfil.tipo ?? '—'} sub={perfil.crm_ativo ? 'CRM cortesia' : ''} />
       </div>
 
       {/* Formulário de edição */}
