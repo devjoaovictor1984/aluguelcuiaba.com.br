@@ -58,19 +58,20 @@ CREATE TRIGGER trg_contratos_sync_imovel
   EXECUTE FUNCTION sincronizar_status_imovel();
 
 
--- 2. BACKFILL: imóveis com contrato ativo viram 'alugado'
+-- 2. BACKFILL: imóveis com contrato ativo viram 'alugado'.
+--    Usa NOW() pra data_alugado para que a janela pública de 30 dias
+--    comece a contar a partir do sync, e não da data antiga do contrato
+--    (que poderia já estar fora da janela).
 WITH contratos_ativos AS (
-  SELECT DISTINCT ON (imovel_id)
-         imovel_id, data_inicio
+  SELECT DISTINCT ON (imovel_id) imovel_id
   FROM contratos_locacao
   WHERE status = 'ativo'
     AND deleted_at IS NULL
     AND imovel_id IS NOT NULL
-  ORDER BY imovel_id, data_inicio ASC
 )
 UPDATE imoveis i
    SET status = 'alugado',
-       data_alugado = COALESCE(i.data_alugado, ca.data_inicio::timestamptz, NOW())
+       data_alugado = COALESCE(i.data_alugado, NOW())
   FROM contratos_ativos ca
  WHERE i.id = ca.imovel_id
    AND i.status <> 'alugado';

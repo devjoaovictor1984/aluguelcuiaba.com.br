@@ -1,6 +1,13 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  experimental: {
+    serverActions: {
+      // Documentos do cadastro (RG/CPF/comprovante) chegam a 10MB cada.
+      // O default de 1MB derrubava o submit do magic-link.
+      bodySizeLimit: '25mb',
+    },
+  },
   images: {
     remotePatterns: [
       {
