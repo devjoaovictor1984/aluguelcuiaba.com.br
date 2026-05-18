@@ -6,6 +6,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { formatarBRL, formatarData } from '@/lib/formatters'
+import { ParcelaAcoesInline, type ParcelaInline } from './_components/parcela-acoes-inline'
 
 const MESES_NOMES = [
   'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -50,6 +51,9 @@ interface ParcelaCompleta {
   valor_total: number
   valor_aluguel: number
   status_pagamento: string
+  status_repasse: string
+  status_seguro: string
+  boleto_enviado: boolean | null
   data_pagamento: string | null
   valor_pago: number | null
   contrato: ContratoLite | ContratoLite[] | null
@@ -57,14 +61,19 @@ interface ParcelaCompleta {
 
 interface ParcelaView {
   id: string
+  numero: number
   contratoId: string
   contratoCodigo: string
   inquilino: string
+  inquilinoTelefone: string | null
   imovel: string
   bairro: string | null
   vencimento: string
   valor: number
   status: string
+  statusRepasse: string
+  statusSeguro: string
+  boletoEnviado: boolean | null
   diasAteVenc: number
   pago: boolean
   dataPagamento: string | null
@@ -97,19 +106,29 @@ export default async function InicioCRMPage() {
   const em60Dias = new Date(hoje.getTime() + 60 * 86400000)
 
   // Carrega tudo
-  const { data: parcelasRaw } = await supabase
-    .from('parcelas_aluguel')
-    .select(`
-      id, contrato_id, numero, mes_referencia, vencimento,
-      valor_total, valor_aluguel, status_pagamento, data_pagamento, valor_pago,
-      contrato:contratos_locacao!inner(
-        id, codigo, status, data_termino, data_proximo_reajuste,
-        seguro_incendio_data, valor_seguro_incendio_anual, valor_aluguel,
-        inquilino:pessoas!inquilino_id(id, nome, telefone),
-        imovel:imoveis(id, titulo, bairro:bairros(nome))
-      )
-    `)
-    .eq('contrato.user_id', acesso.userId)
+  const [{ data: parcelasRaw }, { data: perfil }] = await Promise.all([
+    supabase
+      .from('parcelas_aluguel')
+      .select(`
+        id, contrato_id, numero, mes_referencia, vencimento,
+        valor_total, valor_aluguel,
+        status_pagamento, status_repasse, status_seguro, boleto_enviado,
+        data_pagamento, valor_pago,
+        contrato:contratos_locacao!inner(
+          id, codigo, status, data_termino, data_proximo_reajuste,
+          seguro_incendio_data, valor_seguro_incendio_anual, valor_aluguel,
+          inquilino:pessoas!inquilino_id(id, nome, telefone),
+          imovel:imoveis(id, titulo, bairro:bairros(nome))
+        )
+      `)
+      .eq('contrato.user_id', acesso.userId),
+    supabase
+      .from('perfis')
+      .select('nome')
+      .eq('id', acesso.userId)
+      .single(),
+  ])
+  const anuncianteNome = perfil?.nome ?? 'Imobiliária'
 
   const parcelas = (parcelasRaw ?? []) as ParcelaCompleta[]
 
@@ -122,14 +141,19 @@ export default async function InicioCRMPage() {
     const venc = new Date(p.vencimento + 'T00:00:00')
     return {
       id: p.id,
+      numero: p.numero,
       contratoId: c.id,
       contratoCodigo: c.codigo,
       inquilino: inq?.nome ?? '—',
+      inquilinoTelefone: inq?.telefone ?? null,
       imovel: imo?.titulo ?? '—',
       bairro: bairro?.nome ?? null,
       vencimento: p.vencimento,
       valor: p.valor_total,
       status: p.status_pagamento,
+      statusRepasse: p.status_repasse,
+      statusSeguro: p.status_seguro,
+      boletoEnviado: p.boleto_enviado,
       diasAteVenc: diasEntre(hoje, venc),
       pago: p.status_pagamento === 'pago',
       dataPagamento: p.data_pagamento,
@@ -288,37 +312,57 @@ export default async function InicioCRMPage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[760px]">
               <thead className="bg-gray-50 text-left text-xs font-semibold text-gray-500">
                 <tr>
-                  <th className="px-4 py-2">Cliente</th>
-                  <th className="px-4 py-2">Imóvel</th>
-                  <th className="px-4 py-2 text-center">Vencimento</th>
-                  <th className="px-4 py-2 text-right">Valor</th>
-                  <th className="px-4 py-2 text-center">Status</th>
+                  <th className="px-3 py-2">Cliente</th>
+                  <th className="px-3 py-2">Imóvel</th>
+                  <th className="px-3 py-2 text-center">Venc.</th>
+                  <th className="px-3 py-2 text-right">Valor</th>
+                  <th className="px-3 py-2 text-center">Status</th>
+                  <th className="px-3 py-2 text-right" title="Pagamento · Repasse · Seguro · Boleto · WhatsApp · Recibo">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {doMes.map(p => {
                   const venc = new Date(p.vencimento + 'T00:00:00')
                   const diaVenc = venc.getDate()
+                  const inline: ParcelaInline = {
+                    id: p.id,
+                    numero: p.numero,
+                    contrato_id: p.contratoId,
+                    contrato_codigo: p.contratoCodigo,
+                    inquilino_nome: p.inquilino,
+                    inquilino_telefone: p.inquilinoTelefone,
+                    imovel_titulo: p.imovel,
+                    vencimento: p.vencimento,
+                    valor_total: p.valor,
+                    status_pagamento: p.status,
+                    status_repasse: p.statusRepasse,
+                    status_seguro: p.statusSeguro,
+                    boleto_enviado: p.boletoEnviado,
+                    data_pagamento: p.dataPagamento,
+                  }
                   return (
                     <tr key={p.id} className="border-t border-gray-50 hover:bg-gray-50/60">
-                      <td className="px-4 py-2">
+                      <td className="px-3 py-2">
                         <Link href={`/painel/contratos/${p.contratoId}`} className="font-medium text-gray-900 hover:text-violet-700">
                           {p.inquilino}
                         </Link>
                       </td>
-                      <td className="px-4 py-2 text-gray-600 text-xs">
+                      <td className="px-3 py-2 text-gray-600 text-xs">
                         {p.imovel}
                         {p.bairro && <span className="text-gray-400"> · {p.bairro}</span>}
                       </td>
-                      <td className="px-4 py-2 text-center text-gray-700 text-xs">
+                      <td className="px-3 py-2 text-center text-gray-700 text-xs">
                         dia <strong className="text-gray-900">{diaVenc}</strong>
                       </td>
-                      <td className="px-4 py-2 text-right font-medium text-gray-900">{formatarBRL(p.valor)}</td>
-                      <td className="px-4 py-2 text-center">
+                      <td className="px-3 py-2 text-right font-medium text-gray-900">{formatarBRL(p.valor)}</td>
+                      <td className="px-3 py-2 text-center">
                         <StatusBadge p={p} />
+                      </td>
+                      <td className="px-3 py-2">
+                        <ParcelaAcoesInline parcela={inline} anuncianteNome={anuncianteNome} />
                       </td>
                     </tr>
                   )

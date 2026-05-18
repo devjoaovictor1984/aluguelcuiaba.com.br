@@ -70,3 +70,10 @@ button, [role="button"], label[for], select { cursor: pointer; }
 .leaflet-popup-content a[style*="color"] { color: #ffffff !important; }
 .leaflet-popup-content { margin: 12px !important; }
 .leaflet-popup-content-wrapper { border-radius: 12px !important; }
+
+/* ─── Impressão de relatórios ───────────────────────────────────────────── */
+@media print {
+  @page { size: A4; margin: 1.2cm; }
+  body { background: white !important; }
+  .print\:hidden { display: none !important; }
+}
