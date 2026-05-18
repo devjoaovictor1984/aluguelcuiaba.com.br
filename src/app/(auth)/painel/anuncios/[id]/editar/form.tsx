@@ -224,10 +224,18 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
     try {
       const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`)
       const data = await res.json()
-      if (!data.erro) setImovelLogradouro(data.logradouro ?? '')
+      if (!data.erro) {
+        setImovelLogradouro(data.logradouro ?? '')
+        if (data.bairro) {
+          const norm = (s: string) => s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+          const alvo = norm(data.bairro)
+          const match = bairros.find(b => norm(b.nome) === alvo)
+          if (match) setBairroId(match.id)
+        }
+      }
     } catch {}
     setBuscandoEndereco(false)
-  }, [])
+  }, [bairros])
 
   const adicionarFotos = useCallback(async (files: FileList | null) => {
     if (!files) return

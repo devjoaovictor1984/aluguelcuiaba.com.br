@@ -250,9 +250,16 @@ export default async function FinanceiroPage({ searchParams }: Props) {
     .sort((a, b) => (a.data_proximo_reajuste ?? '').localeCompare(b.data_proximo_reajuste ?? ''))
     .slice(0, 5)
 
-  // Seguro incêndio vencendo
+  // Seguro incêndio: anual. Alerta quando faltar 60 dias do vencimento (data + 365d).
   const segurosVencendo = contratosAtivos
-    .filter(c => c.seguro_incendio_data && new Date(c.seguro_incendio_data) <= em30Dias)
+    .filter(c => c.seguro_incendio_data)
+    .map(c => {
+      const pago = new Date(c.seguro_incendio_data!)
+      const vence = new Date(pago.getTime() + 365 * 86400000)
+      return { ...c, seguro_incendio_data: vence.toISOString().slice(0, 10), _vence: vence }
+    })
+    .filter(c => c._vence.getTime() - hoje.getTime() <= 60 * 86400000)
+    .sort((a, b) => a._vence.getTime() - b._vence.getTime())
     .slice(0, 5)
 
   // ─── Receita por mês (gráfico) ───────────────────────────────────────

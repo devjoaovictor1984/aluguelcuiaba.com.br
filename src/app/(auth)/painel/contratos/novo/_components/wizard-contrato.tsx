@@ -263,6 +263,9 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
             {imovelSel?.proprietario_id && s.proprietario_id === imovelSel.proprietario_id && (
               <p className="text-xs text-green-600 mt-1">✓ Proprietário pré-selecionado (vinculado a este imóvel)</p>
             )}
+            {imovelSel && !imovelSel.proprietario_id && s.proprietario_id && (
+              <p className="text-xs text-violet-600 mt-1">🔗 Este imóvel ficará vinculado a {proprietarios.find(p => p.id === s.proprietario_id)?.nome ?? 'esse proprietário'} após criar o contrato.</p>
+            )}
           </div>
         </section>
       )}

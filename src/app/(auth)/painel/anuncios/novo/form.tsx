@@ -24,6 +24,11 @@ function mascaraCEP(v: string) {
   return v.replace(/\D/g, '').slice(0, 8).replace(/(\d{5})(\d{0,3})/, '$1-$2')
 }
 
+// Normaliza nome de bairro pra match case/acento-insensitive
+function normalizarNome(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()
+}
+
 const MAX_FOTOS = 20
 
 async function comprimirImagem(file: File, maxWidth = 1200, qualidade = 0.82): Promise<Blob> {
@@ -299,10 +304,18 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
     try {
       const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`)
       const data = await res.json()
-      if (!data.erro) setImovelLogradouro(data.logradouro ?? '')
+      if (!data.erro) {
+        setImovelLogradouro(data.logradouro ?? '')
+        // Tenta casar o bairro retornado com algum cadastrado
+        if (data.bairro) {
+          const alvo = normalizarNome(data.bairro)
+          const match = bairros.find(b => normalizarNome(b.nome) === alvo)
+          if (match) setBairroId(match.id)
+        }
+      }
     } catch {}
     setBuscandoEndereco(false)
-  }, [])
+  }, [bairros])
 
   const adicionarFotos = useCallback(async (files: FileList | null) => {
     if (!files) return
