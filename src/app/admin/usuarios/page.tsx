@@ -1,3 +1,5 @@
+import Link from 'next/link'
+import { AlertOctagon, ExternalLink } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { revalidatePath } from 'next/cache'
 import { AlterarPlanoForm } from './_components/alterar-plano'
@@ -28,7 +30,7 @@ export default async function AdminUsuariosPage() {
   const supabase = createAdminClient()
 
   const [{ data: perfis }, { data: { users } }] = await Promise.all([
-    supabase.from('perfis').select('id, nome, tipo, plano, role, created_at').order('created_at', { ascending: false }),
+    supabase.from('perfis').select('id, nome, tipo, plano, role, banido_em, created_at').order('created_at', { ascending: false }),
     supabase.auth.admin.listUsers({ perPage: 1000 }),
   ])
 
@@ -68,7 +70,7 @@ export default async function AdminUsuariosPage() {
                 const email = emailMap.get(u.id) ?? ''
                 const initials = u.nome?.split(' ').slice(0, 2).map((p: string) => p[0]?.toUpperCase()).join('') ?? '?'
                 return (
-                  <tr key={u.id} className="hover:bg-gray-50/50">
+                  <tr key={u.id} className={`hover:bg-gray-50/50 ${u.banido_em ? 'bg-red-50/30' : ''}`}>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-bold text-sm shrink-0">
@@ -76,9 +78,17 @@ export default async function AdminUsuariosPage() {
                         </div>
                         <div>
                           <div className="flex items-center gap-1.5">
-                            <p className="font-medium text-gray-900">{u.nome ?? 'Sem nome'}</p>
+                            <Link href={`/admin/usuarios/${u.id}`} className="font-medium text-gray-900 hover:text-violet-700 inline-flex items-center gap-1">
+                              {u.nome ?? 'Sem nome'}
+                              <ExternalLink size={11} className="text-gray-300" />
+                            </Link>
                             {u.role === 'admin' && (
                               <span className="text-xs bg-red-100 text-red-600 px-1.5 py-0.5 rounded font-medium">admin</span>
+                            )}
+                            {u.banido_em && (
+                              <span className="inline-flex items-center gap-1 text-xs bg-red-600 text-white px-1.5 py-0.5 rounded-full font-medium">
+                                <AlertOctagon size={9} /> banido
+                              </span>
                             )}
                           </div>
                           <p className="text-xs text-gray-400">{email}</p>
@@ -118,13 +128,20 @@ export default async function AdminUsuariosPage() {
             const email = emailMap.get(u.id) ?? ''
             const initials = u.nome?.split(' ').slice(0, 2).map((p: string) => p[0]?.toUpperCase()).join('') ?? '?'
             return (
-              <div key={u.id} className="p-4 space-y-3">
+              <div key={u.id} className={`p-4 space-y-3 ${u.banido_em ? 'bg-red-50/40' : ''}`}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-violet-100 flex items-center justify-center text-violet-700 font-bold shrink-0">
                     {initials}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-gray-900 text-sm truncate">{u.nome ?? 'Sem nome'}</p>
+                    <Link href={`/admin/usuarios/${u.id}`} className="font-medium text-gray-900 text-sm truncate hover:text-violet-700 flex items-center gap-1">
+                      {u.nome ?? 'Sem nome'}
+                      {u.banido_em && (
+                        <span className="inline-flex items-center gap-1 text-[10px] bg-red-600 text-white px-1.5 py-0.5 rounded-full font-medium">
+                          <AlertOctagon size={9} /> banido
+                        </span>
+                      )}
+                    </Link>
                     <p className="text-xs text-gray-400 truncate">{email}</p>
                     <p className="text-xs text-gray-400">{countMap.get(u.id) ?? 0} imóvel(is)</p>
                   </div>

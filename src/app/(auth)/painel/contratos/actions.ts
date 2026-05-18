@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { gerarParcelas, montarCodigo, type InputCalculoParcelas } from '@/lib/crm/calculos'
+import { PLANOS } from '@/lib/constants'
 
 export type GarantiaTipo = 'fiador' | 'caucao' | 'seguro_fianca' | 'sem_garantia'
 
@@ -87,6 +88,24 @@ export async function criarContrato(input: ContratoInput) {
 
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+
+  // Limite por plano: admin e profissional (999) ilimitados; demais batem na cota.
+  if (acesso.role !== 'admin') {
+    const plano = (acesso.plano ?? 'free') as keyof typeof PLANOS
+    const limite = PLANOS[plano]?.imoveis ?? 1
+    if (limite < 999) {
+      const { count } = await supabase
+        .from('contratos_locacao')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', acesso.userId)
+        .is('deleted_at', null)
+      if ((count ?? 0) >= limite) {
+        return {
+          error: `Limite do plano ${PLANOS[plano]?.nome ?? plano} atingido (${limite} contratos). Faça upgrade para profissional.`,
+        }
+      }
+    }
+  }
 
   // 1. Próximo código sequencial
   const codigo = await proximoCodigo(acesso.userId, supabase)

@@ -7,5 +7,13 @@ export default async function PainelLayout({ children }: { children: React.React
 
   if (!user) redirect('/entrar')
 
+  // Conta suspensa: redireciona pra /banido (que faz signOut + mostra motivo).
+  const { data: perfil } = await supabase
+    .from('perfis')
+    .select('banido_em')
+    .eq('id', user.id)
+    .single()
+  if (perfil?.banido_em) redirect('/banido')
+
   return <>{children}</>
 }
