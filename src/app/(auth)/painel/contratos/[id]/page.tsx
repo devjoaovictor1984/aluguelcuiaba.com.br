@@ -11,6 +11,7 @@ import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components
 import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
 import { RegerarParcelasBotao } from './_components/regerar-parcelas'
 import { TimelineEventos, type EventoRow } from './_components/timeline-eventos'
+import { DocsPartesContrato } from './_components/docs-partes'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -229,6 +230,15 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
           </p>
         </div>
       </div>
+
+      <DocsPartesContrato
+        userId={acesso.userId}
+        partes={[
+          inquilino && { id: inquilino.id, nome: inquilino.nome, papel: 'inquilino' as const },
+          proprietario && { id: proprietario.id, nome: proprietario.nome, papel: 'proprietario' as const },
+          fiador && { id: fiador.id, nome: fiador.nome, papel: 'fiador' as const },
+        ].filter((p): p is { id: string; nome: string; papel: 'inquilino' | 'proprietario' | 'fiador' } => !!p)}
+      />
 
       <ReajusteSecao
         contratoId={id}
