@@ -18,6 +18,10 @@ export interface PessoaInput {
   estado_civil?: string | null
   profissao?: string | null
   nacionalidade?: string | null
+  // Pessoa jurídica (preenchido quando cpf_cnpj tem 14 dígitos)
+  nome_fantasia?: string | null
+  inscricao_estadual?: string | null
+  inscricao_municipal?: string | null
   email?: string | null
   telefone?: string | null
   whatsapp?: string | null

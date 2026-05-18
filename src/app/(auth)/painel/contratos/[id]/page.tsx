@@ -69,7 +69,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     supabase
       .from('contratos_moradores')
       .select(`
-        id, parentesco, observacao,
+        id, papel, parentesco, mora_no_imovel, observacao,
         pessoa:pessoas(id, nome, cpf_cnpj, telefone)
       `)
       .eq('contrato_id', id)
@@ -88,12 +88,16 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
 
   const moradores: MoradorRow[] = (moradoresRaw ?? []).map((m: {
     id: string
-    parentesco: string
+    papel: string
+    parentesco: string | null
+    mora_no_imovel: boolean
     observacao: string | null
     pessoa: { id: string; nome: string; cpf_cnpj: string | null; telefone: string | null } | { id: string; nome: string; cpf_cnpj: string | null; telefone: string | null }[] | null
   }) => ({
     id: m.id,
+    papel: (m.papel as MoradorRow['papel']) ?? 'morador',
     parentesco: m.parentesco as MoradorRow['parentesco'],
+    mora_no_imovel: m.mora_no_imovel ?? true,
     observacao: m.observacao,
     pessoa: Array.isArray(m.pessoa) ? m.pessoa[0] ?? null : m.pessoa,
   }))
@@ -211,6 +215,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         moradores={moradores}
         pessoasDisponiveis={pessoasDisponiveis}
         inquilinoId={inquilino?.id ?? ''}
+        inquilinoEhPJ={(inquilino?.cpf_cnpj?.replace(/\D/g, '').length ?? 0) === 14}
       />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">

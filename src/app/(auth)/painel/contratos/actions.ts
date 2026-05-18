@@ -428,15 +428,22 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
   return { ok: true, parcelas_afetadas: parcelas.length, percentual }
 }
 
-// ───────────────── Moradores adicionais ─────────────────
+// ───────────────── Pessoas vinculadas ao contrato ─────────────────
 
 export type ParentescoMorador =
   | 'conjuge' | 'filho' | 'pai_mae' | 'irmao' | 'socio' | 'dependente' | 'outro'
 
+export type PapelVinculo =
+  | 'morador'              // família/dependente que mora junto, sem responsabilidade financeira
+  | 'inquilino_solidario'  // co-inquilino que assina e responde solidariamente pelo aluguel
+  | 'socio_signatario'     // sócio da empresa locatária (PJ), assina pela empresa
+
 export interface AdicionarMoradorInput {
   contrato_id: string
   pessoa_id: string
-  parentesco: ParentescoMorador
+  papel: PapelVinculo
+  parentesco?: ParentescoMorador | null
+  mora_no_imovel?: boolean
   observacao?: string
 }
 
@@ -444,7 +451,6 @@ export async function adicionarMorador(input: AdicionarMoradorInput) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
-  // Garante que o contrato é do user (RLS já cobre, mas falha rápido aqui)
   const { data: contrato } = await supabase
     .from('contratos_locacao')
     .select('id')
@@ -453,14 +459,18 @@ export async function adicionarMorador(input: AdicionarMoradorInput) {
     .maybeSingle()
   if (!contrato) return { error: 'Contrato não encontrado.' }
 
+  const moraDefault = input.papel === 'morador'
+
   const { error } = await supabase.from('contratos_moradores').insert({
     contrato_id: input.contrato_id,
     pessoa_id: input.pessoa_id,
-    parentesco: input.parentesco,
+    papel: input.papel,
+    parentesco: input.parentesco ?? null,
+    mora_no_imovel: input.mora_no_imovel ?? moraDefault,
     observacao: input.observacao ?? null,
   })
   if (error) {
-    if (error.code === '23505') return { error: 'Essa pessoa já está cadastrada como morador.' }
+    if (error.code === '23505') return { error: 'Essa pessoa já está vinculada a este contrato.' }
     return { error: error.message }
   }
   revalidatePath(`/painel/contratos/${input.contrato_id}`)
@@ -469,7 +479,7 @@ export async function adicionarMorador(input: AdicionarMoradorInput) {
 
 export async function atualizarMorador(
   moradorId: string,
-  dados: { parentesco?: ParentescoMorador; observacao?: string | null }
+  dados: { papel?: PapelVinculo; parentesco?: ParentescoMorador | null; mora_no_imovel?: boolean; observacao?: string | null }
 ) {
   await exigirAcessoCRM()
   const supabase = await createClient()

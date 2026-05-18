@@ -34,6 +34,10 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
   const [estadoCivil, setEstadoCivil] = useState(inicial.estado_civil ?? '')
   const [profissao, setProfissao] = useState(inicial.profissao ?? '')
   const [nacionalidade, setNacionalidade] = useState(inicial.nacionalidade ?? 'Brasileira')
+  const [nomeFantasia, setNomeFantasia] = useState(inicial.nome_fantasia ?? '')
+  const [inscricaoEstadual, setInscricaoEstadual] = useState(inicial.inscricao_estadual ?? '')
+  const [inscricaoMunicipal, setInscricaoMunicipal] = useState(inicial.inscricao_municipal ?? '')
+  const ehPJ = (cpfCnpj?.replace(/\D/g, '').length ?? 0) === 14
   const [email, setEmail] = useState(inicial.email ?? '')
   const [telefone, setTelefone] = useState(inicial.telefone ?? '')
   const [whatsapp, setWhatsapp] = useState(inicial.whatsapp ?? '')
@@ -79,9 +83,17 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
     e.preventDefault()
     setErro('')
     const payload: PessoaInput = {
-      tipo, nome, cpf_cnpj: cpfCnpj, rg,
-      data_nascimento: dataNasc || null,
-      estado_civil: estadoCivil, profissao, nacionalidade,
+      tipo, nome, cpf_cnpj: cpfCnpj,
+      // Campos PF (ignorados em PJ)
+      rg: ehPJ ? null : rg,
+      data_nascimento: ehPJ ? null : (dataNasc || null),
+      estado_civil: ehPJ ? null : estadoCivil,
+      profissao: ehPJ ? null : profissao,
+      nacionalidade: ehPJ ? null : nacionalidade,
+      // Campos PJ (ignorados em PF)
+      nome_fantasia: ehPJ ? nomeFantasia : null,
+      inscricao_estadual: ehPJ ? inscricaoEstadual : null,
+      inscricao_municipal: ehPJ ? inscricaoMunicipal : null,
       email, telefone, whatsapp,
       endereco_cep: cep, endereco_logradouro: logradouro,
       endereco_numero: numero, endereco_complemento: complemento,
@@ -119,7 +131,16 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl space-y-6 p-6">
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Dados básicos</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">
+            {ehPJ ? 'Dados da empresa (PJ)' : 'Dados básicos'}
+          </h2>
+          {cpfCnpj && (
+            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ehPJ ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'}`}>
+              {ehPJ ? 'Pessoa Jurídica' : 'Pessoa Física'}
+            </span>
+          )}
+        </div>
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
@@ -129,40 +150,70 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Nome *</label>
-            <input value={nome} onChange={e => setNome(e.target.value)} required placeholder="Nome completo" className={inputCls} />
-          </div>
-          <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">CPF/CNPJ</label>
             <InputCpfCnpj value={cpfCnpj ?? ''} onChange={setCpfCnpj} className={inputCls} />
+            <p className="text-[10px] text-gray-400 mt-0.5">14 dígitos = empresa (mostra campos de PJ)</p>
           </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">RG</label>
-            <input value={rg} onChange={e => setRg(e.target.value)} className={inputCls} />
+          <div className="sm:col-span-2">
+            <label className="text-xs font-medium text-gray-600 block mb-1">
+              {ehPJ ? 'Razão social *' : 'Nome *'}
+            </label>
+            <input value={nome} onChange={e => setNome(e.target.value)} required
+              placeholder={ehPJ ? 'Razão social completa (ex: Comercial XYZ Ltda)' : 'Nome completo'}
+              className={inputCls} />
           </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Nascimento</label>
-            <input type="date" value={dataNasc ?? ''} onChange={e => setDataNasc(e.target.value)} className={inputCls} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Estado civil</label>
-            <select value={estadoCivil ?? ''} onChange={e => setEstadoCivil(e.target.value)} className={inputCls}>
-              <option value="">—</option>
-              <option value="solteiro">Solteiro(a)</option>
-              <option value="casado">Casado(a)</option>
-              <option value="uniao_estavel">União estável</option>
-              <option value="divorciado">Divorciado(a)</option>
-              <option value="viuvo">Viúvo(a)</option>
-            </select>
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Profissão</label>
-            <input value={profissao ?? ''} onChange={e => setProfissao(e.target.value)} className={inputCls} />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-gray-600 block mb-1">Nacionalidade</label>
-            <input value={nacionalidade ?? ''} onChange={e => setNacionalidade(e.target.value)} className={inputCls} />
-          </div>
+
+          {ehPJ ? (
+            <>
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-gray-600 block mb-1">Nome fantasia</label>
+                <input value={nomeFantasia} onChange={e => setNomeFantasia(e.target.value)}
+                  placeholder="Nome conhecido publicamente" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Inscrição estadual</label>
+                <input value={inscricaoEstadual} onChange={e => setInscricaoEstadual(e.target.value)}
+                  placeholder="ou ISENTO" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Inscrição municipal</label>
+                <input value={inscricaoMunicipal} onChange={e => setInscricaoMunicipal(e.target.value)} className={inputCls} />
+              </div>
+              <p className="sm:col-span-2 text-[11px] text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+                ℹ️ Cadastre os sócios signatários como pessoas separadas e vincule-os ao contrato pela seção &ldquo;Pessoas vinculadas&rdquo;.
+              </p>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">RG</label>
+                <input value={rg} onChange={e => setRg(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Nascimento</label>
+                <input type="date" value={dataNasc ?? ''} onChange={e => setDataNasc(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Estado civil</label>
+                <select value={estadoCivil ?? ''} onChange={e => setEstadoCivil(e.target.value)} className={inputCls}>
+                  <option value="">—</option>
+                  <option value="solteiro">Solteiro(a)</option>
+                  <option value="casado">Casado(a)</option>
+                  <option value="uniao_estavel">União estável</option>
+                  <option value="divorciado">Divorciado(a)</option>
+                  <option value="viuvo">Viúvo(a)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Profissão</label>
+                <input value={profissao ?? ''} onChange={e => setProfissao(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Nacionalidade</label>
+                <input value={nacionalidade ?? ''} onChange={e => setNacionalidade(e.target.value)} className={inputCls} />
+              </div>
+            </>
+          )}
         </div>
       </section>
 
