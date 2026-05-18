@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { formatarBRL, formatarData } from '@/lib/formatters'
 import { TabelaMes, type LinhaParcela } from './_components/tabela-mes'
+import { SeletorMes } from './_components/seletor-mes'
 
 const MESES_NOMES = [
   'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -90,15 +91,31 @@ function unwrap<T>(v: T | T[] | null | undefined): T | null {
   return Array.isArray(v) ? (v[0] ?? null) : v
 }
 
-export default async function InicioCRMPage() {
+interface Props {
+  searchParams: Promise<{ mes?: string; ano?: string }>
+}
+
+export default async function InicioCRMPage({ searchParams }: Props) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
   const hoje = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00')
-  const mesAtual = hoje.getMonth() + 1
-  const anoAtual = hoje.getFullYear()
-  const inicioMes = new Date(anoAtual, mesAtual - 1, 1)
-  const fimMes = new Date(anoAtual, mesAtual, 0, 23, 59, 59)
+  const mesHoje = hoje.getMonth() + 1
+  const anoHoje = hoje.getFullYear()
+
+  // Mês/ano alvo (default = hoje)
+  const sp = await searchParams
+  const mesParam = parseInt(sp.mes ?? '')
+  const anoParam = parseInt(sp.ano ?? '')
+  const mesAlvo = (mesParam >= 1 && mesParam <= 12) ? mesParam : mesHoje
+  const anoAlvo = Number.isFinite(anoParam) && anoParam > 1900 ? anoParam : anoHoje
+  const ehMesAtual = mesAlvo === mesHoje && anoAlvo === anoHoje
+
+  // Aliases retrocompatíveis com o resto do arquivo
+  const mesAtual = mesAlvo
+  const anoAtual = anoAlvo
+  const inicioMes = new Date(anoAlvo, mesAlvo - 1, 1)
+  const fimMes = new Date(anoAlvo, mesAlvo, 0, 23, 59, 59)
 
   // Janelas de aviso
   const em5Dias = new Date(hoje.getTime() + 5 * 86400000)
@@ -218,12 +235,18 @@ export default async function InicioCRMPage() {
 
   return (
     <div className="p-6 space-y-5">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Calendar size={20} className="text-violet-600" />
-          {MESES_NOMES[mesAtual - 1].charAt(0).toUpperCase() + MESES_NOMES[mesAtual - 1].slice(1)} de {anoAtual}
-        </h1>
-        <p className="text-sm text-gray-500">Controle mensal de aluguéis · {doMes.length} parcela{doMes.length === 1 ? '' : 's'} prevista{doMes.length === 1 ? '' : 's'}</p>
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <Calendar size={20} className="text-violet-600" />
+            {MESES_NOMES[mesAtual - 1].charAt(0).toUpperCase() + MESES_NOMES[mesAtual - 1].slice(1)} de {anoAtual}
+          </h1>
+          <p className="text-sm text-gray-500">
+            Controle mensal de aluguéis · {doMes.length} parcela{doMes.length === 1 ? '' : 's'} prevista{doMes.length === 1 ? '' : 's'}
+            {!ehMesAtual && <span className="text-amber-600 font-medium"> · navegação ativa</span>}
+          </p>
+        </div>
+        <SeletorMes mes={mesAtual} ano={anoAtual} ehMesAtual={ehMesAtual} />
       </div>
 
       {/* KPIs do mês */}
@@ -234,8 +257,8 @@ export default async function InicioCRMPage() {
         <KPI label="Atrasados" value={formatarBRL(totalAtrasado)} sub={`${atrasadas.length} parcela${atrasadas.length === 1 ? '' : 's'} de meses anteriores`} icon={AlertTriangle} cor="text-red-600" bg="bg-red-50" />
       </div>
 
-      {/* Alertas de vencimento próximo */}
-      {vencendoEm5.length > 0 && (
+      {/* Alertas de vencimento próximo (relativos a hoje — só no mês atual) */}
+      {ehMesAtual && vencendoEm5.length > 0 && (
         <section className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
           <h2 className="text-sm font-semibold text-amber-900 flex items-center gap-2 mb-3">
             <Clock size={15} className="text-amber-600" />
