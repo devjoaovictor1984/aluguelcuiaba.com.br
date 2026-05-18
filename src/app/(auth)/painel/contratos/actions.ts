@@ -280,6 +280,7 @@ export interface ContratoEditavel {
   vistoria_ok?: boolean
   termo_chaves_ok?: boolean
   forma_pagamento?: 'boleto' | 'pix' | 'transferencia' | 'dinheiro' | 'cheque'
+  inquilino_mora_no_imovel?: boolean
 }
 
 export async function atualizarContrato(id: string, dados: ContratoEditavel) {
@@ -316,6 +317,154 @@ export async function excluirContrato(id: string) {
   if (error) return { error: error.message }
   revalidatePath('/painel/contratos')
   return { ok: true }
+}
+
+// ───────────────── Regerar parcelas ─────────────────
+
+export interface RegerarParcelasInput {
+  contrato_id: string
+  // Parâmetros editáveis (todos opcionais — null = manter)
+  dia_vencimento?: number
+  data_primeiro_aluguel?: string  // YYYY-MM-DD
+  valor_aluguel?: number
+  valor_seguro_fianca_mensal?: number
+  iptu_mensal?: number
+  condominio_mensal?: number
+  taxa_admin_tipo?: 'percentual' | 'fixo'
+  taxa_admin_valor?: number
+  primeira_parcela_cheia?: boolean
+  // Limite: parcelas com numero >= a_partir_da_parcela serão regeradas
+  a_partir_da_parcela?: number   // default = primeira parcela não paga
+}
+
+export async function regerarParcelas(input: RegerarParcelasInput) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  // 1. Busca o contrato
+  const { data: contrato, error: errCtr } = await supabase
+    .from('contratos_locacao')
+    .select(`
+      id, duracao_meses, dia_vencimento, data_primeiro_aluguel,
+      valor_aluguel, valor_seguro_fianca_mensal, iptu_mensal, condominio_mensal,
+      taxa_admin_tipo, taxa_admin_valor, primeira_parcela_cheia
+    `)
+    .eq('id', input.contrato_id)
+    .eq('user_id', acesso.userId)
+    .single()
+  if (errCtr || !contrato) return { error: 'Contrato não encontrado.' }
+
+  // 2. Busca parcelas existentes pra preservar pagas
+  const { data: existentes } = await supabase
+    .from('parcelas_aluguel')
+    .select('id, numero, status_pagamento')
+    .eq('contrato_id', input.contrato_id)
+    .order('numero', { ascending: true })
+
+  const todas = existentes ?? []
+  const pagas = todas.filter(p => p.status_pagamento === 'pago')
+  const naoPagas = todas.filter(p => p.status_pagamento !== 'pago')
+
+  if (todas.length === 0) return { error: 'Sem parcelas pra regerar. Use o wizard de novo contrato.' }
+
+  // 3. Determina a partir de qual número regerar (primeira não paga por default)
+  const aPartir = input.a_partir_da_parcela ?? (naoPagas[0]?.numero ?? (todas.length + 1))
+  if (aPartir > todas.length) return { error: 'A parcela inicial está fora do range do contrato.' }
+
+  // Bloqueia se tentar regerar parcela já paga
+  const pagasNoRange = pagas.filter(p => p.numero >= aPartir)
+  if (pagasNoRange.length > 0) {
+    return { error: `Não é possível regerar — a parcela #${pagasNoRange[0].numero} já está paga. Desfaça o pagamento primeiro.` }
+  }
+
+  // 4. Monta novos parâmetros (mescla input + contrato atual)
+  const novos = {
+    dia_vencimento: input.dia_vencimento ?? contrato.dia_vencimento,
+    data_primeiro_aluguel: input.data_primeiro_aluguel ?? contrato.data_primeiro_aluguel,
+    valor_aluguel: input.valor_aluguel ?? Number(contrato.valor_aluguel),
+    valor_seguro_fianca_mensal: input.valor_seguro_fianca_mensal ?? Number(contrato.valor_seguro_fianca_mensal ?? 0),
+    iptu_mensal: input.iptu_mensal ?? Number(contrato.iptu_mensal ?? 0),
+    condominio_mensal: input.condominio_mensal ?? Number(contrato.condominio_mensal ?? 0),
+    taxa_admin_tipo: (input.taxa_admin_tipo ?? contrato.taxa_admin_tipo) as 'percentual' | 'fixo',
+    taxa_admin_valor: input.taxa_admin_valor ?? Number(contrato.taxa_admin_valor),
+    primeira_parcela_cheia: input.primeira_parcela_cheia ?? contrato.primeira_parcela_cheia,
+  }
+
+  if (novos.dia_vencimento < 1 || novos.dia_vencimento > 31) return { error: 'Dia de vencimento inválido (1-31).' }
+  if (novos.valor_aluguel <= 0) return { error: 'Valor de aluguel inválido.' }
+
+  // 5. Gera as parcelas completas e fatia
+  const novasParcelas = gerarParcelas({
+    duracao_meses: contrato.duracao_meses,
+    data_primeiro_aluguel: novos.data_primeiro_aluguel,
+    dia_vencimento: novos.dia_vencimento,
+    valor_aluguel: novos.valor_aluguel,
+    valor_seguro_fianca_mensal: novos.valor_seguro_fianca_mensal,
+    iptu_mensal: novos.iptu_mensal,
+    condominio_mensal: novos.condominio_mensal,
+    taxa_admin_tipo: novos.taxa_admin_tipo,
+    taxa_admin_valor: novos.taxa_admin_valor,
+    primeira_parcela_cheia: novos.primeira_parcela_cheia,
+  })
+
+  // Mantém só as parcelas a partir de aPartir
+  const aGravar = novasParcelas.filter(p => p.numero >= aPartir)
+  const idsRemover = naoPagas.filter(p => p.numero >= aPartir).map(p => p.id)
+
+  // 6. Deleta as não-pagas no range
+  if (idsRemover.length > 0) {
+    const { error: errDel } = await supabase
+      .from('parcelas_aluguel')
+      .delete()
+      .in('id', idsRemover)
+    if (errDel) return { error: `Falha ao remover parcelas: ${errDel.message}` }
+  }
+
+  // 7. Insere as novas
+  const payload = aGravar.map(p => ({
+    contrato_id: input.contrato_id,
+    numero: p.numero,
+    mes_referencia: p.mes_referencia,
+    vencimento: p.vencimento,
+    valor_aluguel: p.valor_aluguel,
+    valor_seguro: p.valor_seguro,
+    valor_iptu: p.valor_iptu,
+    valor_condominio: p.valor_condominio,
+    valor_total: p.valor_total,
+    valor_comissao: p.valor_comissao,
+    valor_repasse_proprietario: p.valor_repasse_proprietario,
+    status_seguro: p.valor_seguro > 0 ? 'pendente' : 'sem_seguro',
+  }))
+  const { error: errIns } = await supabase.from('parcelas_aluguel').insert(payload)
+  if (errIns) return { error: `Falha ao gerar parcelas: ${errIns.message}` }
+
+  // 8. Atualiza valores de referência do contrato
+  await supabase
+    .from('contratos_locacao')
+    .update({
+      dia_vencimento: novos.dia_vencimento,
+      data_primeiro_aluguel: novos.data_primeiro_aluguel,
+      valor_aluguel: novos.valor_aluguel,
+      valor_seguro_fianca_mensal: novos.valor_seguro_fianca_mensal,
+      iptu_mensal: novos.iptu_mensal,
+      condominio_mensal: novos.condominio_mensal,
+      taxa_admin_tipo: novos.taxa_admin_tipo,
+      taxa_admin_valor: novos.taxa_admin_valor,
+      primeira_parcela_cheia: novos.primeira_parcela_cheia,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', input.contrato_id)
+
+  revalidatePath(`/painel/contratos/${input.contrato_id}`)
+  revalidatePath('/painel/financeiro')
+  revalidatePath('/painel/inicio')
+
+  return {
+    ok: true,
+    parcelas_regeneradas: aGravar.length,
+    pagas_mantidas: pagas.length,
+    a_partir_de: aPartir,
+  }
 }
 
 // ───────────────── Reajuste ─────────────────

@@ -12,7 +12,7 @@ export default async function EditarContratoPage({ params }: { params: Promise<{
   const supabase = await createClient()
   const { data: contrato } = await supabase
     .from('contratos_locacao')
-    .select('id, codigo, status, data_termino, observacoes, clausulas_extras, indice_reajuste, data_proximo_reajuste, vistoria_ok, termo_chaves_ok, forma_pagamento')
+    .select('id, codigo, status, data_termino, observacoes, clausulas_extras, indice_reajuste, data_proximo_reajuste, vistoria_ok, termo_chaves_ok, forma_pagamento, inquilino_mora_no_imovel')
     .eq('id', id)
     .eq('user_id', acesso.userId)
     .single()

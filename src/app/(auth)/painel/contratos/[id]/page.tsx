@@ -9,6 +9,7 @@ import { ParcelaRow, type Parcela } from './_components/parcela-row'
 import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
 import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
+import { RegerarParcelasBotao } from './_components/regerar-parcelas'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -143,6 +144,21 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
             </span>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <RegerarParcelasBotao
+              contratoId={id}
+              contratoCodigo={contrato.codigo}
+              diaVencimentoAtual={contrato.dia_vencimento}
+              dataPrimeiroAluguelAtual={contrato.data_primeiro_aluguel}
+              valorAluguelAtual={Number(contrato.valor_aluguel)}
+              valorSeguroAtual={Number(contrato.valor_seguro_fianca_mensal ?? 0)}
+              iptuAtual={Number(contrato.iptu_mensal ?? 0)}
+              condominioAtual={Number(contrato.condominio_mensal ?? 0)}
+              taxaAdminTipo={contrato.taxa_admin_tipo}
+              taxaAdminValor={Number(contrato.taxa_admin_valor)}
+              primeiraParcelaCheiaAtual={contrato.primeira_parcela_cheia}
+              duracaoMeses={contrato.duracao_meses}
+              parcelas={lista.map(p => ({ numero: p.numero, status_pagamento: p.status_pagamento, mes_referencia: p.mes_referencia }))}
+            />
             <AcoesContrato
               contratoId={id}
               contratoCodigo={contrato.codigo}
@@ -186,9 +202,14 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
           <p className="text-xs text-gray-500 mt-1">{bairro?.nome ?? ''} {imovel?.endereco_resumido && `· ${imovel.endereco_resumido}`}</p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-          <p className="text-xs text-gray-400 mb-1 flex items-center gap-1"><User size={11} /> INQUILINO</p>
+          <p className="text-xs text-gray-400 mb-1 flex items-center gap-1">
+            <User size={11} /> INQUILINO {contrato.inquilino_mora_no_imovel === false && <span className="text-amber-700 font-semibold">(não mora)</span>}
+          </p>
           <p className="font-semibold text-gray-900">{inquilino?.nome ?? '—'}</p>
           <p className="text-xs text-gray-500 mt-1">{inquilino?.cpf_cnpj ?? ''} {inquilino?.telefone && `· ${inquilino.telefone}`}</p>
+          {contrato.inquilino_mora_no_imovel === false && (
+            <p className="text-[11px] text-amber-700 mt-1.5 italic">Assina o contrato, mas quem mora é alguém vinculado abaixo.</p>
+          )}
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <p className="text-xs text-gray-400 mb-1 flex items-center gap-1"><User size={11} /> PROPRIETÁRIO</p>

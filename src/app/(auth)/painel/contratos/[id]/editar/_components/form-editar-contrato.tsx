@@ -19,6 +19,7 @@ interface Props {
     vistoria_ok: boolean | null
     termo_chaves_ok: boolean | null
     forma_pagamento: string | null
+    inquilino_mora_no_imovel: boolean | null
   }
 }
 
@@ -33,6 +34,7 @@ export function FormEditarContrato({ id, dados }: Props) {
   const [vistoria, setVistoria] = useState(!!dados.vistoria_ok)
   const [chaves, setChaves] = useState(!!dados.termo_chaves_ok)
   const [formaPag, setFormaPag] = useState(dados.forma_pagamento ?? 'boleto')
+  const [inquilinoMora, setInquilinoMora] = useState(dados.inquilino_mora_no_imovel ?? true)
 
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -49,6 +51,7 @@ export function FormEditarContrato({ id, dados }: Props) {
       vistoria_ok: vistoria,
       termo_chaves_ok: chaves,
       forma_pagamento: formaPag as ContratoEditavel['forma_pagamento'],
+      inquilino_mora_no_imovel: inquilinoMora,
     }
     startTransition(async () => {
       const r = await atualizarContrato(id, payload)
@@ -99,7 +102,7 @@ export function FormEditarContrato({ id, dados }: Props) {
           </div>
         </div>
 
-        <div className="flex gap-4 pt-2 border-t border-gray-50">
+        <div className="flex gap-4 pt-2 border-t border-gray-50 flex-wrap">
           <label className="flex items-center gap-2 cursor-pointer">
             <input type="checkbox" checked={vistoria} onChange={e => setVistoria(e.target.checked)} className="w-4 h-4 accent-violet-600" />
             <span className="text-sm text-gray-700">Vistoria realizada</span>
@@ -108,7 +111,16 @@ export function FormEditarContrato({ id, dados }: Props) {
             <input type="checkbox" checked={chaves} onChange={e => setChaves(e.target.checked)} className="w-4 h-4 accent-violet-600" />
             <span className="text-sm text-gray-700">Termo de entrega de chaves</span>
           </label>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" checked={inquilinoMora} onChange={e => setInquilinoMora(e.target.checked)} className="w-4 h-4 accent-violet-600" />
+            <span className="text-sm text-gray-700">Inquilino contratante mora no imóvel</span>
+          </label>
         </div>
+        {!inquilinoMora && (
+          <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+            ℹ️ Quem assina é o inquilino contratante (responsável pelo pagamento). Cadastre quem realmente mora na seção <strong>Pessoas vinculadas</strong> como &ldquo;Morador adicional&rdquo;.
+          </p>
+        )}
       </section>
 
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
