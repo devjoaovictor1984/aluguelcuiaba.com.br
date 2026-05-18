@@ -256,6 +256,87 @@ export async function alternarSeguro(parcelaId: string, novo: 'pendente' | 'pago
   return { ok: true }
 }
 
+// ───────────────── Bulk actions ─────────────────
+
+export interface BulkInput {
+  parcela_ids: string[]
+  acao: 'boleto_enviado' | 'boleto_desfazer'
+       | 'repasse_pago' | 'repasse_desfazer'
+       | 'seguro_pago'  | 'seguro_desfazer'
+}
+
+export async function bulkAcaoParcelas(input: BulkInput) {
+  await exigirAcessoCRM()
+  const supabase = await createClient()
+  if (input.parcela_ids.length === 0) return { error: 'Nada selecionado.' }
+  if (input.parcela_ids.length > 200) return { error: 'Máximo 200 parcelas por vez.' }
+
+  let update: Record<string, unknown> = {}
+  switch (input.acao) {
+    case 'boleto_enviado':   update = { boleto_enviado: true }; break
+    case 'boleto_desfazer':  update = { boleto_enviado: false }; break
+    case 'repasse_pago':     update = { status_repasse: 'pago' }; break
+    case 'repasse_desfazer': update = { status_repasse: 'pendente' }; break
+    case 'seguro_pago':      update = { status_seguro: 'pago' }; break
+    case 'seguro_desfazer':  update = { status_seguro: 'pendente' }; break
+    default: return { error: 'Ação inválida.' }
+  }
+
+  const { error, count } = await supabase
+    .from('parcelas_aluguel')
+    .update(update, { count: 'exact' })
+    .in('id', input.parcela_ids)
+    // Para seguro, RLS já restringe ao user. Para sem_seguro, não trocamos.
+    .not('status_seguro', 'eq', input.acao.startsWith('seguro') ? 'sem_seguro' : '__never__')
+
+  if (error) return { error: error.message }
+  revalidatePath('/painel/inicio')
+  revalidatePath('/painel/contratos')
+  revalidatePath('/painel/financeiro')
+  return { ok: true, atualizadas: count ?? input.parcela_ids.length }
+}
+
+export interface BulkPagamentoInput {
+  parcela_ids: string[]
+  data_pagamento: string  // YYYY-MM-DD
+}
+
+export async function bulkMarcarPagamento(input: BulkPagamentoInput) {
+  await exigirAcessoCRM()
+  const supabase = await createClient()
+  if (input.parcela_ids.length === 0) return { error: 'Nada selecionado.' }
+  if (input.parcela_ids.length > 200) return { error: 'Máximo 200 parcelas por vez.' }
+
+  // Busca valor_total de cada (sem juros/desconto — usa valor original)
+  const { data: parcelas, error: errBusca } = await supabase
+    .from('parcelas_aluguel')
+    .select('id, valor_total, status_pagamento')
+    .in('id', input.parcela_ids)
+  if (errBusca) return { error: errBusca.message }
+
+  const elegiveis = (parcelas ?? []).filter(p => p.status_pagamento !== 'pago')
+
+  // Atualiza uma a uma (Supabase JS não tem UPDATE com valor por linha)
+  for (const p of elegiveis) {
+    await supabase
+      .from('parcelas_aluguel')
+      .update({
+        status_pagamento: 'pago',
+        data_pagamento: input.data_pagamento,
+        valor_pago: p.valor_total,
+        juros_multa: 0,
+        desconto: 0,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', p.id)
+  }
+
+  revalidatePath('/painel/inicio')
+  revalidatePath('/painel/contratos')
+  revalidatePath('/painel/financeiro')
+  return { ok: true, atualizadas: elegiveis.length, ignoradas: (parcelas?.length ?? 0) - elegiveis.length }
+}
+
 export async function alternarBoletoEnviado(parcelaId: string, enviado: boolean) {
   await exigirAcessoCRM()
   const supabase = await createClient()

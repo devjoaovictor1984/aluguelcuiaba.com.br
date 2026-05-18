@@ -10,6 +10,7 @@ import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
 import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
 import { RegerarParcelasBotao } from './_components/regerar-parcelas'
+import { TimelineEventos, type EventoRow } from './_components/timeline-eventos'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -61,6 +62,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     { data: moradoresRaw },
     { data: pessoasUser },
     { data: reajustesRaw },
+    { data: eventosRaw },
   ] = await Promise.all([
     supabase
       .from('parcelas_aluguel')
@@ -85,6 +87,12 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
       .select('id, data_efetiva, valor_antigo, valor_novo, percentual, indice_usado, parcelas_afetadas, observacao, created_at')
       .eq('contrato_id', id)
       .order('data_efetiva', { ascending: false }),
+    supabase
+      .from('eventos_contrato')
+      .select('id, tipo, descricao, metadata, created_at')
+      .eq('contrato_id', id)
+      .order('created_at', { ascending: false })
+      .limit(200),
   ])
 
   const moradores: MoradorRow[] = (moradoresRaw ?? []).map((m: {
@@ -110,6 +118,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     valor_antigo: Number(r.valor_antigo),
     valor_novo: Number(r.valor_novo),
   }))
+  const eventos: EventoRow[] = (eventosRaw ?? []) as EventoRow[]
 
   const lista = parcelas ?? []
   const pagas = lista.filter(p => p.status_pagamento === 'pago').length
@@ -238,6 +247,8 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         inquilinoId={inquilino?.id ?? ''}
         inquilinoEhPJ={(inquilino?.cpf_cnpj?.replace(/\D/g, '').length ?? 0) === 14}
       />
+
+      <TimelineEventos eventos={eventos} />
 
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">

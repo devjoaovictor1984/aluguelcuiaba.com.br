@@ -33,16 +33,70 @@ export interface ParcelaInline {
 
 const HOJE = () => new Date().toISOString().slice(0, 10)
 
+function diasAteVenc(vencimento: string): number {
+  const hoje = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00').getTime()
+  const venc = new Date(vencimento + 'T00:00:00').getTime()
+  return Math.round((venc - hoje) / 86400000)
+}
+
 function templateCobranca(p: ParcelaInline, anunciante: string): string {
   const venc = new Date(p.vencimento + 'T00:00:00').toLocaleDateString('pt-BR')
   const primeiroNome = p.inquilino_nome.split(' ')[0]
-  return `Olá ${primeiroNome}, tudo bem?
+  const dias = diasAteVenc(p.vencimento)
+  const imovel = p.imovel_titulo ? ` do imóvel ${p.imovel_titulo}` : ''
+  const valor = formatarBRL(p.valor_total)
 
-Passando pra lembrar do aluguel ${p.imovel_titulo ? `do imóvel ${p.imovel_titulo} ` : ''}com vencimento em ${venc}.
+  // Mensagem adaptativa baseada nos dias
+  if (dias < 0) {
+    // Atrasado
+    const diasAtraso = -dias
+    return `Olá ${primeiroNome}, tudo bem?
 
-Valor: ${formatarBRL(p.valor_total)}
+Notei que o aluguel${imovel} venceu há ${diasAtraso} dia${diasAtraso === 1 ? '' : 's'} (${venc}) e ainda não consta como pago no meu sistema.
+
+Valor: ${valor}
+
+Houve algum imprevisto? Se já fez o pagamento, por favor me envie o comprovante.
+
+— ${anunciante}`
+  }
+  if (dias === 0) {
+    return `Olá ${primeiroNome}!
+
+Lembrete: o aluguel${imovel} vence *hoje* (${venc}).
+
+Valor: ${valor}
+
+Já enviei o boleto pra você. Qualquer coisa estou à disposição.
+
+— ${anunciante}`
+  }
+  if (dias === 1) {
+    return `Olá ${primeiroNome}, tudo bem?
+
+Lembrando que o aluguel${imovel} vence *amanhã* (${venc}).
+
+Valor: ${valor}
+
+— ${anunciante}`
+  }
+  if (dias <= 5) {
+    return `Olá ${primeiroNome}, tudo bem?
+
+Passando pra lembrar do aluguel${imovel} com vencimento em ${dias} dias (${venc}).
+
+Valor: ${valor}
 
 Qualquer dúvida estou à disposição.
+
+— ${anunciante}`
+  }
+  // > 5 dias (cordial)
+  return `Olá ${primeiroNome}, tudo bem?
+
+Aviso amigável sobre o aluguel${imovel} com vencimento em ${venc}.
+
+Valor: ${valor}
 
 — ${anunciante}`
 }

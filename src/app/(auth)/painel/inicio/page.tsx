@@ -6,7 +6,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { formatarBRL, formatarData } from '@/lib/formatters'
-import { ParcelaAcoesInline, type ParcelaInline } from './_components/parcela-acoes-inline'
+import { TabelaMes, type LinhaParcela } from './_components/tabela-mes'
 
 const MESES_NOMES = [
   'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -293,85 +293,12 @@ export default async function InicioCRMPage() {
         </section>
       )}
 
-      {/* Lista do mês — agrupada por inquilino */}
-      <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-            <User size={15} className="text-violet-600" />
-            Aluguéis do mês por cliente
-          </h2>
-          {atrasadasMes.length > 0 && (
-            <span className="text-xs text-red-600 font-medium">
-              {atrasadasMes.length} já atrasado{atrasadasMes.length === 1 ? '' : 's'}
-            </span>
-          )}
-        </div>
-        {doMes.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-8">
-            Sem aluguéis previstos neste mês. Cadastre contratos pra começar.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm min-w-[760px]">
-              <thead className="bg-gray-50 text-left text-xs font-semibold text-gray-500">
-                <tr>
-                  <th className="px-3 py-2">Cliente</th>
-                  <th className="px-3 py-2">Imóvel</th>
-                  <th className="px-3 py-2 text-center">Venc.</th>
-                  <th className="px-3 py-2 text-right">Valor</th>
-                  <th className="px-3 py-2 text-center">Status</th>
-                  <th className="px-3 py-2 text-right" title="Pagamento · Repasse · Seguro · Boleto · WhatsApp · Recibo">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {doMes.map(p => {
-                  const venc = new Date(p.vencimento + 'T00:00:00')
-                  const diaVenc = venc.getDate()
-                  const inline: ParcelaInline = {
-                    id: p.id,
-                    numero: p.numero,
-                    contrato_id: p.contratoId,
-                    contrato_codigo: p.contratoCodigo,
-                    inquilino_nome: p.inquilino,
-                    inquilino_telefone: p.inquilinoTelefone,
-                    imovel_titulo: p.imovel,
-                    vencimento: p.vencimento,
-                    valor_total: p.valor,
-                    status_pagamento: p.status,
-                    status_repasse: p.statusRepasse,
-                    status_seguro: p.statusSeguro,
-                    boleto_enviado: p.boletoEnviado,
-                    data_pagamento: p.dataPagamento,
-                  }
-                  return (
-                    <tr key={p.id} className="border-t border-gray-50 hover:bg-gray-50/60">
-                      <td className="px-3 py-2">
-                        <Link href={`/painel/contratos/${p.contratoId}`} className="font-medium text-gray-900 hover:text-violet-700">
-                          {p.inquilino}
-                        </Link>
-                      </td>
-                      <td className="px-3 py-2 text-gray-600 text-xs">
-                        {p.imovel}
-                        {p.bairro && <span className="text-gray-400"> · {p.bairro}</span>}
-                      </td>
-                      <td className="px-3 py-2 text-center text-gray-700 text-xs">
-                        dia <strong className="text-gray-900">{diaVenc}</strong>
-                      </td>
-                      <td className="px-3 py-2 text-right font-medium text-gray-900">{formatarBRL(p.valor)}</td>
-                      <td className="px-3 py-2 text-center">
-                        <StatusBadge p={p} />
-                      </td>
-                      <td className="px-3 py-2">
-                        <ParcelaAcoesInline parcela={inline} anuncianteNome={anuncianteNome} />
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      {/* Lista do mês — agrupada por inquilino com checkboxes e bulk actions */}
+      <TabelaMes
+        parcelas={doMes as unknown as LinhaParcela[]}
+        anuncianteNome={anuncianteNome}
+        atrasadasMes={atrasadasMes.length}
+      />
 
       {/* Próximos eventos */}
       {(contratosVencendo.length > 0 || reajustesProximos.length > 0 || segurosVencendo.length > 0) && (
@@ -483,38 +410,3 @@ function Card({ icon, titulo, children }: { icon: React.ReactNode; titulo: strin
   )
 }
 
-function StatusBadge({ p }: { p: ParcelaView }) {
-  if (p.pago) {
-    return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-        <CheckCircle2 size={11} /> Pago
-      </span>
-    )
-  }
-  if (p.diasAteVenc < 0) {
-    return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-        <AlertTriangle size={11} /> Atrasado {-p.diasAteVenc}d
-      </span>
-    )
-  }
-  if (p.diasAteVenc === 0) {
-    return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">
-        Vence hoje
-      </span>
-    )
-  }
-  if (p.diasAteVenc <= 5) {
-    return (
-      <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-        <Clock size={11} /> em {p.diasAteVenc}d
-      </span>
-    )
-  }
-  return (
-    <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-      Em aberto
-    </span>
-  )
-}
