@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { enviarEmail } from '@/lib/email/sender'
+import { getTemplate, renderTemplate } from '@/lib/email/templates'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -71,6 +72,9 @@ export async function GET(req: NextRequest) {
 
   const resultados: Array<{ parcela_id: string; email: string; ok: boolean; erro?: string }> = []
 
+  // Template editável em /admin/emails (chave 'aviso_aluguel').
+  const template = await getTemplate('aviso_aluguel')
+
   for (const p of lista) {
     const c = unwrap(p.contrato)
     if (!c) continue
@@ -84,34 +88,21 @@ export async function GET(req: NextRequest) {
     const valor = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(p.valor_total)
     const primeiroNome = inq.nome.split(' ')[0]
 
-    const html = `
-      <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1f2937;">
-        <div style="background: #7c3aed; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
-          <h1 style="margin: 0; font-size: 18px;">Lembrete de aluguel</h1>
-          <p style="margin: 6px 0 0; opacity: 0.9; font-size: 13px;">${anunciante}</p>
-        </div>
-        <div style="background: #fff; border: 1px solid #e5e7eb; border-top: 0; padding: 24px; border-radius: 0 0 12px 12px;">
-          <p style="font-size: 15px;">Olá <strong>${primeiroNome}</strong>,</p>
-          <p style="font-size: 14px; line-height: 1.6;">
-            Passando pra lembrar do aluguel${imo?.titulo ? ` do imóvel <strong>${imo.titulo}</strong>` : ''}${bairro?.nome ? ` (${bairro.nome})` : ''}
-            com vencimento em <strong>5 dias</strong>.
-          </p>
-          <div style="background: #f3e8ff; border-radius: 8px; padding: 14px 18px; margin: 18px 0; text-align: center;">
-            <p style="margin: 0; font-size: 11px; color: #7c3aed; font-weight: bold; letter-spacing: 1px;">VENCE EM</p>
-            <p style="margin: 6px 0; font-size: 22px; font-weight: bold; color: #111827;">${venc}</p>
-            <p style="margin: 0; font-size: 18px; font-weight: bold; color: #7c3aed;">${valor}</p>
-          </div>
-          <p style="font-size: 13px; color: #6b7280;">Qualquer dúvida, fale comigo respondendo este email ou pelo WhatsApp.</p>
-          <p style="font-size: 13px; color: #6b7280;">— ${anunciante}</p>
-        </div>
-        <p style="font-size: 10px; color: #9ca3af; text-align: center; margin-top: 16px;">
-          Este é um lembrete automático. Se você já pagou, desconsidere.
-        </p>
-      </div>
-    `
+    const vars = {
+      nome: primeiroNome,
+      anunciante,
+      imovel_titulo: imo?.titulo ?? 'seu imóvel',
+      imovel_bairro: bairro?.nome ?? '',
+      venc,
+      dias: '5',
+      valor,
+    }
 
-    const subject = `Lembrete: aluguel vence em ${venc}`
-    const r = await enviarEmail({ to: inq.email, subject, html })
+    const r = await enviarEmail({
+      to: inq.email,
+      subject: renderTemplate(template.assunto, vars),
+      html: renderTemplate(template.corpo, vars),
+    })
     resultados.push({ parcela_id: p.id, email: inq.email, ok: !r.error, erro: r.error })
   }
 
