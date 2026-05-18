@@ -504,15 +504,31 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
       {/* ── Localização ── */}
       <Secao titulo="Localização">
         <div className="space-y-4">
+          {/* CEP primeiro — auto-preenche logradouro e bairro via ViaCEP */}
+          <Campo label="CEP" opcional>
+            <div className="relative">
+              <input
+                type="text" inputMode="numeric"
+                value={imovelCep}
+                onChange={e => { const v = mascaraCEP(e.target.value); setImovelCep(v); if (v.replace(/\D/g, '').length === 8) buscarCepImovel(v) }}
+                placeholder="00000-000"
+                className={`${inputCls} pr-10`}
+              />
+              {buscandoEndereco && <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-violet-500 animate-spin" />}
+            </div>
+            <p className="text-xs text-gray-400 mt-1">Preenche o bairro e o endereço automaticamente.</p>
+          </Campo>
+
           <Campo label="Bairro">
             <BairroCombobox bairros={bairros} value={bairroId} onChange={setBairroId} />
           </Campo>
+
           <Campo label="Nome do condomínio" opcional>
             <input type="text" value={condominioNome} onChange={e => setCondominioNome(e.target.value)}
               placeholder="Ex: Residencial Jardim Europa" maxLength={100} className={inputCls} />
           </Campo>
 
-          {/* Endereço do imóvel */}
+          {/* Endereço do imóvel (privado) */}
           <div className="space-y-3 pt-1">
             <div className="flex items-center gap-2">
               <p className="text-sm font-medium text-gray-700">Endereço do imóvel</p>
@@ -521,18 +537,6 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
               </span>
             </div>
             <p className="text-xs text-gray-400 -mt-1">Não aparece no anúncio — só o bairro é exibido publicamente.</p>
-
-            {/* CEP */}
-            <div className="relative">
-              <input
-                type="text" inputMode="numeric"
-                value={imovelCep}
-                onChange={e => { const v = mascaraCEP(e.target.value); setImovelCep(v); if (v.replace(/\D/g, '').length === 8) buscarCepImovel(v) }}
-                placeholder="CEP (opcional)"
-                className={`${inputCls} pr-10`}
-              />
-              {buscandoEndereco && <Loader2 size={15} className="absolute right-3 top-1/2 -translate-y-1/2 text-violet-500 animate-spin" />}
-            </div>
 
             {/* Rua + Número */}
             <div className="grid grid-cols-3 gap-2">
