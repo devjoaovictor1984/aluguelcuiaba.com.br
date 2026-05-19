@@ -239,10 +239,10 @@ export default function MapaImoveis({ imoveis, height = 360, containerClassName,
         scrollWheelZoom={true}
         className="w-full h-full"
       >
-        {/* CartoDB Positron — base clara/limpa, gratuita, atribuição obrigatória. */}
+        {/* CartoDB Voyager — tons quentes, áreas verdes/rodovias destacadas. Free. */}
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           subdomains={['a', 'b', 'c', 'd']}
           maxZoom={20}
         />
