@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import Link from 'next/link'
 import {
   MessageCircle, AlertTriangle, Clock, Calendar, Phone, X, Check,
+  Pencil, RotateCcw,
 } from 'lucide-react'
-import { formatarBRL, formatarData } from '@/lib/formatters'
+import { formatarBRL } from '@/lib/formatters'
 import { gerarLinkWhatsApp } from '@/lib/utils'
 
 export interface CobrancaRow {
@@ -186,10 +187,38 @@ function CobrancaCard({
   anuncianteNome: string
   onEnviado: () => void
 }) {
-  const [verMsg, setVerMsg] = useState(false)
-  const mensagem = templateMensagem(c, anuncianteNome)
-  const url = gerarLinkWhatsApp(c.inquilinoTelefone!, mensagem)
+  const [aberto, setAberto] = useState(false)
+  const mensagemPadrao = useMemo(() => templateMensagem(c, anuncianteNome), [c, anuncianteNome])
+  const [mensagem, setMensagem] = useState(mensagemPadrao)
+  const [editado, setEditado] = useState(false)
 
+  // Persiste edições por parcela em localStorage (sobrevive a F5)
+  useEffect(() => {
+    const salva = localStorage.getItem(`cobranca_msg_${c.id}`)
+    if (salva && salva !== mensagemPadrao) {
+      setMensagem(salva)
+      setEditado(true)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [c.id])
+
+  const onChangeMsg = (v: string) => {
+    setMensagem(v)
+    setEditado(v.trim() !== mensagemPadrao.trim())
+    if (v.trim() && v.trim() !== mensagemPadrao.trim()) {
+      localStorage.setItem(`cobranca_msg_${c.id}`, v)
+    } else {
+      localStorage.removeItem(`cobranca_msg_${c.id}`)
+    }
+  }
+
+  const restaurarPadrao = () => {
+    setMensagem(mensagemPadrao)
+    setEditado(false)
+    localStorage.removeItem(`cobranca_msg_${c.id}`)
+  }
+
+  const url = gerarLinkWhatsApp(c.inquilinoTelefone!, mensagem)
   const tipo = c.diasAteVenc < 0 ? 'atrasado' : c.diasAteVenc === 0 ? 'hoje' : c.diasAteVenc <= 5 ? 'proximo' : 'futuro'
   const venc = new Date(c.vencimento + 'T00:00:00').toLocaleDateString('pt-BR')
 
@@ -209,6 +238,11 @@ function CobrancaCard({
               {c.inquilinoNome}
             </Link>
             <BadgeStatus dias={c.diasAteVenc} />
+            {editado && !aberto && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-medium bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full">
+                <Pencil size={9} /> mensagem personalizada
+              </span>
+            )}
           </div>
           <p className="text-xs text-gray-500 mt-0.5">
             {c.imovelTitulo}{c.bairroNome && ` · ${c.bairroNome}`}
@@ -224,11 +258,15 @@ function CobrancaCard({
           <span className="font-bold text-gray-900">{formatarBRL(c.valor)}</span>
           <button
             type="button"
-            onClick={() => setVerMsg(v => !v)}
-            className="text-xs text-gray-400 hover:text-violet-700 px-2 py-1 rounded-lg hover:bg-gray-50"
-            title="Pré-visualizar a mensagem"
+            onClick={() => setAberto(v => !v)}
+            className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg transition-colors ${
+              aberto
+                ? 'bg-violet-100 text-violet-700'
+                : 'text-gray-500 hover:text-violet-700 hover:bg-gray-50 border border-gray-200'
+            }`}
+            title="Ver e editar a mensagem"
           >
-            👁️
+            <Pencil size={11} /> {aberto ? 'Fechar' : 'Editar msg'}
           </button>
           {enviada ? (
             <button
@@ -251,15 +289,40 @@ function CobrancaCard({
         </div>
       </div>
 
-      {verMsg && (
-        <div className="px-3 pb-3 pt-1 border-t border-gray-50 mt-1">
-          <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Mensagem que será aberta</p>
-            <button onClick={() => setVerMsg(false)} className="text-gray-300 hover:text-gray-500">
-              <X size={12} />
-            </button>
+      {aberto && (
+        <div className="px-3 pb-3 pt-1 border-t border-gray-50 mt-1 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+              Mensagem que será enviada
+              {editado && <span className="ml-1 text-violet-600 normal-case font-medium">· editada</span>}
+            </p>
+            <div className="flex items-center gap-1">
+              {editado && (
+                <button
+                  type="button"
+                  onClick={restaurarPadrao}
+                  className="flex items-center gap-1 text-[10px] text-gray-500 hover:text-violet-700 px-2 py-1 rounded hover:bg-gray-50"
+                  title="Voltar à mensagem padrão do sistema"
+                >
+                  <RotateCcw size={10} /> Padrão
+                </button>
+              )}
+              <button onClick={() => setAberto(false)} className="text-gray-300 hover:text-gray-500 p-1">
+                <X size={12} />
+              </button>
+            </div>
           </div>
-          <pre className="text-[11px] text-gray-600 whitespace-pre-wrap bg-gray-50 rounded-lg p-2 font-sans leading-relaxed">{mensagem}</pre>
+          <textarea
+            value={mensagem}
+            onChange={e => onChangeMsg(e.target.value)}
+            rows={Math.max(6, Math.min(14, mensagem.split('\n').length + 1))}
+            className="w-full text-[12px] text-gray-800 bg-white border border-gray-200 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-200 rounded-lg p-2.5 font-sans leading-relaxed resize-y"
+            placeholder="Escreva sua mensagem aqui…"
+          />
+          <p className="text-[10px] text-gray-400 leading-relaxed">
+            💡 Edite à vontade. Sua versão fica salva nesse navegador até você enviar ou clicar em &quot;Padrão&quot;.
+            {' '}A mensagem só vai pro WhatsApp quando você clicar em <strong>Enviar</strong>.
+          </p>
         </div>
       )}
     </div>
