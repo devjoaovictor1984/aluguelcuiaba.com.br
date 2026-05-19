@@ -21,7 +21,7 @@ export async function Navbar() {
   const logoUrl = await getLogoUrl()
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm">
+    <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm hidden md:block">
       <div className="max-w-7xl mx-auto px-4 h-14 lg:h-24 flex items-center justify-between">
         <Link href="/" className="flex items-center shrink-0">
           <Image

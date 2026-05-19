@@ -23,9 +23,11 @@ interface Props {
   filtraAoMover?: boolean
   /** Centro forçado — usado quando um bairro é selecionado */
   focusCenter?: { lat: number; lng: number; zoom?: number } | null
+  /** Sobrescreve o container externo (altura/bordas) */
+  containerClassName?: string
 }
 
-export function MapaImoveisWrapper({ imoveis, filtraAoMover = true, focusCenter }: Props) {
+export function MapaImoveisWrapper({ imoveis, filtraAoMover = true, focusCenter, containerClassName }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -53,6 +55,7 @@ export function MapaImoveisWrapper({ imoveis, filtraAoMover = true, focusCenter 
       imoveis={pinsAtuais}
       onBoundsChange={filtraAoMover ? handleBoundsChange : undefined}
       focusCenter={focusCenter}
+      containerClassName={containerClassName}
     />
   )
 }

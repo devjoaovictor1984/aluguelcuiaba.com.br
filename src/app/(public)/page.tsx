@@ -7,6 +7,7 @@ import { FiltrosMobileDrawer } from '@/components/filtros-mobile'
 import { BannerSidebar } from '@/components/banner-sidebar'
 import { MapaImoveisWrapper } from '@/components/mapa-imoveis-wrapper'
 import { BuscaBar } from '@/components/busca-bar'
+import { BottomNavMobile } from '@/components/bottom-nav-mobile'
 import { getBairros, getImoveis, getBannersSidebar, getImoveisParaMapa } from '@/lib/supabase/queries'
 import { parseBusca } from '@/lib/parse-busca'
 import { SlidersHorizontal, MapPin } from 'lucide-react'
@@ -71,12 +72,35 @@ export default async function Home({ searchParams }: Props) {
     ? `${count} imóv${count === 1 ? 'el' : 'eis'} encontrado${count === 1 ? '' : 's'}`
     : 'Carregando...'
 
+  const pinsMobile = (pinsMapa ?? []) as unknown as Parameters<typeof MapaImoveisWrapper>[0]['imoveis']
+
   return (
     <>
       <Navbar />
 
-      {/* Header slim com cor brand */}
-      <div className="bg-violet-700 py-5 px-4">
+      {/* MOBILE: hero mapa edge-to-edge (60vh) */}
+      {(pinsMobile.length > 0 || focusCenter) && (
+        <section className="md:hidden">
+          <MapaImoveisWrapper
+            key={`mobile-${filtros.bairro_slug ?? 'todos'}`}
+            imoveis={pinsMobile}
+            focusCenter={focusCenter}
+            containerClassName="h-[60vh] w-full relative z-0"
+          />
+        </section>
+      )}
+
+      {/* MOBILE: título + busca (abaixo do mapa) */}
+      <div className="md:hidden bg-white px-4 py-4 border-b border-gray-100">
+        <h1 className="text-lg font-bold text-gray-900 leading-tight">
+          Imóveis para alugar em Cuiabá/MT
+        </h1>
+        <p className="text-xs text-gray-500 mt-0.5 mb-3">{totalStr}</p>
+        <BuscaBar inicial={p.busca ?? ''} />
+      </div>
+
+      {/* DESKTOP: header brand (escondido no mobile) */}
+      <div className="bg-violet-700 py-5 px-4 hidden md:block">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-white leading-tight">
@@ -88,7 +112,7 @@ export default async function Home({ searchParams }: Props) {
             </div>
           </div>
 
-          {/* Bairros chips — só desktop */}
+          {/* Bairros chips */}
           <div className="hidden sm:flex gap-1.5 flex-wrap max-w-lg">
             {bairros?.slice(0, 6).map(b => (
               <a
@@ -109,8 +133,8 @@ export default async function Home({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* Layout principal */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      {/* Layout principal (pb-24 mobile pra não esconder atrás do bottom nav) */}
+      <div className="max-w-7xl mx-auto px-4 py-6 pb-24 md:pb-6">
         <div className="flex gap-6 items-start">
 
           {/* Sidebar — só desktop */}
@@ -126,12 +150,12 @@ export default async function Home({ searchParams }: Props) {
           {/* Conteúdo */}
           <div className="flex-1 min-w-0">
 
-            {/* Mapa horizontal com os pins dos imóveis */}
+            {/* Mapa em-fluxo (desktop) — no mobile já temos o hero acima */}
             {((pinsMapa && pinsMapa.length > 0) || focusCenter) && (
-              <div className="mb-6">
+              <div className="mb-6 hidden md:block">
                 <MapaImoveisWrapper
                   key={filtros.bairro_slug ?? 'todos'}
-                  imoveis={(pinsMapa ?? []) as unknown as Parameters<typeof MapaImoveisWrapper>[0]['imoveis']}
+                  imoveis={pinsMobile}
                   focusCenter={focusCenter}
                 />
                 <div className="flex items-center justify-between mt-1.5 px-1 text-[11px] text-gray-400">
@@ -193,6 +217,7 @@ export default async function Home({ searchParams }: Props) {
       </div>
 
       <Footer />
+      <BottomNavMobile />
     </>
   )
 }

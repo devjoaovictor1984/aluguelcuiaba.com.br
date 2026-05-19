@@ -33,6 +33,8 @@ function fotoDestaque(fotos: PinImovel['fotos']): string | null {
 interface Props {
   imoveis: PinImovel[]
   height?: number | string
+  /** Sobrescreve className do container externo (útil pra h-[60vh] mobile sem bordas). */
+  containerClassName?: string
   onBoundsChange?: (bbox: [number, number, number, number]) => void
   /** Centro forçado (ex: ao filtrar por bairro) */
   focusCenter?: { lat: number; lng: number; zoom?: number } | null
@@ -173,7 +175,7 @@ function FlyToUser({ pos, raio }: { pos: [number, number] | null; raio: number }
   return null
 }
 
-export default function MapaImoveis({ imoveis, height = 360, onBoundsChange, focusCenter }: Props) {
+export default function MapaImoveis({ imoveis, height = 360, containerClassName, onBoundsChange, focusCenter }: Props) {
   const [userPos, setUserPos] = useState<[number, number] | null>(null)
   const [raioKm, setRaioKm] = useState<number>(3)
   const [filtrarPorRaio, setFiltrarPorRaio] = useState<boolean>(true)
@@ -225,7 +227,10 @@ export default function MapaImoveis({ imoveis, height = 360, onBoundsChange, foc
       : CUIABA)
 
   return (
-    <div style={{ height }} className="rounded-2xl overflow-hidden border border-gray-200 relative z-0">
+    <div
+      style={containerClassName ? undefined : { height }}
+      className={containerClassName ?? 'rounded-2xl overflow-hidden border border-gray-200 relative z-0'}
+    >
       <MapContainer
         center={center}
         zoom={12}
