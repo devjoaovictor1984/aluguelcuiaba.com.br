@@ -62,6 +62,7 @@ export async function POST(req: NextRequest) {
     url,
     image: fotoPrincipal ?? undefined,
     tag: `imovel-${imovel.id}`,
+    canal: 'novo_imovel',
   })
 
   return NextResponse.json({ ok: true, ...resultado })

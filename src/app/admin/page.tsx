@@ -96,6 +96,21 @@ export default async function AdminPage() {
   const fimMesPassado = new Date(agora.getFullYear(), agora.getMonth(), 0, 23, 59, 59).toISOString()
   const em7Dias = new Date(agora.getTime() + 7 * 86400000).toISOString()
 
+  // Envios (resilientes a v18 não rodada)
+  const [emailMesQ, pushMesQ, quotasQ] = await Promise.all([
+    supabase.from('envios_log').select('id', { count: 'exact', head: true }).eq('tipo', 'email').gte('created_at', inicioMes),
+    supabase.from('envios_log').select('id', { count: 'exact', head: true }).eq('tipo', 'push').gte('created_at', inicioMes),
+    supabase.from('site_config').select('chave, valor').in('chave', ['quota_email_mensal', 'quota_push_mensal']),
+  ])
+  const enviosV18Faltando = !!emailMesQ.error
+  const enviosEmailMes = emailMesQ.count ?? 0
+  const enviosPushMes = pushMesQ.count ?? 0
+  const cfgEnvios = Object.fromEntries(((quotasQ.data ?? []) as Array<{ chave: string; valor: string }>).map(r => [r.chave, r.valor]))
+  const quotaEmail = parseInt(cfgEnvios.quota_email_mensal ?? '1000') || 1000
+  const quotaPush = parseInt(cfgEnvios.quota_push_mensal ?? '100000') || 100000
+  const pctEmail = quotaEmail > 0 ? Math.min(100, Math.round((enviosEmailMes / quotaEmail) * 100)) : 0
+  const pctPush = quotaPush > 0 ? Math.min(100, Math.round((enviosPushMes / quotaPush) * 100)) : 0
+
   const [
     { count: totalImoveis },
     { count: imoveisAtivos },
@@ -327,6 +342,27 @@ export default async function AdminPage() {
           sub={`${usuariosMes ?? 0} cadastros este mês`} icon={Users}
           cor="text-blue-600" bg="bg-blue-50" delta={deltaUsuarios} />
       </div>
+
+      {/* Envios — quota mensal */}
+      {!enviosV18Faltando && (
+        <Link
+          href="/admin/envios"
+          className={`block rounded-2xl border shadow-sm p-5 transition-colors ${
+            pctEmail >= 95 || pctPush >= 95 ? 'bg-red-50 border-red-200 hover:bg-red-100'
+            : pctEmail >= 80 || pctPush >= 80 ? 'bg-amber-50 border-amber-200 hover:bg-amber-100'
+            : 'bg-white border-gray-100 hover:bg-gray-50'
+          }`}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-gray-900">Envios este mês</h2>
+            <span className="text-xs text-gray-500">ver detalhes →</span>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <MiniQuota label="E-mails (Hostinger)" usado={enviosEmailMes} quota={quotaEmail} pct={pctEmail} cor="violet" />
+            <MiniQuota label="Pushes (VAPID)" usado={enviosPushMes} quota={quotaPush} pct={pctPush} cor="green" />
+          </div>
+        </Link>
+      )}
 
       {/* Alertas operacionais */}
       {((imoveisSemFoto ?? 0) > 0 || (imoveisVencendo?.length ?? 0) > 0) && (
@@ -626,6 +662,23 @@ export default async function AdminPage() {
             })}
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+function MiniQuota({ label, usado, quota, pct, cor }: {
+  label: string; usado: number; quota: number; pct: number; cor: 'violet' | 'green'
+}) {
+  const barCor = pct >= 95 ? 'bg-red-500' : pct >= 80 ? 'bg-amber-500' : cor === 'violet' ? 'bg-violet-500' : 'bg-green-500'
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs mb-1">
+        <span className="text-gray-700 font-medium">{label}</span>
+        <span className="text-gray-500"><strong className="text-gray-900">{usado.toLocaleString('pt-BR')}</strong> / {quota.toLocaleString('pt-BR')} ({pct}%)</span>
+      </div>
+      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+        <div className={`h-full ${barCor} rounded-full transition-all`} style={{ width: `${pct}%` }} />
       </div>
     </div>
   )

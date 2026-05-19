@@ -1,5 +1,6 @@
 import webpush from 'web-push'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { registrarEnvio } from '@/lib/envios/logger'
 
 let configurado = false
 
@@ -22,6 +23,8 @@ export interface PushPayload {
   image?: string
   icon?: string
   tag?: string
+  /** Identifica o canal do push pro log (ex: 'novo_imovel', 'anuncio_parado_30d'). */
+  canal?: string
 }
 
 interface SubscriptionRow {
@@ -40,6 +43,8 @@ async function enviarPushParaSubs(subs: SubscriptionRow[], payload: PushPayload)
   const idsMortos: string[] = []
   let enviados = 0
   let falhas = 0
+  const canal = payload.canal ?? null
+  const ctxBase = { title: payload.title.slice(0, 100), tag: payload.tag ?? null }
 
   await Promise.allSettled(
     subs.map(async (s) => {
@@ -49,10 +54,26 @@ async function enviarPushParaSubs(subs: SubscriptionRow[], payload: PushPayload)
           body
         )
         enviados += 1
+        registrarEnvio({
+          tipo: 'push', canal, destinatario: s.endpoint.slice(0, 80) + '…',
+          status: 'ok', contexto: ctxBase,
+        }).catch(() => null)
       } catch (e) {
         const status = (e as { statusCode?: number }).statusCode
-        if (status === 404 || status === 410) idsMortos.push(s.id)
-        else falhas += 1
+        const erroMsg = e instanceof Error ? e.message : String(e)
+        if (status === 404 || status === 410) {
+          idsMortos.push(s.id)
+          registrarEnvio({
+            tipo: 'push', canal, destinatario: s.endpoint.slice(0, 80) + '…',
+            status: 'morta', erro_msg: `${status}: ${erroMsg}`, contexto: ctxBase,
+          }).catch(() => null)
+        } else {
+          falhas += 1
+          registrarEnvio({
+            tipo: 'push', canal, destinatario: s.endpoint.slice(0, 80) + '…',
+            status: 'erro', erro_msg: `${status ?? '—'}: ${erroMsg}`, contexto: ctxBase,
+          }).catch(() => null)
+        }
       }
     })
   )
@@ -93,48 +114,16 @@ export async function enviarPushBroadcast(payload: PushPayload) {
   if (error) return { enviados: 0, removidos: 0, falhas: 0, erro: error.message }
 
   const lista = (subs ?? []) as SubscriptionRow[]
-  if (lista.length === 0) return { enviados: 0, removidos: 0, falhas: 0 }
+  const r = await enviarPushParaSubs(lista, { ...payload, canal: payload.canal ?? 'broadcast' })
 
-  const body = JSON.stringify(payload)
-  const idsMortos: string[] = []
-  let enviados = 0
-  let falhas = 0
-
-  await Promise.allSettled(
-    lista.map(async (s) => {
-      try {
-        await webpush.sendNotification(
-          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
-          body
-        )
-        enviados += 1
-        // last_seen atualiza, mas em batch pra evitar 1 UPDATE por push.
-      } catch (e) {
-        const status = (e as { statusCode?: number }).statusCode
-        if (status === 404 || status === 410) {
-          idsMortos.push(s.id)
-        } else {
-          falhas += 1
-        }
-      }
-    })
-  )
-
-  if (idsMortos.length > 0) {
-    await admin.from('push_subscriptions').delete().in('id', idsMortos)
+  // Atualiza last_seen pra quem sobreviveu (fire-and-forget)
+  if (r.enviados > 0) {
+    admin
+      .from('push_subscriptions')
+      .update({ last_seen: new Date().toISOString() })
+      .gte('created_at', '1970-01-01')
+      .then(() => null)
   }
 
-  // Atualiza last_seen em lote pra quem sobreviveu (fire-and-forget — não bloqueia)
-  if (enviados > 0) {
-    const sobreviventes = lista.filter(s => !idsMortos.includes(s.id)).map(s => s.id)
-    if (sobreviventes.length > 0) {
-      admin
-        .from('push_subscriptions')
-        .update({ last_seen: new Date().toISOString() })
-        .in('id', sobreviventes)
-        .then(() => null)
-    }
-  }
-
-  return { enviados, removidos: idsMortos.length, falhas }
+  return r
 }

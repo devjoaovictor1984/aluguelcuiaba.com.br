@@ -25,6 +25,7 @@ export async function enviarPushTeste(input: EnviarTesteInput) {
     body: (input.body || '').trim() || 'Notificação de teste 🔔',
     url: (input.url || '/').trim() || '/',
     tag: 'admin-teste',
+    canal: 'admin_teste',
   }
 
   try {

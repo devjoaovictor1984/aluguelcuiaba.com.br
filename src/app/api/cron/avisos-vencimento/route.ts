@@ -102,6 +102,7 @@ export async function GET(req: NextRequest) {
       to: inq.email,
       subject: renderTemplate(template.assunto, vars),
       html: renderTemplate(template.corpo, vars),
+      canal: 'aviso_aluguel',
     })
     resultados.push({ parcela_id: p.id, email: inq.email, ok: !r.error, erro: r.error })
   }

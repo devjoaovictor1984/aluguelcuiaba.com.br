@@ -63,6 +63,7 @@ async function executar() {
       to: email,
       subject: renderTemplate(template.assunto, vars),
       html: renderTemplate(template.corpo, vars),
+      canal: 'aviso_vencimento',
     })
 
     if (errEmail) {

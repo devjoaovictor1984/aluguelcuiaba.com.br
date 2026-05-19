@@ -91,6 +91,7 @@ export async function GET(req: NextRequest) {
           to: email,
           subject: renderTemplate(template.assunto, vars),
           html: renderTemplate(template.corpo, vars),
+          canal: chave,
         })
         if (!r.error) enviadosEmail += 1
       }
@@ -104,6 +105,7 @@ export async function GET(req: NextRequest) {
         body: `"${im.titulo}" está parado há ${dias} dias. Toque para atualizar.`,
         url: `/painel/anuncios/${im.id}/editar`,
         tag: `parado-${im.id}`,
+        canal: chave,
       })
       enviadosPush += rp.enviados
 

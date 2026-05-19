@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       to: email,
       subject: renderTemplate(template.assunto, vars),
       html: renderTemplate(template.corpo, vars),
+      canal: 'boas_vindas',
     })
 
     if (error) return NextResponse.json({ ok: false, error }, { status: 500 })
