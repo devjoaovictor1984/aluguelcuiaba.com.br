@@ -43,6 +43,12 @@ export async function Navbar() {
             Blog
           </Link>
           <Link
+            href="/corretor"
+            className="hidden lg:inline-flex items-center gap-1 text-sm font-semibold text-amber-700 hover:text-amber-800 border border-amber-300 hover:border-amber-400 hover:bg-amber-50 px-2.5 py-1.5 rounded-lg transition-colors"
+          >
+            Pra corretor →
+          </Link>
+          <Link
             href="/painel/anuncios/novo"
             className="flex items-center gap-1.5 bg-violet-700 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-violet-800 transition-colors font-medium"
           >
