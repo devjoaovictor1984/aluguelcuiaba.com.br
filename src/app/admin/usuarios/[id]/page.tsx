@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
 import { ArrowLeft, AlertOctagon } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { PLANOS } from '@/lib/constants'
@@ -10,6 +9,25 @@ const TIPO_LABEL: Record<string, string> = {
   proprietario: 'Proprietário', corretor: 'Corretor', imobiliaria: 'Imobiliária',
 }
 
+type PerfilDetalhe = {
+  id: string
+  nome?: string | null
+  tipo?: string | null
+  plano?: string | null
+  role?: string | null
+  cpf?: string | null
+  telefone?: string | null
+  endereco_logradouro?: string | null
+  endereco_numero?: string | null
+  endereco_bairro?: string | null
+  endereco_cidade?: string | null
+  endereco_estado?: string | null
+  crm_ativo?: boolean | null
+  created_at?: string | null
+  banido_em?: string | null
+  banido_motivo?: string | null
+}
+
 export default async function AdminUsuarioDetalhePage({
   params,
 }: {
@@ -18,47 +36,55 @@ export default async function AdminUsuarioDetalhePage({
   const { id } = await params
   const admin = createAdminClient()
 
-  // SELECT com as colunas do v10. Se a migration ainda não rodou, faz
-  // fallback sem banido_em/banido_motivo para a página não quebrar.
-  const BASE = `id, nome, tipo, plano, role, cpf, telefone,
-    endereco_logradouro, endereco_numero, endereco_bairro,
-    endereco_cidade, endereco_estado,
-    crm_ativo, created_at`
-
-  type PerfilDetalhe = {
-    id: string; nome: string | null; tipo: string | null; plano: string | null
-    role: string | null; cpf: string | null; telefone: string | null
-    endereco_logradouro: string | null; endereco_numero: string | null
-    endereco_bairro: string | null; endereco_cidade: string | null
-    endereco_estado: string | null; crm_ativo: boolean | null
-    created_at: string
-    banido_em: string | null; banido_motivo: string | null
-  }
-
-  const tentar = await admin
-    .from('perfis')
-    .select(`${BASE}, banido_em, banido_motivo`)
-    .eq('id', id)
-    .maybeSingle()
-
-  let perfil: PerfilDetalhe | null = tentar.data as PerfilDetalhe | null
-  let v10Faltando = false
-  if (!perfil && tentar.error?.message?.includes('banido_em')) {
-    v10Faltando = true
-    const fb = await admin.from('perfis').select(BASE).eq('id', id).maybeSingle()
-    perfil = fb.data
-      ? ({ ...fb.data, banido_em: null, banido_motivo: null } as PerfilDetalhe)
-      : null
-  }
-
-  const [{ data: authData }, { count: imoveisCount }, { count: contratosCount }] = await Promise.all([
+  // select('*') é resiliente a colunas ausentes (v10/v8 etc não aplicados).
+  const [
+    { data: perfilRaw, error: perfilErr },
+    { data: authData, error: authErr },
+    contratosRes,
+    { count: imoveisCount },
+  ] = await Promise.all([
+    admin.from('perfis').select('*').eq('id', id).maybeSingle(),
     admin.auth.admin.getUserById(id),
-    admin.from('imoveis').select('id', { count: 'exact', head: true }).eq('user_id', id),
     admin.from('contratos_locacao').select('id', { count: 'exact', head: true })
       .eq('user_id', id).is('deleted_at', null),
+    admin.from('imoveis').select('id', { count: 'exact', head: true }).eq('user_id', id),
   ])
 
-  if (!perfil) notFound()
+  const perfil = perfilRaw as PerfilDetalhe | null
+  const v10Faltando = !!perfil && !Object.prototype.hasOwnProperty.call(perfil, 'banido_em')
+  const contratosCount = contratosRes.error ? 0 : (contratosRes.count ?? 0)
+
+  // Se o perfil não existe mas o auth user existe, mostra diagnóstico (não 404).
+  if (!perfil) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 py-10">
+        <Link href="/admin/usuarios" className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-violet-700 mb-2">
+          <ArrowLeft size={12} /> Usuários
+        </Link>
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6">
+          <h1 className="text-lg font-bold text-amber-900 mb-2 flex items-center gap-2">
+            <AlertOctagon size={18} /> Perfil incompleto
+          </h1>
+          <p className="text-sm text-amber-900">
+            {authData.user
+              ? <>O usuário <code className="bg-white px-1 rounded">{authData.user.email}</code> existe em <code>auth.users</code> mas não tem uma row em <code>perfis</code>. Isso acontece quando alguém é criado direto no Supabase via SQL ou quando o trigger de criação de perfil não rodou.</>
+              : <>Não encontrei usuário com id <code className="bg-white px-1 rounded">{id}</code> nem em <code>perfis</code> nem em <code>auth.users</code>.</>
+            }
+          </p>
+          {perfilErr && (
+            <p className="text-xs text-amber-800 mt-3 bg-white border border-amber-100 rounded p-2 font-mono break-all">
+              {perfilErr.message}
+            </p>
+          )}
+          {authErr && (
+            <p className="text-xs text-amber-800 mt-3 bg-white border border-amber-100 rounded p-2 font-mono break-all">
+              Auth: {authErr.message}
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   const email = authData.user?.email ?? ''
   const ultimoLogin = authData.user?.last_sign_in_at ?? null
@@ -90,7 +116,7 @@ export default async function AdminUsuarioDetalhePage({
             </h1>
             <p className="text-sm text-gray-500">{email}</p>
             <p className="text-xs text-gray-400">
-              Cadastrado em {new Date(perfil.created_at).toLocaleDateString('pt-BR')}
+              {perfil.created_at && <>Cadastrado em {new Date(perfil.created_at).toLocaleDateString('pt-BR')}</>}
               {ultimoLogin && ` · último login ${new Date(ultimoLogin).toLocaleDateString('pt-BR')}`}
               {!emailConfirmadoEm && ' · email não confirmado'}
             </p>

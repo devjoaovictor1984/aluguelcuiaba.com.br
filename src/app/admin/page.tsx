@@ -134,20 +134,29 @@ export default async function AdminPage() {
     supabase.from('imoveis').select('*', { count: 'exact', head: true }).gte('created_at', inicioMesPassado).lte('created_at', fimMesPassado),
     supabase.from('perfis').select('*', { count: 'exact', head: true }).gte('created_at', inicioMes),
     supabase.from('perfis').select('*', { count: 'exact', head: true }).gte('created_at', inicioMesPassado).lte('created_at', fimMesPassado),
-    supabase.from('imoveis').select('visualizacoes'),
-    supabase.from('posts').select('visualizacoes'),
+    supabase.from('imoveis').select('visualizacoes').then(r => r.error ? { data: [] } : r),
+    supabase.from('posts').select('visualizacoes').then(r => r.error ? { data: [] } : r),
     // Top 10 imóveis mais visualizados (apenas ativos)
     supabase.from('imoveis')
       .select('id, slug, titulo, preco, visualizacoes, status, bairro:bairros(slug, nome), fotos(url, principal, ordem)')
       .eq('status', 'ativo')
       .order('visualizacoes', { ascending: false, nullsFirst: false })
       .limit(10),
-    // Top 10 posts mais lidos
+    // Top 10 posts mais lidos (resiliente se a coluna ainda não existe)
     supabase.from('posts')
       .select('id, slug, titulo, categoria, visualizacoes, capa_url')
       .eq('publicado', true)
       .order('visualizacoes', { ascending: false, nullsFirst: false })
-      .limit(10),
+      .limit(10)
+      .then(r => r.error
+        ? supabase.from('posts')
+            .select('id, slug, titulo, categoria, capa_url')
+            .eq('publicado', true)
+            .order('created_at', { ascending: false })
+            .limit(10)
+            .then(r2 => ({ data: (r2.data ?? []).map(p => ({ ...p, visualizacoes: 0 })) }))
+        : r
+      ),
     // Views agregadas por bairro
     supabase.from('imoveis')
       .select('visualizacoes, bairro:bairros(id, nome, slug)')
