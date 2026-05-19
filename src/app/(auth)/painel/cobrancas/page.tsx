@@ -93,7 +93,7 @@ export default async function CobrancasPage({ searchParams }: Props) {
     .filter((c): c is CobrancaRow => c !== null)
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
       <div>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <MessageCircle size={20} className="text-green-600" /> Cobranças via WhatsApp

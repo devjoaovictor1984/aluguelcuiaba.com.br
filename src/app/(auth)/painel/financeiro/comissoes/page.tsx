@@ -212,7 +212,7 @@ export default async function ComissoesPage({ searchParams }: Props) {
   const proprietariosPendentes = listaGrupos.length - proprietariosComNfTotal
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
       {/* Cabeçalho (oculto na impressão a partir do botão) */}
       <div className="print:hidden">
         <Link href={{ pathname: '/painel/financeiro', query: { modo, ano: String(anoAlvo), ...(modo === 'mensal' && { mes: String(mesAlvoNum) }) } }} className="inline-flex items-center gap-1 text-xs text-gray-500 hover:text-violet-700 mb-2">
@@ -304,7 +304,8 @@ export default async function ComissoesPage({ searchParams }: Props) {
                   </div>
                 </header>
 
-                <table className="w-full text-sm">
+                <div className="overflow-x-auto">
+                <table className="w-full text-sm min-w-[640px]">
                   <thead className="bg-gray-50 text-left text-xs font-semibold text-gray-500">
                     <tr>
                       <th className="px-4 py-2">Contrato</th>
@@ -341,6 +342,7 @@ export default async function ComissoesPage({ searchParams }: Props) {
                     </tr>
                   </tbody>
                 </table>
+                </div>
               </section>
             )
           })}

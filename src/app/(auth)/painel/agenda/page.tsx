@@ -99,7 +99,7 @@ export default async function AgendaPage({
   const proxAno = mes === 12 ? ano + 1 : ano
 
   return (
-    <div className="p-6 space-y-5 max-w-5xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-w-5xl mx-auto">
       <div>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Cake size={20} className="text-pink-600" /> Aniversariantes

@@ -41,7 +41,7 @@ export default async function LixeiraPage() {
   const total = pessoas.length + contratos.length
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
       <div>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <Trash2 size={20} className="text-gray-500" /> Lixeira
@@ -67,7 +67,7 @@ export default async function LixeiraPage() {
                   Contratos excluídos <span className="text-gray-400 font-normal">({contratos.length})</span>
                 </h2>
               </div>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm min-w-[520px]">
                 <thead className="bg-gray-50 text-left text-xs font-semibold text-gray-500">
                   <tr>
                     <th className="px-3 py-2">Código</th>
@@ -98,7 +98,7 @@ export default async function LixeiraPage() {
                     )
                   })}
                 </tbody>
-              </table>
+              </table></div>
             </section>
           )}
 
@@ -110,7 +110,7 @@ export default async function LixeiraPage() {
                   Pessoas excluídas <span className="text-gray-400 font-normal">({pessoas.length})</span>
                 </h2>
               </div>
-              <table className="w-full text-sm">
+              <div className="overflow-x-auto"><table className="w-full text-sm min-w-[520px]">
                 <thead className="bg-gray-50 text-left text-xs font-semibold text-gray-500">
                   <tr>
                     <th className="px-3 py-2">Nome</th>
@@ -142,7 +142,7 @@ export default async function LixeiraPage() {
                     )
                   })}
                 </tbody>
-              </table>
+              </table></div>
             </section>
           )}
 

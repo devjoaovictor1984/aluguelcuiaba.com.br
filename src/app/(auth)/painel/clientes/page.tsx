@@ -53,9 +53,9 @@ export default async function ClientesPage({ searchParams }: Props) {
   const total = todasParaContagem?.length ?? 0
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <Users size={20} className="text-violet-600" /> Clientes
           </h1>
