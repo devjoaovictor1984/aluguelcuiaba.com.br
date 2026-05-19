@@ -38,7 +38,7 @@ interface Props {
 
 export function ModalAtivarPush({ publicKey }: Props) {
   const [mostrar, setMostrar] = useState(false)
-  const [estado, setEstado] = useState<'idle' | 'inscrevendo' | 'sucesso' | 'erro' | 'ios-precisa-instalar'>('idle')
+  const [estado, setEstado] = useState<'idle' | 'inscrevendo' | 'sucesso' | 'erro' | 'ios-precisa-instalar' | 'bloqueado'>('idle')
   const [erro, setErro] = useState('')
 
   useEffect(() => {
@@ -67,6 +67,19 @@ export function ModalAtivarPush({ publicKey }: Props) {
       setEstado('ios-precisa-instalar')
       return
     }
+    // Pede permissão explicitamente primeiro — antes do subscribe, pra
+    // capturar "denied" sem confundir com "erro genérico".
+    if (Notification.permission === 'default') {
+      const resp = await Notification.requestPermission()
+      if (resp !== 'granted') {
+        setEstado('bloqueado')
+        return
+      }
+    } else if (Notification.permission === 'denied') {
+      setEstado('bloqueado')
+      return
+    }
+
     setEstado('inscrevendo')
     try {
       const reg = await navigator.serviceWorker.ready
@@ -91,8 +104,12 @@ export function ModalAtivarPush({ publicKey }: Props) {
       setTimeout(() => setMostrar(false), 2500)
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'falhou'
-      setErro(msg)
-      setEstado('erro')
+      if (msg.toLowerCase().includes('permission')) {
+        setEstado('bloqueado')
+      } else {
+        setErro(msg)
+        setEstado('erro')
+      }
     }
   }
 
@@ -137,6 +154,28 @@ export function ModalAtivarPush({ publicKey }: Props) {
                 type="button"
                 onClick={fechar}
                 className="w-full mt-2 bg-amber-700 hover:bg-amber-800 text-white text-sm font-semibold py-2 rounded-xl"
+              >
+                Entendi
+              </button>
+            </div>
+          ) : estado === 'bloqueado' ? (
+            <div className="bg-red-50 border border-red-200 rounded-2xl p-4 text-sm text-red-900 space-y-3">
+              <p className="font-semibold flex items-center gap-1.5"><AlertCircle size={14} /> Notificações bloqueadas</p>
+              <p className="text-xs leading-relaxed">
+                Seu navegador está bloqueando notificações desse site (provavelmente você clicou em &quot;Bloquear&quot; antes). Pra reativar:
+              </p>
+              <ul className="text-xs space-y-1 list-decimal list-inside leading-relaxed">
+                <li>Toque no <strong>🔒 cadeado</strong> ao lado do endereço aluguelcuiaba.com.br</li>
+                <li>Procure <strong>Notificações</strong> e mude pra <strong>Permitir</strong></li>
+                <li>Recarregue a página e tente de novo</li>
+              </ul>
+              <p className="text-[11px] text-red-700 leading-relaxed">
+                No celular: <strong>menu de 3 pontinhos → Configurações do site → Notificações</strong>.
+              </p>
+              <button
+                type="button"
+                onClick={fechar}
+                className="w-full mt-1 bg-red-700 hover:bg-red-800 text-white text-sm font-semibold py-2 rounded-xl"
               >
                 Entendi
               </button>
