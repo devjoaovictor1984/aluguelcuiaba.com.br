@@ -37,12 +37,13 @@ export function BarraAcoesImovel({ imovel }: { imovel: Imovel }) {
 
   const compartilharWhatsApp = () => {
     const msg = [
-      `*${imovel.titulo}*`,
-      `\u{1F4CD} ${imovel.bairro?.nome ?? 'Cuiabá'}${imovel.bairro?.nome ? ', Cuiabá' : ''}`,
-      `\u{1F4B0} ${formatarPreco(imovel.preco)}/mês`,
-      partes.length > 0 ? `\u{1F3E0} ${partes.join(' · ')}` : '',
+      `🏡 *${imovel.titulo}*`,
       '',
-      'Encontrei no AluguelCuiabá:',
+      `📍 ${imovel.bairro?.nome ?? 'Cuiabá'}${imovel.bairro?.nome ? ', Cuiabá' : ''}`,
+      `💰 ${formatarPreco(imovel.preco)}/mês`,
+      partes.length > 0 ? `🛏️ ${partes.join(' · ')}` : '',
+      '',
+      '✨ Encontrei no AluguelCuiabá:',
       url,
     ].filter(Boolean).join('\n')
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
