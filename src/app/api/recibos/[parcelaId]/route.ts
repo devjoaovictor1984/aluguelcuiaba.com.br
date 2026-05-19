@@ -8,7 +8,7 @@ import React from 'react'
 export const runtime = 'nodejs'
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ parcelaId: string }> }
 ) {
   const supabase = await createClient()
@@ -17,6 +17,7 @@ export async function GET(
 
   const { parcelaId } = await params
   const admin = createAdminClient()
+  const debug = new URL(request.url).searchParams.get('debug') === '1'
 
   // Busca parcela + contrato + relacionamentos
   const { data: parcela, error } = await admin
@@ -99,6 +100,20 @@ export async function GET(
     ? `${imovel.endereco_resumido}${bairro?.nome ? ` - ${bairro.nome}` : ''}`
     : null
 
+  // Cache-buster (?v=...) na URL pode confundir @react-pdf/renderer em
+  // algumas situações. Limpa para ter URL canônica.
+  const limparUrl = (u: string | null | undefined): string | null => {
+    if (!u) return null
+    const idx = u.indexOf('?')
+    return idx === -1 ? u : u.slice(0, idx)
+  }
+
+  // Header usa recibo_emitente_nome (custom) com fallback para perfis.nome.
+  // Isso garante que se o usuário só preencheu o "Nome para assinatura",
+  // ele aparece no recibo inteiro. Anteriormente, header puxava só perfil.nome
+  // e ficava como "AluguelCuiabá" (default) se o usuário não preencheu o perfil.
+  const nomeHeader = perfil?.recibo_emitente_nome?.trim() || perfil?.nome?.trim() || 'AluguelCuiabá'
+
   const recibo: ReciboData = {
     numero_recibo: numeroRecibo,
     contrato_codigo: contratoRaw.codigo,
@@ -116,16 +131,29 @@ export async function GET(
     desconto: parcela.desconto ?? 0,
     mes_referencia: parcela.mes_referencia,
     data_pagamento: parcela.data_pagamento ?? new Date().toISOString().slice(0, 10),
-    emitente_nome: perfil?.nome ?? 'AluguelCuiabá',
+    emitente_nome: nomeHeader,
     emitente_cpf_cnpj: perfil?.cpf ?? null,
     emitente_endereco: endereco || null,
     emitente_telefone: perfil?.telefone ?? null,
     cidade: perfil?.endereco_cidade ?? 'Cuiabá',
-    logo_url: logoUrl,
-    assinatura_url: perfil?.recibo_assinatura_url ?? null,
+    logo_url: limparUrl(logoUrl),
+    assinatura_url: limparUrl(perfil?.recibo_assinatura_url),
     assinatura_nome: perfil?.recibo_emitente_nome ?? null,
     mostrar_linha_assinatura: perfil?.recibo_mostrar_linha ?? true,
     assinatura_sobre_linha: perfil?.recibo_assinatura_sobre_linha ?? true,
+  }
+
+  // Endpoint de diagnóstico: ?debug=1 retorna o JSON em vez do PDF.
+  // Útil pra verificar o que o servidor está lendo do banco.
+  if (debug) {
+    return NextResponse.json({
+      perfil_raw: perfil,
+      logo_url_resolvida: logoUrl,
+      logo_url_limpa: limparUrl(logoUrl),
+      assinatura_url_raw: perfil?.recibo_assinatura_url ?? null,
+      assinatura_url_limpa: limparUrl(perfil?.recibo_assinatura_url),
+      dados_que_vao_pro_pdf: recibo,
+    }, { status: 200 })
   }
 
   const element = React.createElement(ReciboDocument, { data: recibo }) as unknown as React.ReactElement<DocumentProps>
