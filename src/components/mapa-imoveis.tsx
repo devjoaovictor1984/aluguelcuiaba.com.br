@@ -163,13 +163,15 @@ function FitBounds({ imoveis, focusCenter }: { imoveis: PinImovel[]; focusCenter
   return null
 }
 
-// Centraliza no usuário com zoom apropriado ao raio (1 km ≈ z 14, 5 km ≈ z 12, 20 km ≈ z 10)
+// Centraliza no usuário com zoom EXATO pro raio caber na viewport.
+// Usa os bounds do círculo (raio em metros) → flyToBounds: zoom e raio
+// ficam sincronizados matematicamente, sem buckets fixos.
 function FlyToUser({ pos, raio }: { pos: [number, number] | null; raio: number }) {
   const map = useMap()
   useEffect(() => {
     if (!pos) return
-    const zoom = raio <= 1 ? 14 : raio <= 3 ? 13 : raio <= 8 ? 12 : raio <= 15 ? 11 : 10
-    map.flyTo(pos, zoom, { duration: 0.6 })
+    const bounds = L.latLng(pos[0], pos[1]).toBounds(raio * 1000 * 2) // raio×2 = diâmetro
+    map.flyToBounds(bounds, { padding: [24, 24], duration: 0.6, maxZoom: 16 })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pos?.[0], pos?.[1], raio])
   return null
@@ -237,9 +239,12 @@ export default function MapaImoveis({ imoveis, height = 360, containerClassName,
         scrollWheelZoom={true}
         className="w-full h-full"
       >
+        {/* CartoDB Positron — base clara/limpa, gratuita, atribuição obrigatória. */}
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          subdomains={['a', 'b', 'c', 'd']}
+          maxZoom={20}
         />
 
         <FitBounds imoveis={pinsExibidos} focusCenter={focusCenter} />
