@@ -70,6 +70,7 @@ export async function Footer() {
             <h3 className="text-white font-semibold text-sm mb-4 uppercase tracking-wider">Portal</h3>
             <ul className="space-y-2.5 text-sm">
               <li><Link href="/painel/anuncios/novo" className="hover:text-violet-400 transition-colors">Anunciar imóvel grátis</Link></li>
+              <li><Link href="/corretor" className="hover:text-amber-400 transition-colors font-medium">Pra corretor &amp; imobiliária →</Link></li>
               <li><Link href="/painel" className="hover:text-violet-400 transition-colors">Meu painel</Link></li>
               <li><Link href="/entrar" className="hover:text-violet-400 transition-colors">Entrar</Link></li>
               <li><Link href="/blog" className="hover:text-violet-400 transition-colors">Blog</Link></li>
