@@ -410,6 +410,13 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
         body: JSON.stringify({ imovel_id: imovel.id }),
       }).catch(() => {})
 
+      // Notifica os inscritos em push — fire-and-forget, não bloqueia o publish
+      fetch('/api/push/novo-imovel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imovel_id: imovel.id }),
+      }).catch(() => {})
+
       router.push('/painel?publicado=1')
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro inesperado. Tente novamente.')
