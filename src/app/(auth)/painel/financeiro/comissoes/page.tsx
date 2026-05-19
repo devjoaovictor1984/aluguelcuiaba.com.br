@@ -5,6 +5,7 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { formatarBRL, formatarData } from '@/lib/formatters'
 import { FiltroMesAno, type ModoPeriodo } from '../_components/filtro-mes-ano'
 import { BotaoImprimir } from './_components/botao-imprimir'
+import { BotaoNfProprietario } from './_components/botao-nf'
 
 interface ParcelaRow {
   id: string
@@ -18,6 +19,8 @@ interface ParcelaRow {
   valor_pago: number | null
   status_pagamento: string
   data_pagamento: string | null
+  nf_emitida_em?: string | null
+  nf_numero?: string | null
 }
 
 interface ImovelLite { id: string; titulo: string }
@@ -98,7 +101,8 @@ export default async function ComissoesPage({ searchParams }: Props) {
     supabase.from('parcelas_aluguel').select(`
       id, contrato_id, mes_referencia, vencimento,
       valor_aluguel, valor_comissao, valor_repasse_proprietario,
-      valor_total, valor_pago, status_pagamento, data_pagamento
+      valor_total, valor_pago, status_pagamento, data_pagamento,
+      nf_emitida_em, nf_numero
     `),
   ])
 
@@ -123,6 +127,8 @@ export default async function ComissoesPage({ searchParams }: Props) {
     comissao: number
     aluguel: number
     repasse: number
+    parcelaIds: string[]
+    nfEmitidas: number
   }
   interface GrupoProprietario {
     id: string
@@ -133,6 +139,9 @@ export default async function ComissoesPage({ searchParams }: Props) {
     totalRepasse: number
     qtdParcelas: number
     contratos: Map<string, LinhaContrato>
+    parcelaIds: string[]
+    nfEmitidasCount: number
+    nfNumeros: Set<string>
   }
   const grupos = new Map<string, GrupoProprietario>()
 
@@ -155,6 +164,9 @@ export default async function ComissoesPage({ searchParams }: Props) {
         totalRepasse: 0,
         qtdParcelas: 0,
         contratos: new Map(),
+        parcelaIds: [],
+        nfEmitidasCount: 0,
+        nfNumeros: new Set(),
       }
       grupos.set(prop.id, g)
     }
@@ -162,6 +174,9 @@ export default async function ComissoesPage({ searchParams }: Props) {
     g.totalAluguel += p.valor_aluguel
     g.totalRepasse += p.valor_repasse_proprietario
     g.qtdParcelas += 1
+    g.parcelaIds.push(p.id)
+    if (p.nf_emitida_em) g.nfEmitidasCount += 1
+    if (p.nf_numero) g.nfNumeros.add(p.nf_numero)
 
     let lc = g.contratos.get(c.id)
     if (!lc) {
@@ -174,6 +189,8 @@ export default async function ComissoesPage({ searchParams }: Props) {
         comissao: 0,
         aluguel: 0,
         repasse: 0,
+        parcelaIds: [],
+        nfEmitidas: 0,
       }
       g.contratos.set(c.id, lc)
     }
@@ -181,6 +198,8 @@ export default async function ComissoesPage({ searchParams }: Props) {
     lc.comissao += p.valor_comissao
     lc.aluguel += p.valor_aluguel
     lc.repasse += p.valor_repasse_proprietario
+    lc.parcelaIds.push(p.id)
+    if (p.nf_emitida_em) lc.nfEmitidas += 1
   }
 
   const listaGrupos = Array.from(grupos.values()).sort((a, b) => b.totalComissao - a.totalComissao)
@@ -189,6 +208,8 @@ export default async function ComissoesPage({ searchParams }: Props) {
   const totalAluguelGeral = listaGrupos.reduce((s, g) => s + g.totalAluguel, 0)
   const totalRepasseGeral = listaGrupos.reduce((s, g) => s + g.totalRepasse, 0)
   const totalParcelas = listaGrupos.reduce((s, g) => s + g.qtdParcelas, 0)
+  const proprietariosComNfTotal = listaGrupos.filter(g => g.nfEmitidasCount === g.qtdParcelas).length
+  const proprietariosPendentes = listaGrupos.length - proprietariosComNfTotal
 
   return (
     <div className="p-6 space-y-5">
@@ -227,7 +248,12 @@ export default async function ComissoesPage({ searchParams }: Props) {
         <Kpi label="Comissão total" valor={formatarBRL(totalComissao)} cor="text-green-700" bg="bg-green-50" destaque />
         <Kpi label="Aluguel base" valor={formatarBRL(totalAluguelGeral)} cor="text-gray-700" bg="bg-gray-50" />
         <Kpi label="Repasse aos proprietários" valor={formatarBRL(totalRepasseGeral)} cor="text-blue-700" bg="bg-blue-50" />
-        <Kpi label="Parcelas pagas" valor={String(totalParcelas)} cor="text-violet-700" bg="bg-violet-50" />
+        <Kpi
+          label="NF emitidas"
+          valor={`${proprietariosComNfTotal}/${listaGrupos.length}`}
+          cor={proprietariosPendentes === 0 && listaGrupos.length > 0 ? 'text-green-700' : 'text-amber-700'}
+          bg={proprietariosPendentes === 0 && listaGrupos.length > 0 ? 'bg-green-50' : 'bg-amber-50'}
+        />
       </div>
 
       {/* Tabela agrupada */}
@@ -243,19 +269,38 @@ export default async function ComissoesPage({ searchParams }: Props) {
         <div className="space-y-4">
           {listaGrupos.map(g => {
             const linhas = Array.from(g.contratos.values()).sort((a, b) => b.comissao - a.comissao)
+            const nfTotalEmitida = g.nfEmitidasCount === g.qtdParcelas
+            const nfParcial = g.nfEmitidasCount > 0 && g.nfEmitidasCount < g.qtdParcelas
+            const numeroNfAtual = g.nfNumeros.size === 1 ? Array.from(g.nfNumeros)[0] : null
             return (
               <section key={g.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden print:shadow-none print:border-gray-300 break-inside-avoid">
                 <header className="px-5 py-3 border-b border-gray-100 flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h2 className="text-sm font-bold text-gray-900">{g.nome}</h2>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                      {g.nome}
+                      {nfParcial && (
+                        <span className="text-[10px] font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">
+                          NF parcial ({g.nfEmitidasCount}/{g.qtdParcelas})
+                        </span>
+                      )}
+                    </h2>
                     <p className="text-xs text-gray-500">
                       {g.cpfCnpj ? `CPF/CNPJ ${g.cpfCnpj} · ` : ''}
                       {g.contratos.size} contrato{g.contratos.size === 1 ? '' : 's'} · {g.qtdParcelas} parcela{g.qtdParcelas === 1 ? '' : 's'} paga{g.qtdParcelas === 1 ? '' : 's'}
                     </p>
                   </div>
-                  <div className="text-right">
-                    <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Comissão</p>
-                    <p className="text-xl font-extrabold text-green-700">{formatarBRL(g.totalComissao)}</p>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Comissão</p>
+                      <p className="text-xl font-extrabold text-green-700">{formatarBRL(g.totalComissao)}</p>
+                    </div>
+                    <BotaoNfProprietario
+                      parcelaIds={g.parcelaIds}
+                      jaEmitida={nfTotalEmitida}
+                      totalComissao={g.totalComissao}
+                      proprietarioNome={g.nome}
+                      numeroNfAtual={numeroNfAtual}
+                    />
                   </div>
                 </header>
 

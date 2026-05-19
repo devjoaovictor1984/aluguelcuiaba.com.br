@@ -1,6 +1,7 @@
 import { Bell, AlertCircle, CheckCircle2, Smartphone } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { FormTestePush } from './_components/form-teste-push'
+import { BotaoAtivarAqui } from './_components/botao-ativar-aqui'
 
 export const dynamic = 'force-dynamic'
 
@@ -50,6 +51,17 @@ export default async function AdminPushPage() {
           </p>
         )}
       </section>
+
+      {/* Ativar neste dispositivo */}
+      {vapidPublic && (
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h2 className="text-sm font-semibold text-gray-900 mb-2">Este dispositivo</h2>
+          <p className="text-xs text-gray-500 mb-3">
+            Atalho pra inscrever ou desinscrever o browser atual sem precisar esperar o modal da home.
+          </p>
+          <BotaoAtivarAqui publicKey={vapidPublic} />
+        </section>
+      )}
 
       {/* Form de envio */}
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
