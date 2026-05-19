@@ -7,7 +7,6 @@ import { FiltrosMobileDrawer } from '@/components/filtros-mobile'
 import { BannerSidebar } from '@/components/banner-sidebar'
 import { MapaImoveisWrapper } from '@/components/mapa-imoveis-wrapper'
 import { BuscaBar } from '@/components/busca-bar'
-import { BottomNavMobile } from '@/components/bottom-nav-mobile'
 import { getBairros, getImoveis, getBannersSidebar, getImoveisParaMapa } from '@/lib/supabase/queries'
 import { parseBusca } from '@/lib/parse-busca'
 import { SlidersHorizontal, MapPin } from 'lucide-react'
@@ -133,8 +132,8 @@ export default async function Home({ searchParams }: Props) {
         </div>
       </div>
 
-      {/* Layout principal (pb-24 mobile pra não esconder atrás do bottom nav) */}
-      <div className="max-w-7xl mx-auto px-4 py-6 pb-24 md:pb-6">
+      {/* Layout principal (padding do bottom-nav já vem do layout do grupo) */}
+      <div className="max-w-7xl mx-auto px-4 py-6">
         <div className="flex gap-6 items-start">
 
           {/* Sidebar — só desktop */}
@@ -217,7 +216,6 @@ export default async function Home({ searchParams }: Props) {
       </div>
 
       <Footer />
-      <BottomNavMobile />
     </>
   )
 }
