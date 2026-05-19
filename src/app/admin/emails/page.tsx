@@ -4,7 +4,7 @@ import { DEFAULT_TEMPLATES } from '@/lib/email/templates'
 import { TemplateForm, type VariavelDoc } from './_components/template-form'
 
 interface TemplateDef {
-  chave: 'boas_vindas' | 'aviso_vencimento' | 'aviso_aluguel'
+  chave: 'boas_vindas' | 'aviso_vencimento' | 'aviso_aluguel' | 'anuncio_parado_30d' | 'anuncio_parado_60d'
   titulo: string
   descricao: string
   quandoEnviado: string
@@ -44,6 +44,42 @@ const TEMPLATES: TemplateDef[] = [
       nome: 'maria@exemplo.com',
       titulo: 'Apartamento 2 quartos no Centro',
       dias: '3',
+      painel_url: 'https://aluguelcuiaba.com.br/painel',
+    },
+  },
+  {
+    chave: 'anuncio_parado_30d',
+    titulo: 'Anúncio parado há 30 dias',
+    descricao: 'Lembrete suave pro anunciante atualizar o anúncio que não recebe edição há 30 dias.',
+    quandoEnviado: 'Cron diário verifica imóveis ativos com updated_at < hoje - 30 dias e que ainda não receberam este aviso.',
+    variaveis: [
+      { nome: 'nome', descricao: 'Nome do anunciante' },
+      { nome: 'titulo', descricao: 'Título do imóvel parado' },
+      { nome: 'dias', descricao: 'Quantos dias sem atualização (~30+)' },
+      { nome: 'painel_url', descricao: 'Link direto para editar o imóvel' },
+    ],
+    exemplo: {
+      nome: 'João Silva',
+      titulo: 'Casa 3 quartos no Centro',
+      dias: '32',
+      painel_url: 'https://aluguelcuiaba.com.br/painel',
+    },
+  },
+  {
+    chave: 'anuncio_parado_60d',
+    titulo: 'Anúncio parado há 60 dias (firme)',
+    descricao: 'Aviso mais firme: 2 meses sem atualização. Pode estar perdendo ranking.',
+    quandoEnviado: 'Cron diário verifica imóveis ativos com updated_at < hoje - 60 dias e que ainda não receberam este aviso.',
+    variaveis: [
+      { nome: 'nome', descricao: 'Nome do anunciante' },
+      { nome: 'titulo', descricao: 'Título do imóvel parado' },
+      { nome: 'dias', descricao: 'Quantos dias sem atualização (~60+)' },
+      { nome: 'painel_url', descricao: 'Link direto para editar o imóvel' },
+    ],
+    exemplo: {
+      nome: 'João Silva',
+      titulo: 'Casa 3 quartos no Centro',
+      dias: '63',
       painel_url: 'https://aluguelcuiaba.com.br/painel',
     },
   },

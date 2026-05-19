@@ -5,7 +5,12 @@ export function renderTemplate(template: string, vars: Record<string, string>): 
   return template.replace(/\{\{(\w+)\}\}/g, (_, key) => vars[key] ?? '')
 }
 
-export type ChaveTemplate = 'boas_vindas' | 'aviso_vencimento' | 'aviso_aluguel'
+export type ChaveTemplate =
+  | 'boas_vindas'
+  | 'aviso_vencimento'
+  | 'aviso_aluguel'
+  | 'anuncio_parado_30d'
+  | 'anuncio_parado_60d'
 
 // Fetches subject + body from site_config, falls back to defaults
 export async function getTemplate(chave: ChaveTemplate): Promise<{ assunto: string; corpo: string }> {
@@ -129,6 +134,78 @@ export const DEFAULT_TEMPLATES: Record<string, { assunto: string; corpo: string 
     <div style="background:${fundo};padding:16px 24px;text-align:center;">
       <p style="color:#9ca3af;font-size:11px;margin:0;line-height:1.5;">
         Lembrete automático. Se você já pagou, desconsidere.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`,
+  },
+
+  anuncio_parado_30d: {
+    assunto: 'Seu anúncio está parado há 30 dias — dá uma atualizada',
+    corpo: `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:24px;background:${fundo};font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+    <div style="background:${roxo};padding:32px 24px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:20px;font-weight:bold;">Lembrete: dê uma renovada no anúncio</h1>
+    </div>
+    <div style="padding:32px 24px;">
+      <p style="color:#374151;font-size:16px;line-height:1.6;margin-top:0;">
+        Olá <strong>{{nome}}</strong>,
+      </p>
+      <p style="color:#374151;font-size:14px;line-height:1.6;">
+        Notamos que o anúncio <strong>"{{titulo}}"</strong> está sem atualização há <strong>{{dias}} dias</strong>.
+      </p>
+      <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0 0 24px;">
+        Anúncios atualizados aparecem mais alto na busca. Aproveite pra revisar o preço, trocar foto ou adicionar uma descrição mais detalhada.
+      </p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="{{painel_url}}" style="display:inline-block;background:${roxo};color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+          Atualizar agora
+        </a>
+      </div>
+    </div>
+    <div style="background:${fundo};padding:16px 24px;text-align:center;">
+      <p style="color:#9ca3af;font-size:11px;margin:0;line-height:1.5;">
+        E-mail automático — não responda.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`,
+  },
+
+  anuncio_parado_60d: {
+    assunto: 'Seu anúncio está há 60 dias parado — atualize antes que perca posição',
+    corpo: `<!DOCTYPE html>
+<html lang="pt-BR">
+<head><meta charset="utf-8"/></head>
+<body style="margin:0;padding:24px;background:${fundo};font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+    <div style="background:#dc2626;padding:32px 24px;text-align:center;">
+      <h1 style="color:#fff;margin:0;font-size:20px;font-weight:bold;">Aviso: anúncio parado há 60 dias</h1>
+    </div>
+    <div style="padding:32px 24px;">
+      <p style="color:#374151;font-size:16px;line-height:1.6;margin-top:0;">
+        Olá <strong>{{nome}}</strong>,
+      </p>
+      <p style="color:#374151;font-size:14px;line-height:1.6;">
+        O anúncio <strong>"{{titulo}}"</strong> está sem nenhuma atualização há <strong>{{dias}} dias</strong>.
+      </p>
+      <p style="color:#6b7280;font-size:14px;line-height:1.6;margin:0 0 24px;">
+        Anúncios parados perdem ranking na busca e podem expirar em breve. Recomendamos atualizar fotos/preço ou pausar o anúncio se o imóvel já foi alugado.
+      </p>
+      <div style="text-align:center;margin:32px 0;">
+        <a href="{{painel_url}}" style="display:inline-block;background:#dc2626;color:#fff;padding:14px 36px;border-radius:8px;text-decoration:none;font-weight:bold;font-size:15px;">
+          Revisar anúncio
+        </a>
+      </div>
+    </div>
+    <div style="background:${fundo};padding:16px 24px;text-align:center;">
+      <p style="color:#9ca3af;font-size:11px;margin:0;line-height:1.5;">
+        E-mail automático — não responda.
       </p>
     </div>
   </div>

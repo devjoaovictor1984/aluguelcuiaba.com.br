@@ -31,6 +31,52 @@ interface SubscriptionRow {
   auth: string
 }
 
+async function enviarPushParaSubs(subs: SubscriptionRow[], payload: PushPayload) {
+  configurarUmaVez()
+  const admin = createAdminClient()
+  if (subs.length === 0) return { enviados: 0, removidos: 0, falhas: 0 }
+
+  const body = JSON.stringify(payload)
+  const idsMortos: string[] = []
+  let enviados = 0
+  let falhas = 0
+
+  await Promise.allSettled(
+    subs.map(async (s) => {
+      try {
+        await webpush.sendNotification(
+          { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },
+          body
+        )
+        enviados += 1
+      } catch (e) {
+        const status = (e as { statusCode?: number }).statusCode
+        if (status === 404 || status === 410) idsMortos.push(s.id)
+        else falhas += 1
+      }
+    })
+  )
+
+  if (idsMortos.length > 0) {
+    await admin.from('push_subscriptions').delete().in('id', idsMortos)
+  }
+  return { enviados, removidos: idsMortos.length, falhas }
+}
+
+/**
+ * Envia push para um user específico (todos os endpoints dele).
+ */
+export async function enviarPushParaUser(userId: string, payload: PushPayload) {
+  configurarUmaVez()
+  const admin = createAdminClient()
+  const { data: subs, error } = await admin
+    .from('push_subscriptions')
+    .select('id, endpoint, p256dh, auth')
+    .eq('user_id', userId)
+  if (error) return { enviados: 0, removidos: 0, falhas: 0, erro: error.message }
+  return enviarPushParaSubs((subs ?? []) as SubscriptionRow[], payload)
+}
+
 /**
  * Envia um push para TODAS as subscrições ativas. Subscrições mortas
  * (410 Gone, 404 Not Found) são removidas automaticamente.

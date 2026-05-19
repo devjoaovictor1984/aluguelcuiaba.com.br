@@ -90,13 +90,13 @@ export default async function ImovelPage({ params }: Props) {
     })
   )
   const msgCompartilhar = [
-    `🏡 *${imovel.titulo}*`,
+    `*${imovel.titulo}*`,
     '',
-    `📍 ${imovel.bairro?.nome ?? 'Cuiabá'}${imovel.bairro?.nome ? ', Cuiabá' : ''}`,
-    `💰 ${formatarPreco(imovel.preco)}/mês`,
-    partesDetalhes.length > 0 ? `🛏️ ${partesDetalhes.join(' · ')}` : '',
+    `▸ Bairro: ${imovel.bairro?.nome ?? 'Cuiabá'}${imovel.bairro?.nome ? ', Cuiabá' : ''}`,
+    `▸ Aluguel: ${formatarPreco(imovel.preco)}/mês`,
+    partesDetalhes.length > 0 ? `▸ ${partesDetalhes.join(' · ')}` : '',
     '',
-    '✨ Encontrei no AluguelCuiabá:',
+    'Encontrei no AluguelCuiabá:',
     pageUrl,
   ].filter(Boolean).join('\n')
   const linkCompartilhar = `https://wa.me/?text=${encodeURIComponent(msgCompartilhar)}`

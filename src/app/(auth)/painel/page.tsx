@@ -31,6 +31,21 @@ export default async function PainelPage({
   const lista = imoveis ?? []
   const ativos = lista.filter(i => i.status === 'ativo').length
   const inativos = lista.filter(i => i.status !== 'ativo').length
+
+  // Imóveis ativos parados — banner de aviso
+  const agora = Date.now()
+  const D30 = 30 * 86400000
+  const D60 = 60 * 86400000
+  type ImovelLite = { id: string; titulo: string; status: string; updated_at: string; avisos_silenciados_ate?: string | null }
+  const ativosComUpdate = (lista as unknown as ImovelLite[]).filter(i =>
+    i.status === 'ativo'
+    && (!i.avisos_silenciados_ate || new Date(i.avisos_silenciados_ate).getTime() < agora)
+  )
+  const parados30 = ativosComUpdate.filter(i => {
+    const diff = agora - new Date(i.updated_at).getTime()
+    return diff >= D30 && diff < D60
+  })
+  const parados60 = ativosComUpdate.filter(i => agora - new Date(i.updated_at).getTime() >= D60)
   const { publicado, atualizado } = await searchParams
 
   const isAdmin = perfil?.role === 'admin'
@@ -68,6 +83,58 @@ export default async function PainelPage({
         <div className="flex items-center gap-2.5 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-2xl px-4 py-3.5 mb-6">
           <CheckCircle2 size={18} className="text-blue-600 shrink-0" />
           <span className="font-medium">Anúncio atualizado com sucesso!</span>
+        </div>
+      )}
+
+      {/* Banner anúncios parados */}
+      {parados60.length > 0 && (
+        <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5 mb-4 flex items-start gap-3">
+          <AlertCircle size={18} className="text-red-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-red-900">
+              {parados60.length} anúncio{parados60.length === 1 ? '' : 's'} parado{parados60.length === 1 ? '' : 's'} há mais de 60 dias
+            </p>
+            <p className="text-xs text-red-700 mt-0.5 mb-2">
+              Anúncios parados perdem ranking na busca. Revise preço/fotos ou pause se já foi alugado.
+            </p>
+            <ul className="space-y-1">
+              {parados60.slice(0, 3).map(im => (
+                <li key={im.id} className="text-xs">
+                  <Link href={`/painel/anuncios/${im.id}/editar`} className="text-red-800 hover:underline font-medium">
+                    {im.titulo} →
+                  </Link>
+                </li>
+              ))}
+              {parados60.length > 3 && (
+                <li className="text-[11px] text-red-600">+ {parados60.length - 3} outros</li>
+              )}
+            </ul>
+          </div>
+        </div>
+      )}
+      {parados30.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3.5 mb-6 flex items-start gap-3">
+          <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-amber-900">
+              {parados30.length} anúncio{parados30.length === 1 ? '' : 's'} sem atualização há 30+ dias
+            </p>
+            <p className="text-xs text-amber-700 mt-0.5 mb-2">
+              Anúncios atualizados aparecem mais alto na busca. Revise preço, troque alguma foto.
+            </p>
+            <ul className="space-y-1">
+              {parados30.slice(0, 3).map(im => (
+                <li key={im.id} className="text-xs">
+                  <Link href={`/painel/anuncios/${im.id}/editar`} className="text-amber-800 hover:underline font-medium">
+                    {im.titulo} →
+                  </Link>
+                </li>
+              ))}
+              {parados30.length > 3 && (
+                <li className="text-[11px] text-amber-600">+ {parados30.length - 3} outros</li>
+              )}
+            </ul>
+          </div>
         </div>
       )}
 
