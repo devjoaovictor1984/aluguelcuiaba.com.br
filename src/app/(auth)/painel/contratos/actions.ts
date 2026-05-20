@@ -796,8 +796,11 @@ export type MotivoEncerramento =
 
 export interface EncerrarContratoInput {
   motivo: MotivoEncerramento
-  data_encerramento: string  // YYYY-MM-DD
-  observacao?: string        // detalhamento livre
+  data_encerramento: string         // YYYY-MM-DD
+  observacao?: string               // detalhamento livre
+  chaves_entregues_em?: string | null  // YYYY-MM-DD ou null
+  qtd_chaves_entregues?: number | null
+  caucao_devolvida?: boolean | null
 }
 
 export async function encerrarContrato(id: string, input: EncerrarContratoInput) {
@@ -807,18 +810,23 @@ export async function encerrarContrato(id: string, input: EncerrarContratoInput)
   // fim_natural → 'encerrado'; demais motivos → 'rescindido'
   const novoStatus = input.motivo === 'fim_natural' ? 'encerrado' : 'rescindido'
 
+  const payload: Record<string, unknown> = {
+    status: novoStatus,
+    motivo_encerramento: input.motivo,
+    data_encerramento: input.data_encerramento,
+    data_termino: input.data_encerramento,
+    updated_at: new Date().toISOString(),
+  }
+  if (input.observacao) {
+    payload.observacoes = `[${novoStatus.toUpperCase()} em ${input.data_encerramento}] ${input.observacao}`
+  }
+  if (input.chaves_entregues_em !== undefined) payload.chaves_entregues_em = input.chaves_entregues_em
+  if (input.qtd_chaves_entregues !== undefined) payload.qtd_chaves_entregues = input.qtd_chaves_entregues
+  if (input.caucao_devolvida !== undefined) payload.caucao_devolvida = input.caucao_devolvida
+
   const { error } = await supabase
     .from('contratos_locacao')
-    .update({
-      status: novoStatus,
-      motivo_encerramento: input.motivo,
-      data_encerramento: input.data_encerramento,
-      data_termino: input.data_encerramento,
-      observacoes: input.observacao
-        ? `[${novoStatus.toUpperCase()} em ${input.data_encerramento}] ${input.observacao}`
-        : undefined,
-      updated_at: new Date().toISOString(),
-    })
+    .update(payload)
     .eq('id', id)
     .eq('user_id', acesso.userId)
 

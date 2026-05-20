@@ -83,6 +83,9 @@ function ModalEncerrar({
   const [motivo, setMotivo] = useState<MotivoEncerramento>('fim_natural')
   const [data, setData] = useState(HOJE())
   const [observacao, setObs] = useState('')
+  const [chavesEntreguesEm, setChavesEntreguesEm] = useState('')
+  const [qtdChaves, setQtdChaves] = useState('')
+  const [caucaoDevolvida, setCaucaoDevolvida] = useState<'sim' | 'nao' | ''>('')
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
 
@@ -92,6 +95,9 @@ function ModalEncerrar({
       motivo,
       data_encerramento: data,
       observacao: observacao || undefined,
+      chaves_entregues_em: chavesEntreguesEm || null,
+      qtd_chaves_entregues: qtdChaves ? parseInt(qtdChaves) : null,
+      caucao_devolvida: caucaoDevolvida === '' ? null : caucaoDevolvida === 'sim',
     }
     startTransition(async () => {
       const r = await encerrarContrato(contratoId, payload)
@@ -103,7 +109,7 @@ function ModalEncerrar({
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onFechar}>
-      <div className="bg-white rounded-2xl shadow-xl p-5 max-w-md w-full" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-xl p-5 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between mb-4">
           <div>
             <h3 className="font-bold text-gray-900">Encerrar contrato</h3>
@@ -125,10 +131,62 @@ function ModalEncerrar({
             <input type="date" value={data} onChange={e => setData(e.target.value)} className={inputCls} />
           </div>
 
+          {/* Entrega de chaves */}
+          <div className="bg-gray-50 border border-gray-100 rounded-xl p-3 space-y-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500">Entrega de chaves</p>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Data da entrega</label>
+                <input
+                  type="date"
+                  value={chavesEntreguesEm}
+                  onChange={e => setChavesEntreguesEm(e.target.value)}
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Qtd. de chaves</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={qtdChaves}
+                  onChange={e => setQtdChaves(e.target.value)}
+                  className={inputCls}
+                  placeholder="ex: 3"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Caução */}
+          <div>
+            <label className="text-xs font-medium text-gray-600 block mb-1">Caução foi devolvida?</label>
+            <div className="flex gap-2">
+              {[
+                { v: '', label: 'Não se aplica' },
+                { v: 'sim', label: 'Sim' },
+                { v: 'nao', label: 'Não' },
+              ].map(o => (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => setCaucaoDevolvida(o.v as 'sim' | 'nao' | '')}
+                  className={`flex-1 text-xs font-medium py-2 rounded-lg border transition-colors ${
+                    caucaoDevolvida === o.v
+                      ? 'bg-violet-700 border-violet-700 text-white'
+                      : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300'
+                  }`}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div>
             <label className="text-xs font-medium text-gray-600 block mb-1">Observação</label>
             <textarea value={observacao} onChange={e => setObs(e.target.value)} rows={2}
-              className={`${inputCls} resize-y`} placeholder="Detalhes adicionais (opcional)" />
+              className={`${inputCls} resize-y`} placeholder="Vistoria final, danos, acertos, etc (opcional)" />
           </div>
 
           <div className="bg-amber-50 border border-amber-100 text-amber-800 text-xs rounded-lg px-3 py-2 flex gap-2">
