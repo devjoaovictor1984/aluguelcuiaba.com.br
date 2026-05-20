@@ -27,6 +27,7 @@ export interface ItemRow {
 export interface FotoRow {
   id: string
   vistoria_item_id: string | null
+  comodo: string | null
   url: string
   origem: 'corretor' | 'inquilino'
   legenda: string | null
@@ -67,12 +68,35 @@ export function EditorVistoria(props: Props) {
     acc[it.comodo].push(it)
     return acc
   }, {})
-  const fotosPorItem = props.fotos.reduce<Record<string, FotoRow[]>>((acc, f) => {
-    const key = f.vistoria_item_id ?? '__geral__'
-    if (!acc[key]) acc[key] = []
-    acc[key].push(f)
-    return acc
-  }, {})
+  // Fotos: separa em 3 escopos
+  const fotosPorItem: Record<string, FotoRow[]> = {}
+  const fotosPorComodo: Record<string, FotoRow[]> = {}
+  const fotosGerais: FotoRow[] = []
+  for (const f of props.fotos) {
+    if (f.vistoria_item_id) {
+      if (!fotosPorItem[f.vistoria_item_id]) fotosPorItem[f.vistoria_item_id] = []
+      fotosPorItem[f.vistoria_item_id].push(f)
+    } else if (f.comodo) {
+      if (!fotosPorComodo[f.comodo]) fotosPorComodo[f.comodo] = []
+      fotosPorComodo[f.comodo].push(f)
+    } else {
+      fotosGerais.push(f)
+    }
+  }
+
+  const apagar = () => {
+    let msg = 'Apagar essa vistoria? Todos os itens e fotos vão junto.'
+    if (props.status === 'enviada') msg = '⚠️ A vistoria está com link ativo. O inquilino perderá o acesso. Confirmar apagar?'
+    if (props.status === 'assinada') msg = '⚠️ ATENÇÃO: vistoria JÁ ASSINADA pelo inquilino. Apagar exclui o registro de assinatura. Não tem volta. Confirmar?'
+    if (!confirm(msg)) return
+    if (props.status === 'assinada') {
+      const typed = prompt('Digite "APAGAR" pra confirmar a exclusão da vistoria assinada:')
+      if (typed?.trim().toUpperCase() !== 'APAGAR') { alert('Cancelado.'); return }
+    }
+    startTransition(async () => {
+      await excluirVistoria(props.vistoriaId)
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -82,6 +106,13 @@ export function EditorVistoria(props: Props) {
       {/* Meta */}
       <BlocoMeta {...props} editavel={editavel} />
 
+      {/* Fotos gerais da vistoria */}
+      <FotosGerais
+        vistoriaId={props.vistoriaId}
+        fotos={fotosGerais}
+        editavel={editavel}
+      />
+
       {/* Itens por cômodo */}
       {Object.entries(grupos).map(([comodo, itens]) => (
         <ComodoCard
@@ -89,6 +120,7 @@ export function EditorVistoria(props: Props) {
           comodo={comodo}
           itens={itens}
           fotos={fotosPorItem}
+          fotosComodo={fotosPorComodo[comodo] ?? []}
           vistoriaId={props.vistoriaId}
           editavel={editavel}
         />
@@ -97,24 +129,17 @@ export function EditorVistoria(props: Props) {
       {/* Adicionar cômodo/item */}
       {editavel && <AddItem vistoriaId={props.vistoriaId} comodosExistentes={Object.keys(grupos)} />}
 
-      {/* Excluir vistoria */}
-      {editavel && (
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={() => {
-              if (!confirm('Apagar essa vistoria? Todos os itens e fotos vão junto.')) return
-              startTransition(async () => {
-                await excluirVistoria(props.vistoriaId)
-              })
-            }}
-            disabled={isPending}
-            className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1"
-          >
-            <Trash2 size={11} /> Apagar vistoria
-          </button>
-        </div>
-      )}
+      {/* Excluir vistoria — sempre visível, com confirmação reforçada */}
+      <div className="pt-2 flex justify-end">
+        <button
+          type="button"
+          onClick={apagar}
+          disabled={isPending}
+          className="text-xs text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+        >
+          <Trash2 size={11} /> Apagar vistoria
+        </button>
+      </div>
     </div>
   )
 }
@@ -371,19 +396,134 @@ function BlocoMeta({
   )
 }
 
+/* ────────── Fotos gerais da vistoria (sem item nem cômodo) ─────────── */
+function FotosGerais({ vistoriaId, fotos, editavel }: {
+  vistoriaId: string; fotos: FotoRow[]; editavel: boolean
+}) {
+  const router = useRouter()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [isPending, startTransition] = useTransition()
+
+  if (!editavel && fotos.length === 0) return null
+
+  const subir = (file: File) => {
+    const fd = new FormData()
+    fd.set('vistoria_id', vistoriaId)
+    fd.set('file', file)
+    startTransition(async () => {
+      const r = await uploadFotoVistoria(fd)
+      if (r.error) { alert(r.error); return }
+      router.refresh()
+    })
+  }
+
+  return (
+    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-sm font-bold text-gray-900">Fotos gerais da vistoria</h3>
+        {editavel && (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) subir(f)
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={isPending}
+              className="flex items-center gap-1 text-xs bg-violet-50 hover:bg-violet-100 text-violet-700 px-2.5 py-1.5 rounded-lg"
+            >
+              {isPending ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
+              Adicionar foto
+            </button>
+          </>
+        )}
+      </div>
+      <p className="text-[11px] text-gray-400 mb-2">
+        Fachada do imóvel, hidrômetro com leitura, vista geral. Sem amarração a item.
+      </p>
+      {fotos.length === 0 ? (
+        <p className="text-xs text-gray-400 italic">Nenhuma foto geral ainda.</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {fotos.map(f => (
+            <FotoMini key={f.id} foto={f} editavel={editavel} />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
 /* ────────── Card de cômodo ─────────── */
-function ComodoCard({ comodo, itens, fotos, vistoriaId, editavel }: {
+function ComodoCard({ comodo, itens, fotos, fotosComodo, vistoriaId, editavel }: {
   comodo: string
   itens: ItemRow[]
   fotos: Record<string, FotoRow[]>
+  fotosComodo: FotoRow[]
   vistoriaId: string
   editavel: boolean
 }) {
+  const router = useRouter()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [isPendingComodo, startTransitionComodo] = useTransition()
+
+  const subirComodo = (file: File) => {
+    const fd = new FormData()
+    fd.set('vistoria_id', vistoriaId)
+    fd.set('comodo', comodo)
+    fd.set('file', file)
+    startTransitionComodo(async () => {
+      const r = await uploadFotoVistoria(fd)
+      if (r.error) { alert(r.error); return }
+      router.refresh()
+    })
+  }
+
   return (
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-      <header className="px-4 py-3 bg-gray-50 border-b border-gray-100">
+      <header className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-2">
         <h3 className="text-sm font-bold text-gray-900">{comodo}</h3>
+        {editavel && (
+          <>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/heic"
+              className="hidden"
+              onChange={e => {
+                const f = e.target.files?.[0]
+                if (f) subirComodo(f)
+                e.target.value = ''
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={isPendingComodo}
+              className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-violet-700 hover:bg-violet-50 px-2 py-1 rounded-md"
+              title="Adicionar foto deste cômodo (sem amarrar a item específico)"
+            >
+              {isPendingComodo ? <Loader2 size={10} className="animate-spin" /> : <Camera size={10} />}
+              Foto do cômodo
+            </button>
+          </>
+        )}
       </header>
+      {fotosComodo.length > 0 && (
+        <div className="px-4 py-2 border-b border-gray-50 flex flex-wrap gap-2 bg-gray-50/30">
+          {fotosComodo.map(f => (
+            <FotoMini key={f.id} foto={f} editavel={editavel} />
+          ))}
+        </div>
+      )}
       <div className="divide-y divide-gray-50">
         {itens.map(it => (
           <ItemRow

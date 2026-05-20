@@ -162,6 +162,7 @@ export async function uploadFotoVistoria(formData: FormData) {
   const acesso = await exigirAcessoCRM()
   const vistoriaId = formData.get('vistoria_id')
   const itemId = formData.get('vistoria_item_id')
+  const comodo = formData.get('comodo')
   const legenda = formData.get('legenda')
   const file = formData.get('file')
 
@@ -183,9 +184,22 @@ export async function uploadFotoVistoria(formData: FormData) {
     .upload(path, new Uint8Array(bytes), { contentType: file.type, upsert: false })
   if (upErr) return { error: `Upload: ${upErr.message}` }
 
+  // 3 escopos possíveis:
+  // - item específico → vistoria_item_id setado, comodo derivado do item
+  // - cômodo inteiro  → comodo setado, vistoria_item_id null
+  // - geral vistoria  → ambos null
+  const itemIdFinal = typeof itemId === 'string' && itemId ? itemId : null
+  let comodoFinal: string | null = typeof comodo === 'string' && comodo ? comodo : null
+  if (itemIdFinal && !comodoFinal) {
+    const { data: item } = await admin
+      .from('vistoria_itens').select('comodo').eq('id', itemIdFinal).maybeSingle()
+    comodoFinal = item?.comodo ?? null
+  }
+
   const { error: dbErr } = await admin.from('vistoria_fotos').insert({
     vistoria_id: vistoriaId,
-    vistoria_item_id: typeof itemId === 'string' && itemId ? itemId : null,
+    vistoria_item_id: itemIdFinal,
+    comodo: comodoFinal,
     arquivo_path: path,
     origem: 'corretor',
     legenda: typeof legenda === 'string' ? legenda.slice(0, 200) : null,

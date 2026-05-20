@@ -100,16 +100,20 @@ export default async function VistoriaPage({ params, searchParams }: Props) {
 
   const { data: fotosRaw } = await supabase
     .from('vistoria_fotos')
-    .select('id, vistoria_item_id, arquivo_path, origem, legenda, created_at')
+    .select('id, vistoria_item_id, comodo, arquivo_path, origem, legenda, created_at')
     .eq('vistoria_id', vistoriaId)
     .order('created_at', { ascending: true })
 
   // Gera URLs públicas (bucket é public)
-  const fotos: FotoRow[] = (fotosRaw ?? []).map(f => {
+  const fotos: FotoRow[] = ((fotosRaw ?? []) as Array<{
+    id: string; vistoria_item_id: string | null; comodo: string | null
+    arquivo_path: string; origem: string; legenda: string | null
+  }>).map(f => {
     const { data } = admin.storage.from('vistorias-fotos').getPublicUrl(f.arquivo_path)
     return {
       id: f.id,
       vistoria_item_id: f.vistoria_item_id,
+      comodo: f.comodo,
       url: data.publicUrl,
       origem: f.origem as 'corretor' | 'inquilino',
       legenda: f.legenda,
