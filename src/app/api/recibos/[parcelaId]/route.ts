@@ -61,6 +61,13 @@ export async function GET(
       .eq('id', parcelaId)
   }
 
+  // Defensiva: garante que a row em perfis existe (cobre user criado via
+  // SQL direto sem trigger). Sem isso, o UPDATE em /perfil/recibo afeta
+  // zero linhas e o usuário "salva" sem persistir nada.
+  await admin
+    .from('perfis')
+    .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true })
+
   // Dados do emitente (perfil + site_config como fallback de logo)
   const { data: perfil } = await admin
     .from('perfis')
@@ -71,7 +78,7 @@ export async function GET(
       recibo_mostrar_linha, recibo_assinatura_sobre_linha
     `)
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   const { data: configs } = await admin
     .from('site_config')
