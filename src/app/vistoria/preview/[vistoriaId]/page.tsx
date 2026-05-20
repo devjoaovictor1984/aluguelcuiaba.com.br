@@ -49,16 +49,31 @@ export default async function VistoriaPreviewPage({ params }: Props) {
     .eq('vistoria_id', vistoriaId)
     .order('ordem', { ascending: true })
 
-  const { data: fotosRaw } = await supabase
-    .from('vistoria_fotos')
-    .select('id, vistoria_item_id, comodo, arquivo_path, origem, legenda')
-    .eq('vistoria_id', vistoriaId)
-    .order('created_at', { ascending: true })
+  // Resiliente a v22 não rodada
+  type FotoRaw = {
+    id: string; vistoria_item_id: string | null; arquivo_path: string
+    origem: string; legenda: string | null
+  }
+  let fotosRaw: FotoRaw[] = []
+  {
+    const r = await supabase
+      .from('vistoria_fotos')
+      .select('id, vistoria_item_id, comodo, arquivo_path, origem, legenda')
+      .eq('vistoria_id', vistoriaId)
+      .order('created_at', { ascending: true })
+    if (r.error?.message?.includes('comodo')) {
+      const r2 = await supabase
+        .from('vistoria_fotos')
+        .select('id, vistoria_item_id, arquivo_path, origem, legenda')
+        .eq('vistoria_id', vistoriaId)
+        .order('created_at', { ascending: true })
+      fotosRaw = (r2.data ?? []) as FotoRaw[]
+    } else {
+      fotosRaw = (r.data ?? []) as FotoRaw[]
+    }
+  }
 
-  const fotos: FotoPub[] = ((fotosRaw ?? []) as Array<{
-    id: string; vistoria_item_id: string | null; comodo: string | null
-    arquivo_path: string; origem: string; legenda: string | null
-  }>).map(f => {
+  const fotos: FotoPub[] = fotosRaw.map(f => {
     const { data } = admin.storage.from('vistorias-fotos').getPublicUrl(f.arquivo_path)
     return {
       id: f.id,

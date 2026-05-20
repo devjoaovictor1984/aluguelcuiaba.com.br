@@ -196,14 +196,23 @@ export async function uploadFotoVistoria(formData: FormData) {
     comodoFinal = item?.comodo ?? null
   }
 
-  const { error: dbErr } = await admin.from('vistoria_fotos').insert({
+  const linhaBase = {
     vistoria_id: vistoriaId,
     vistoria_item_id: itemIdFinal,
-    comodo: comodoFinal,
     arquivo_path: path,
-    origem: 'corretor',
+    origem: 'corretor' as const,
     legenda: typeof legenda === 'string' ? legenda.slice(0, 200) : null,
-  })
+  }
+  // Tenta com comodo (v22). Se a migration ainda não rodou, retry sem ele.
+  let dbErr: { message: string } | null = null
+  {
+    const r = await admin.from('vistoria_fotos').insert({ ...linhaBase, comodo: comodoFinal })
+    dbErr = r.error
+  }
+  if (dbErr && dbErr.message?.includes('comodo')) {
+    const r2 = await admin.from('vistoria_fotos').insert(linhaBase)
+    dbErr = r2.error
+  }
   if (dbErr) {
     await admin.storage.from(BUCKET).remove([path])
     return { error: dbErr.message }
