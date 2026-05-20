@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ vistoriaId: string }> }
 ) {
   const supabase = await createClient()
@@ -17,6 +17,7 @@ export async function GET(
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
   const { vistoriaId } = await params
+  const debug = new URL(request.url).searchParams.get('debug') === '1'
   const admin = createAdminClient()
 
   // Carrega vistoria + contrato + partes
@@ -34,6 +35,26 @@ export async function GET(
     `)
     .eq('id', vistoriaId)
     .single()
+
+  if (debug) {
+    // Tentativa adicional sem o join, pra diagnóstico
+    const { data: vistoriaSimples, error: erroSimples } = await admin
+      .from('vistorias').select('id, user_id, contrato_id, status, tipo, data_vistoria')
+      .eq('id', vistoriaId).maybeSingle()
+    return NextResponse.json({
+      vistoria_id_buscado: vistoriaId,
+      meu_user_id: user.id,
+      query_com_join: { erro: error?.message ?? null, encontrou: !!vistoria },
+      query_simples: { erro: erroSimples?.message ?? null, data: vistoriaSimples },
+      diagnostico: !vistoriaSimples
+        ? 'Vistoria não existe no banco — criação deve ter falhado silenciosamente.'
+        : vistoriaSimples.user_id !== user.id
+        ? `Vistoria pertence a outro user (${vistoriaSimples.user_id.slice(0, 8)}…). Logue com a conta dona.`
+        : error
+        ? `Join falhou: ${error.message}. Provável: contrato deletado/inválido ou coluna ausente.`
+        : 'Tudo certo, deveria funcionar.',
+    })
+  }
 
   if (error || !vistoria) return NextResponse.json({ error: 'Vistoria não encontrada' }, { status: 404 })
   if (vistoria.user_id !== user.id) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useRef } from 'react'
+import { useState, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
@@ -128,22 +128,23 @@ function BlocoStatus({
 }: Props & { isPending: boolean; startTransition: ReturnType<typeof useTransition>[1]; router: ReturnType<typeof useRouter>; editavel: boolean }) {
   const router = useRouter()
 
-  // Inicializa diasValidade na ordem de prioridade:
-  // 1. Se já foi enviada, calcula expira_em - enviada_em
-  // 2. Senão, lê do localStorage (último valor que o user escolheu)
-  // 3. Senão, default 7
-  const calcularDiasIniciais = (): number => {
+  // SSR sempre começa com 7 (window não existe) — useEffect ajusta após
+  // hidratação. Sem o useEffect, o valor do localStorage nunca era lido
+  // porque o useState init roda no servidor antes da hidratação.
+  const [diasValidade, setDiasValidadeState] = useState(7)
+  useEffect(() => {
     if (enviadaEm && expiraEm) {
       const diff = Math.round((new Date(expiraEm).getTime() - new Date(enviadaEm).getTime()) / 86400000)
-      if ([3, 7, 14, 30].includes(diff)) return diff
+      if ([3, 7, 14, 30].includes(diff)) {
+        setDiasValidadeState(diff)
+        return
+      }
     }
-    if (typeof window !== 'undefined') {
-      const salvo = parseInt(localStorage.getItem(LS_DIAS_VALIDADE) ?? '7')
-      if ([3, 7, 14, 30].includes(salvo)) return salvo
-    }
-    return 7
-  }
-  const [diasValidade, setDiasValidadeState] = useState(calcularDiasIniciais)
+    const salvo = parseInt(localStorage.getItem(LS_DIAS_VALIDADE) ?? '7')
+    if ([3, 7, 14, 30].includes(salvo)) setDiasValidadeState(salvo)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enviadaEm, expiraEm])
+
   const setDiasValidade = (n: number) => {
     setDiasValidadeState(n)
     if (typeof window !== 'undefined') localStorage.setItem(LS_DIAS_VALIDADE, String(n))
