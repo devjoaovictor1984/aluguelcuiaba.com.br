@@ -161,6 +161,7 @@ export default async function VistoriaPage({ params, searchParams }: Props) {
         qtdControles={vistoria.qtd_controles ?? 0}
         token={vistoria.token}
         expiraEm={vistoria.expira_em}
+        enviadaEm={vistoria.enviada_em ?? null}
         assinadaEm={vistoria.assinada_em}
         inquilinoObservacoes={vistoria.inquilino_observacoes}
         assinaturaUrl={vistoria.assinatura_inquilino_url}

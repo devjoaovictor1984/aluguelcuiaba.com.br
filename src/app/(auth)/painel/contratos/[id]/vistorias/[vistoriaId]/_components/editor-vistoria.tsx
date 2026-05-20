@@ -43,6 +43,7 @@ interface Props {
   qtdControles: number
   token: string | null
   expiraEm: string | null
+  enviadaEm: string | null
   assinadaEm: string | null
   inquilinoObservacoes: string | null
   assinaturaUrl: string | null
@@ -119,17 +120,51 @@ export function EditorVistoria(props: Props) {
 }
 
 /* ────────── Status + Envio ─────────── */
+const LS_DIAS_VALIDADE = 'vistoria_dias_validade_padrao'
+
 function BlocoStatus({
-  vistoriaId, status, token, expiraEm, assinadaEm, inquilinoObservacoes,
+  vistoriaId, status, token, expiraEm, enviadaEm, assinadaEm, inquilinoObservacoes,
   assinaturaUrl, whatsappInquilino, nomeInquilino, baseUrl, editavel,
 }: Props & { isPending: boolean; startTransition: ReturnType<typeof useTransition>[1]; router: ReturnType<typeof useRouter>; editavel: boolean }) {
   const router = useRouter()
-  const [diasValidade, setDiasValidade] = useState(7)
+
+  // Inicializa diasValidade na ordem de prioridade:
+  // 1. Se já foi enviada, calcula expira_em - enviada_em
+  // 2. Senão, lê do localStorage (último valor que o user escolheu)
+  // 3. Senão, default 7
+  const calcularDiasIniciais = (): number => {
+    if (enviadaEm && expiraEm) {
+      const diff = Math.round((new Date(expiraEm).getTime() - new Date(enviadaEm).getTime()) / 86400000)
+      if ([3, 7, 14, 30].includes(diff)) return diff
+    }
+    if (typeof window !== 'undefined') {
+      const salvo = parseInt(localStorage.getItem(LS_DIAS_VALIDADE) ?? '7')
+      if ([3, 7, 14, 30].includes(salvo)) return salvo
+    }
+    return 7
+  }
+  const [diasValidade, setDiasValidadeState] = useState(calcularDiasIniciais)
+  const setDiasValidade = (n: number) => {
+    setDiasValidadeState(n)
+    if (typeof window !== 'undefined') localStorage.setItem(LS_DIAS_VALIDADE, String(n))
+  }
+
   const [link, setLink] = useState<{ url: string; expira: string } | null>(
     token ? { url: `${baseUrl}/vistoria/${token}`, expira: expiraEm ?? '' } : null
   )
   const [copiado, setCopiado] = useState(false)
   const [isPending, startTransition] = useTransition()
+
+  const BotaoPreviewPDF = (
+    <a
+      href={`/api/vistorias/${vistoriaId}`}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-1.5 text-xs font-semibold bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg"
+    >
+      <FileText size={12} /> Pré-visualizar PDF
+    </a>
+  )
 
   const enviar = () => {
     startTransition(async () => {
@@ -205,10 +240,13 @@ function BlocoStatus({
   if (status === 'enviada' && link) {
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
-        <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
-          <Clock size={15} /> Aguardando inquilino assinar
-          {link.expira && <span className="text-xs font-normal">· expira em {new Date(link.expira).toLocaleDateString('pt-BR')}</span>}
-        </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
+            <Clock size={15} /> Aguardando inquilino assinar
+            {link.expira && <span className="text-xs font-normal">· expira em {new Date(link.expira).toLocaleDateString('pt-BR')}</span>}
+          </p>
+          {BotaoPreviewPDF}
+        </div>
         <div className="bg-white border border-amber-100 rounded-lg p-2 font-mono text-xs break-all text-gray-700">
           {link.url}
         </div>
@@ -230,9 +268,12 @@ function BlocoStatus({
   // status === 'rascunho'
   return (
     <div className="bg-violet-50 border border-violet-200 rounded-2xl p-4 space-y-3">
-      <p className="text-sm font-semibold text-violet-900 flex items-center gap-2">
-        <Pencil size={14} /> Rascunho — preencha os itens e envie pro inquilino quando estiver pronto
-      </p>
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <p className="text-sm font-semibold text-violet-900 flex items-center gap-2">
+          <Pencil size={14} /> Rascunho — preencha os itens e envie pro inquilino quando estiver pronto
+        </p>
+        {BotaoPreviewPDF}
+      </div>
       {editavel && (
         <div className="flex flex-wrap items-center gap-2">
           <label className="text-xs text-violet-900">
