@@ -72,17 +72,26 @@ export async function GET(
       { onConflict: 'id', ignoreDuplicates: true }
     )
 
-  // Dados do emitente (perfil + site_config como fallback de logo)
-  const { data: perfil, error: perfilSelectErr } = await admin
+  // Dados do emitente. select('*') é resiliente a colunas ausentes no
+  // schema do usuário (ex: endereco_estado vs endereco_uf).
+  type PerfilRow = {
+    nome?: string | null; cpf?: string | null; telefone?: string | null
+    endereco_logradouro?: string | null; endereco_numero?: string | null
+    endereco_bairro?: string | null; endereco_cidade?: string | null
+    endereco_estado?: string | null; endereco_uf?: string | null
+    recibo_logo_url?: string | null; recibo_emitente_nome?: string | null
+    recibo_assinatura_url?: string | null
+    recibo_mostrar_linha?: boolean | null
+    recibo_assinatura_sobre_linha?: boolean | null
+  }
+  const { data: perfilRaw, error: perfilSelectErr } = await admin
     .from('perfis')
-    .select(`
-      nome, cpf, telefone,
-      endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_estado,
-      recibo_logo_url, recibo_emitente_nome, recibo_assinatura_url,
-      recibo_mostrar_linha, recibo_assinatura_sobre_linha
-    `)
+    .select('*')
     .eq('id', user.id)
     .maybeSingle()
+  const perfil = perfilRaw as PerfilRow | null
+  // UF pode ter nome diferente em schemas antigos
+  const ufPerfil = perfil?.endereco_estado ?? perfil?.endereco_uf ?? null
 
   const { data: configs } = await admin
     .from('site_config')
@@ -97,8 +106,8 @@ export async function GET(
     perfil?.endereco_logradouro && perfil.endereco_numero
       ? `${perfil.endereco_logradouro}, ${perfil.endereco_numero}` : perfil?.endereco_logradouro,
     perfil?.endereco_bairro,
-    perfil?.endereco_cidade && perfil?.endereco_estado
-      ? `${perfil.endereco_cidade}/${perfil.endereco_estado}` : perfil?.endereco_cidade,
+    perfil?.endereco_cidade && ufPerfil
+      ? `${perfil.endereco_cidade}/${ufPerfil}` : perfil?.endereco_cidade,
   ].filter(Boolean).join(' - ')
 
   const inquilinoRaw = (contratoRaw as unknown as { inquilino: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] }).inquilino
