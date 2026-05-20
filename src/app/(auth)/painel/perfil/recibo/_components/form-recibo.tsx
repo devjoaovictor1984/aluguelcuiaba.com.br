@@ -97,16 +97,10 @@ export function FormRecibo(props: Props) {
               />
               <span className="text-sm text-gray-700">Mostrar linha de assinatura no recibo</span>
             </label>
-            {mostrarLinha && assinaturaUrl && (
-              <label className="flex items-center gap-2 cursor-pointer ml-6">
-                <input
-                  type="checkbox"
-                  checked={sobreLinha}
-                  onChange={e => setSobreLinha(e.target.checked)}
-                  className="w-4 h-4 accent-violet-600"
-                />
-                <span className="text-sm text-gray-700">Posicionar a imagem da assinatura sobre a linha</span>
-              </label>
+            {mostrarLinha && (
+              <p className="text-[11px] text-gray-400 ml-6">
+                Layout: assinatura PNG aparece acima da linha com um espaço, e o nome embaixo. Limpo e profissional.
+              </p>
             )}
             {!mostrarLinha && (
               <p className="text-[11px] text-gray-400 ml-6">
@@ -143,7 +137,6 @@ export function FormRecibo(props: Props) {
             logoUrl={logoUrl}
             assinaturaUrl={assinaturaUrl}
             mostrarLinha={mostrarLinha}
-            sobreLinha={sobreLinha}
             nomeAssinatura={nomeFinal}
           />
           <p className="text-[10px] text-gray-400 mt-3 text-center">
@@ -265,12 +258,11 @@ function UploadBox({
 }
 
 function PreviewRecibo({
-  logoUrl, assinaturaUrl, mostrarLinha, sobreLinha, nomeAssinatura,
+  logoUrl, assinaturaUrl, mostrarLinha, nomeAssinatura,
 }: {
   logoUrl: string | null
   assinaturaUrl: string | null
   mostrarLinha: boolean
-  sobreLinha: boolean
   nomeAssinatura: string
 }) {
   return (
@@ -316,36 +308,28 @@ function PreviewRecibo({
         </div>
       </div>
 
-      {/* Assinatura — área dinâmica */}
+      {/* Assinatura — assinatura PNG acima, espaço, linha embaixo */}
       <div className="mt-auto pt-4">
         <div className="flex justify-center">
-          <div className="w-3/5 relative">
-            {/* Imagem da assinatura sobre a linha */}
-            {assinaturaUrl && sobreLinha && mostrarLinha && (
-              <div className="relative h-7 -mb-2">
+          <div className="w-3/5">
+            {/* Imagem da assinatura — sempre acima da linha com espaço */}
+            {assinaturaUrl && (
+              <div className="relative h-7 mb-1.5">
                 <Image src={assinaturaUrl} alt="assinatura" fill className="object-contain" unoptimized />
               </div>
             )}
-            {/* Imagem da assinatura sem linha */}
-            {assinaturaUrl && !mostrarLinha && (
-              <div className="relative h-7 mb-1">
-                <Image src={assinaturaUrl} alt="assinatura" fill className="object-contain" unoptimized />
-              </div>
-            )}
-            {/* Linha */}
-            {mostrarLinha && (
+            {/* Linha + nome (se ativada) */}
+            {mostrarLinha ? (
               <div className="border-t border-gray-900 pt-0.5 text-center text-[7px] text-gray-700">
                 {nomeAssinatura}
               </div>
-            )}
-            {!mostrarLinha && !assinaturaUrl && (
-              <div className="text-center text-[7px] text-gray-300 italic">
-                (sem linha de assinatura)
-              </div>
-            )}
-            {!mostrarLinha && assinaturaUrl && (
+            ) : assinaturaUrl ? (
               <div className="text-center text-[7px] text-gray-700">
                 {nomeAssinatura}
+              </div>
+            ) : (
+              <div className="text-center text-[7px] text-gray-300 italic">
+                (sem linha de assinatura)
               </div>
             )}
           </div>

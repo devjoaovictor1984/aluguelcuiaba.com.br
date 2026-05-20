@@ -324,29 +324,28 @@ export function ReciboDocument({ data }: { data: ReciboData }) {
 
 function Assinatura({ data }: { data: ReciboData }) {
   const mostrarLinha = data.mostrar_linha_assinatura !== false
-  const sobreLinha = data.assinatura_sobre_linha !== false
   const nome = data.assinatura_nome || data.emitente_nome
 
   return (
-    <View style={{ marginTop: 50 }}>
+    <View style={{ marginTop: 60 }}>
       <View style={{ flexDirection: 'row', justifyContent: 'center' }}>
         <View style={{ flex: 1 }} />
-        <View style={{ flex: 2, position: 'relative' }}>
-          {/* Imagem da assinatura, posicionada sobre a linha ou logo acima */}
+        <View style={{ flex: 2 }}>
+          {/* Imagem da assinatura — acima da linha, com espaço (sempre). */}
           {data.assinatura_url && (
             <Image
               src={data.assinatura_url}
               style={{
                 width: '70%',
-                height: 50,
+                height: 45,
                 alignSelf: 'center',
-                marginBottom: sobreLinha && mostrarLinha ? -42 : -6,
+                marginBottom: 14,
                 objectFit: 'contain',
               }}
             />
           )}
 
-          {/* Linha + nome (opcionais) */}
+          {/* Linha + nome embaixo */}
           {mostrarLinha ? (
             <View style={{
               borderTopWidth: 1,
