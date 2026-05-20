@@ -1,5 +1,5 @@
 /* eslint-disable jsx-a11y/alt-text */
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import { Document, Page, Text, View, StyleSheet, Image, Link } from '@react-pdf/renderer'
 import { LABEL_ESTADO, type EstadoItem } from '@/lib/vistorias/modelos'
 
 export interface VistoriaPDFItem {
@@ -31,6 +31,9 @@ export interface VistoriaPDFData {
   inquilino_nome: string
   inquilino_cpf: string | null
   itens: VistoriaPDFItem[]
+  // Fotos por escopo (além das vinculadas a item)
+  fotos_gerais?: string[]                       // sem cômodo nem item
+  fotos_por_comodo?: Record<string, string[]>   // só cômodo
 }
 
 const roxo = '#7c3aed'
@@ -138,19 +141,26 @@ const styles = StyleSheet.create({
   fotosLinha: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 3,
-    marginTop: 4,
+    gap: 4,
+    marginTop: 6,
   },
   foto: {
-    width: 50,
-    height: 50,
-    borderRadius: 3,
+    width: 120,
+    height: 90,
+    borderRadius: 4,
     objectFit: 'cover',
   },
   fotoInquilino: {
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: '#3b82f6',
     borderStyle: 'solid',
+  },
+  fotoLegenda: {
+    fontSize: 6,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginTop: 1,
+    width: 120,
   },
 
   assinaturaBox: {
@@ -253,10 +263,39 @@ export function VistoriaDocument({ data }: { data: VistoriaPDFData }) {
           </View>
         )}
 
+        {/* Fotos gerais (escopo do imóvel todo) */}
+        {data.fotos_gerais && data.fotos_gerais.length > 0 && (
+          <View style={{ marginBottom: 10 }} wrap={false}>
+            <Text style={styles.comodoHeader}>Fotos gerais</Text>
+            <View style={styles.fotosLinha}>
+              {data.fotos_gerais.slice(0, 12).map((url, i) => (
+                <View key={i}>
+                  <Link src={url}>
+                    <Image src={url} style={styles.foto} />
+                  </Link>
+                  <Text style={styles.fotoLegenda}>toque pra ampliar</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
+
         {/* Itens por cômodo */}
         {Object.entries(grupos).map(([comodo, itens]) => (
           <View key={comodo} wrap={false}>
             <Text style={styles.comodoHeader}>{comodo}</Text>
+            {data.fotos_por_comodo?.[comodo] && data.fotos_por_comodo[comodo].length > 0 && (
+              <View style={[styles.fotosLinha, { marginBottom: 4 }]}>
+                {data.fotos_por_comodo[comodo].slice(0, 12).map((url, i) => (
+                  <View key={i}>
+                    <Link src={url}>
+                      <Image src={url} style={styles.foto} />
+                    </Link>
+                    <Text style={styles.fotoLegenda}>toque pra ampliar</Text>
+                  </View>
+                ))}
+              </View>
+            )}
             {itens.map(it => {
               const cor = COR_ESTADO[it.estado]
               const todasFotos = [
@@ -275,15 +314,22 @@ export function VistoriaDocument({ data }: { data: VistoriaPDFData }) {
                     )}
                     {todasFotos.length > 0 && (
                       <View style={styles.fotosLinha}>
-                        {todasFotos.slice(0, 6).map((f, i) => (
-                          <Image
-                            key={i}
-                            src={f.url}
-                            style={[
-                              styles.foto,
-                              f.origem === 'inquilino' ? styles.fotoInquilino : {},
-                            ]}
-                          />
+                        {todasFotos.slice(0, 8).map((f, i) => (
+                          <View key={i}>
+                            {/* Link envolve a imagem — clicar abre o original em tela cheia no navegador */}
+                            <Link src={f.url}>
+                              <Image
+                                src={f.url}
+                                style={[
+                                  styles.foto,
+                                  f.origem === 'inquilino' ? styles.fotoInquilino : {},
+                                ]}
+                              />
+                            </Link>
+                            <Text style={styles.fotoLegenda}>
+                              {f.origem === 'inquilino' ? '(inquilino) ' : ''}toque pra ampliar
+                            </Text>
+                          </View>
                         ))}
                       </View>
                     )}

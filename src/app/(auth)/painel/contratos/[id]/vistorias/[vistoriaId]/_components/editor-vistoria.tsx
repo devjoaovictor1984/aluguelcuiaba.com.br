@@ -414,16 +414,26 @@ function FotosGerais({ vistoriaId, fotos, editavel }: {
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [isPending, startTransition] = useTransition()
+  const [progresso, setProgresso] = useState<{ feitas: number; total: number } | null>(null)
 
   if (!editavel && fotos.length === 0) return null
 
-  const subir = (file: File) => {
-    const fd = new FormData()
-    fd.set('vistoria_id', vistoriaId)
-    fd.set('file', file)
+  const subirVarias = (files: FileList) => {
+    const lista = Array.from(files)
+    if (lista.length === 0) return
+    setProgresso({ feitas: 0, total: lista.length })
     startTransition(async () => {
-      const r = await uploadFotoVistoria(fd)
-      if (r.error) { alert(r.error); return }
+      let i = 0
+      for (const file of lista) {
+        const fd = new FormData()
+        fd.set('vistoria_id', vistoriaId)
+        fd.set('file', file)
+        const r = await uploadFotoVistoria(fd)
+        if (r.error) { alert(`Foto ${i + 1}: ${r.error}`); break }
+        i += 1
+        setProgresso({ feitas: i, total: lista.length })
+      }
+      setProgresso(null)
       router.refresh()
     })
   }
@@ -438,10 +448,10 @@ function FotosGerais({ vistoriaId, fotos, editavel }: {
               ref={fileRef}
               type="file"
               accept="image/jpeg,image/png,image/webp,image/heic"
+              multiple
               className="hidden"
               onChange={e => {
-                const f = e.target.files?.[0]
-                if (f) subir(f)
+                if (e.target.files && e.target.files.length > 0) subirVarias(e.target.files)
                 e.target.value = ''
               }}
             />
@@ -452,7 +462,7 @@ function FotosGerais({ vistoriaId, fotos, editavel }: {
               className="flex items-center gap-1 text-xs bg-violet-50 hover:bg-violet-100 text-violet-700 px-2.5 py-1.5 rounded-lg"
             >
               {isPending ? <Loader2 size={11} className="animate-spin" /> : <Camera size={11} />}
-              Adicionar foto
+              {progresso ? `Enviando ${progresso.feitas}/${progresso.total}` : 'Adicionar fotos'}
             </button>
           </>
         )}
@@ -485,15 +495,25 @@ function ComodoCard({ comodo, itens, fotos, fotosComodo, vistoriaId, editavel }:
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
   const [isPendingComodo, startTransitionComodo] = useTransition()
+  const [progressoComodo, setProgressoComodo] = useState<{ feitas: number; total: number } | null>(null)
 
-  const subirComodo = (file: File) => {
-    const fd = new FormData()
-    fd.set('vistoria_id', vistoriaId)
-    fd.set('comodo', comodo)
-    fd.set('file', file)
+  const subirComodoVarias = (files: FileList) => {
+    const lista = Array.from(files)
+    if (lista.length === 0) return
+    setProgressoComodo({ feitas: 0, total: lista.length })
     startTransitionComodo(async () => {
-      const r = await uploadFotoVistoria(fd)
-      if (r.error) { alert(r.error); return }
+      let i = 0
+      for (const file of lista) {
+        const fd = new FormData()
+        fd.set('vistoria_id', vistoriaId)
+        fd.set('comodo', comodo)
+        fd.set('file', file)
+        const r = await uploadFotoVistoria(fd)
+        if (r.error) { alert(`Foto ${i + 1}: ${r.error}`); break }
+        i += 1
+        setProgressoComodo({ feitas: i, total: lista.length })
+      }
+      setProgressoComodo(null)
       router.refresh()
     })
   }
@@ -508,10 +528,10 @@ function ComodoCard({ comodo, itens, fotos, fotosComodo, vistoriaId, editavel }:
               ref={fileRef}
               type="file"
               accept="image/jpeg,image/png,image/webp,image/heic"
+              multiple
               className="hidden"
               onChange={e => {
-                const f = e.target.files?.[0]
-                if (f) subirComodo(f)
+                if (e.target.files && e.target.files.length > 0) subirComodoVarias(e.target.files)
                 e.target.value = ''
               }}
             />
@@ -520,10 +540,10 @@ function ComodoCard({ comodo, itens, fotos, fotosComodo, vistoriaId, editavel }:
               onClick={() => fileRef.current?.click()}
               disabled={isPendingComodo}
               className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-violet-700 hover:bg-violet-50 px-2 py-1 rounded-md"
-              title="Adicionar foto deste cômodo (sem amarrar a item específico)"
+              title="Adicionar fotos deste cômodo (pode selecionar várias)"
             >
               {isPendingComodo ? <Loader2 size={10} className="animate-spin" /> : <Camera size={10} />}
-              Foto do cômodo
+              {progressoComodo ? `${progressoComodo.feitas}/${progressoComodo.total}` : 'Fotos do cômodo'}
             </button>
           </>
         )}
@@ -582,14 +602,20 @@ function ItemRow({ item, fotos, vistoriaId, editavel }: {
     })
   }
 
-  const upload = async (file: File) => {
-    const fd = new FormData()
-    fd.set('vistoria_id', vistoriaId)
-    fd.set('vistoria_item_id', item.id)
-    fd.set('file', file)
+  const uploadVarias = (files: FileList) => {
+    const lista = Array.from(files)
+    if (lista.length === 0) return
     startTransition(async () => {
-      const r = await uploadFotoVistoria(fd)
-      if (r.error) { alert(r.error); return }
+      let i = 0
+      for (const file of lista) {
+        const fd = new FormData()
+        fd.set('vistoria_id', vistoriaId)
+        fd.set('vistoria_item_id', item.id)
+        fd.set('file', file)
+        const r = await uploadFotoVistoria(fd)
+        if (r.error) { alert(`Foto ${i + 1}: ${r.error}`); break }
+        i += 1
+      }
       router.refresh()
     })
   }
@@ -633,10 +659,10 @@ function ItemRow({ item, fotos, vistoriaId, editavel }: {
                 ref={fileRef}
                 type="file"
                 accept="image/jpeg,image/png,image/webp,image/heic"
+                multiple
                 className="hidden"
                 onChange={e => {
-                  const f = e.target.files?.[0]
-                  if (f) upload(f)
+                  if (e.target.files && e.target.files.length > 0) uploadVarias(e.target.files)
                   e.target.value = ''
                 }}
               />

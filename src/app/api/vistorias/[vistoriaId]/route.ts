@@ -61,27 +61,51 @@ export async function GET(
   if (error || !vistoria) return NextResponse.json({ error: 'Vistoria não encontrada' }, { status: 404 })
   if (vistoria.user_id !== user.id) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
 
-  // Carrega itens + fotos
-  const [{ data: itensRaw }, { data: fotosRaw }] = await Promise.all([
-    admin.from('vistoria_itens')
-      .select('id, comodo, item, estado, observacao, observacao_inquilino, ordem')
-      .eq('vistoria_id', vistoriaId)
-      .order('ordem', { ascending: true }),
-    admin.from('vistoria_fotos')
-      .select('id, vistoria_item_id, arquivo_path, origem')
-      .eq('vistoria_id', vistoriaId)
-      .order('created_at', { ascending: true }),
-  ])
+  // Carrega itens + fotos. Tenta SELECT com comodo; se v22 não rodou, fallback.
+  const itensQ = admin.from('vistoria_itens')
+    .select('id, comodo, item, estado, observacao, observacao_inquilino, ordem')
+    .eq('vistoria_id', vistoriaId)
+    .order('ordem', { ascending: true })
 
-  // Resolve URLs públicas pra fotos
+  type FotoCarregada = { vistoria_item_id: string | null; comodo: string | null; arquivo_path: string; origem: string }
+  let fotosRaw: FotoCarregada[] = []
+  {
+    const r = await admin.from('vistoria_fotos')
+      .select('id, vistoria_item_id, comodo, arquivo_path, origem')
+      .eq('vistoria_id', vistoriaId)
+      .order('created_at', { ascending: true })
+    if (r.error?.message?.includes('comodo')) {
+      const r2 = await admin.from('vistoria_fotos')
+        .select('id, vistoria_item_id, arquivo_path, origem')
+        .eq('vistoria_id', vistoriaId)
+        .order('created_at', { ascending: true })
+      fotosRaw = ((r2.data ?? []) as Array<Omit<FotoCarregada, 'comodo'>>).map(f => ({ ...f, comodo: null }))
+    } else {
+      fotosRaw = (r.data ?? []) as FotoCarregada[]
+    }
+  }
+  const { data: itensRaw } = await itensQ
+
+  // 3 escopos de fotos:
+  //  1. Item → linha do item
+  //  2. Cômodo → galeria no header do cômodo
+  //  3. Geral → galeria no topo
   const fotosPorItem: Record<string, { corretor: string[]; inquilino: string[] }> = {}
-  for (const f of (fotosRaw ?? [])) {
-    if (!f.vistoria_item_id) continue
+  const fotosPorComodo: Record<string, string[]> = {}
+  const fotosGerais: string[] = []
+  for (const f of fotosRaw) {
     const { data } = admin.storage.from('vistorias-fotos').getPublicUrl(f.arquivo_path)
-    const k = f.vistoria_item_id
-    if (!fotosPorItem[k]) fotosPorItem[k] = { corretor: [], inquilino: [] }
-    if (f.origem === 'inquilino') fotosPorItem[k].inquilino.push(data.publicUrl)
-    else fotosPorItem[k].corretor.push(data.publicUrl)
+    if (f.vistoria_item_id) {
+      const k = f.vistoria_item_id
+      if (!fotosPorItem[k]) fotosPorItem[k] = { corretor: [], inquilino: [] }
+      if (f.origem === 'inquilino') fotosPorItem[k].inquilino.push(data.publicUrl)
+      else fotosPorItem[k].corretor.push(data.publicUrl)
+    } else if (f.comodo) {
+      if (!fotosPorComodo[f.comodo]) fotosPorComodo[f.comodo] = []
+      fotosPorComodo[f.comodo].push(data.publicUrl)
+    } else {
+      fotosGerais.push(data.publicUrl)
+    }
   }
 
   // Perfil emitente
@@ -137,6 +161,8 @@ export async function GET(
     inquilino_nome: inquilino?.nome ?? '—',
     inquilino_cpf: inquilino?.cpf_cnpj ?? null,
     itens,
+    fotos_gerais: fotosGerais,
+    fotos_por_comodo: fotosPorComodo,
   }
 
   const element = React.createElement(VistoriaDocument, { data: dados }) as unknown as React.ReactElement<DocumentProps>
