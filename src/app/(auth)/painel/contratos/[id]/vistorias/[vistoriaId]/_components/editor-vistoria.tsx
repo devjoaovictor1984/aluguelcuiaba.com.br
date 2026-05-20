@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   Loader2, Send, X, Trash2, Plus, Camera, Copy, MessageCircle, Check,
-  Save, Clock, CheckCircle2, AlertCircle, Pencil, RotateCcw,
+  Save, Clock, CheckCircle2, AlertCircle, Pencil, RotateCcw, FileText,
 } from 'lucide-react'
 import { LABEL_ESTADO, COR_ESTADO, type EstadoItem } from '@/lib/vistorias/modelos'
 import {
@@ -172,9 +172,19 @@ function BlocoStatus({
   if (status === 'assinada') {
     return (
       <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
-        <p className="text-sm font-bold text-green-900 flex items-center gap-2">
-          <CheckCircle2 size={15} /> Vistoria assinada em {assinadaEm ? new Date(assinadaEm).toLocaleString('pt-BR') : '—'}
-        </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <p className="text-sm font-bold text-green-900 flex items-center gap-2">
+            <CheckCircle2 size={15} /> Vistoria assinada em {assinadaEm ? new Date(assinadaEm).toLocaleString('pt-BR') : '—'}
+          </p>
+          <a
+            href={`/api/vistorias/${vistoriaId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 text-xs font-semibold bg-green-700 hover:bg-green-800 text-white px-3 py-1.5 rounded-lg"
+          >
+            <FileText size={12} /> Baixar PDF
+          </a>
+        </div>
         {inquilinoObservacoes && (
           <div className="mt-3 bg-white border border-green-100 rounded-xl p-3">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-green-700 mb-1">Observações do inquilino</p>
