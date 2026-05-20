@@ -22,6 +22,20 @@ async function userAtual(): Promise<{ id: string } | null> {
   return user ? { id: user.id } : null
 }
 
+/**
+ * Garante que existe uma row em `perfis` para o user_id antes de
+ * tentar UPDATE. Resolve casos em que o usuário foi criado direto via
+ * SQL no Supabase (ou o trigger original de criação de perfis falhou)
+ * e portanto não tinha row — fazendo .update silenciosamente afetar
+ * 0 linhas e o "Salvo!" não persistir nada.
+ */
+async function garantirPerfil(userId: string): Promise<void> {
+  const admin = createAdminClient()
+  await admin
+    .from('perfis')
+    .upsert({ id: userId }, { onConflict: 'id', ignoreDuplicates: true })
+}
+
 export async function uploadArquivoRecibo(formData: FormData) {
   const user = await userAtual()
   if (!user) return { error: 'Não autenticado.' }
@@ -60,6 +74,7 @@ export async function uploadArquivoRecibo(formData: FormData) {
   // cache-buster pra não pegar versão antiga
   const url = `${pub.publicUrl}?v=${Date.now()}`
 
+  await garantirPerfil(user.id)
   const campo = tipo === 'logo' ? 'recibo_logo_url' : 'recibo_assinatura_url'
   const { error: dbErr } = await admin
     .from('perfis')
@@ -118,6 +133,7 @@ export async function salvarConfigRecibo(input: ConfigReciboInput) {
     payload.recibo_assinatura_sobre_linha = input.recibo_assinatura_sobre_linha
   }
 
+  await garantirPerfil(user.id)
   const { error } = await admin.from('perfis').update(payload).eq('id', user.id)
   if (error) return { error: error.message }
 
