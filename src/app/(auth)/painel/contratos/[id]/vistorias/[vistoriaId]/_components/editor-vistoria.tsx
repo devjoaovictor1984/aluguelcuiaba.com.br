@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   Loader2, Send, X, Trash2, Plus, Camera, Copy, MessageCircle, Check,
-  Save, Clock, CheckCircle2, AlertCircle, Pencil, RotateCcw, FileText,
+  Save, Clock, CheckCircle2, AlertCircle, Pencil, RotateCcw, FileText, Eye,
 } from 'lucide-react'
 import { LABEL_ESTADO, COR_ESTADO, type EstadoItem } from '@/lib/vistorias/modelos'
 import {
@@ -182,14 +182,25 @@ function BlocoStatus({
   const [isPending, startTransition] = useTransition()
 
   const BotaoPreviewPDF = (
-    <a
-      href={`/api/vistorias/${vistoriaId}`}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="flex items-center gap-1.5 text-xs font-semibold bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg"
-    >
-      <FileText size={12} /> Pré-visualizar PDF
-    </a>
+    <div className="flex flex-wrap gap-1.5">
+      <a
+        href={`/vistoria/preview/${vistoriaId}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 px-3 py-1.5 rounded-lg"
+        title="Abre como o inquilino verá — nada salva"
+      >
+        <Eye size={12} /> Ver como inquilino
+      </a>
+      <a
+        href={`/api/vistorias/${vistoriaId}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="flex items-center gap-1.5 text-xs font-semibold bg-white hover:bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-lg"
+      >
+        <FileText size={12} /> PDF
+      </a>
+    </div>
   )
 
   const enviar = () => {

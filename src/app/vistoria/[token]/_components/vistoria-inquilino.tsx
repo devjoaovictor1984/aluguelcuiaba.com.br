@@ -34,9 +34,11 @@ interface Props {
   qtdControles: number
   itens: ItemPub[]
   fotos: FotoPub[]
+  /** Modo pré-visualização: todas as ações viram no-op com alert. */
+  previewMode?: boolean
 }
 
-export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdControles, itens: itensIniciais, fotos: fotosIniciais }: Props) {
+export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdControles, itens: itensIniciais, fotos: fotosIniciais, previewMode = false }: Props) {
   const [itens, setItens] = useState(itensIniciais)
   const [fotos, setFotos] = useState(fotosIniciais)
   const [observacoesFinal, setObservacoesFinal] = useState('')
@@ -63,7 +65,10 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
     setItens(curr => curr.map(it => it.id === itemId ? { ...it, observacao_inquilino: valor } : it))
   }
 
+  const avisoPreview = () => alert('🧪 Modo pré-visualização — nada é salvo. No envio real, isto ficaria gravado.')
+
   const onFoto = (item: ItemPub, file: File) => {
+    if (previewMode) { avisoPreview(); return }
     const fd = new FormData()
     fd.set('vistoria_item_id', item.id)
     fd.set('file', file)
@@ -76,6 +81,7 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
 
   // Salva observação no blur (debounced via blur natural)
   const onBlurObs = (itemId: string, valor: string) => {
+    if (previewMode) return  // silenciosamente ignora — não polui com alerts
     startTransition(async () => {
       await inquilinoObservacaoItem(token, itemId, valor)
     })
@@ -129,6 +135,10 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
   const assinar = () => {
     setErroGlobal('')
     if (canvasVazio) { setErroGlobal('Desenhe sua assinatura no quadro abaixo.'); return }
+    if (previewMode) {
+      alert('🧪 Pré-visualização — no envio real, aqui a vistoria seria assinada e fechada.\n\nO PDF final teria essa assinatura embedada, mais IP e data/hora.')
+      return
+    }
     const c = canvasRef.current!
     const dataUrl = c.toDataURL('image/png')
     startTransition(async () => {
@@ -141,6 +151,10 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
   const recusar = () => {
     setErroGlobal('')
     if (!recusarMotivo.trim()) { setErroGlobal('Diga por que está recusando.'); return }
+    if (previewMode) {
+      alert('🧪 Pré-visualização — no envio real, a vistoria ficaria com status "recusada" e o motivo apareceria no painel.')
+      return
+    }
     startTransition(async () => {
       const r = await inquilinoRecusar(token, recusarMotivo)
       if (r.error) { setErroGlobal(r.error); return }
