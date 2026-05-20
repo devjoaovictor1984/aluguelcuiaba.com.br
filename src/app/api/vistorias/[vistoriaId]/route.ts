@@ -20,14 +20,16 @@ export async function GET(
   const debug = new URL(request.url).searchParams.get('debug') === '1'
   const admin = createAdminClient()
 
-  // Carrega vistoria + contrato + partes
+  // Carrega vistoria + contrato + partes.
+  // FK explícita (vistorias_contrato_id_fkey) pra evitar ambiguidade com
+  // os FKs reversos contratos_locacao.vistoria_entrada_id/saida_id.
   const { data: vistoria, error } = await admin
     .from('vistorias')
     .select(`
       id, user_id, tipo, status, data_vistoria, observacoes_gerais,
       qtd_chaves, qtd_controles, assinada_em, assinada_ip,
       assinatura_inquilino_url, inquilino_observacoes,
-      contrato:contratos_locacao!inner(
+      contrato:contratos_locacao!vistorias_contrato_id_fkey(
         codigo,
         inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
         imovel:imoveis(titulo, endereco_resumido, bairro:bairros(nome))

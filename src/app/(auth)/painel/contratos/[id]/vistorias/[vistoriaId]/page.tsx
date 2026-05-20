@@ -18,10 +18,12 @@ export default async function VistoriaPage({ params, searchParams }: Props) {
   const supabase = await createClient()
   const admin = createAdminClient()
 
-  // 1ª tentativa: query completa com joins
+  // 1ª tentativa: query completa com joins.
+  // Especifica !contrato_id pra desambiguar entre as FKs múltiplas
+  // (contrato_id na vistoria + vistoria_entrada_id/vistoria_saida_id no contrato).
   const { data: vistoriaJoin, error: erroJoin } = await supabase
     .from('vistorias')
-    .select(`*, contrato:contratos_locacao!inner(codigo, inquilino:pessoas!inquilino_id(nome, whatsapp, telefone), imovel:imoveis(titulo))`)
+    .select(`*, contrato:contratos_locacao!vistorias_contrato_id_fkey(codigo, inquilino:pessoas!inquilino_id(nome, whatsapp, telefone), imovel:imoveis(titulo))`)
     .eq('id', vistoriaId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
