@@ -64,12 +64,16 @@ export async function GET(
   // Defensiva: garante que a row em perfis existe (cobre user criado via
   // SQL direto sem trigger). Sem isso, o UPDATE em /perfil/recibo afeta
   // zero linhas e o usuário "salva" sem persistir nada.
-  await admin
+  const fallbackNome = (user.email?.split('@')[0] ?? 'Usuário').slice(0, 100)
+  const upsertRes = await admin
     .from('perfis')
-    .upsert({ id: user.id }, { onConflict: 'id', ignoreDuplicates: true })
+    .upsert(
+      { id: user.id, nome: fallbackNome, tipo: 'proprietario', plano: 'free' },
+      { onConflict: 'id', ignoreDuplicates: true }
+    )
 
   // Dados do emitente (perfil + site_config como fallback de logo)
-  const { data: perfil } = await admin
+  const { data: perfil, error: perfilSelectErr } = await admin
     .from('perfis')
     .select(`
       nome, cpf, telefone,
@@ -151,9 +155,13 @@ export async function GET(
   }
 
   // Endpoint de diagnóstico: ?debug=1 retorna o JSON em vez do PDF.
-  // Útil pra verificar o que o servidor está lendo do banco.
   if (debug) {
     return NextResponse.json({
+      user_id: user.id,
+      user_email: user.email,
+      upsert_error: upsertRes.error?.message ?? null,
+      upsert_status: upsertRes.status,
+      perfil_select_error: perfilSelectErr?.message ?? null,
       perfil_raw: perfil,
       logo_url_resolvida: logoUrl,
       logo_url_limpa: limparUrl(logoUrl),
