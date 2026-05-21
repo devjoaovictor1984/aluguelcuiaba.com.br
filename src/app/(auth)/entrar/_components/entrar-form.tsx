@@ -32,31 +32,15 @@ function EntrarFormInner({ logoUrl }: Props) {
   const [carregando, setCarregando] = useState(false)
   const [carregandoGoogle, setCarregandoGoogle] = useState(false)
   const [erro, setErro] = useState('')
-  const [verificando, setVerificando] = useState(true)
 
+  // Mostra o form imediatamente. Em paralelo, se já houver sessão, redireciona.
+  // Sem skeleton — evita classe inteira de bugs (HMR, Safari ITP, PWA isolado,
+  // localStorage bloqueado) onde a tela ficava travada no "verificando".
   useEffect(() => {
     const supabase = createClient()
-    let respondeu = false
-
-    // Timeout de 3s: se o getSession não voltar (Safari ITP, localStorage
-    // bloqueado, PWA isolado, etc.), mostra o form mesmo assim em vez de
-    // travar no skeleton. Pior caso, usuário re-loga manualmente.
-    const t = setTimeout(() => {
-      if (!respondeu) setVerificando(false)
-    }, 3000)
-
     supabase.auth.getSession().then(({ data: { session } }) => {
-      respondeu = true
-      clearTimeout(t)
       if (session) router.replace(next)
-      else setVerificando(false)
-    }).catch(() => {
-      respondeu = true
-      clearTimeout(t)
-      setVerificando(false)
-    })
-
-    return () => clearTimeout(t)
+    }).catch(() => {})
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEmailLogin = async (e: FormEvent) => {
@@ -93,21 +77,6 @@ function EntrarFormInner({ logoUrl }: Props) {
         redirectTo: `${window.location.origin}/auth/callback?next=${next}`,
       },
     })
-  }
-
-  if (verificando) {
-    return (
-      <div className="w-full max-w-sm space-y-4">
-        <div className="h-10 bg-gray-200 rounded-lg w-44 mx-auto animate-pulse" />
-        <div className="bg-white rounded-2xl border border-gray-100 p-8 space-y-3">
-          <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-4 bg-gray-100 rounded w-24 mx-auto animate-pulse" />
-          <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-11 bg-gray-100 rounded-xl animate-pulse" />
-          <div className="h-11 bg-violet-100 rounded-xl animate-pulse" />
-        </div>
-      </div>
-    )
   }
 
   return (
