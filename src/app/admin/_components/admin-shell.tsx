@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Home, Users, MapPin, FileText,
-  FileDown, Settings, ExternalLink, Menu, X, LogOut, ShieldCheck, Tag, LayoutList, Mail, Map, Bell, BarChart3,
+  FileDown, Settings, ExternalLink, Menu, X, LogOut, ShieldCheck, Tag, LayoutList, Mail, Map, Bell, BarChart3, HelpCircle,
 } from 'lucide-react'
 
 const NAV = [
@@ -23,6 +23,7 @@ const NAV = [
   { href: '/admin/geocode', label: 'Geocode', icon: Map },
   { href: '/admin/contratos', label: 'Contratos', icon: FileDown },
   { href: '/admin/seguros', label: 'Seguros', icon: ShieldCheck },
+  { href: '/admin/ajuda', label: 'Ajuda CRM', icon: HelpCircle },
   { href: '/admin/site', label: 'Site', icon: Settings },
 ]
 
