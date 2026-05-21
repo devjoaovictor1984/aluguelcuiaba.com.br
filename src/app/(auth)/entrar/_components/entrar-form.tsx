@@ -36,13 +36,27 @@ function EntrarFormInner({ logoUrl }: Props) {
 
   useEffect(() => {
     const supabase = createClient()
+    let respondeu = false
+
+    // Timeout de 3s: se o getSession não voltar (Safari ITP, localStorage
+    // bloqueado, PWA isolado, etc.), mostra o form mesmo assim em vez de
+    // travar no skeleton. Pior caso, usuário re-loga manualmente.
+    const t = setTimeout(() => {
+      if (!respondeu) setVerificando(false)
+    }, 3000)
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        router.replace(next)
-      } else {
-        setVerificando(false)
-      }
+      respondeu = true
+      clearTimeout(t)
+      if (session) router.replace(next)
+      else setVerificando(false)
+    }).catch(() => {
+      respondeu = true
+      clearTimeout(t)
+      setVerificando(false)
     })
+
+    return () => clearTimeout(t)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEmailLogin = async (e: FormEvent) => {
