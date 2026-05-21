@@ -3,13 +3,14 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { RefreshCw, CheckCircle2, Pause, RotateCcw, Pencil, Eye } from 'lucide-react'
-import { formatarPreco } from '@/lib/utils'
+import { PrecoImovel } from '@/components/preco-imovel'
 import { renovarAnuncio, mudarStatusImovel } from './actions'
 
 interface CardImovel {
   id: string
   titulo: string
   preco: number
+  preco_antigo?: number | null
   status: string
   expira_em: string
   visualizacoes: number
@@ -65,7 +66,7 @@ export function PainelImovelCard({ imovel }: { imovel: CardImovel }) {
 
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate text-sm">{imovel.titulo}</p>
-          <p className="text-orange-500 font-bold text-sm">{formatarPreco(imovel.preco)}</p>
+          <PrecoImovel preco={imovel.preco} precoAntigo={imovel.preco_antigo} size="sm" />
           <p className="text-xs text-gray-400">{imovel.bairro?.nome ?? '—'}</p>
         </div>
 

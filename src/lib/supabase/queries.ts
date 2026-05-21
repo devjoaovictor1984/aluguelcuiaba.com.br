@@ -134,7 +134,7 @@ export async function getImoveisParaMapa(filtros: FiltrosBusca = {}) {
 
   let query = supabase
     .from('imoveis')
-    .select('id, slug, titulo, preco, lat, lng, status, data_alugado, bairro:bairros(slug, nome), fotos(url, principal, ordem)')
+    .select('id, slug, titulo, preco, preco_antigo, lat, lng, status, data_alugado, bairro:bairros(slug, nome), fotos(url, principal, ordem)')
     .or(filtroStatusPublico())
     .not('lat', 'is', null)
     .not('lng', 'is', null)

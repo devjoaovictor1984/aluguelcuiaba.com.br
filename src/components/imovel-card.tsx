@@ -1,7 +1,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, BedDouble, Bath, Car } from 'lucide-react'
-import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, tempoRelativo, buildImovelUrl } from '@/lib/utils'
+import { gerarLinkWhatsApp, gerarMensagemWhatsApp, tempoRelativo, buildImovelUrl } from '@/lib/utils'
+import { PrecoImovel } from '@/components/preco-imovel'
 import { BotaoFavorito } from '@/components/botao-favorito'
 import type { Imovel } from '@/types'
 
@@ -60,10 +61,7 @@ export function ImovelCard({ imovel }: Props) {
       )}
 
       <div className="p-2.5 sm:p-3">
-        <p className="font-bold text-orange-500 text-base sm:text-lg leading-none">
-          {formatarPreco(imovel.preco)}
-          <span className="text-xs sm:text-sm font-normal text-gray-400">/mês</span>
-        </p>
+        <PrecoImovel preco={imovel.preco} precoAntigo={imovel.preco_antigo} size="md" perMes />
 
         <Link
           href={buildImovelUrl(imovel)}

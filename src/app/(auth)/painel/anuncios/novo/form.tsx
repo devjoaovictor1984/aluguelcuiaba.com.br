@@ -278,6 +278,7 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
   // ── valores ──
   const [custoTipo, setCustoTipo] = useState<'separado' | 'pacote'>('separado')
   const [preco, setPreco] = useState('')
+  const [precoAntigo, setPrecoAntigo] = useState('')
   const [taxaCondo, setTaxaCondo] = useState('')
   const [iptu, setIptu] = useState('')
   const [gasIncluso, setGasIncluso] = useState(false)
@@ -361,6 +362,10 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
         condominio_nome: condominioNome.trim() || null,
         endereco_resumido: [imovelLogradouro, imovelNumero, imovelComplemento].filter(Boolean).join(', ') || null,
         preco: precoNum,
+        preco_antigo: (() => {
+          const v = parseFloat(precoAntigo.replace(',', '.'))
+          return v > precoNum ? v : null
+        })(),
         taxa_condominio: custoTipo === 'separado' && taxaCondo ? parseFloat(taxaCondo.replace(',', '.')) : null,
         iptu: custoTipo === 'separado' && iptu ? parseFloat(iptu.replace(',', '.')) : null,
         quartos,
@@ -645,6 +650,14 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
               </Campo>
             </>
           )}
+
+          <Campo label="Estava por (promoção)" opcional>
+            <ValorInput value={precoAntigo} onChange={setPrecoAntigo} />
+            <p className="text-xs text-gray-400">
+              Use quando o aluguel <strong>abaixou</strong>. O valor antigo aparece riscado nos cards.
+              Só vale se for maior que o valor atual.
+            </p>
+          </Campo>
 
           {/* Inclusos */}
           <div>

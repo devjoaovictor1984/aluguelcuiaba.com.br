@@ -16,6 +16,7 @@ export interface PinImovel {
   slug: string | null
   titulo: string
   preco: number
+  preco_antigo?: number | null
   lat: number
   lng: number
   bairro?: { slug: string; nome: string } | { slug: string; nome: string }[] | null
@@ -295,7 +296,13 @@ export default function MapaImoveis({ imoveis, height = 360, containerClassName,
                       <img src={foto} alt={im.titulo} className="w-full h-full object-cover" />
                     </div>
                   )}
-                  <p className="font-bold text-gray-900 mb-0.5">{formatarPreco(im.preco)}<span className="font-normal text-gray-500 text-xs">/mês</span></p>
+                  <p className="font-bold text-gray-900 mb-0.5">
+                    {formatarPreco(im.preco)}
+                    <span className="font-normal text-gray-500 text-xs">/mês</span>
+                    {im.preco_antigo && im.preco_antigo > im.preco && (
+                      <span className="ml-1.5 text-gray-400 line-through font-normal text-[10px]">{formatarPreco(im.preco_antigo)}</span>
+                    )}
+                  </p>
                   <p className="text-gray-700 text-xs line-clamp-2 mb-1">{im.titulo}</p>
                   {dist !== null && (
                     <p className="text-[10px] text-blue-700 mb-2">

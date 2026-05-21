@@ -193,6 +193,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
     (imovel as unknown as Record<string, unknown>).custo_tipo as 'separado' | 'pacote' ?? 'separado'
   )
   const [preco, setPreco] = useState(String(imovel.preco))
+  const [precoAntigo, setPrecoAntigo] = useState(imovel.preco_antigo ? String(imovel.preco_antigo) : '')
   const [taxaCondo, setTaxaCondo] = useState(imovel.taxa_condominio ? String(imovel.taxa_condominio) : '')
   const [iptu, setIptu] = useState(imovel.iptu ? String(imovel.iptu) : '')
   const [gasIncluso, setGasIncluso] = useState((imovel as unknown as Record<string, unknown>).gas_incluso as boolean ?? false)
@@ -282,6 +283,10 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
         condominio_nome: condominioNome.trim() || null,
         endereco_resumido: enderecoMontado || null,
         preco: precoNum,
+        preco_antigo: (() => {
+          const v = parseFloat(precoAntigo.replace(',', '.'))
+          return v > precoNum ? v : null
+        })(),
         taxa_condominio: custoTipo === 'separado' && taxaCondo ? parseFloat(taxaCondo.replace(',', '.')) : null,
         iptu: custoTipo === 'separado' && iptu ? parseFloat(iptu.replace(',', '.')) : null,
         quartos,
@@ -564,6 +569,12 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
               <Campo label="IPTU mensal" opcional><ValorInput value={iptu} onChange={setIptu} /></Campo>
             </>
           )}
+          <Campo label="Estava por (promoção)" opcional>
+            <ValorInput value={precoAntigo} onChange={setPrecoAntigo} />
+            <p className="text-xs text-gray-400">
+              Use quando o aluguel <strong>abaixou</strong>. O valor antigo aparece riscado nos cards. Deixe em branco pra remover a promoção.
+            </p>
+          </Campo>
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">Incluso:</p>
             <div className="flex flex-wrap gap-2">

@@ -9,6 +9,7 @@ import { ImovelCard } from '@/components/imovel-card'
 import { getImovelPorId, getImoveisSimilares, getBannersSidebar } from '@/lib/supabase/queries'
 import { BannerSidebar } from '@/components/banner-sidebar'
 import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl } from '@/lib/utils'
+import { PrecoImovel } from '@/components/preco-imovel'
 import {
   MapPin, BedDouble, Bath, Car, Maximize2,
   PawPrint, Sofa, ChevronRight, CalendarClock, Eye,
@@ -132,10 +133,13 @@ export default async function ImovelPage({ params }: Props) {
 
             <header>
               <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-3xl font-extrabold text-orange-500 leading-none">
-                  {formatarPreco(imovel.preco)}
-                </span>
-                <span className="text-gray-400 text-sm">/mês</span>
+                <PrecoImovel
+                  preco={imovel.preco}
+                  precoAntigo={imovel.preco_antigo}
+                  size="xl"
+                  perMes
+                  badgePosition="inline"
+                />
                 {imovel.taxa_condominio && (
                   <span className="text-xs text-gray-400">
                     + {formatarPreco(imovel.taxa_condominio)} cond.
@@ -392,10 +396,7 @@ function AnuncianteCard({
     <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
       {showPrice && (
         <div className="pb-4 mb-4 border-b border-gray-100">
-          <div className="flex items-baseline gap-1.5 flex-wrap">
-            <span className="text-3xl font-extrabold text-orange-500">{formatarPreco(imovel.preco)}</span>
-            <span className="text-gray-400 text-sm">/mês</span>
-          </div>
+          <PrecoImovel preco={imovel.preco} precoAntigo={imovel.preco_antigo} size="xl" perMes badgePosition="inline" />
           {imovel.taxa_condominio && (
             <p className="text-xs text-gray-400 mt-1">
               + {formatarPreco(imovel.taxa_condominio)}/mês de condomínio

@@ -82,6 +82,7 @@ export interface Imovel {
   condominio_nome: string | null
   endereco_resumido: string | null
   preco: number
+  preco_antigo: number | null
   area_m2: number | null
   quartos: number
   suites: number

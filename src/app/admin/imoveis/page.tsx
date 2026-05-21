@@ -46,7 +46,7 @@ export default async function AdminImoveisPage({
   const supabase = createAdminClient()
   let query = supabase
     .from('imoveis')
-    .select('id, slug, titulo, tipo, preco, status, created_at, fotos(url), bairro:bairros(nome, slug), perfil:perfis(nome)', { count: 'exact' })
+    .select('id, slug, titulo, tipo, preco, preco_antigo, status, created_at, fotos(url), bairro:bairros(nome, slug), perfil:perfis(nome)', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + POR_PAGINA - 1)
 
@@ -114,7 +114,12 @@ export default async function AdminImoveisPage({
                     </td>
                     <td className="px-4 py-3 text-gray-600">{perfil?.nome ?? '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{TIPO_LABEL[im.tipo] ?? im.tipo}</td>
-                    <td className="px-4 py-3 font-semibold text-orange-500">{formatarPreco(im.preco)}</td>
+                    <td className="px-4 py-3 font-semibold text-orange-500">
+                      {formatarPreco(im.preco)}
+                      {im.preco_antigo != null && im.preco_antigo > im.preco && (
+                        <span className="ml-1.5 text-gray-400 line-through font-normal text-xs">{formatarPreco(im.preco_antigo)}</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3">
                       <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COR[im.status] ?? ''}`}>
                         {im.status}
