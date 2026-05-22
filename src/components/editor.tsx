@@ -1,10 +1,10 @@
 'use client'
 
 import { useEditor, EditorContent } from '@tiptap/react'
+// StarterKit já inclui Link e Underline desde tiptap 3.x — importar separado
+// dispara "Duplicate extension names found" no console.
 import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
-import Link from '@tiptap/extension-link'
 import TextAlign from '@tiptap/extension-text-align'
 import Color from '@tiptap/extension-color'
 import { TextStyle } from '@tiptap/extension-text-style'
@@ -63,10 +63,10 @@ export function Editor({ value, onChange, placeholder = 'Descreva o imóvel...',
 
   const editor = useEditor({
     extensions: [
-      StarterKit,
-      Underline,
+      StarterKit.configure({
+        link: { openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer' } },
+      }),
       Image.configure({ inline: false, allowBase64: false }),
-      Link.configure({ openOnClick: false, HTMLAttributes: { rel: 'noopener noreferrer' } }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TextStyle,
       Color,
