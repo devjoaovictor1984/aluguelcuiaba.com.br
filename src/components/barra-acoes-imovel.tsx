@@ -1,6 +1,6 @@
 'use client'
 
-import { gerarLinkWhatsApp, gerarMensagemWhatsApp, formatarPreco, buildImovelUrl } from '@/lib/utils'
+import { gerarLinkWhatsApp, gerarMensagemWhatsApp, formatarPreco, buildImovelUrl, labelComodo } from '@/lib/utils'
 import type { Imovel } from '@/types'
 
 const WPP_ICON = (
@@ -21,7 +21,7 @@ const SHARE_ICON = (
 export function BarraAcoesImovel({ imovel }: { imovel: Imovel }) {
   const url = `${process.env.NEXT_PUBLIC_APP_URL}${buildImovelUrl(imovel)}`
   const partes: string[] = []
-  if (imovel.quartos > 0) partes.push(`${imovel.quartos} quarto${imovel.quartos > 1 ? 's' : ''}`)
+  if (imovel.quartos > 0) partes.push(`${imovel.quartos} ${labelComodo(imovel.tipo, imovel.quartos)}`)
   if (imovel.banheiros > 0) partes.push(`${imovel.banheiros} banheiro${imovel.banheiros > 1 ? 's' : ''}`)
   if (imovel.vagas > 0) partes.push(`${imovel.vagas} vaga${imovel.vagas > 1 ? 's' : ''}`)
   if (imovel.area_m2) partes.push(`${imovel.area_m2}m²`)

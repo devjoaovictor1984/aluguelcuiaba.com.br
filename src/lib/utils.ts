@@ -68,6 +68,15 @@ export function buildImovelUrl(imovel: {
   return `/imoveis/${imovelSlug}`
 }
 
+// Imóvel comercial usa "sala(s)" no lugar de "quarto(s)" em todo o copy.
+// Mantemos um único helper pra não espalhar `if tipo === 'comercial'` no código.
+export function labelComodo(tipo: string | null | undefined, n: number, abrev = false): string {
+  const comercial = tipo === 'comercial'
+  if (abrev) return comercial ? 's' : 'q'
+  const palavra = comercial ? 'sala' : 'quarto'
+  return n > 1 ? `${palavra}s` : palavra
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

@@ -1,7 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { MapPin, BedDouble, Bath, Car } from 'lucide-react'
-import { gerarLinkWhatsApp, gerarMensagemWhatsApp, tempoRelativo, buildImovelUrl } from '@/lib/utils'
+import { gerarLinkWhatsApp, gerarMensagemWhatsApp, tempoRelativo, buildImovelUrl, labelComodo } from '@/lib/utils'
 import { PrecoImovel } from '@/components/preco-imovel'
 import { BotaoFavorito } from '@/components/botao-favorito'
 import type { Imovel } from '@/types'
@@ -81,7 +81,7 @@ export function ImovelCard({ imovel }: Props) {
         <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 text-xs text-gray-400 flex-wrap">
           {imovel.quartos > 0 && (
             <span className="flex items-center gap-0.5 sm:gap-1">
-              <BedDouble size={11} />{imovel.quartos}q
+              <BedDouble size={11} />{imovel.quartos}{labelComodo(imovel.tipo, imovel.quartos, true)}
             </span>
           )}
           {imovel.banheiros > 0 && (

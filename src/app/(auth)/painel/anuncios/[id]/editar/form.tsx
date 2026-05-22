@@ -505,7 +505,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
       {/* ── Características ── */}
       <Secao titulo="Características">
         <div className="space-y-5">
-          <PillGroup label="Quartos" options={QUARTOS_OPTS} value={quartos} onChange={setQuartos} />
+          <PillGroup label={tipo === 'comercial' ? 'Salas' : 'Quartos'} options={QUARTOS_OPTS} value={quartos} onChange={setQuartos} />
           <div className="h-px bg-gray-100" />
           <PillGroup label="Suítes" options={SUITES_OPTS} value={suites} onChange={setSuites} />
           <div className="h-px bg-gray-100" />

@@ -8,7 +8,7 @@ import { BarraAcoesImovel } from '@/components/barra-acoes-imovel'
 import { ImovelCard } from '@/components/imovel-card'
 import { getImovelPorId, getImoveisSimilares, getBannersSidebar } from '@/lib/supabase/queries'
 import { BannerSidebar } from '@/components/banner-sidebar'
-import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl } from '@/lib/utils'
+import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl, labelComodo } from '@/lib/utils'
 import { PrecoImovel } from '@/components/preco-imovel'
 import {
   MapPin, BedDouble, Bath, Car, Maximize2,
@@ -78,7 +78,7 @@ export default async function ImovelPage({ params }: Props) {
 
   const pageUrl = `${APP_URL}${buildImovelUrl(imovel as Imovel)}`
   const partesDetalhes: string[] = []
-  if (imovel.quartos > 0) partesDetalhes.push(`${imovel.quartos} quarto${imovel.quartos > 1 ? 's' : ''}`)
+  if (imovel.quartos > 0) partesDetalhes.push(`${imovel.quartos} ${labelComodo(imovel.tipo, imovel.quartos)}`)
   if (imovel.banheiros > 0) partesDetalhes.push(`${imovel.banheiros} banheiro${imovel.banheiros > 1 ? 's' : ''}`)
   if (imovel.vagas > 0) partesDetalhes.push(`${imovel.vagas} vaga${imovel.vagas > 1 ? 's' : ''}`)
   if (imovel.area_m2) partesDetalhes.push(`${imovel.area_m2}m²`)
@@ -172,7 +172,7 @@ export default async function ImovelPage({ params }: Props) {
 
             <div className="flex flex-wrap gap-2 mt-5">
               {imovel.quartos > 0 && (
-                <Chip icon={<BedDouble size={15} />} label={`${imovel.quartos} quarto${imovel.quartos > 1 ? 's' : ''}`} />
+                <Chip icon={<BedDouble size={15} />} label={`${imovel.quartos} ${labelComodo(imovel.tipo, imovel.quartos)}`} />
               )}
               {imovel.banheiros > 0 && (
                 <Chip icon={<Bath size={15} />} label={`${imovel.banheiros} banheiro${imovel.banheiros > 1 ? 's' : ''}`} />
@@ -225,7 +225,7 @@ export default async function ImovelPage({ params }: Props) {
               <dl className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                 <DetalheItem label="Tipo" value={tipoLabel[imovel.tipo] ?? imovel.tipo} />
                 {imovel.area_m2 && <DetalheItem label="Área" value={`${imovel.area_m2} m²`} />}
-                {imovel.quartos > 0 && <DetalheItem label="Quartos" value={String(imovel.quartos)} />}
+                {imovel.quartos > 0 && <DetalheItem label={imovel.tipo === 'comercial' ? 'Salas' : 'Quartos'} value={String(imovel.quartos)} />}
                 {imovel.banheiros > 0 && <DetalheItem label="Banheiros" value={String(imovel.banheiros)} />}
                 {imovel.vagas > 0 && <DetalheItem label="Vagas" value={String(imovel.vagas)} />}
                 {imovel.taxa_condominio && (
