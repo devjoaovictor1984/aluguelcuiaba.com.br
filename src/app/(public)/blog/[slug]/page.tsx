@@ -9,7 +9,11 @@ import { getCategorias, categoriasMap } from '@/lib/blog/categorias'
 import { getBannersSidebar } from '@/lib/supabase/queries'
 import { BannerSidebar } from '@/components/banner-sidebar'
 import { RegistrarViewPost } from '@/components/registrar-view-post'
-import { truncarComEllipsis } from '@/lib/utils'
+import { buildMetadata } from '@/lib/seo/metadata'
+import { sanitizeHtmlContent } from '@/lib/seo/sanitize'
+import { blogPostingJsonLd, breadcrumbJsonLd } from '@/lib/seo/jsonld'
+import { JsonLd } from '@/components/json-ld'
+import { Imagem } from '@/components/imagem'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
@@ -25,41 +29,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!post) return {}
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://aluguelcuiaba.com.br'
-  const url = `${appUrl}/blog/${post.slug}`
-  // SEO: title sweet spot é 50-60 chars (incluindo o " | AluguelCuiabá" do
-  // template do root, que tem 17 chars). Trunca o título do post em 43 chars.
-  const titulo = truncarComEllipsis(post.titulo, 43)
-  // SEO: meta description sweet spot é 120-155 chars. Trunca em 150.
-  const descricaoBruta = post.descricao ?? `Leia o artigo "${post.titulo}" no blog do AluguelCuiabá.`
-  const descricao = truncarComEllipsis(descricaoBruta, 150)
-  // Remove cache-buster (?t=...) que o upload adiciona — alguns crawlers rejeitam
-  const imagem = post.capa_url
-    ? post.capa_url.split('?')[0]
-    : `${appUrl}/og-default.jpg`
-
-  return {
-    title: titulo,
-    description: descricao,
-    keywords: post.tags && post.tags.length > 0 ? post.tags : undefined,
-    alternates: { canonical: url },
-    openGraph: {
-      type: 'article',
-      url,
-      title: titulo,
-      description: descricao,
-      siteName: 'AluguelCuiabá',
-      locale: 'pt_BR',
-      publishedTime: post.created_at,
-      images: [{ url: imagem, width: 1200, height: 630, alt: titulo }],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: titulo,
-      description: descricao,
-      images: [imagem],
-    },
-  }
+  return buildMetadata({
+    title: post.titulo,
+    description: post.descricao ?? `Leia o artigo "${post.titulo}" no blog do AluguelCuiabá.`,
+    path: `/blog/${post.slug}`,
+    image: post.capa_url,
+    type: 'article',
+    publishedTime: post.created_at,
+    keywords: post.tags ?? undefined,
+  })
 }
 
 function formatDate(d: string) {
@@ -71,11 +49,6 @@ function lerTempo(conteudo: string) {
   return Math.max(1, Math.ceil(palavras / 200))
 }
 
-// Garante que só exista UM h1 por página (o do hero). H1s vindos do editor
-// viram h2 — multiple-H1 é flag de SEO. h2 grátis ganha estilo prose-h2.
-function rebaixarH1(html: string): string {
-  return html.replace(/<h1(\s[^>]*)?>/gi, '<h2$1>').replace(/<\/h1>/gi, '</h2>')
-}
 
 interface Post {
   id: string; titulo: string; slug: string; descricao: string | null
@@ -138,63 +111,39 @@ export default async function BlogPostPage({ params }: Props) {
   const shareUrl = `${appUrl}/blog/${p.slug}`
   const shareTitle = encodeURIComponent(p.titulo)
 
-  // Texto plano do artigo (sem HTML) — usado no Schema.articleBody, que
-  // melhora GEO/LLM readability porque os crawlers extraem o conteúdo sem
-  // precisar parsear o DOM hidratado.
-  const articleBody = (p.conteudo ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-  const wordCount = articleBody ? articleBody.split(' ').length : undefined
-
-  // Schema.org BlogPosting — ajuda o Google a entender que é um artigo
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BlogPosting',
-    headline: p.titulo,
-    description: p.descricao ?? undefined,
-    image: p.capa_url ? [p.capa_url.split('?')[0]] : [`${appUrl}/og-default.jpg`],
-    datePublished: p.created_at,
-    dateModified: p.updated_at ?? p.created_at,
-    author: { '@type': 'Organization', name: 'AluguelCuiabá', url: appUrl },
-    publisher: {
-      '@type': 'Organization',
-      name: 'AluguelCuiabá',
-      logo: { '@type': 'ImageObject', url: `${appUrl}/logo.png` },
-    },
-    mainEntityOfPage: { '@type': 'WebPage', '@id': shareUrl },
-    keywords: p.tags?.join(', ') ?? undefined,
-    articleSection: cat.label,
-    articleBody: articleBody || undefined,
-    wordCount,
-    inLanguage: 'pt-BR',
-  }
-
-  // Breadcrumb estruturado
-  const breadcrumbLd = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Início', item: appUrl },
-      { '@type': 'ListItem', position: 2, name: 'Blog', item: `${appUrl}/blog` },
-      { '@type': 'ListItem', position: 3, name: p.titulo, item: shareUrl },
-    ],
-  }
-
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbLd) }}
-      />
+      <JsonLd data={[
+        blogPostingJsonLd({
+          titulo: p.titulo,
+          descricao: p.descricao,
+          url: shareUrl,
+          imagem: p.capa_url,
+          publicadoEm: p.created_at,
+          atualizadoEm: p.updated_at,
+          categoria: cat.label,
+          tags: p.tags,
+          conteudoHtml: p.conteudo,
+        }),
+        breadcrumbJsonLd([
+          { name: 'Início', url: appUrl },
+          { name: 'Blog', url: `${appUrl}/blog` },
+          { name: p.titulo, url: shareUrl },
+        ]),
+      ]} />
       <RegistrarViewPost postId={p.id} />
       <Navbar />
 
-      {/* Hero */}
+      {/* Hero — capa é LCP, vai com priority + sizes correto pro viewport. */}
       <div className="relative w-full aspect-[16/9] sm:aspect-[16/7] max-h-[560px] overflow-hidden bg-gray-900">
         {p.capa_url
-          ? <img src={p.capa_url} alt={p.titulo} className="w-full h-full object-cover opacity-80" />
+          ? <Imagem
+              src={p.capa_url}
+              alt={p.titulo}
+              priority
+              className="opacity-80"
+              sizes="(max-width: 768px) 100vw, 1200px"
+            />
           : <div className={`w-full h-full bg-gradient-to-br ${cat.gradient}`} />
         }
         <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent" />
@@ -276,7 +225,7 @@ export default async function BlogPostPage({ params }: Props) {
                 prose-ol:list-decimal prose-ol:pl-5
                 prose-img:rounded-xl prose-img:max-w-full prose-img:h-auto
                 prose-pre:overflow-x-auto"
-              dangerouslySetInnerHTML={{ __html: rebaixarH1(p.conteudo ?? '') }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(p.conteudo ?? '') }}
             />
 
             {/* Tags */}
@@ -319,10 +268,17 @@ export default async function BlogPostPage({ params }: Props) {
                     return (
                       <Link key={rel.id} href={`/blog/${rel.slug}`}
                         className="group flex gap-3 rounded-2xl border border-gray-100 hover:border-violet-200 hover:shadow-sm p-3 transition-all">
-                        <div className="w-20 h-16 rounded-xl overflow-hidden shrink-0 bg-gray-100">
+                        <div className="w-20 h-16 shrink-0">
                           {rel.capa_url
-                            ? <img src={rel.capa_url} alt={rel.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
-                            : <div className={`w-full h-full bg-gradient-to-br ${rc.gradient}`} />
+                            ? <Imagem
+                                src={rel.capa_url}
+                                alt={rel.titulo}
+                                aspect="4/3"
+                                sizes="80px"
+                                wrapperClassName="rounded-xl bg-gray-100"
+                                className="group-hover:scale-105 transition-transform duration-300"
+                              />
+                            : <div className={`w-full h-full rounded-xl bg-gradient-to-br ${rc.gradient}`} />
                           }
                         </div>
                         <div className="flex-1 min-w-0">

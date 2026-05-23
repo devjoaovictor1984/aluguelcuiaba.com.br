@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
+import { Imagem } from '@/components/imagem'
 
 interface Banner {
   id: string
@@ -34,11 +35,13 @@ export function BannerSidebar({ banners }: { banners: Banner[] }) {
   const banner = banners[idx]
 
   const image = (
-    <div className="relative w-full aspect-square rounded-xl overflow-hidden bg-gray-100">
-      <img
+    <div className="relative w-full">
+      <Imagem
         src={banner.imagem_url}
         alt="Patrocinador"
-        className="w-full h-full object-cover"
+        aspect="1/1"
+        wrapperClassName="rounded-xl bg-gray-100"
+        sizes="(max-width: 1024px) 100vw, 252px"
         style={{ opacity: fade ? 1 : 0, transition: 'opacity 0.2s ease' }}
       />
       <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-1.5 pb-2.5">

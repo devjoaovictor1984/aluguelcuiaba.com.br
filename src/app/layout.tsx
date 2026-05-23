@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import Script from 'next/script'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { organizationJsonLd, websiteJsonLd } from '@/lib/seo/jsonld'
+import { JsonLd } from '@/components/json-ld'
 import './globals.css'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -102,48 +104,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     contatoEmail = cfg.contato_email || contatoEmail
   } catch {}
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aluguelcuiaba.com.br'
-  const organizationSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'Organization',
-    name: 'AluguelCuiabá',
-    alternateName: 'AluguelCuiabá.com.br',
-    url: appUrl,
-    logo: logoUrl.startsWith('http') ? logoUrl : `${appUrl}${logoUrl}`,
-    email: contatoEmail,
-    sameAs: [instagram, facebook].filter(Boolean),
-    areaServed: { '@type': 'City', name: 'Cuiabá', containedInPlace: { '@type': 'State', name: 'Mato Grosso' } },
-  }
-  const websiteSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'WebSite',
-    name: 'AluguelCuiabá',
-    url: appUrl,
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: `${appUrl}/?q={search_term_string}`,
-      'query-input': 'required name=search_term_string',
-    },
-  }
-
   return (
     <html lang="pt-BR">
       <body className={`${inter.className} flex flex-col min-h-screen`}>
 
         {/* JSON-LD: identidade da marca (Organization + WebSite) — ajuda
             Google a montar o knowledge panel e LLMs a entenderem a entidade. */}
-        <Script
-          id="schema-organization"
-          type="application/ld+json"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
-        />
-        <Script
-          id="schema-website"
-          type="application/ld+json"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
-        />
+        <JsonLd data={[
+          organizationJsonLd({ logo: logoUrl, email: contatoEmail, instagram, facebook }),
+          websiteJsonLd(),
+        ]} />
 
         {/* Google Analytics 4 */}
         {gaId && (

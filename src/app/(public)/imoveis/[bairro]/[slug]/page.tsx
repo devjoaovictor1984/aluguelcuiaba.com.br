@@ -8,7 +8,11 @@ import { BarraAcoesImovel } from '@/components/barra-acoes-imovel'
 import { ImovelCard } from '@/components/imovel-card'
 import { getImovelPorId, getImoveisSimilares, getBannersSidebar } from '@/lib/supabase/queries'
 import { BannerSidebar } from '@/components/banner-sidebar'
-import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl, labelComodo, truncarComEllipsis } from '@/lib/utils'
+import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl, labelComodo } from '@/lib/utils'
+import { buildMetadata } from '@/lib/seo/metadata'
+import { realEstateJsonLd, breadcrumbJsonLd } from '@/lib/seo/jsonld'
+import { htmlParaTextoPlano } from '@/lib/seo/sanitize'
+import { JsonLd } from '@/components/json-ld'
 import { PrecoImovel } from '@/components/preco-imovel'
 import {
   MapPin, BedDouble, Bath, Car, Maximize2,
@@ -17,6 +21,7 @@ import {
 import type { Imovel } from '@/types'
 import { AvisarAlugado } from '@/components/avisar-alugado'
 import { RegistrarView } from '@/components/registrar-view'
+import { Imagem } from '@/components/imagem'
 
 interface Props {
   params: Promise<{ bairro: string; slug: string }>
@@ -29,30 +34,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { data } = await getImovelPorId(slug)
   if (!data) return {}
   const fotoUrl = data.fotos?.find((f: { principal: boolean }) => f.principal)?.url || data.fotos?.[0]?.url
-  const pageUrl = `${APP_URL}${buildImovelUrl(data as Imovel)}`
-  // SEO: title <= 43 chars deixa espaço pro template "| AluguelCuiabá"
-  // (17 chars) cabendo no sweet spot de 60 do Google.
-  const titulo = truncarComEllipsis(data.titulo, 43)
-  const descBruta = `${data.tipo} para alugar em ${data.bairro?.nome ?? 'Cuiabá'} por ${formatarPreco(data.preco)}/mês.${data.descricao ? ' ' + data.descricao.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() : ''}`
-  const desc = truncarComEllipsis(descBruta, 155)
-  return {
-    title: titulo,
-    description: desc,
-    alternates: { canonical: pageUrl },
-    openGraph: {
-      title: titulo,
-      description: desc,
-      url: pageUrl,
-      type: 'website',
-      images: fotoUrl ? [{ url: fotoUrl, width: 1200, height: 630, alt: data.titulo }] : [],
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: titulo,
-      description: desc,
-      images: fotoUrl ? [fotoUrl] : [],
-    },
-  }
+  const descricao = `${data.tipo} para alugar em ${data.bairro?.nome ?? 'Cuiabá'} por ${formatarPreco(data.preco)}/mês.${data.descricao ? ' ' + htmlParaTextoPlano(data.descricao) : ''}`
+  return buildMetadata({
+    title: data.titulo,
+    description: descricao,
+    path: buildImovelUrl(data as Imovel),
+    image: fotoUrl,
+  })
 }
 
 export default async function ImovelPage({ params }: Props) {
@@ -110,76 +98,33 @@ export default async function ImovelPage({ params }: Props) {
     (new Date(imovel.expira_em).getTime() - Date.now()) / 86_400_000
   )
 
-  // Schema.org — combinação RealEstateListing + Apartment/House permite
-  // que o Google entenda preço, localização, características e disponibilidade.
-  // Boost forte em rich results e em queries do tipo "aluguel em X".
-  const descricaoLimpa = (imovel.descricao ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
-  const fotos = (imovel.fotos ?? []).map((f: { url: string }) => f.url.split('?')[0])
-  const tipoSchema =
-    imovel.tipo === 'apartamento' ? 'Apartment' :
-    imovel.tipo === 'casa' ? 'House' :
-    imovel.tipo === 'kitnet' ? 'Apartment' :
-    'Residence'
-  const listingSchema = {
-    '@context': 'https://schema.org',
-    '@type': ['RealEstateListing', tipoSchema],
-    name: imovel.titulo,
-    description: descricaoLimpa || `${tipoLabel[imovel.tipo] ?? imovel.tipo} para alugar em ${imovel.bairro?.nome ?? 'Cuiabá'}.`,
-    url: pageUrl,
-    image: fotos.length > 0 ? fotos : undefined,
-    datePosted: imovel.created_at,
-    leaseLength: { '@type': 'QuantitativeValue', value: 12, unitCode: 'MON' },
-    numberOfRooms: imovel.quartos > 0 ? imovel.quartos : undefined,
-    numberOfBathroomsTotal: imovel.banheiros > 0 ? imovel.banheiros : undefined,
-    floorSize: imovel.area_m2 ? { '@type': 'QuantitativeValue', value: imovel.area_m2, unitCode: 'MTK' } : undefined,
-    petsAllowed: imovel.aceita_pets || undefined,
-    address: {
-      '@type': 'PostalAddress',
-      streetAddress: imovel.endereco_resumido || undefined,
-      addressLocality: 'Cuiabá',
-      addressRegion: 'MT',
-      addressCountry: 'BR',
-      ...(imovel.bairro?.nome && { addressNeighborhood: imovel.bairro.nome }),
-    },
-    geo: imovel.lat && imovel.lng ? {
-      '@type': 'GeoCoordinates',
-      latitude: imovel.lat,
-      longitude: imovel.lng,
-    } : undefined,
-    offers: {
-      '@type': 'Offer',
-      price: imovel.preco,
-      priceCurrency: 'BRL',
-      priceSpecification: {
-        '@type': 'UnitPriceSpecification',
-        price: imovel.preco,
-        priceCurrency: 'BRL',
-        referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'MON' },
-      },
-      availability: imovel.status === 'ativo' ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
-      url: pageUrl,
-    },
-  }
-  const breadcrumbSchema = {
-    '@context': 'https://schema.org',
-    '@type': 'BreadcrumbList',
-    itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Imóveis', item: APP_URL },
-      ...(imovel.bairro ? [{ '@type': 'ListItem', position: 2, name: imovel.bairro.nome, item: `${APP_URL}/bairros/${imovel.bairro.slug}` }] : []),
-      { '@type': 'ListItem', position: imovel.bairro ? 3 : 2, name: imovel.titulo, item: pageUrl },
-    ],
-  }
-
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
-      />
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
-      />
+      <JsonLd data={[
+        realEstateJsonLd({
+          titulo: imovel.titulo,
+          descricao: htmlParaTextoPlano(imovel.descricao ?? ''),
+          url: pageUrl,
+          fotos: (imovel.fotos ?? []).map((f: { url: string }) => f.url),
+          tipo: imovel.tipo,
+          quartos: imovel.quartos,
+          banheiros: imovel.banheiros,
+          areaM2: imovel.area_m2,
+          aceitaPets: imovel.aceita_pets,
+          bairro: imovel.bairro?.nome,
+          endereco: imovel.endereco_resumido,
+          lat: imovel.lat,
+          lng: imovel.lng,
+          preco: imovel.preco,
+          status: imovel.status,
+          criadoEm: imovel.created_at,
+        }),
+        breadcrumbJsonLd([
+          { name: 'Imóveis', url: APP_URL },
+          ...(imovel.bairro ? [{ name: imovel.bairro.nome, url: `${APP_URL}/bairros/${imovel.bairro.slug}` }] : []),
+          { name: imovel.titulo, url: pageUrl },
+        ]),
+      ]} />
       <Navbar />
 
       <GaleriaFotos fotos={imovel.fotos ?? []} titulo={imovel.titulo} />
@@ -509,10 +454,12 @@ function AnuncianteCard({
         >
           <div className="w-11 h-11 rounded-full shrink-0 overflow-hidden bg-violet-100 flex items-center justify-center ring-2 ring-transparent group-hover:ring-violet-300 transition-all">
             {imovel.perfil.foto_url ? (
-              <img
+              <Imagem
                 src={imovel.perfil.foto_url}
                 alt={imovel.perfil.nome ?? 'Anunciante'}
-                className="w-full h-full object-cover"
+                width={44}
+                height={44}
+                className="rounded-full"
               />
             ) : (
               <span className="text-violet-700 font-bold text-lg">

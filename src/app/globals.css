@@ -13,6 +13,19 @@ body {
 
 button, [role="button"], label[for], select { cursor: pointer; }
 
+/* ─── Tap targets (mobile accessibility / SEO) ──────────────────────────
+   Em telas touch, garante 44x44px mínimo em controles interativos —
+   recomendação do Google e Apple. Não afeta desktop (pointer: fine).
+   Override com .tap-tight quando o layout exige (ex: chips densos numa
+   barra horizontal compacta). */
+@media (pointer: coarse) {
+  button:not(.tap-tight),
+  a:not(.tap-tight):not([class*="inline"]),
+  [role="button"]:not(.tap-tight),
+  input[type="checkbox"], input[type="radio"],
+  select { min-height: 44px; min-width: 44px; }
+}
+
 /* ─── TipTap editor ─────────────────────────────────────────────────────── */
 .ProseMirror { outline: none; }
 .ProseMirror p.is-editor-empty:first-child::before {
