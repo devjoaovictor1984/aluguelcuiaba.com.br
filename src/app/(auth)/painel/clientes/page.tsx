@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Users, Plus, Phone, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { BotaoAjuda } from '@/components/botao-ajuda'
 
 const TIPO_COR: Record<string, string> = {
   inquilino:    'bg-blue-100 text-blue-700',
@@ -58,6 +59,7 @@ export default async function ClientesPage({ searchParams }: Props) {
         <div className="min-w-0">
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <Users size={20} className="text-violet-600" /> Clientes
+            <BotaoAjuda slug="clientes" size={16} titulo="Sobre cadastro de clientes" />
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">
             {total} pessoa{total === 1 ? '' : 's'} cadastrada{total === 1 ? '' : 's'}

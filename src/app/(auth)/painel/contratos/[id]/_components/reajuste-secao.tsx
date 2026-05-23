@@ -8,6 +8,7 @@ import {
 import { InputMoeda, InputPercentual } from '@/components/inputs/input-mascarado'
 import { parseMoney, parsePercentual, formatarBRL, formatarData } from '@/lib/formatters'
 import { aplicarReajuste, type AplicarReajusteInput } from '../../actions'
+import { BotaoAjuda } from '@/components/botao-ajuda'
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
 
@@ -59,6 +60,7 @@ export function ReajusteSecao(props: Props) {
         <h2 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
           <TrendingUp size={14} className="text-violet-600" />
           Reajuste
+          <BotaoAjuda slug="reajuste" size={14} titulo="Sobre reajuste de aluguel" />
           {props.reajustes.length > 0 && (
             <span className="text-xs font-normal text-gray-400">({props.reajustes.length} aplicado{props.reajustes.length === 1 ? '' : 's'})</span>
           )}

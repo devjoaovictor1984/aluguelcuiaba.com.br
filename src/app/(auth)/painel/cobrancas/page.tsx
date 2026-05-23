@@ -2,6 +2,7 @@ import { MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { ListaCobrancas, type CobrancaRow } from './_components/lista-cobrancas'
+import { BotaoAjuda } from '@/components/botao-ajuda'
 
 interface Props {
   searchParams: Promise<{ filtro?: string }>
@@ -97,6 +98,7 @@ export default async function CobrancasPage({ searchParams }: Props) {
       <div>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <MessageCircle size={20} className="text-green-600" /> Cobranças via WhatsApp
+          <BotaoAjuda slug="cobrancas" size={16} titulo="Sobre cobranças via WhatsApp" />
         </h1>
         <p className="text-sm text-gray-500">
           Lista de parcelas pendentes pra você enviar lembrete um por um. Mensagem se adapta automaticamente conforme dias até vencimento.

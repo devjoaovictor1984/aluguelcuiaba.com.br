@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { FileSignature, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { BotaoAjuda } from '@/components/botao-ajuda'
 
 export default async function ContratosPage() {
   const acesso = await exigirAcessoCRM()
@@ -29,6 +30,7 @@ export default async function ContratosPage() {
           <h1 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
             <FileSignature size={20} className="text-violet-600 shrink-0" />
             Contratos
+            <BotaoAjuda slug="contratos" size={16} titulo="Sobre contratos de locação" />
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
             {lista.length} contrato{lista.length === 1 ? '' : 's'} cadastrado{lista.length === 1 ? '' : 's'}

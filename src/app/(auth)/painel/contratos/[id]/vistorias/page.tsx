@@ -4,6 +4,7 @@ import { ArrowLeft, ClipboardCheck, Plus, CheckCircle2, Clock, FileSignature, Al
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { criarVistoria } from './actions'
+import { BotaoAjuda } from '@/components/botao-ajuda'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -66,6 +67,7 @@ export default async function VistoriasPage({ params }: Props) {
         </Link>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <ClipboardCheck size={20} className="text-violet-600" /> Vistorias
+          <BotaoAjuda slug="vistorias" size={16} titulo="Sobre vistorias online" />
         </h1>
         <p className="text-sm text-gray-500">
           {inquilino?.nome ?? '—'} · {imovel?.titulo ?? '—'}

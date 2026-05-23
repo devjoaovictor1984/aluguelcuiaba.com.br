@@ -8,6 +8,7 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { formatarBRL, formatarData } from '@/lib/formatters'
 import { TabelaMes, type LinhaParcela } from './_components/tabela-mes'
 import { SeletorMes } from './_components/seletor-mes'
+import { BotaoAjuda } from '@/components/botao-ajuda'
 
 const MESES_NOMES = [
   'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
@@ -240,6 +241,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <Calendar size={20} className="text-violet-600" />
             {MESES_NOMES[mesAtual - 1].charAt(0).toUpperCase() + MESES_NOMES[mesAtual - 1].slice(1)} de {anoAtual}
+            <BotaoAjuda slug="inicio" size={16} titulo="Sobre o painel" />
           </h1>
           <p className="text-sm text-gray-500">
             Controle mensal de aluguéis · {doMes.length} parcela{doMes.length === 1 ? '' : 's'} prevista{doMes.length === 1 ? '' : 's'}
