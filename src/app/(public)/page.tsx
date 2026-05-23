@@ -1,4 +1,5 @@
 import { Suspense } from 'react'
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { ImoveisLista } from '@/components/imoveis-lista'
@@ -14,6 +15,12 @@ import type { FiltrosBusca, Imovel, TipoImovel, TipoUsuario, OrdenarPor } from '
 
 interface Props {
   searchParams: Promise<Record<string, string | undefined>>
+}
+
+// Canonical aponta sempre pra raiz — filtros (?tipo=apartamento, ?bbox=...)
+// não devem virar URLs canônicas separadas, pra não diluir signal.
+export const metadata: Metadata = {
+  alternates: { canonical: '/' },
 }
 
 export default async function Home({ searchParams }: Props) {
@@ -98,13 +105,16 @@ export default async function Home({ searchParams }: Props) {
         <BuscaBar inicial={p.busca ?? ''} />
       </div>
 
-      {/* DESKTOP: header brand (escondido no mobile) */}
+      {/* DESKTOP: header brand (escondido no mobile).
+          SEO: o H1 semântico fica no bloco mobile acima (Google indexa
+          mobile-first). Aqui usamos <p> com tamanho de heading só pro
+          visual — evita duplicar H1 no HTML. */}
       <div className="bg-violet-700 py-5 px-4 hidden md:block">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-white leading-tight">
+            <p className="text-xl font-bold text-white leading-tight">
               Imóveis para alugar em Cuiabá/MT
-            </h1>
+            </p>
             <p className="text-violet-200 text-sm mt-0.5">{totalStr}</p>
             <div className="mt-3">
               <BuscaBar inicial={p.busca ?? ''} />

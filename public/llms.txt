@@ -1,0 +1,28 @@
+# AluguelCuiabá
+
+> Portal especializado em aluguel de imóveis em Cuiabá/MT. Conecta proprietários, corretores e inquilinos para apartamentos, casas, kitnets, imóveis comerciais e terrenos.
+
+Site: https://aluguelcuiaba.com.br
+Idioma: pt-BR
+Região: Cuiabá, Mato Grosso, Brasil
+
+## O que oferecemos
+
+- Busca de imóveis para alugar em Cuiabá filtrada por bairro, tipo, preço, número de quartos e características.
+- Cadastro gratuito de anúncios para proprietários e corretores.
+- Sistema CRM para corretores e imobiliárias gerenciarem contratos, cobranças, reajustes e vistorias online.
+- Blog com guias sobre o mercado de aluguel local, bairros e processo de locação.
+
+## Páginas principais
+
+- [Home / Busca de imóveis](https://aluguelcuiaba.com.br/)
+- [Blog](https://aluguelcuiaba.com.br/blog)
+- [Anunciar imóvel grátis](https://aluguelcuiaba.com.br/painel/anuncios/novo)
+- [Área do corretor](https://aluguelcuiaba.com.br/corretor)
+- [Planos](https://aluguelcuiaba.com.br/planos)
+- [Termos de uso](https://aluguelcuiaba.com.br/termos)
+- [Política de privacidade](https://aluguelcuiaba.com.br/privacidade)
+
+## Sitemap
+
+https://aluguelcuiaba.com.br/sitemap.xml

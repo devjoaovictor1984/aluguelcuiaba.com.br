@@ -9,6 +9,7 @@ import { getCategorias, categoriasMap } from '@/lib/blog/categorias'
 import { getBannersSidebar } from '@/lib/supabase/queries'
 import { BannerSidebar } from '@/components/banner-sidebar'
 import { RegistrarViewPost } from '@/components/registrar-view-post'
+import { truncarComEllipsis } from '@/lib/utils'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
@@ -26,8 +27,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://aluguelcuiaba.com.br'
   const url = `${appUrl}/blog/${post.slug}`
-  const titulo = post.titulo
-  const descricao = post.descricao ?? `Leia o artigo "${post.titulo}" no blog do AluguelCuiabá.`
+  // SEO: title sweet spot é 50-60 chars (incluindo o " | AluguelCuiabá" do
+  // template do root, que tem 17 chars). Trunca o título do post em 43 chars.
+  const titulo = truncarComEllipsis(post.titulo, 43)
+  // SEO: meta description sweet spot é 120-155 chars. Trunca em 150.
+  const descricaoBruta = post.descricao ?? `Leia o artigo "${post.titulo}" no blog do AluguelCuiabá.`
+  const descricao = truncarComEllipsis(descricaoBruta, 150)
   // Remove cache-buster (?t=...) que o upload adiciona — alguns crawlers rejeitam
   const imagem = post.capa_url
     ? post.capa_url.split('?')[0]
@@ -64,6 +69,12 @@ function formatDate(d: string) {
 function lerTempo(conteudo: string) {
   const palavras = conteudo?.replace(/<[^>]+>/g, '').split(/\s+/).length ?? 0
   return Math.max(1, Math.ceil(palavras / 200))
+}
+
+// Garante que só exista UM h1 por página (o do hero). H1s vindos do editor
+// viram h2 — multiple-H1 é flag de SEO. h2 grátis ganha estilo prose-h2.
+function rebaixarH1(html: string): string {
+  return html.replace(/<h1(\s[^>]*)?>/gi, '<h2$1>').replace(/<\/h1>/gi, '</h2>')
 }
 
 interface Post {
@@ -127,6 +138,12 @@ export default async function BlogPostPage({ params }: Props) {
   const shareUrl = `${appUrl}/blog/${p.slug}`
   const shareTitle = encodeURIComponent(p.titulo)
 
+  // Texto plano do artigo (sem HTML) — usado no Schema.articleBody, que
+  // melhora GEO/LLM readability porque os crawlers extraem o conteúdo sem
+  // precisar parsear o DOM hidratado.
+  const articleBody = (p.conteudo ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  const wordCount = articleBody ? articleBody.split(' ').length : undefined
+
   // Schema.org BlogPosting — ajuda o Google a entender que é um artigo
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -145,6 +162,9 @@ export default async function BlogPostPage({ params }: Props) {
     mainEntityOfPage: { '@type': 'WebPage', '@id': shareUrl },
     keywords: p.tags?.join(', ') ?? undefined,
     articleSection: cat.label,
+    articleBody: articleBody || undefined,
+    wordCount,
+    inLanguage: 'pt-BR',
   }
 
   // Breadcrumb estruturado
@@ -256,7 +276,7 @@ export default async function BlogPostPage({ params }: Props) {
                 prose-ol:list-decimal prose-ol:pl-5
                 prose-img:rounded-xl prose-img:max-w-full prose-img:h-auto
                 prose-pre:overflow-x-auto"
-              dangerouslySetInnerHTML={{ __html: p.conteudo ?? '' }}
+              dangerouslySetInnerHTML={{ __html: rebaixarH1(p.conteudo ?? '') }}
             />
 
             {/* Tags */}

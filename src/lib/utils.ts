@@ -68,6 +68,17 @@ export function buildImovelUrl(imovel: {
   return `/imoveis/${imovelSlug}`
 }
 
+// Trunca preservando palavra inteira, adicionando ellipsis se cortou.
+// Usado em title/description de SEO pra respeitar os limites do Google
+// (60 chars no title, 155 na description).
+export function truncarComEllipsis(s: string, max: number): string {
+  if (!s) return ''
+  if (s.length <= max) return s
+  const corte = s.slice(0, max - 1)
+  const ultimoEspaco = corte.lastIndexOf(' ')
+  return (ultimoEspaco > max * 0.6 ? corte.slice(0, ultimoEspaco) : corte).trim() + '…'
+}
+
 // Imóvel comercial usa "sala(s)" no lugar de "quarto(s)" em todo o copy.
 // Mantemos um único helper pra não espalhar `if tipo === 'comercial'` no código.
 export function labelComodo(tipo: string | null | undefined, n: number, abrev = false): string {

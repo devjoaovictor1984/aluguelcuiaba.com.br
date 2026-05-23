@@ -80,20 +80,70 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   let gaId = ''
   let pixelId = ''
+  let instagram = 'https://instagram.com/aluguelcuiaba'
+  let facebook = 'https://facebook.com/aluguelcuiaba'
+  let logoUrl = '/logo.png'
+  let contatoEmail = 'contato@aluguelcuiaba.com.br'
   try {
     const supabase = createAdminClient()
     const { data } = await supabase
       .from('site_config')
       .select('chave, valor')
-      .in('chave', ['google_analytics_id', 'facebook_pixel_id'])
+      .in('chave', [
+        'google_analytics_id', 'facebook_pixel_id',
+        'instagram_url', 'facebook_url', 'logo_url', 'contato_email',
+      ])
     const cfg = Object.fromEntries((data ?? []).map(c => [c.chave, c.valor ?? '']))
     gaId = cfg.google_analytics_id ?? ''
     pixelId = cfg.facebook_pixel_id ?? ''
+    instagram = cfg.instagram_url || instagram
+    facebook = cfg.facebook_url || facebook
+    if (cfg.logo_url) logoUrl = cfg.logo_url.split('?')[0]
+    contatoEmail = cfg.contato_email || contatoEmail
   } catch {}
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://aluguelcuiaba.com.br'
+  const organizationSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: 'AluguelCuiabá',
+    alternateName: 'AluguelCuiabá.com.br',
+    url: appUrl,
+    logo: logoUrl.startsWith('http') ? logoUrl : `${appUrl}${logoUrl}`,
+    email: contatoEmail,
+    sameAs: [instagram, facebook].filter(Boolean),
+    areaServed: { '@type': 'City', name: 'Cuiabá', containedInPlace: { '@type': 'State', name: 'Mato Grosso' } },
+  }
+  const websiteSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: 'AluguelCuiabá',
+    url: appUrl,
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: `${appUrl}/?q={search_term_string}`,
+      'query-input': 'required name=search_term_string',
+    },
+  }
 
   return (
     <html lang="pt-BR">
       <body className={`${inter.className} flex flex-col min-h-screen`}>
+
+        {/* JSON-LD: identidade da marca (Organization + WebSite) — ajuda
+            Google a montar o knowledge panel e LLMs a entenderem a entidade. */}
+        <Script
+          id="schema-organization"
+          type="application/ld+json"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <Script
+          id="schema-website"
+          type="application/ld+json"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }}
+        />
 
         {/* Google Analytics 4 */}
         {gaId && (

@@ -107,6 +107,8 @@ export interface Imovel {
   visualizacoes: number
   aviso_enviado: boolean
   expira_em: string
+  lat: number | null
+  lng: number | null
   created_at: string
   updated_at: string
   bairro?: Bairro

@@ -8,7 +8,7 @@ import { BarraAcoesImovel } from '@/components/barra-acoes-imovel'
 import { ImovelCard } from '@/components/imovel-card'
 import { getImovelPorId, getImoveisSimilares, getBannersSidebar } from '@/lib/supabase/queries'
 import { BannerSidebar } from '@/components/banner-sidebar'
-import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl, labelComodo } from '@/lib/utils'
+import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl, labelComodo, truncarComEllipsis } from '@/lib/utils'
 import { PrecoImovel } from '@/components/preco-imovel'
 import {
   MapPin, BedDouble, Bath, Car, Maximize2,
@@ -30,13 +30,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!data) return {}
   const fotoUrl = data.fotos?.find((f: { principal: boolean }) => f.principal)?.url || data.fotos?.[0]?.url
   const pageUrl = `${APP_URL}${buildImovelUrl(data as Imovel)}`
-  const desc = `${data.tipo} para alugar em ${data.bairro?.nome ?? 'Cuiabá'} por ${formatarPreco(data.preco)}/mês.${data.descricao ? ' ' + data.descricao.replace(/<[^>]+>/g, '').slice(0, 120) : ''}`
+  // SEO: title <= 43 chars deixa espaço pro template "| AluguelCuiabá"
+  // (17 chars) cabendo no sweet spot de 60 do Google.
+  const titulo = truncarComEllipsis(data.titulo, 43)
+  const descBruta = `${data.tipo} para alugar em ${data.bairro?.nome ?? 'Cuiabá'} por ${formatarPreco(data.preco)}/mês.${data.descricao ? ' ' + data.descricao.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim() : ''}`
+  const desc = truncarComEllipsis(descBruta, 155)
   return {
-    title: data.titulo,
+    title: titulo,
     description: desc,
     alternates: { canonical: pageUrl },
     openGraph: {
-      title: data.titulo,
+      title: titulo,
       description: desc,
       url: pageUrl,
       type: 'website',
@@ -44,7 +48,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     },
     twitter: {
       card: 'summary_large_image',
-      title: data.titulo,
+      title: titulo,
       description: desc,
       images: fotoUrl ? [fotoUrl] : [],
     },
@@ -106,8 +110,76 @@ export default async function ImovelPage({ params }: Props) {
     (new Date(imovel.expira_em).getTime() - Date.now()) / 86_400_000
   )
 
+  // Schema.org — combinação RealEstateListing + Apartment/House permite
+  // que o Google entenda preço, localização, características e disponibilidade.
+  // Boost forte em rich results e em queries do tipo "aluguel em X".
+  const descricaoLimpa = (imovel.descricao ?? '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  const fotos = (imovel.fotos ?? []).map((f: { url: string }) => f.url.split('?')[0])
+  const tipoSchema =
+    imovel.tipo === 'apartamento' ? 'Apartment' :
+    imovel.tipo === 'casa' ? 'House' :
+    imovel.tipo === 'kitnet' ? 'Apartment' :
+    'Residence'
+  const listingSchema = {
+    '@context': 'https://schema.org',
+    '@type': ['RealEstateListing', tipoSchema],
+    name: imovel.titulo,
+    description: descricaoLimpa || `${tipoLabel[imovel.tipo] ?? imovel.tipo} para alugar em ${imovel.bairro?.nome ?? 'Cuiabá'}.`,
+    url: pageUrl,
+    image: fotos.length > 0 ? fotos : undefined,
+    datePosted: imovel.created_at,
+    leaseLength: { '@type': 'QuantitativeValue', value: 12, unitCode: 'MON' },
+    numberOfRooms: imovel.quartos > 0 ? imovel.quartos : undefined,
+    numberOfBathroomsTotal: imovel.banheiros > 0 ? imovel.banheiros : undefined,
+    floorSize: imovel.area_m2 ? { '@type': 'QuantitativeValue', value: imovel.area_m2, unitCode: 'MTK' } : undefined,
+    petsAllowed: imovel.aceita_pets || undefined,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: imovel.endereco_resumido || undefined,
+      addressLocality: 'Cuiabá',
+      addressRegion: 'MT',
+      addressCountry: 'BR',
+      ...(imovel.bairro?.nome && { addressNeighborhood: imovel.bairro.nome }),
+    },
+    geo: imovel.lat && imovel.lng ? {
+      '@type': 'GeoCoordinates',
+      latitude: imovel.lat,
+      longitude: imovel.lng,
+    } : undefined,
+    offers: {
+      '@type': 'Offer',
+      price: imovel.preco,
+      priceCurrency: 'BRL',
+      priceSpecification: {
+        '@type': 'UnitPriceSpecification',
+        price: imovel.preco,
+        priceCurrency: 'BRL',
+        referenceQuantity: { '@type': 'QuantitativeValue', value: 1, unitCode: 'MON' },
+      },
+      availability: imovel.status === 'ativo' ? 'https://schema.org/InStock' : 'https://schema.org/SoldOut',
+      url: pageUrl,
+    },
+  }
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Imóveis', item: APP_URL },
+      ...(imovel.bairro ? [{ '@type': 'ListItem', position: 2, name: imovel.bairro.nome, item: `${APP_URL}/bairros/${imovel.bairro.slug}` }] : []),
+      { '@type': 'ListItem', position: imovel.bairro ? 3 : 2, name: imovel.titulo, item: pageUrl },
+    ],
+  }
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(listingSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
       <Navbar />
 
       <GaleriaFotos fotos={imovel.fotos ?? []} titulo={imovel.titulo} />

@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import type { Metadata } from 'next'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -6,6 +7,12 @@ import { Calendar, Clock, ChevronRight, TrendingUp, Tag } from 'lucide-react'
 import { getCategorias, categoriasMap, type CategoriaStyle } from '@/lib/blog/categorias'
 import { getBannersSidebar } from '@/lib/supabase/queries'
 import { BannerSidebar } from '@/components/banner-sidebar'
+
+export const metadata: Metadata = {
+  title: 'Blog — guias sobre aluguel em Cuiabá',
+  description: 'Dicas, análises e guias práticos sobre o mercado de aluguel em Cuiabá/MT. Bairros, contratos, preços e tendências.',
+  alternates: { canonical: '/blog' },
+}
 
 function CatBadge({ cat, catMap, size = 'sm' }: { cat: string; catMap: Record<string, CategoriaStyle>; size?: 'sm' | 'xs' }) {
   const c = catMap[cat] ?? { label: cat, bg: 'bg-violet-100', text: 'text-violet-700', border: 'border-violet-300', gradient: 'from-violet-600 to-violet-900' }

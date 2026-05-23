@@ -20,17 +20,23 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const { data: imoveis } = await getImoveisPorBairro(bairro.id)
   const count = imoveis?.length ?? 0
-  const titulo = `Aluguel no ${bairro.nome}, Cuiabá/MT — ${count} imóvel${count !== 1 ? 'is' : ''} | AluguelCuiabá`
-  const descricao = bairro.descricao
-    ? `${bairro.descricao} Veja ${count} imóvel${count !== 1 ? 'is' : ''} para alugar no ${bairro.nome} em Cuiabá/MT.`
-    : `Encontre ${count} imóvel${count !== 1 ? 'is' : ''} para alugar no bairro ${bairro.nome} em Cuiabá/MT. Apartamentos, casas e kitnets disponíveis.`
+  // Title curto pq o root layout já adiciona " | AluguelCuiabá" via template.
+  // Limite alvo: 43 chars aqui + 17 do sufixo = 60 (sweet spot do Google).
+  const tituloRaw = `Aluguel no ${bairro.nome} — Cuiabá/MT`
+  const titulo = tituloRaw.length > 43 ? `Aluguel no ${bairro.nome}` : tituloRaw
+  const descricaoBruta = bairro.descricao
+    ? `${bairro.descricao} Veja ${count} imóv${count === 1 ? 'el' : 'eis'} para alugar no ${bairro.nome}.`
+    : `Encontre ${count} imóv${count === 1 ? 'el' : 'eis'} para alugar no ${bairro.nome}, Cuiabá/MT. Apartamentos, casas e kitnets.`
+  const descricao = descricaoBruta.length > 155
+    ? descricaoBruta.slice(0, 154).replace(/\s+\S*$/, '') + '…'
+    : descricaoBruta
   const url = `${BASE_URL}/bairros/${slug}`
 
   return {
     title: titulo,
     description: descricao,
     openGraph: {
-      title: `Aluguel no ${bairro.nome} — Cuiabá/MT`,
+      title: titulo,
       description: descricao,
       url,
       images: bairro.foto_url ? [{ url: bairro.foto_url, alt: `Bairro ${bairro.nome}` }] : [],
