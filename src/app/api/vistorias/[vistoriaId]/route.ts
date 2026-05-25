@@ -108,9 +108,36 @@ export async function GET(
     }
   }
 
-  // Perfil emitente
+  // Perfil emitente — dados institucionais reaproveitados do recibo
   const { data: perfil } = await admin
-    .from('perfis').select('nome').eq('id', user.id).maybeSingle()
+    .from('perfis')
+    .select(`
+      nome, razao_social, cnpj, creci, creci_juridico,
+      recibo_logo_url,
+      endereco_logradouro, endereco_numero, endereco_bairro,
+      endereco_cidade, endereco_uf, endereco_cep
+    `)
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const cnpjFmt = perfil?.cnpj
+    ? perfil.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+    : null
+
+  const cepFmt = perfil?.endereco_cep
+    ? perfil.endereco_cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')
+    : null
+
+  const enderecoPartes = [
+    perfil?.endereco_logradouro,
+    perfil?.endereco_numero ? `nº ${perfil.endereco_numero}` : null,
+    perfil?.endereco_bairro,
+    perfil?.endereco_cidade && perfil?.endereco_uf
+      ? `${perfil.endereco_cidade}-${perfil.endereco_uf}`
+      : perfil?.endereco_cidade ?? null,
+    cepFmt ? `CEP ${cepFmt}` : null,
+  ].filter(Boolean)
+  const enderecoAnunciante = enderecoPartes.length ? enderecoPartes.join(', ') : null
 
   type ContratoRel = {
     codigo: string
@@ -155,6 +182,15 @@ export async function GET(
     assinada_em: vistoria.assinada_em,
     assinada_ip: vistoria.assinada_ip,
     anunciante_nome: perfil?.nome ?? 'AluguelCuiabá',
+    anunciante_razao_social: perfil?.razao_social ?? null,
+    anunciante_cnpj: cnpjFmt,
+    anunciante_creci: perfil?.creci ?? null,
+    anunciante_creci_juridico: perfil?.creci_juridico ?? null,
+    anunciante_logo_url: perfil?.recibo_logo_url ?? null,
+    anunciante_endereco: enderecoAnunciante,
+    anunciante_cidade_uf: perfil?.endereco_cidade && perfil?.endereco_uf
+      ? `${perfil.endereco_cidade}-${perfil.endereco_uf}`
+      : null,
     contrato_codigo: contrato.codigo,
     imovel_titulo: imovel?.titulo ?? null,
     imovel_endereco: enderecoImovel,

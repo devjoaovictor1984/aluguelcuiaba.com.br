@@ -27,6 +27,13 @@ function mascaraTelefone(v: string) {
 function mascaraCEP(v: string) {
   return v.replace(/\D/g, '').slice(0, 8).replace(/(\d{5})(\d{0,3})/, '$1-$2')
 }
+function mascaraCNPJ(v: string) {
+  return v.replace(/\D/g, '').slice(0, 14)
+    .replace(/(\d{2})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1.$2')
+    .replace(/(\d{3})(\d)/, '$1/$2')
+    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+}
 function validarCPF(cpf: string): boolean {
   const d = cpf.replace(/\D/g, '')
   if (d.length !== 11 || /^(\d)\1+$/.test(d)) return false
@@ -79,6 +86,9 @@ export function PerfilForm({ userId, email, perfilInicial, isNovo }: Props) {
   const [telefone, setTelefone] = useState(perfilInicial?.telefone ? mascaraTelefone(perfilInicial.telefone) : '')
   const [tipo, setTipo] = useState<TipoUsuario>(perfilInicial?.tipo ?? 'proprietario')
   const [creci, setCreci] = useState(perfilInicial?.creci ?? '')
+  const [razaoSocial, setRazaoSocial] = useState(perfilInicial?.razao_social ?? '')
+  const [cnpj, setCnpj] = useState(perfilInicial?.cnpj ? mascaraCNPJ(perfilInicial.cnpj) : '')
+  const [creciJuridico, setCreciJuridico] = useState(perfilInicial?.creci_juridico ?? '')
   const [cep, setCep] = useState(perfilInicial?.endereco_cep ? mascaraCEP(perfilInicial.endereco_cep) : '')
   const [logradouro, setLogradouro] = useState(perfilInicial?.endereco_logradouro ?? '')
   const [numero, setNumero] = useState(perfilInicial?.endereco_numero ?? '')
@@ -183,6 +193,9 @@ export function PerfilForm({ userId, email, perfilInicial, isNovo }: Props) {
     const updates: Record<string, unknown> = {
       id: userId, nome: nome.trim(), cpf: cpf.replace(/\D/g, ''),
       tipo, creci: creci.trim() || null, foto_url,
+      razao_social: razaoSocial.trim() || null,
+      cnpj: cnpj.replace(/\D/g, '') || null,
+      creci_juridico: creciJuridico.trim() || null,
       endereco_cep: cep.replace(/\D/g, ''), endereco_logradouro: logradouro.trim(),
       endereco_numero: numero.trim(), endereco_bairro: bairro.trim(),
       endereco_cidade: cidade.trim(), endereco_uf: uf.trim().toUpperCase(),
@@ -306,6 +319,30 @@ export function PerfilForm({ userId, email, perfilInicial, isNovo }: Props) {
             <label className="text-sm font-medium text-gray-700">Número do CRECI</label>
             <input type="text" value={creci} onChange={e => setCreci(e.target.value)} placeholder="Ex: 12345-F" required={precisaCreci} className={inputCls} />
             <p className="text-xs text-gray-400">Obrigatório para corretores e imobiliárias.</p>
+          </div>
+        )}
+
+        {tipo === 'imobiliaria' && (
+          <div className="space-y-3 pt-2 border-t border-gray-100">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-2">
+              Dados jurídicos da imobiliária
+            </p>
+            <p className="text-xs text-gray-500 -mt-1">
+              Aparecem no cabeçalho de contratos, vistorias e recibos.
+            </p>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">Razão social</label>
+              <input type="text" value={razaoSocial} onChange={e => setRazaoSocial(e.target.value)} placeholder="Ex: IMOBILIATTO" className={inputCls} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">CNPJ</label>
+              <input type="text" inputMode="numeric" value={cnpj} onChange={e => setCnpj(mascaraCNPJ(e.target.value))} placeholder="00.000.000/0000-00" className={inputCls} />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-gray-700">CRECI Jurídico</label>
+              <input type="text" value={creciJuridico} onChange={e => setCreciJuridico(e.target.value)} placeholder="Ex: 14137-J" className={inputCls} />
+              <p className="text-xs text-gray-400">CRECI da pessoa jurídica, distinto do CRECI do corretor responsável.</p>
+            </div>
           </div>
         )}
       </section>

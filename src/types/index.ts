@@ -59,6 +59,9 @@ export interface Perfil {
   consentimento_lgpd_em: string | null
   foto_url: string | null
   creci: string | null
+  razao_social: string | null
+  cnpj: string | null
+  creci_juridico: string | null
   created_at: string
 }
 

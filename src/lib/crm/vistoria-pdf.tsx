@@ -25,6 +25,13 @@ export interface VistoriaPDFData {
   assinada_ip: string | null
   // Emitente
   anunciante_nome: string
+  anunciante_razao_social: string | null
+  anunciante_cnpj: string | null              // já formatado
+  anunciante_creci: string | null             // CRECI pessoa física do corretor
+  anunciante_creci_juridico: string | null    // CRECI-J da imobiliária
+  anunciante_logo_url: string | null
+  anunciante_endereco: string | null          // logradouro, nº, bairro, cidade-UF, CEP
+  anunciante_cidade_uf: string | null         // ex: "Cuiabá-MT", usado no fecho do termo
   contrato_codigo: string
   imovel_titulo: string | null
   imovel_endereco: string | null
@@ -56,6 +63,21 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     lineHeight: 1.4,
   },
+  // ── Cabeçalho institucional (fixo no topo de toda página) ──
+  cabecalhoInst: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    paddingBottom: 8,
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+    borderBottomStyle: 'solid',
+  },
+  cabecalhoLogo: { width: 70, height: 50, objectFit: 'contain' },
+  cabecalhoDados: { textAlign: 'right', fontSize: 8, color: '#374151', lineHeight: 1.35 },
+  cabecalhoRazao: { fontSize: 10, fontWeight: 'bold', color: '#111827', marginBottom: 1 },
+  // ── Header do documento (título + badge) ──
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -86,6 +108,57 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  // ── Texto contratual (introdução + cláusulas) ──
+  secaoTitulo: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#111827',
+    marginTop: 10,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  secaoParagrafo: {
+    fontSize: 8.5,
+    color: '#374151',
+    textAlign: 'justify',
+    marginBottom: 3,
+    lineHeight: 1.45,
+  },
+  introBox: {
+    backgroundColor: '#faf5ff',
+    borderLeftWidth: 3,
+    borderLeftColor: roxo,
+    borderLeftStyle: 'solid',
+    padding: 8,
+    marginBottom: 10,
+  },
+  introTexto: {
+    fontSize: 8.5,
+    color: '#1f2937',
+    textAlign: 'justify',
+    lineHeight: 1.45,
+  },
+  aceiteBox: {
+    marginTop: 16,
+    padding: 10,
+    backgroundColor: fundo,
+    borderRadius: 3,
+  },
+  aceiteTexto: {
+    fontSize: 8.5,
+    color: '#1f2937',
+    textAlign: 'justify',
+    fontStyle: 'italic',
+    lineHeight: 1.45,
+  },
+  aceiteLocal: {
+    fontSize: 8.5,
+    color: '#111827',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 6,
   },
 
   infoBox: {
@@ -212,14 +285,46 @@ export function VistoriaDocument({ data }: { data: VistoriaPDFData }) {
     return acc
   }, {})
 
+  const tipoLabel = data.tipo === 'entrada' ? 'entrada' : 'saída'
+  const nomeInst = data.anunciante_razao_social ?? data.anunciante_nome
+  const linhaCreci = [
+    data.anunciante_creci_juridico ? `CRECI-J ${data.anunciante_creci_juridico}` : null,
+    data.anunciante_creci ? `CRECI ${data.anunciante_creci}` : null,
+  ].filter(Boolean).join(' · ')
+  const dataExtenso = data.data_vistoria
+    ? new Date(data.data_vistoria + 'T00:00:00').toLocaleDateString('pt-BR', {
+        day: '2-digit', month: 'long', year: 'numeric',
+      })
+    : null
+
   return (
-    <Document title={`Vistoria ${data.tipo} - ${data.contrato_codigo}`} author={data.anunciante_nome}>
+    <Document title={`Vistoria ${data.tipo} - ${data.contrato_codigo}`} author={nomeInst}>
       <Page size="A4" style={styles.page}>
-        {/* Header */}
+        {/* Cabeçalho institucional fixo */}
+        <View style={styles.cabecalhoInst} fixed>
+          {data.anunciante_logo_url ? (
+            <Image src={data.anunciante_logo_url} style={styles.cabecalhoLogo} />
+          ) : (
+            <View style={styles.cabecalhoLogo} />
+          )}
+          <View style={styles.cabecalhoDados}>
+            <Text style={styles.cabecalhoRazao}>
+              {nomeInst}
+              {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
+            </Text>
+            {data.anunciante_creci && (
+              <Text>{data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}</Text>
+            )}
+            {data.anunciante_endereco && <Text>{data.anunciante_endereco}</Text>}
+            {data.anunciante_cnpj && <Text>CNPJ {data.anunciante_cnpj}</Text>}
+          </View>
+        </View>
+
+        {/* Header do documento */}
         <View style={styles.header}>
           <View>
             <Text style={styles.titulo}>
-              Vistoria de {data.tipo === 'entrada' ? 'Entrada' : 'Saída'}
+              Termo de Vistoria de {data.tipo === 'entrada' ? 'Entrada' : 'Saída'}
             </Text>
             <Text style={styles.subtitulo}>
               Contrato {data.contrato_codigo} · {data.imovel_titulo ?? '—'}
@@ -233,6 +338,77 @@ export function VistoriaDocument({ data }: { data: VistoriaPDFData }) {
             {data.assinada_em ? 'Assinada' : 'Rascunho'}
           </Text>
         </View>
+
+        {/* 1. Identificação */}
+        <View style={styles.introBox}>
+          <Text style={styles.introTexto}>
+            Pelo presente instrumento, fica registrada a{' '}
+            <Text style={{ fontWeight: 'bold' }}>vistoria de {tipoLabel}</Text>{' '}
+            do imóvel objeto do{' '}
+            <Text style={{ fontWeight: 'bold' }}>Contrato de Locação {data.contrato_codigo}</Text>
+            {data.imovel_endereco ? `, situado em ${data.imovel_endereco}` : ''}, firmado com{' '}
+            <Text style={{ fontWeight: 'bold' }}>{data.inquilino_nome}</Text>
+            {data.inquilino_cpf ? ` (CPF ${data.inquilino_cpf})` : ''}, doravante LOCATÁRIO, integrando-se ao referido contrato como anexo, nos termos da Lei nº 8.245/1991.
+          </Text>
+        </View>
+
+        {/* 2. Estado de conservação */}
+        <Text style={styles.secaoTitulo}>2. Estado de conservação e declarações do locatário</Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>2.1.</Text> O LOCATÁRIO declara que recebeu o IMÓVEL no estado de uso, limpeza e funcionamento descrito no checklist abaixo, obrigando-se a conservá-lo, utilizá-lo adequadamente e devolvê-lo, ao final da locação, no mesmo estado, ressalvado o desgaste natural decorrente do uso regular.
+        </Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>2.2.</Text> Eventual divergência relevante não descrita nesta vistoria deverá ser apontada por escrito no prazo de <Text style={{ fontWeight: 'bold' }}>5 (cinco) dias úteis</Text> contados da entrega das chaves, acompanhada de fotos ou vídeos. O silêncio será interpretado como concordância com o estado de conservação aqui registrado.
+        </Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>2.3.</Text> Ficam expressamente ressalvados vícios estruturais, defeitos ocultos, problemas preexistentes, falhas construtivas, infiltrações, trincas, telhado, fundação, rede hidráulica e elétrica embutida não causados pelo LOCATÁRIO, cuja responsabilidade é da LOCADORA, desde que comunicados imediatamente e não agravados por omissão, mau uso ou intervenção indevida.
+        </Text>
+
+        {/* 3. Chaves */}
+        <Text style={styles.secaoTitulo}>3. Chaves, controles e acessos</Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>3.1.</Text> O LOCATÁRIO recebe nesta data{' '}
+          <Text style={{ fontWeight: 'bold' }}>
+            {data.qtd_chaves} chave{data.qtd_chaves === 1 ? '' : 's'}
+          </Text>{' '}e{' '}
+          <Text style={{ fontWeight: 'bold' }}>
+            {data.qtd_controles} controle{data.qtd_controles === 1 ? '' : 's'}
+          </Text>
+          , obrigando-se a devolvê-los ao final da locação, juntamente com tags, cartões e demais acessos eventualmente entregues.
+        </Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>3.2.</Text> A perda, extravio, dano ou não devolução de chaves, controles ou acessos implicará reposição às expensas do LOCATÁRIO, inclusive substituição de fechadura quando necessário por motivo de segurança.
+        </Text>
+
+        {/* 4. Reparos */}
+        <Text style={styles.secaoTitulo}>4. Responsabilidades pelos reparos</Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>4.1.</Text> São de responsabilidade do LOCATÁRIO os reparos decorrentes de mau uso, falta de limpeza, falta de manutenção ordinária, negligência, imprudência ou imperícia, incluindo quebras de vidros, fechaduras, torneiras, registros, louças, portas, controles, tomadas, interruptores, lâmpadas, ralos, sifões, pias, vasos sanitários, entupimentos por uso inadequado e demais itens de uso cotidiano.
+        </Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>4.2.</Text> Danos causados por familiares, visitantes, empregados, prestadores de serviço, animais ou terceiros que ingressem no imóvel por autorização do LOCATÁRIO são de sua inteira responsabilidade.
+        </Text>
+
+        {/* 5. Devolução */}
+        <Text style={styles.secaoTitulo}>5. Devolução e vistoria final</Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>5.1.</Text> Ao término da locação, o imóvel deverá ser devolvido limpo, livre de pessoas e bens, sem lixo ou entulho, em condições compatíveis com a vistoria inicial, ressalvado o desgaste natural.
+        </Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>5.2.</Text> A devolução somente será considerada efetiva após vistoria final, quitação integral de aluguel, IPTU, consumos e encargos, reparação ou indenização de danos apurados, baixa das contas de consumo e assinatura do termo de encerramento.
+        </Text>
+
+        {/* 6. Assinatura eletrônica */}
+        <Text style={styles.secaoTitulo}>6. Assinatura eletrônica</Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>6.1.</Text> O LOCATÁRIO reconhece a validade jurídica da assinatura eletrônica realizada neste documento, nos termos da <Text style={{ fontWeight: 'bold' }}>MP nº 2.200-2/2001</Text> e da <Text style={{ fontWeight: 'bold' }}>Lei nº 14.063/2020</Text>, ficando registrados data, hora e endereço IP do dispositivo utilizado.
+        </Text>
+        <Text style={styles.secaoParagrafo}>
+          <Text style={{ fontWeight: 'bold' }}>6.2.</Text> A assinatura abaixo importa em concordância integral com o estado descrito e com as observações eventualmente registradas pelo LOCATÁRIO em cada item, ressalvado o prazo de 5 dias úteis para apontamentos complementares (item 2.2).
+        </Text>
+
+        {/* 7. Checklist — título da seção */}
+        <Text style={styles.secaoTitulo}>7. Checklist do imóvel</Text>
 
         {/* Info */}
         <View style={styles.infoBox}>
@@ -344,6 +520,18 @@ export function VistoriaDocument({ data }: { data: VistoriaPDFData }) {
             })}
           </View>
         ))}
+
+        {/* Termo de aceite */}
+        <View style={styles.aceiteBox} wrap={false}>
+          <Text style={styles.aceiteTexto}>
+            E, por estar plenamente ciente do estado de conservação descrito e das obrigações assumidas, o LOCATÁRIO assina o presente Termo de Vistoria, que passa a integrar o Contrato de Locação como anexo, para todos os fins de direito.
+          </Text>
+          {dataExtenso && (
+            <Text style={styles.aceiteLocal}>
+              {data.anunciante_cidade_uf ?? 'Cuiabá-MT'}, {dataExtenso}.
+            </Text>
+          )}
+        </View>
 
         {/* Assinatura */}
         <View style={styles.assinaturaBox} wrap={false}>
