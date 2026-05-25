@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { FileSignature, Plus } from 'lucide-react'
+import { FileSignature, Plus, Variable } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { BotaoAjuda } from '@/components/botao-ajuda'
@@ -36,14 +36,24 @@ export default async function ContratosPage() {
             {lista.length} contrato{lista.length === 1 ? '' : 's'} cadastrado{lista.length === 1 ? '' : 's'}
           </p>
         </div>
-        <Link
-          href="/painel/contratos/novo"
-          className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-colors shrink-0"
-        >
-          <Plus size={15} />
-          <span className="hidden xs:inline">Novo contrato</span>
-          <span className="xs:hidden">Novo</span>
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/painel/contratos/clausulas"
+            className="flex items-center gap-1.5 bg-white hover:bg-violet-50 text-violet-700 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-violet-200 transition-colors"
+            title="Banco de cláusulas pra gerar contratos"
+          >
+            <Variable size={14} />
+            <span className="hidden sm:inline">Cláusulas</span>
+          </Link>
+          <Link
+            href="/painel/contratos/novo"
+            className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-colors"
+          >
+            <Plus size={15} />
+            <span className="hidden xs:inline">Novo contrato</span>
+            <span className="xs:hidden">Novo</span>
+          </Link>
+        </div>
       </div>
 
       {lista.length === 0 ? (
