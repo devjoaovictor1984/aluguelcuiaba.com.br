@@ -1,5 +1,23 @@
 /* eslint-disable jsx-a11y/alt-text */
-import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import path from 'path'
+import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
+
+// Registra Poppins a partir dos TTF em public/fonts/ (resolvido a partir de process.cwd()
+// pra funcionar em dev, build standalone e runtime do Vercel).
+const fontDir = path.join(process.cwd(), 'public', 'fonts')
+
+Font.register({
+  family: 'Poppins',
+  fonts: [
+    { src: path.join(fontDir, 'Poppins-Regular.ttf'), fontWeight: 'normal' },
+    { src: path.join(fontDir, 'Poppins-Medium.ttf'), fontWeight: 'medium' },
+    { src: path.join(fontDir, 'Poppins-Bold.ttf'), fontWeight: 'bold' },
+    { src: path.join(fontDir, 'Poppins-Italic.ttf'), fontWeight: 'normal', fontStyle: 'italic' },
+  ],
+})
+
+// Desativa hifenização padrão (deixa pt-BR fluir)
+Font.registerHyphenationCallback(word => [word])
 
 export interface ContratoPDFClausula {
   numero: number
@@ -59,7 +77,17 @@ export interface ContratoPDFData {
   clausulas: ContratoPDFClausula[]
 }
 
-const cinza = '#6b7280'
+const COR = {
+  texto: '#1f2937',
+  textoForte: '#111827',
+  cinza: '#6b7280',
+  cinzaClaro: '#9ca3af',
+  borda: '#e5e7eb',
+  bordaForte: '#d1d5db',
+  destaque: '#581c87',   // violeta escuro pra títulos
+  acento: '#7c3aed',     // violeta brand
+  fundoSuave: '#faf5ff', // background pra boxes
+}
 
 const styles = StyleSheet.create({
   page: {
@@ -67,11 +95,11 @@ const styles = StyleSheet.create({
     paddingTop: 110,    // cabeçalho fixo ocupa ~85px (logo 45 + linhas + border); 110 dá folga
     paddingBottom: 65,
     fontSize: 10,
-    fontFamily: 'Helvetica',
-    color: '#1f2937',
+    fontFamily: 'Poppins',
+    color: COR.texto,
     lineHeight: 1.5,
   },
-  // Cabeçalho fixo (todas as páginas)
+  // ── Cabeçalho institucional fixo (todas as páginas) ──
   cabecalhoInst: {
     position: 'absolute',
     top: 28,
@@ -80,16 +108,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingBottom: 10,
+    borderBottomWidth: 1.5,
+    borderBottomColor: COR.acento,
     borderBottomStyle: 'solid',
   },
-  cabecalhoLogo: { width: 65, height: 45, objectFit: 'contain' },
-  cabecalhoDados: { textAlign: 'right', fontSize: 7.5, color: '#374151', lineHeight: 1.35 },
-  cabecalhoRazao: { fontSize: 9, fontFamily: 'Helvetica-Bold', color: '#111827', marginBottom: 1 },
+  cabecalhoLogo: { width: 70, height: 50, objectFit: 'contain' },
+  cabecalhoDados: { textAlign: 'right', fontSize: 7.5, color: COR.cinza, lineHeight: 1.4 },
+  cabecalhoRazao: {
+    fontSize: 9.5,
+    fontFamily: 'Poppins',
+    fontWeight: 'bold',
+    color: COR.textoForte,
+    marginBottom: 2,
+  },
 
-  // Footer (paginação)
+  // ── Footer (paginação) ──
   rodape: {
     position: 'absolute',
     bottom: 28,
@@ -97,86 +131,159 @@ const styles = StyleSheet.create({
     right: 56,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    fontSize: 7,
-    color: '#9ca3af',
+    fontSize: 7.5,
+    color: COR.cinzaClaro,
     borderTopWidth: 0.5,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: COR.borda,
     borderTopStyle: 'solid',
-    paddingTop: 5,
+    paddingTop: 6,
+  },
+  rodapeCodigo: { fontFamily: 'Poppins', fontWeight: 'medium' },
+
+  // ── Capa: título e subtítulo ──
+  capa: {
+    marginTop: 30,
+    marginBottom: 24,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COR.borda,
+    borderBottomStyle: 'solid',
+  },
+  capaSelo: {
+    fontSize: 8,
+    fontFamily: 'Poppins',
+    fontWeight: 'medium',
+    color: COR.acento,
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  capaTitulo: {
+    fontSize: 18,
+    fontFamily: 'Poppins',
+    fontWeight: 'bold',
+    color: COR.textoForte,
+    textAlign: 'center',
+    letterSpacing: 0.3,
+    lineHeight: 1.25,
+    marginBottom: 6,
+  },
+  capaSubtitulo: {
+    fontSize: 9.5,
+    color: COR.cinza,
+    textAlign: 'center',
+    marginTop: 4,
+    fontFamily: 'Poppins',
+  },
+  capaCodigo: {
+    fontSize: 8,
+    fontFamily: 'Poppins',
+    fontWeight: 'medium',
+    color: COR.cinzaClaro,
+    textAlign: 'center',
+    marginTop: 8,
+    letterSpacing: 0.6,
   },
 
-  tituloPrincipal: {
-    fontSize: 13,
-    fontFamily: 'Helvetica-Bold',
-    color: '#111827',
+  // ── Cláusulas ──
+  clausulaWrap: {
+    marginBottom: 14,
+  },
+  clausulaNumero: {
+    fontSize: 10.5,
+    fontFamily: 'Poppins',
+    fontWeight: 'bold',
+    color: COR.acento,
+    marginRight: 6,
+  },
+  clausulaTitulo: {
+    fontSize: 11,
+    fontFamily: 'Poppins',
+    fontWeight: 'bold',
+    color: COR.textoForte,
+    marginBottom: 6,
+    flexDirection: 'row',
+  },
+  clausulaCorpo: {
+    fontSize: 10,
+    color: COR.texto,
+    textAlign: 'justify',
+    lineHeight: 1.6,
+    fontFamily: 'Poppins',
+  },
+
+  // ── Seção (cláusulas seguradora etc.) ──
+  secaoTituloCentral: {
+    fontSize: 14,
+    fontFamily: 'Poppins',
+    fontWeight: 'bold',
+    color: COR.textoForte,
     textAlign: 'center',
-    marginBottom: 18,
+    marginTop: 12,
+    marginBottom: 14,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
 
-  clausulaWrap: {
-    marginBottom: 12,
-  },
-  clausulaTitulo: {
-    fontSize: 10.5,
-    fontFamily: 'Helvetica-Bold',
-    color: '#111827',
-    marginBottom: 4,
-  },
-  clausulaCorpo: {
-    fontSize: 10,
-    color: '#1f2937',
-    textAlign: 'justify',
-    lineHeight: 1.55,
-  },
-
-  // Folha de assinatura
+  // ── Folha de assinatura ──
   assinaturaPagina: {
-    marginTop: 30,
+    marginTop: 28,
   },
   assinaturaFecho: {
     fontSize: 10,
-    color: '#1f2937',
+    color: COR.texto,
     textAlign: 'justify',
-    marginBottom: 12,
-    lineHeight: 1.6,
+    marginBottom: 14,
+    lineHeight: 1.65,
+    fontFamily: 'Poppins',
   },
   assinaturaData: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    color: '#111827',
+    fontSize: 10.5,
+    fontFamily: 'Poppins',
+    fontWeight: 'bold',
+    color: COR.textoForte,
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 30,
+    marginTop: 12,
+    marginBottom: 28,
   },
   assinaturaBloco: {
-    marginBottom: 30,
-    paddingBottom: 22,
+    marginBottom: 28,
+    paddingBottom: 20,
     borderBottomWidth: 0.7,
-    borderBottomColor: '#9ca3af',
+    borderBottomColor: COR.bordaForte,
     borderBottomStyle: 'solid',
   },
   assinaturaPapel: {
     fontSize: 7.5,
-    color: cinza,
+    fontFamily: 'Poppins',
+    fontWeight: 'medium',
+    color: COR.acento,
     textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 2,
+    letterSpacing: 0.8,
+    marginBottom: 3,
   },
   assinaturaNome: {
-    fontSize: 10,
-    fontFamily: 'Helvetica-Bold',
-    color: '#111827',
+    fontSize: 10.5,
+    fontFamily: 'Poppins',
+    fontWeight: 'bold',
+    color: COR.textoForte,
+    marginBottom: 1,
   },
   assinaturaCpf: {
     fontSize: 9,
-    color: cinza,
+    color: COR.cinza,
+    fontFamily: 'Poppins',
   },
   testemunha: {
-    fontSize: 9,
-    color: cinza,
-    marginTop: 26,
+    fontSize: 8.5,
+    fontFamily: 'Poppins',
+    fontWeight: 'medium',
+    color: COR.acento,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+    marginTop: 22,
+    marginBottom: 4,
   },
 })
 
@@ -221,21 +328,29 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
         {/* Footer fixo com paginação */}
         <View style={styles.rodape} fixed>
-          <Text>Contrato {data.codigo}</Text>
+          <Text style={styles.rodapeCodigo}>Contrato {data.codigo}</Text>
           <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
         </View>
 
-        {/* Título */}
-        <Text style={styles.tituloPrincipal}>
-          Contrato de Locação Residencial{'\n'}
-          com Administração Imobiliária
-        </Text>
+        {/* Capa / Título */}
+        <View style={styles.capa}>
+          <Text style={styles.capaSelo}>Instrumento particular</Text>
+          <Text style={styles.capaTitulo}>
+            Contrato de Locação Residencial{'\n'}com Administração Imobiliária
+          </Text>
+          <Text style={styles.capaSubtitulo}>
+            {data.locatario_nome}
+          </Text>
+          <Text style={styles.capaCodigo}>
+            Nº {data.codigo}
+          </Text>
+        </View>
 
         {/* Cláusulas numeradas */}
         {data.clausulas.map((c, idx) => (
           <View key={idx} style={styles.clausulaWrap} wrap={true}>
             <Text style={styles.clausulaTitulo}>
-              {idx + 1}. {c.titulo}
+              <Text style={styles.clausulaNumero}>{idx + 1}.</Text> {c.titulo}
             </Text>
             <Text style={styles.clausulaCorpo}>{c.corpo}</Text>
           </View>
@@ -243,8 +358,8 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
         {/* Cláusulas da seguradora (quando garantia é seguro fiança e tem texto) */}
         {data.clausulas_seguradora_texto && (
-          <View style={{ marginTop: 16, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: '#e5e7eb', borderTopStyle: 'solid' }} break>
-            <Text style={styles.tituloPrincipal}>Cláusulas da Seguradora</Text>
+          <View break>
+            <Text style={styles.secaoTituloCentral}>Cláusulas da Seguradora</Text>
             <Text style={styles.clausulaCorpo}>{data.clausulas_seguradora_texto}</Text>
           </View>
         )}
