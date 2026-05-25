@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     height: 0.5,
     backgroundColor: COR.borda,
   },
-  rodapeCodigo: { fontFamily: 'Poppins', fontWeight: 'medium' },
+  rodapeCodigo: { fontFamily: FAMILIA, fontWeight: 'normal' },
 
   // ── Capa: título e subtítulo ──
   capa: {
