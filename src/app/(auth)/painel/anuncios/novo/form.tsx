@@ -8,6 +8,8 @@ import type { Bairro, TipoImovel } from '@/types'
 import { TIPOS_IMOVEL } from '@/lib/constants'
 import { validarWhatsApp, slugify } from '@/lib/utils'
 import { Editor } from '@/components/editor'
+import { DadosContratoSection } from '../_components/dados-contrato-section'
+import { dadosContratoParaDb, DADOS_CONTRATO_VAZIO, type DadosContrato } from '../_components/dados-contrato'
 import {
   ChevronLeft, Camera, X, Plus, Loader2, AlertCircle,
   ChevronDown, Home, Building2, Layers, Briefcase, MapPin,
@@ -289,6 +291,9 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
   const [whatsapp, setWhatsapp] = useState(() => mascaraTelefone(telefoneInicial))
   const [observacoes, setObservacoes] = useState('')
 
+  // ── dados pro contrato (opcional) ──
+  const [dadosContrato, setDadosContrato] = useState<DadosContrato>(DADOS_CONTRATO_VAZIO)
+
   // ── fotos ──
   const [fotos, setFotos] = useState<FotoLocal[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
@@ -386,6 +391,7 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
         status: 'ativo',
         destaque: false,
         expira_em: expira_em.toISOString(),
+        ...dadosContratoParaDb(dadosContrato),
       }).select('id').single()
 
       if (imovelError || !imovel) throw new Error(imovelError?.message ?? 'Erro ao criar anúncio')
@@ -727,6 +733,8 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
           <p className="text-xs text-gray-400">Número do seu cadastro · altere no <Link href="/painel/perfil" className="underline text-violet-600">perfil</Link>.</p>
         </Campo>
       </Secao>
+
+      <DadosContratoSection value={dadosContrato} onChange={setDadosContrato} />
 
       {/* ── Erro ── */}
       {erro && (

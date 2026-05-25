@@ -8,6 +8,8 @@ import type { Bairro, Imovel, TipoImovel } from '@/types'
 import { TIPOS_IMOVEL } from '@/lib/constants'
 import { validarWhatsApp } from '@/lib/utils'
 import { Editor } from '@/components/editor'
+import { DadosContratoSection } from '../../_components/dados-contrato-section'
+import { dadosContratoDeImovel, dadosContratoParaDb, type DadosContrato } from '../../_components/dados-contrato'
 import {
   ChevronLeft, Camera, X, Plus, Loader2, AlertCircle, Trash2,
   ChevronDown, Home, Building2, Layers, Briefcase, MapPin,
@@ -204,6 +206,9 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
   const [whatsapp, setWhatsapp] = useState(() => mascaraTelefone(imovel.whatsapp || telefoneInicial))
   const [observacoes, setObservacoes] = useState((imovel as unknown as Record<string, unknown>).observacoes as string ?? '')
 
+  // ── dados pro contrato (opcional) ──
+  const [dadosContrato, setDadosContrato] = useState<DadosContrato>(() => dadosContratoDeImovel(imovel))
+
   // ── fotos ──
   const [fotosExistentes, setFotosExistentes] = useState<FotoExistente[]>(
     (imovel.fotos ?? []).map(f => ({ id: f.id, url: f.url, principal: f.principal, removida: false }))
@@ -304,6 +309,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
         agua_inclusa: aguaInclusa,
         luz_inclusa: luzInclusa,
         whatsapp: whatsappLimpo,
+        ...dadosContratoParaDb(dadosContrato),
       }).eq('id', imovel.id)
 
       if (updateErr) throw new Error(updateErr.message)
@@ -624,6 +630,8 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
           <p className="text-xs text-gray-400">Número do seu cadastro · altere no <Link href="/painel/perfil" className="underline text-violet-600">perfil</Link>.</p>
         </Campo>
       </Secao>
+
+      <DadosContratoSection value={dadosContrato} onChange={setDadosContrato} />
 
       {/* Deletar anúncio */}
       <div className="text-center pt-2">

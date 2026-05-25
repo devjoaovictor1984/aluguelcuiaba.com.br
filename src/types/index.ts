@@ -112,6 +112,18 @@ export interface Imovel {
   expira_em: string
   lat: number | null
   lng: number | null
+  // ── Dados reais pro contrato (opcionais) ──
+  endereco_completo: string | null
+  endereco_numero: string | null
+  endereco_complemento: string | null
+  endereco_cep: string | null
+  matricula_cartorio: string | null
+  inscricao_municipal: string | null
+  uc_energia: string | null
+  matricula_agua: string | null
+  area_construida_m2: number | null
+  area_terreno_m2: number | null
+  descricao_real: string | null
   created_at: string
   updated_at: string
   bairro?: Bairro
