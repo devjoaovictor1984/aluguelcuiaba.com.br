@@ -1,37 +1,43 @@
 /* eslint-disable jsx-a11y/alt-text */
+import fs from 'fs'
 import path from 'path'
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
 
 // ── Carregamento de Poppins ─────────────────────────────────────────
-// Em serverless (Vercel) o `process.cwd()` aponta pra `/var/task` mas
-// nem sempre os arquivos de public/ ficam acessíveis pelo filesystem
-// (especialmente com build standalone). Por isso, em prod usamos URL
-// pública (o react-pdf baixa o TTF em runtime e cacheia).
-// Em dev usamos path local, que é mais rápido e sempre funciona.
-function fontSrc(filename: string): string {
-  const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
-  if (isProd) {
-    const base = (
-      process.env.NEXT_PUBLIC_APP_URL ??
-      process.env.NEXT_PUBLIC_SITE_URL ??
-      'https://www.aluguelcuiaba.com.br'
-    ).replace(/\/$/, '')
-    return `${base}/fonts/${filename}`
+// Lê os TTFs do filesystem como Buffer (síncrono) — garante que estão
+// disponíveis antes do render. Em runtime URL o react-pdf às vezes começa
+// a renderizar antes do download terminar e gera coordenadas absurdas.
+// Se ler falhar (path issue em algum ambiente), cai pra Helvetica padrão.
+function tryReadFont(filename: string): Buffer | null {
+  try {
+    const p = path.join(process.cwd(), 'public', 'fonts', filename)
+    if (!fs.existsSync(p)) return null
+    return fs.readFileSync(p)
+  } catch {
+    return null
   }
-  return path.join(process.cwd(), 'public', 'fonts', filename)
 }
 
-Font.register({
-  family: 'Poppins',
-  fonts: [
-    { src: fontSrc('Poppins-Regular.ttf'), fontWeight: 'normal' },
-    { src: fontSrc('Poppins-Medium.ttf'), fontWeight: 'medium' },
-    { src: fontSrc('Poppins-Bold.ttf'), fontWeight: 'bold' },
-    { src: fontSrc('Poppins-Italic.ttf'), fontWeight: 'normal', fontStyle: 'italic' },
-  ],
-})
+const ttfRegular = tryReadFont('Poppins-Regular.ttf')
+const ttfMedium = tryReadFont('Poppins-Medium.ttf')
+const ttfBold = tryReadFont('Poppins-Bold.ttf')
 
-// Desativa hifenização padrão (deixa pt-BR fluir)
+const POPPINS_LOADED = !!(ttfRegular && ttfBold)
+const FAMILIA = POPPINS_LOADED ? 'Poppins' : 'Helvetica'
+
+if (POPPINS_LOADED) {
+  // O react-pdf aceita Buffer no `src` (typing diz string, mas funciona)
+  Font.register({
+    family: 'Poppins',
+    fonts: [
+      { src: ttfRegular as unknown as string, fontWeight: 'normal' },
+      ...(ttfMedium ? [{ src: ttfMedium as unknown as string, fontWeight: 'medium' as const }] : []),
+      { src: ttfBold as unknown as string, fontWeight: 'bold' },
+    ],
+  })
+}
+
+// Desativa hifenização (pt-BR flui melhor sem)
 Font.registerHyphenationCallback(word => [word])
 
 export interface ContratoPDFClausula {
@@ -110,7 +116,7 @@ const styles = StyleSheet.create({
     paddingTop: 110,    // cabeçalho fixo ocupa ~85px (logo 45 + linhas + border); 110 dá folga
     paddingBottom: 65,
     fontSize: 10,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     color: COR.texto,
     lineHeight: 1.5,
   },
@@ -132,7 +138,7 @@ const styles = StyleSheet.create({
   cabecalhoDados: { textAlign: 'right', fontSize: 7.5, color: COR.cinza, lineHeight: 1.4 },
   cabecalhoRazao: {
     fontSize: 9.5,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'bold',
     color: COR.textoForte,
     marginBottom: 2,
@@ -166,7 +172,7 @@ const styles = StyleSheet.create({
   },
   capaSelo: {
     fontSize: 8,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'medium',
     color: COR.acento,
     textTransform: 'uppercase',
@@ -176,7 +182,7 @@ const styles = StyleSheet.create({
   },
   capaTitulo: {
     fontSize: 18,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'bold',
     color: COR.textoForte,
     textAlign: 'center',
@@ -189,11 +195,11 @@ const styles = StyleSheet.create({
     color: COR.cinza,
     textAlign: 'center',
     marginTop: 4,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
   },
   capaCodigo: {
     fontSize: 8,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'medium',
     color: COR.cinzaClaro,
     textAlign: 'center',
@@ -206,32 +212,27 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   clausulaNumero: {
-    fontSize: 10.5,
-    fontFamily: 'Poppins',
-    fontWeight: 'bold',
     color: COR.acento,
-    marginRight: 6,
   },
   clausulaTitulo: {
     fontSize: 11,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'bold',
     color: COR.textoForte,
     marginBottom: 6,
-    flexDirection: 'row',
   },
   clausulaCorpo: {
     fontSize: 10,
     color: COR.texto,
     textAlign: 'justify',
     lineHeight: 1.6,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
   },
 
   // ── Seção (cláusulas seguradora etc.) ──
   secaoTituloCentral: {
     fontSize: 14,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'bold',
     color: COR.textoForte,
     textAlign: 'center',
@@ -251,11 +252,11 @@ const styles = StyleSheet.create({
     textAlign: 'justify',
     marginBottom: 14,
     lineHeight: 1.65,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
   },
   assinaturaData: {
     fontSize: 10.5,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'bold',
     color: COR.textoForte,
     textAlign: 'center',
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
   },
   assinaturaPapel: {
     fontSize: 7.5,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'medium',
     color: COR.acento,
     textTransform: 'uppercase',
@@ -280,7 +281,7 @@ const styles = StyleSheet.create({
   },
   assinaturaNome: {
     fontSize: 10.5,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'bold',
     color: COR.textoForte,
     marginBottom: 1,
@@ -288,11 +289,11 @@ const styles = StyleSheet.create({
   assinaturaCpf: {
     fontSize: 9,
     color: COR.cinza,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
   },
   testemunha: {
     fontSize: 8.5,
-    fontFamily: 'Poppins',
+    fontFamily: FAMILIA,
     fontWeight: 'medium',
     color: COR.acento,
     textTransform: 'uppercase',
