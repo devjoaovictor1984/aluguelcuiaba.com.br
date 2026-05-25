@@ -119,9 +119,33 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
             Importar contrato modelo
           </button>
           {erro && (
-            <p className="text-xs text-red-700 mt-3 flex items-center gap-1.5 justify-center">
-              <AlertCircle size={12} /> {erro}
-            </p>
+            <div className="mt-3 space-y-2">
+              <p className="text-xs text-red-700 flex items-center gap-1.5 justify-center">
+                <AlertCircle size={12} /> {erro}
+              </p>
+              {/* Quando a action diz "já tem cláusulas" mas a tela tá vazia,
+                  é descompasso de cache. Oferece reimportação direta. */}
+              {erro.toLowerCase().includes('já tem cláusulas') && (
+                <div className="bg-white border border-amber-200 rounded-lg p-3 text-left">
+                  <p className="text-[11px] text-gray-700 mb-2">
+                    A tela está vazia mas o sistema diz que você já tem cláusulas no banco. Provável cache. Tenta:
+                  </p>
+                  <ol className="text-[11px] text-gray-600 list-decimal pl-4 space-y-0.5 mb-3">
+                    <li>Hard refresh (<strong>Ctrl + Shift + R</strong>) — costuma resolver</li>
+                    <li>Se persistir, clique no botão abaixo pra apagar tudo e reimportar do zero</li>
+                  </ol>
+                  <button
+                    type="button"
+                    onClick={onReimportarModelo}
+                    disabled={isPending}
+                    className="w-full inline-flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
+                  >
+                    {isPending ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                    Forçar reimportação (apaga e refaz)
+                  </button>
+                </div>
+              )}
+            </div>
           )}
         </div>
       )}
