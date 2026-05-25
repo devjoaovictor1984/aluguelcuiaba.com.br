@@ -338,174 +338,139 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
   const dataExtenso = fmtDataExtenso(data.data_assinatura)
   const cidadeUf = data.anunciante_cidade_uf ?? 'Cuiabá-MT'
 
+  // VERSÃO MÍNIMA — sem fixed, sem position absolute, sem image, sem break,
+  // sem render prop. Layout linear simples. Se isto gerar, vou adicionando
+  // complexidade de volta até reproduzir o erro.
   return (
     <Document
       title={`Contrato ${data.codigo}`}
       author={nomeInst}
       subject={`Contrato de Locação Residencial — ${data.locatario_nome}`}
     >
-      <Page size="A4" style={styles.page}>
-        {/* Linha separadora do cabeçalho (View independente — sem border em absolute) */}
-        <View style={styles.cabecalhoLinha} fixed />
-
-        {/* Linha separadora do rodapé */}
-        <View style={styles.rodapeLinha} fixed />
-
-        {/* Cabeçalho fixo */}
-        <View style={styles.cabecalhoInst} fixed>
-          {data.anunciante_logo_url ? (
-            <Image src={data.anunciante_logo_url} style={styles.cabecalhoLogo} />
-          ) : (
-            <View style={styles.cabecalhoLogo} />
+      <Page size="A4" style={{ padding: 56, fontSize: 10, fontFamily: 'Helvetica', lineHeight: 1.5 }}>
+        {/* Cabeçalho institucional (NÃO fixed) */}
+        <View style={{ marginBottom: 14, paddingBottom: 8 }}>
+          <Text style={{ fontSize: 11, fontWeight: 'bold' }}>{nomeInst}</Text>
+          {data.anunciante_creci_juridico && (
+            <Text style={{ fontSize: 8 }}>CRECI-J {data.anunciante_creci_juridico}</Text>
           )}
-          <View style={styles.cabecalhoDados}>
-            <Text style={styles.cabecalhoRazao}>
-              {nomeInst}
-              {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
-            </Text>
-            {data.anunciante_creci && (
-              <Text>{data.anunciante_nome} — CRECI {data.anunciante_creci}</Text>
-            )}
-            {data.anunciante_endereco && <Text>{data.anunciante_endereco}</Text>}
-            {data.anunciante_cnpj && <Text>CNPJ {data.anunciante_cnpj}</Text>}
-          </View>
+          {data.anunciante_creci && (
+            <Text style={{ fontSize: 8 }}>{data.anunciante_nome} — CRECI {data.anunciante_creci}</Text>
+          )}
+          {data.anunciante_endereco && (
+            <Text style={{ fontSize: 8 }}>{data.anunciante_endereco}</Text>
+          )}
+          {data.anunciante_cnpj && (
+            <Text style={{ fontSize: 8 }}>CNPJ {data.anunciante_cnpj}</Text>
+          )}
         </View>
 
-        {/* Footer fixo com paginação */}
-        <View style={styles.rodape} fixed>
-          <Text style={styles.rodapeCodigo}>Contrato {data.codigo}</Text>
-          <Text render={({ pageNumber, totalPages }) => `Página ${pageNumber} de ${totalPages}`} />
-        </View>
+        {/* Título */}
+        <Text style={{ fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 }}>
+          CONTRATO DE LOCAÇÃO RESIDENCIAL{'\n'}COM ADMINISTRAÇÃO IMOBILIÁRIA
+        </Text>
 
-        {/* Capa / Título */}
-        <View style={styles.capa}>
-          <Text style={styles.capaSelo}>Instrumento particular</Text>
-          <Text style={styles.capaTitulo}>
-            Contrato de Locação Residencial{'\n'}com Administração Imobiliária
-          </Text>
-          <Text style={styles.capaSubtitulo}>
-            {data.locatario_nome}
-          </Text>
-          <Text style={styles.capaCodigo}>
-            Nº {data.codigo}
-          </Text>
-        </View>
-        <View style={styles.capaSeparador} />
+        <Text style={{ fontSize: 9, textAlign: 'center', marginBottom: 20 }}>
+          Nº {data.codigo} — {data.locatario_nome}
+        </Text>
 
-        {/* Cláusulas numeradas */}
+        {/* Cláusulas */}
         {data.clausulas.map((c, idx) => (
-          <View key={idx} style={styles.clausulaWrap} wrap={true}>
-            <Text style={styles.clausulaTitulo}>
+          <View key={idx} style={{ marginBottom: 12 }}>
+            <Text style={{ fontSize: 11, fontWeight: 'bold', marginBottom: 4 }}>
               {idx + 1}. {c.titulo}
             </Text>
-            <Text style={styles.clausulaCorpo}>{c.corpo}</Text>
+            <Text style={{ fontSize: 10, textAlign: 'justify' }}>{c.corpo}</Text>
           </View>
         ))}
 
-        {/* Cláusulas da seguradora (quando garantia é seguro fiança e tem texto) */}
+        {/* Seguradora */}
         {data.clausulas_seguradora_texto && (
-          <View break>
-            <Text style={styles.secaoTituloCentral}>Cláusulas da Seguradora</Text>
-            <Text style={styles.clausulaCorpo}>{data.clausulas_seguradora_texto}</Text>
+          <View style={{ marginTop: 18 }}>
+            <Text style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
+              CLÁUSULAS DA SEGURADORA
+            </Text>
+            <Text style={{ fontSize: 10, textAlign: 'justify' }}>{data.clausulas_seguradora_texto}</Text>
           </View>
         )}
 
-        {/* Folha de assinatura */}
-        <View style={styles.assinaturaPagina} break>
-          <Text style={styles.assinaturaFecho}>
-            E, por estarem justos e contratados, plenamente cientes da seriedade das obrigações
-            assumidas, assinam o presente instrumento digitalmente, em vias de igual teor,
-            juntamente com 02 (duas) testemunhas.
+        {/* Folha de assinatura — sem break, fica em sequência */}
+        <View style={{ marginTop: 24 }}>
+          <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 14 }}>
+            E, por estarem justos e contratados, assinam o presente instrumento, em vias de igual teor, juntamente com 02 (duas) testemunhas.
           </Text>
 
-          <Text style={styles.assinaturaData}>
+          <Text style={{ fontSize: 10, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}>
             {cidadeUf}, {dataExtenso}.
           </Text>
 
-          {/* Locador / Administradora — quando há administração, quem assina é o corretor */}
           {data.tem_administracao ? (
-            <View style={styles.assinaturaBloco}>
-              <Text style={styles.assinaturaPapel}>Locador / Administradora</Text>
-              <Text style={styles.assinaturaNome}>
+            <View style={{ marginBottom: 22 }}>
+              <Text style={{ fontSize: 8, marginBottom: 2 }}>LOCADOR / ADMINISTRADORA</Text>
+              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>
                 {data.admin_responsavel_nome ?? data.locador_nome}
               </Text>
               {data.admin_responsavel_creci && (
-                <Text style={styles.assinaturaCpf}>CRECI {data.admin_responsavel_creci}</Text>
+                <Text style={{ fontSize: 9 }}>CRECI {data.admin_responsavel_creci}</Text>
               )}
-              <Text style={styles.assinaturaCpf}>
+              <Text style={{ fontSize: 9 }}>
                 Representando: {data.locador_nome}
                 {data.locador_cpf ? ` — CPF ${data.locador_cpf}` : ''}
               </Text>
             </View>
           ) : (
-            <View style={styles.assinaturaBloco}>
-              <Text style={styles.assinaturaPapel}>Locador</Text>
-              <Text style={styles.assinaturaNome}>{data.locador_nome}</Text>
-              {data.locador_cpf && <Text style={styles.assinaturaCpf}>CPF {data.locador_cpf}</Text>}
+            <View style={{ marginBottom: 22 }}>
+              <Text style={{ fontSize: 8, marginBottom: 2 }}>LOCADOR</Text>
+              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{data.locador_nome}</Text>
+              {data.locador_cpf && <Text style={{ fontSize: 9 }}>CPF {data.locador_cpf}</Text>}
             </View>
           )}
-          <View style={styles.assinaturaLinha} />
 
-          <View style={styles.assinaturaBloco}>
-            <Text style={styles.assinaturaPapel}>Locatário</Text>
-            <Text style={styles.assinaturaNome}>{data.locatario_nome}</Text>
-            {data.locatario_cpf && <Text style={styles.assinaturaCpf}>CPF {data.locatario_cpf}</Text>}
+          <View style={{ marginBottom: 22 }}>
+            <Text style={{ fontSize: 8, marginBottom: 2 }}>LOCATÁRIO</Text>
+            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{data.locatario_nome}</Text>
+            {data.locatario_cpf && <Text style={{ fontSize: 9 }}>CPF {data.locatario_cpf}</Text>}
           </View>
-          <View style={styles.assinaturaLinha} />
 
           {data.conjuge_nome && (
-            <>
-              <View style={styles.assinaturaBloco}>
-                <Text style={styles.assinaturaPapel}>Cônjuge do locatário</Text>
-                <Text style={styles.assinaturaNome}>{data.conjuge_nome}</Text>
-                {data.conjuge_cpf && <Text style={styles.assinaturaCpf}>CPF {data.conjuge_cpf}</Text>}
-              </View>
-              <View style={styles.assinaturaLinha} />
-            </>
+            <View style={{ marginBottom: 22 }}>
+              <Text style={{ fontSize: 8, marginBottom: 2 }}>CÔNJUGE DO LOCATÁRIO</Text>
+              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{data.conjuge_nome}</Text>
+              {data.conjuge_cpf && <Text style={{ fontSize: 9 }}>CPF {data.conjuge_cpf}</Text>}
+            </View>
           )}
 
-          {/* Moradores adicionais (co-locatários, moradores, responsáveis financeiros) */}
           {data.moradores_adicionais.map((m, idx) => (
-            <View key={idx}>
-              <View style={styles.assinaturaBloco}>
-                <Text style={styles.assinaturaPapel}>{m.papel}</Text>
-                <Text style={styles.assinaturaNome}>{m.nome}</Text>
-                {m.cpf && <Text style={styles.assinaturaCpf}>CPF {m.cpf}</Text>}
-              </View>
-              <View style={styles.assinaturaLinha} />
+            <View key={idx} style={{ marginBottom: 22 }}>
+              <Text style={{ fontSize: 8, marginBottom: 2 }}>{m.papel.toUpperCase()}</Text>
+              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{m.nome}</Text>
+              {m.cpf && <Text style={{ fontSize: 9 }}>CPF {m.cpf}</Text>}
             </View>
           ))}
 
           {data.fiador_nome && (
-            <>
-              <View style={styles.assinaturaBloco}>
-                <Text style={styles.assinaturaPapel}>Fiador</Text>
-                <Text style={styles.assinaturaNome}>{data.fiador_nome}</Text>
-                {data.fiador_cpf && <Text style={styles.assinaturaCpf}>CPF {data.fiador_cpf}</Text>}
-              </View>
-              <View style={styles.assinaturaLinha} />
-            </>
+            <View style={{ marginBottom: 22 }}>
+              <Text style={{ fontSize: 8, marginBottom: 2 }}>FIADOR</Text>
+              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{data.fiador_nome}</Text>
+              {data.fiador_cpf && <Text style={{ fontSize: 9 }}>CPF {data.fiador_cpf}</Text>}
+            </View>
           )}
 
-          {/* Testemunhas */}
           {(data.testemunhas.length > 0 ? data.testemunhas : [null, null]).map((t, idx) => (
-            <View key={idx}>
-              <Text style={styles.testemunha}>Testemunha {idx + 1}:</Text>
-              <View style={styles.assinaturaBloco}>
-                {t ? (
-                  <>
-                    <Text style={styles.assinaturaNome}>{t.nome}</Text>
-                    {t.cpf && <Text style={styles.assinaturaCpf}>CPF {t.cpf}</Text>}
-                    {t.rg && <Text style={styles.assinaturaCpf}>RG {t.rg}</Text>}
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.assinaturaCpf}>Nome: _____________________________________</Text>
-                    <Text style={styles.assinaturaCpf}>CPF: ______________________________________</Text>
-                  </>
-                )}
-              </View>
-              <View style={styles.assinaturaLinha} />
+            <View key={idx} style={{ marginBottom: 18 }}>
+              <Text style={{ fontSize: 8, marginBottom: 2 }}>TESTEMUNHA {idx + 1}</Text>
+              {t ? (
+                <>
+                  <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{t.nome}</Text>
+                  {t.cpf && <Text style={{ fontSize: 9 }}>CPF {t.cpf}</Text>}
+                  {t.rg && <Text style={{ fontSize: 9 }}>RG {t.rg}</Text>}
+                </>
+              ) : (
+                <>
+                  <Text style={{ fontSize: 9 }}>Nome: _____________________________________</Text>
+                  <Text style={{ fontSize: 9 }}>CPF: ______________________________________</Text>
+                </>
+              )}
             </View>
           ))}
         </View>
