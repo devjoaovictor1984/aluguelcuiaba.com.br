@@ -28,6 +28,7 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ geracaoId: string }> }
 ) {
+  try {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
@@ -281,4 +282,13 @@ export async function GET(
       'Cache-Control': 'no-store',
     },
   })
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    const stack = err instanceof Error ? err.stack : undefined
+    console.error('[contrato-pdf] erro ao gerar:', msg, stack)
+    return NextResponse.json(
+      { error: 'Falha ao gerar PDF', detail: msg },
+      { status: 500 }
+    )
+  }
 }

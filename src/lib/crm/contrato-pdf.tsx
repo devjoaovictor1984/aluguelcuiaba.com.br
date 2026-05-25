@@ -2,17 +2,32 @@
 import path from 'path'
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
 
-// Registra Poppins a partir dos TTF em public/fonts/ (resolvido a partir de process.cwd()
-// pra funcionar em dev, build standalone e runtime do Vercel).
-const fontDir = path.join(process.cwd(), 'public', 'fonts')
+// ── Carregamento de Poppins ─────────────────────────────────────────
+// Em serverless (Vercel) o `process.cwd()` aponta pra `/var/task` mas
+// nem sempre os arquivos de public/ ficam acessíveis pelo filesystem
+// (especialmente com build standalone). Por isso, em prod usamos URL
+// pública (o react-pdf baixa o TTF em runtime e cacheia).
+// Em dev usamos path local, que é mais rápido e sempre funciona.
+function fontSrc(filename: string): string {
+  const isProd = process.env.VERCEL === '1' || process.env.NODE_ENV === 'production'
+  if (isProd) {
+    const base = (
+      process.env.NEXT_PUBLIC_APP_URL ??
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      'https://www.aluguelcuiaba.com.br'
+    ).replace(/\/$/, '')
+    return `${base}/fonts/${filename}`
+  }
+  return path.join(process.cwd(), 'public', 'fonts', filename)
+}
 
 Font.register({
   family: 'Poppins',
   fonts: [
-    { src: path.join(fontDir, 'Poppins-Regular.ttf'), fontWeight: 'normal' },
-    { src: path.join(fontDir, 'Poppins-Medium.ttf'), fontWeight: 'medium' },
-    { src: path.join(fontDir, 'Poppins-Bold.ttf'), fontWeight: 'bold' },
-    { src: path.join(fontDir, 'Poppins-Italic.ttf'), fontWeight: 'normal', fontStyle: 'italic' },
+    { src: fontSrc('Poppins-Regular.ttf'), fontWeight: 'normal' },
+    { src: fontSrc('Poppins-Medium.ttf'), fontWeight: 'medium' },
+    { src: fontSrc('Poppins-Bold.ttf'), fontWeight: 'bold' },
+    { src: fontSrc('Poppins-Italic.ttf'), fontWeight: 'normal', fontStyle: 'italic' },
   ],
 })
 
