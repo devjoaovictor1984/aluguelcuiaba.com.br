@@ -12,6 +12,7 @@ import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
 import { RegerarParcelasBotao } from './_components/regerar-parcelas'
 import { TimelineEventos, type EventoRow } from './_components/timeline-eventos'
 import { DocsPartesContrato } from './_components/docs-partes'
+import { BotaoExcluirContrato } from './_components/botao-excluir'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -337,6 +338,8 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
           <p className="text-sm text-amber-900 whitespace-pre-wrap">{contrato.observacoes}</p>
         </div>
       )}
+
+      <BotaoExcluirContrato contratoId={id} contratoCodigo={contrato.codigo} />
     </div>
   )
 }
