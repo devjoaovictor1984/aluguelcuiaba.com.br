@@ -9,6 +9,7 @@ export interface VistoriaPDFItem {
   estado: EstadoItem
   observacao: string | null
   observacao_inquilino: string | null
+  origem: 'corretor' | 'inquilino'
   fotos_corretor: string[]   // URLs
   fotos_inquilino: string[]  // URLs
 }
@@ -19,6 +20,8 @@ export interface VistoriaPDFData {
   observacoes_gerais: string | null
   qtd_chaves: number
   qtd_controles: number
+  qtd_chaves_inquilino: number | null
+  qtd_controles_inquilino: number | null
   inquilino_observacoes: string | null
   assinatura_inquilino_url: string | null
   assinada_em: string | null
@@ -190,6 +193,25 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#e5e7eb',
     borderBottomStyle: 'solid',
+  },
+  itemRowInquilino: {
+    backgroundColor: '#fffbeb',
+    borderLeftWidth: 3,
+    borderLeftColor: '#f59e0b',
+    borderLeftStyle: 'solid',
+    paddingHorizontal: 6,
+  },
+  badgeInquilino: {
+    fontSize: 6,
+    fontWeight: 'bold',
+    color: '#92400e',
+    backgroundColor: '#fde68a',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginLeft: 4,
   },
   itemNome: { flex: 2, fontSize: 9, fontWeight: 'bold' },
   itemEstadoBox: {
@@ -376,6 +398,30 @@ export function VistoriaDocument({ data }: { data: VistoriaPDFData }) {
           </Text>
           , obrigando-se a devolvê-los ao final da locação, juntamente com tags, cartões e demais acessos eventualmente entregues.
         </Text>
+        {(data.qtd_chaves_inquilino !== null || data.qtd_controles_inquilino !== null) && (
+          <View style={{
+            backgroundColor: '#fffbeb',
+            borderLeftWidth: 3,
+            borderLeftColor: '#f59e0b',
+            borderLeftStyle: 'solid',
+            padding: 6,
+            marginBottom: 4,
+          }}>
+            <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#92400e', marginBottom: 2, textTransform: 'uppercase', letterSpacing: 0.4 }}>
+              Divergência registrada pelo LOCATÁRIO
+            </Text>
+            <Text style={{ fontSize: 8.5, color: '#451a03', lineHeight: 1.4 }}>
+              O LOCATÁRIO declara ter recebido de fato{' '}
+              <Text style={{ fontWeight: 'bold' }}>
+                {data.qtd_chaves_inquilino ?? data.qtd_chaves} chave{(data.qtd_chaves_inquilino ?? data.qtd_chaves) === 1 ? '' : 's'}
+              </Text>{' '}e{' '}
+              <Text style={{ fontWeight: 'bold' }}>
+                {data.qtd_controles_inquilino ?? data.qtd_controles} controle{(data.qtd_controles_inquilino ?? data.qtd_controles) === 1 ? '' : 's'}
+              </Text>
+              . Prevalece, para fins de devolução, a quantidade aqui confirmada pelo LOCATÁRIO.
+            </Text>
+          </View>
+        )}
         <Text style={styles.secaoParagrafo}>
           <Text style={{ fontWeight: 'bold' }}>3.2.</Text> A perda, extravio, dano ou não devolução de chaves, controles ou acessos implicará reposição às expensas do LOCATÁRIO, inclusive substituição de fechadura quando necessário por motivo de segurança.
         </Text>
@@ -478,10 +524,14 @@ export function VistoriaDocument({ data }: { data: VistoriaPDFData }) {
                 ...it.fotos_corretor.map(url => ({ url, origem: 'corretor' as const })),
                 ...it.fotos_inquilino.map(url => ({ url, origem: 'inquilino' as const })),
               ]
+              const ehInquilino = it.origem === 'inquilino'
               return (
-                <View key={it.id} style={styles.itemRow}>
+                <View key={it.id} style={[styles.itemRow, ehInquilino ? styles.itemRowInquilino : {}]}>
                   <View style={styles.itemNome}>
-                    <Text>{it.item}</Text>
+                    <Text>
+                      {it.item}
+                      {ehInquilino && <Text style={styles.badgeInquilino}> reportado pelo inquilino</Text>}
+                    </Text>
                     {it.observacao && <Text style={styles.itemObs}>{it.observacao}</Text>}
                     {it.observacao_inquilino && (
                       <Text style={styles.obsInquilino}>

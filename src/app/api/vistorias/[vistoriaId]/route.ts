@@ -27,7 +27,9 @@ export async function GET(
     .from('vistorias')
     .select(`
       id, user_id, tipo, status, data_vistoria, observacoes_gerais,
-      qtd_chaves, qtd_controles, assinada_em, assinada_ip,
+      qtd_chaves, qtd_controles,
+      qtd_chaves_inquilino, qtd_controles_inquilino,
+      assinada_em, assinada_ip,
       assinatura_inquilino_url, inquilino_observacoes,
       contrato:contratos_locacao!vistorias_contrato_id_fkey(
         codigo,
@@ -63,7 +65,7 @@ export async function GET(
 
   // Carrega itens + fotos. Tenta SELECT com comodo; se v22 não rodou, fallback.
   const itensQ = admin.from('vistoria_itens')
-    .select('id, comodo, item, estado, observacao, observacao_inquilino, ordem')
+    .select('id, comodo, item, estado, observacao, observacao_inquilino, ordem, origem')
     .eq('vistoria_id', vistoriaId)
     .order('ordem', { ascending: true })
 
@@ -165,6 +167,7 @@ export async function GET(
     estado: it.estado,
     observacao: it.observacao,
     observacao_inquilino: it.observacao_inquilino,
+    origem: (it.origem === 'inquilino' ? 'inquilino' : 'corretor') as 'corretor' | 'inquilino',
     fotos_corretor: fotosPorItem[it.id]?.corretor ?? [],
     fotos_inquilino: fotosPorItem[it.id]?.inquilino ?? [],
   }))
@@ -175,6 +178,8 @@ export async function GET(
     observacoes_gerais: vistoria.observacoes_gerais,
     qtd_chaves: vistoria.qtd_chaves ?? 0,
     qtd_controles: vistoria.qtd_controles ?? 0,
+    qtd_chaves_inquilino: vistoria.qtd_chaves_inquilino ?? null,
+    qtd_controles_inquilino: vistoria.qtd_controles_inquilino ?? null,
     inquilino_observacoes: vistoria.inquilino_observacoes,
     assinatura_inquilino_url: vistoria.assinatura_inquilino_url
       ? vistoria.assinatura_inquilino_url.split('?')[0]  // remove cache-buster

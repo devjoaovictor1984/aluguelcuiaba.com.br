@@ -133,6 +133,85 @@ export async function inquilinoAssinar(token: string, input: {
   return { ok: true }
 }
 
+/**
+ * Inquilino contesta as quantidades de chaves/controles declaradas pelo corretor.
+ * Não sobrescreve o número original — guarda a versão dele em colunas separadas.
+ * NULL em ambos = limpa a contestação anterior.
+ */
+export async function inquilinoContestarQuantidades(token: string, input: {
+  qtd_chaves: number | null
+  qtd_controles: number | null
+}) {
+  const { vist, error } = await carregarPorToken(token)
+  if (!vist || error) return { error: error ?? 'Erro.' }
+
+  const sanitiza = (n: number | null): number | null => {
+    if (n === null || n === undefined) return null
+    if (!Number.isFinite(n) || n < 0 || n > 999) return null
+    return Math.floor(n)
+  }
+
+  const admin = createAdminClient()
+  const { error: e } = await admin
+    .from('vistorias')
+    .update({
+      qtd_chaves_inquilino: sanitiza(input.qtd_chaves),
+      qtd_controles_inquilino: sanitiza(input.qtd_controles),
+    })
+    .eq('id', vist.id)
+  if (e) return { error: e.message }
+  return { ok: true }
+}
+
+/**
+ * Inquilino reporta um problema que não estava no checklist.
+ * Cria um vistoria_itens com origem='inquilino', estado='danificado',
+ * a observação dele e (se enviada) uma foto.
+ */
+export async function inquilinoAdicionarProblema(token: string, input: {
+  comodo: string
+  descricao: string
+}) {
+  const { vist, error } = await carregarPorToken(token)
+  if (!vist || error) return { error: error ?? 'Erro.' }
+
+  const comodo = input.comodo?.trim()
+  const descricao = input.descricao?.trim()
+  if (!comodo) return { error: 'Cômodo é obrigatório.' }
+  if (!descricao || descricao.length < 5) return { error: 'Descreva o problema com pelo menos 5 caracteres.' }
+  if (descricao.length > 1000) return { error: 'Descrição muito longa (máx. 1000 caracteres).' }
+
+  const admin = createAdminClient()
+
+  // Pega a maior ordem desse cômodo pra inserir no final
+  const { data: ultimo } = await admin
+    .from('vistoria_itens')
+    .select('ordem')
+    .eq('vistoria_id', vist.id)
+    .eq('comodo', comodo)
+    .order('ordem', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  const proximaOrdem = (ultimo?.ordem ?? 0) + 1
+
+  const { data: row, error: e } = await admin
+    .from('vistoria_itens')
+    .insert({
+      vistoria_id: vist.id,
+      comodo,
+      item: 'Problema reportado pelo inquilino',
+      estado: 'danificado',
+      observacao_inquilino: descricao,
+      origem: 'inquilino',
+      ordem: proximaOrdem,
+    })
+    .select('id, comodo, item, estado, observacao, observacao_inquilino, ordem')
+    .single()
+  if (e || !row) return { error: e?.message ?? 'Falha ao adicionar problema.' }
+
+  return { ok: true, item: row }
+}
+
 export async function inquilinoRecusar(token: string, motivo: string) {
   const { vist, error } = await carregarPorToken(token)
   if (!vist || error) return { error: error ?? 'Erro.' }

@@ -16,7 +16,9 @@ export default async function VistoriaPublicaPage({ params }: Props) {
     .from('vistorias')
     .select(`
       id, user_id, tipo, status, data_vistoria, observacoes_gerais,
-      qtd_chaves, qtd_controles, enviada_em, expira_em,
+      qtd_chaves, qtd_controles,
+      qtd_chaves_inquilino, qtd_controles_inquilino,
+      enviada_em, expira_em,
       assinada_em, assinatura_inquilino_url, inquilino_observacoes
     `)
     .eq('token', token)
@@ -45,7 +47,7 @@ export default async function VistoriaPublicaPage({ params }: Props) {
   // Itens
   const { data: itensRaw } = await admin
     .from('vistoria_itens')
-    .select('id, comodo, item, estado, observacao, observacao_inquilino, ordem')
+    .select('id, comodo, item, estado, observacao, observacao_inquilino, ordem, origem')
     .eq('vistoria_id', vistoria.id)
     .order('ordem', { ascending: true })
 
@@ -97,6 +99,8 @@ export default async function VistoriaPublicaPage({ params }: Props) {
               observacoesGerais={vistoria.observacoes_gerais}
               qtdChaves={vistoria.qtd_chaves ?? 0}
               qtdControles={vistoria.qtd_controles ?? 0}
+              qtdChavesInquilino={vistoria.qtd_chaves_inquilino}
+              qtdControlesInquilino={vistoria.qtd_controles_inquilino}
               itens={itens}
               fotos={fotos}
             />

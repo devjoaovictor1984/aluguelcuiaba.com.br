@@ -3,10 +3,13 @@
 import { useState, useRef, useEffect, useTransition } from 'react'
 import Image from 'next/image'
 import {
-  Camera, Pencil, AlertCircle, Loader2, Check, X, MessageSquare,
+  Camera, Pencil, AlertCircle, Loader2, Check, X, MessageSquare, Plus, AlertTriangle,
 } from 'lucide-react'
 import { LABEL_ESTADO, COR_ESTADO, type EstadoItem } from '@/lib/vistorias/modelos'
-import { inquilinoObservacaoItem, inquilinoUploadFoto, inquilinoAssinar, inquilinoRecusar } from '../actions'
+import {
+  inquilinoObservacaoItem, inquilinoUploadFoto, inquilinoAssinar, inquilinoRecusar,
+  inquilinoAdicionarProblema, inquilinoContestarQuantidades,
+} from '../actions'
 
 export interface ItemPub {
   id: string
@@ -16,6 +19,7 @@ export interface ItemPub {
   observacao: string | null
   observacao_inquilino: string | null
   ordem: number
+  origem?: 'corretor' | 'inquilino'
 }
 
 export interface FotoPub {
@@ -32,13 +36,15 @@ interface Props {
   observacoesGerais: string | null
   qtdChaves: number
   qtdControles: number
+  qtdChavesInquilino?: number | null
+  qtdControlesInquilino?: number | null
   itens: ItemPub[]
   fotos: FotoPub[]
   /** Modo pré-visualização: todas as ações viram no-op com alert. */
   previewMode?: boolean
 }
 
-export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdControles, itens: itensIniciais, fotos: fotosIniciais, previewMode = false }: Props) {
+export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdControles, qtdChavesInquilino, qtdControlesInquilino, itens: itensIniciais, fotos: fotosIniciais, previewMode = false }: Props) {
   const [itens, setItens] = useState(itensIniciais)
   const [fotos, setFotos] = useState(fotosIniciais)
   const [observacoesFinal, setObservacoesFinal] = useState('')
@@ -48,6 +54,20 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
   const [recusado, setRecusado] = useState(false)
   const [erroGlobal, setErroGlobal] = useState('')
   const [isPending, startTransition] = useTransition()
+
+  // Reportar problema novo: qual cômodo está com form aberto, texto e foto pendente
+  const [reportandoComodo, setReportandoComodo] = useState<string | null>(null)
+  const [reportDescricao, setReportDescricao] = useState('')
+  const [reportFoto, setReportFoto] = useState<File | null>(null)
+  const [reportErro, setReportErro] = useState('')
+
+  // Contestar quantidades de chaves/controles
+  const [contestandoQtd, setContestandoQtd] = useState(false)
+  const [qtdChavesEdit, setQtdChavesEdit] = useState<number>(qtdChavesInquilino ?? qtdChaves)
+  const [qtdControlesEdit, setQtdControlesEdit] = useState<number>(qtdControlesInquilino ?? qtdControles)
+  const [qtdContestadaChaves, setQtdContestadaChaves] = useState<number | null>(qtdChavesInquilino ?? null)
+  const [qtdContestadaControles, setQtdContestadaControles] = useState<number | null>(qtdControlesInquilino ?? null)
+  const [qtdErro, setQtdErro] = useState('')
 
   const grupos = itens.reduce<Record<string, ItemPub[]>>((acc, it) => {
     if (!acc[it.comodo]) acc[it.comodo] = []
@@ -76,6 +96,91 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
       const r = await inquilinoUploadFoto(token, fd)
       if (r.error || !r.url) { alert(r.error ?? 'Falha ao subir foto.'); return }
       setFotos(curr => [...curr, { id: r.id!, vistoria_item_id: item.id, url: r.url!, origem: 'inquilino', legenda: null }])
+    })
+  }
+
+  const salvarContestacaoQtd = () => {
+    setQtdErro('')
+    const c = Number.isFinite(qtdChavesEdit) ? Math.max(0, Math.floor(qtdChavesEdit)) : 0
+    const ct = Number.isFinite(qtdControlesEdit) ? Math.max(0, Math.floor(qtdControlesEdit)) : 0
+    if (c === qtdChaves && ct === qtdControles) {
+      setQtdErro('Os números são iguais ao que o corretor declarou. Não precisa contestar.')
+      return
+    }
+    if (previewMode) {
+      avisoPreview()
+      setContestandoQtd(false)
+      return
+    }
+    startTransition(async () => {
+      const r = await inquilinoContestarQuantidades(token, { qtd_chaves: c, qtd_controles: ct })
+      if (r.error) { setQtdErro(r.error); return }
+      setQtdContestadaChaves(c)
+      setQtdContestadaControles(ct)
+      setContestandoQtd(false)
+    })
+  }
+
+  const limparContestacaoQtd = () => {
+    if (previewMode) { avisoPreview(); return }
+    startTransition(async () => {
+      const r = await inquilinoContestarQuantidades(token, { qtd_chaves: null, qtd_controles: null })
+      if (r.error) { setQtdErro(r.error); return }
+      setQtdContestadaChaves(null)
+      setQtdContestadaControles(null)
+      setQtdChavesEdit(qtdChaves)
+      setQtdControlesEdit(qtdControles)
+      setContestandoQtd(false)
+    })
+  }
+
+  const fecharReporte = () => {
+    setReportandoComodo(null)
+    setReportDescricao('')
+    setReportFoto(null)
+    setReportErro('')
+  }
+
+  const onReportarProblema = (comodo: string) => {
+    setReportErro('')
+    const desc = reportDescricao.trim()
+    if (desc.length < 5) { setReportErro('Descreva o problema com mais detalhes (mín. 5 caracteres).'); return }
+    if (previewMode) {
+      avisoPreview()
+      fecharReporte()
+      return
+    }
+    const foto = reportFoto
+    startTransition(async () => {
+      const r = await inquilinoAdicionarProblema(token, { comodo, descricao: desc })
+      if (r.error || !r.item) { setReportErro(r.error ?? 'Falha ao reportar.'); return }
+      // Insere o novo item no estado local
+      const novoItem: ItemPub = {
+        id: r.item.id,
+        comodo: r.item.comodo,
+        item: r.item.item,
+        estado: r.item.estado as EstadoItem,
+        observacao: r.item.observacao,
+        observacao_inquilino: r.item.observacao_inquilino,
+        ordem: r.item.ordem,
+        origem: 'inquilino',
+      }
+      setItens(curr => [...curr, novoItem])
+
+      // Se tem foto, sobe vinculada ao item recém-criado
+      if (foto) {
+        const fd = new FormData()
+        fd.set('vistoria_item_id', novoItem.id)
+        fd.set('file', foto)
+        const rFoto = await inquilinoUploadFoto(token, fd)
+        if (!rFoto.error && rFoto.url && rFoto.id) {
+          setFotos(curr => [...curr, {
+            id: rFoto.id!, vistoria_item_id: novoItem.id, url: rFoto.url!,
+            origem: 'inquilino', legenda: null,
+          }])
+        }
+      }
+      fecharReporte()
     })
   }
 
@@ -189,8 +294,99 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
   return (
     <div className="space-y-4">
       {/* Header info */}
-      <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 text-xs text-violet-900 space-y-1">
-        <p><strong>{qtdChaves}</strong> chave{qtdChaves === 1 ? '' : 's'} · <strong>{qtdControles}</strong> controle{qtdControles === 1 ? '' : 's'}</p>
+      <div className="bg-violet-50 border border-violet-100 rounded-xl p-3 text-xs text-violet-900 space-y-2">
+        <div className="flex items-start justify-between gap-2 flex-wrap">
+          <p>
+            <strong>{qtdChaves}</strong> chave{qtdChaves === 1 ? '' : 's'} · <strong>{qtdControles}</strong> controle{qtdControles === 1 ? '' : 's'}
+            <span className="block text-[10px] text-violet-700/80 mt-0.5">declarado pelo corretor</span>
+          </p>
+          {!contestandoQtd && (
+            <button
+              type="button"
+              onClick={() => setContestandoQtd(true)}
+              className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 underline underline-offset-2"
+            >
+              {qtdContestadaChaves !== null || qtdContestadaControles !== null ? 'Editar contestação' : 'Está diferente?'}
+            </button>
+          )}
+        </div>
+
+        {(qtdContestadaChaves !== null || qtdContestadaControles !== null) && !contestandoQtd && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-2 text-amber-900">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 mb-0.5">
+              Você confirmou
+            </p>
+            <p>
+              <strong>{qtdContestadaChaves ?? qtdChaves}</strong> chave{(qtdContestadaChaves ?? qtdChaves) === 1 ? '' : 's'} ·{' '}
+              <strong>{qtdContestadaControles ?? qtdControles}</strong> controle{(qtdContestadaControles ?? qtdControles) === 1 ? '' : 's'}
+            </p>
+            <button
+              type="button"
+              onClick={limparContestacaoQtd}
+              disabled={isPending}
+              className="text-[10px] text-amber-700/80 hover:text-amber-900 mt-1 underline"
+            >
+              Remover contestação
+            </button>
+          </div>
+        )}
+
+        {contestandoQtd && (
+          <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-2 text-gray-900">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+              Quantas você recebeu de fato?
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <label className="block">
+                <span className="text-[10px] text-gray-500">Chaves</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  value={qtdChavesEdit}
+                  onChange={e => setQtdChavesEdit(parseInt(e.target.value || '0', 10))}
+                  className="w-full text-sm px-2 py-1.5 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] text-gray-500">Controles</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={999}
+                  value={qtdControlesEdit}
+                  onChange={e => setQtdControlesEdit(parseInt(e.target.value || '0', 10))}
+                  className="w-full text-sm px-2 py-1.5 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </label>
+            </div>
+            {qtdErro && (
+              <p className="text-xs text-red-600 flex items-start gap-1.5">
+                <AlertCircle size={12} className="mt-0.5 shrink-0" /> {qtdErro}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={salvarContestacaoQtd}
+                disabled={isPending}
+                className="flex-1 flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg"
+              >
+                {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                Confirmar
+              </button>
+              <button
+                type="button"
+                onClick={() => { setContestandoQtd(false); setQtdErro('') }}
+                disabled={isPending}
+                className="px-3 text-xs text-gray-500 hover:text-gray-700"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
         {observacoesGerais && <p className="text-violet-800 italic">&ldquo;{observacoesGerais}&rdquo;</p>}
       </div>
 
@@ -212,6 +408,73 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
                 isPending={isPending}
               />
             ))}
+          </div>
+
+          {/* Botão / form pra reportar problema novo nesse cômodo */}
+          <div className="bg-gray-50 px-3 py-2 border-t border-gray-100">
+            {reportandoComodo === comodo ? (
+              <div className="bg-white border border-amber-200 rounded-lg p-3 space-y-2">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700 flex items-center gap-1">
+                  <AlertTriangle size={12} /> Novo problema em {comodo}
+                </p>
+                <textarea
+                  value={reportDescricao}
+                  onChange={e => setReportDescricao(e.target.value)}
+                  rows={3}
+                  placeholder="Ex: Infiltração no teto perto da janela; tomada da parede da TV não funciona; vazamento embaixo da pia."
+                  className="w-full text-sm px-3 py-2 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-amber-500 resize-y"
+                />
+                <div className="flex items-center gap-2 text-xs">
+                  <label className="inline-flex items-center gap-1.5 text-amber-700 hover:text-amber-800 cursor-pointer">
+                    <Camera size={13} />
+                    {reportFoto ? `Foto: ${reportFoto.name.slice(0, 20)}…` : 'Anexar foto (recomendado)'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/heic"
+                      className="hidden"
+                      onChange={e => setReportFoto(e.target.files?.[0] ?? null)}
+                    />
+                  </label>
+                  {reportFoto && (
+                    <button type="button" onClick={() => setReportFoto(null)} className="text-gray-400 hover:text-gray-600">
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+                {reportErro && (
+                  <p className="text-xs text-red-600 flex items-center gap-1.5">
+                    <AlertCircle size={12} /> {reportErro}
+                  </p>
+                )}
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => onReportarProblema(comodo)}
+                    disabled={isPending || !reportDescricao.trim()}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-lg"
+                  >
+                    {isPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
+                    Reportar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={fecharReporte}
+                    disabled={isPending}
+                    className="px-3 text-sm text-gray-500 hover:text-gray-700"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { fecharReporte(); setReportandoComodo(comodo) }}
+                className="w-full flex items-center justify-center gap-1.5 text-xs text-amber-700 hover:text-amber-800 hover:bg-amber-50 py-2 rounded-lg transition-colors"
+              >
+                <Plus size={13} /> Reportar problema neste cômodo
+              </button>
+            )}
           </div>
         </section>
       ))}
@@ -323,11 +586,20 @@ function ItemRowPub({
   const fileRef = useRef<HTMLInputElement>(null)
   const [verContestar, setVerContestar] = useState(!!item.observacao_inquilino)
 
+  const ehDoInquilino = item.origem === 'inquilino'
+
   return (
-    <div className="px-3 py-2.5">
+    <div className={`px-3 py-2.5 ${ehDoInquilino ? 'bg-amber-50/40 border-l-2 border-amber-400' : ''}`}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900">{item.item}</p>
+          <p className="text-sm font-medium text-gray-900">
+            {item.item}
+            {ehDoInquilino && (
+              <span className="ml-1.5 inline-flex items-center gap-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
+                você reportou
+              </span>
+            )}
+          </p>
           {item.observacao && (
             <p className="text-[11px] text-gray-500 italic mt-0.5">&ldquo;{item.observacao}&rdquo;</p>
           )}
