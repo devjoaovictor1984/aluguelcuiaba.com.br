@@ -132,9 +132,14 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingBottom: 10,
-    borderBottomWidth: 1.5,
-    borderBottomColor: COR.acento,
-    borderBottomStyle: 'solid',
+  },
+  cabecalhoLinha: {
+    position: 'absolute',
+    top: 85,
+    left: 56,
+    width: 483,
+    height: 1.5,
+    backgroundColor: COR.acento,
   },
   cabecalhoLogo: { width: 70, height: 50, objectFit: 'contain' },
   cabecalhoDados: { textAlign: 'right', fontSize: 7.5, color: COR.cinza, lineHeight: 1.4 },
@@ -147,6 +152,8 @@ const styles = StyleSheet.create({
   },
 
   // ── Footer (paginação) ──
+  // Sem border direto: o react-pdf pode quebrar com border em position:absolute.
+  // A linha separadora vai como View independente.
   rodape: {
     position: 'absolute',
     bottom: 28,
@@ -156,10 +163,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     fontSize: 7.5,
     color: COR.cinzaClaro,
-    borderTopWidth: 0.5,
-    borderTopColor: COR.borda,
-    borderTopStyle: 'solid',
     paddingTop: 6,
+  },
+  rodapeLinha: {
+    position: 'absolute',
+    bottom: 44,
+    left: 56,
+    width: 483,
+    height: 0.5,
+    backgroundColor: COR.borda,
   },
   rodapeCodigo: { fontFamily: 'Poppins', fontWeight: 'medium' },
 
@@ -168,9 +180,11 @@ const styles = StyleSheet.create({
     marginTop: 30,
     marginBottom: 24,
     paddingBottom: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: COR.borda,
-    borderBottomStyle: 'solid',
+  },
+  capaSeparador: {
+    height: 1,
+    backgroundColor: COR.borda,
+    marginBottom: 24,
   },
   capaSelo: {
     fontSize: 8,
@@ -266,11 +280,13 @@ const styles = StyleSheet.create({
     marginBottom: 28,
   },
   assinaturaBloco: {
-    marginBottom: 28,
-    paddingBottom: 20,
-    borderBottomWidth: 0.7,
-    borderBottomColor: COR.bordaForte,
-    borderBottomStyle: 'solid',
+    marginBottom: 14,
+    paddingBottom: 8,
+  },
+  assinaturaLinha: {
+    height: 0.7,
+    backgroundColor: COR.bordaForte,
+    marginBottom: 14,
   },
   assinaturaPapel: {
     fontSize: 7.5,
@@ -324,6 +340,12 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
       subject={`Contrato de Locação Residencial — ${data.locatario_nome}`}
     >
       <Page size="A4" style={styles.page}>
+        {/* Linha separadora do cabeçalho (View independente — sem border em absolute) */}
+        <View style={styles.cabecalhoLinha} fixed />
+
+        {/* Linha separadora do rodapé */}
+        <View style={styles.rodapeLinha} fixed />
+
         {/* Cabeçalho fixo */}
         <View style={styles.cabecalhoInst} fixed>
           {data.anunciante_logo_url ? (
@@ -363,6 +385,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             Nº {data.codigo}
           </Text>
         </View>
+        <View style={styles.capaSeparador} />
 
         {/* Cláusulas numeradas */}
         {data.clausulas.map((c, idx) => (
@@ -416,36 +439,47 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               {data.locador_cpf && <Text style={styles.assinaturaCpf}>CPF {data.locador_cpf}</Text>}
             </View>
           )}
+          <View style={styles.assinaturaLinha} />
 
           <View style={styles.assinaturaBloco}>
             <Text style={styles.assinaturaPapel}>Locatário</Text>
             <Text style={styles.assinaturaNome}>{data.locatario_nome}</Text>
             {data.locatario_cpf && <Text style={styles.assinaturaCpf}>CPF {data.locatario_cpf}</Text>}
           </View>
+          <View style={styles.assinaturaLinha} />
 
           {data.conjuge_nome && (
-            <View style={styles.assinaturaBloco}>
-              <Text style={styles.assinaturaPapel}>Cônjuge do locatário</Text>
-              <Text style={styles.assinaturaNome}>{data.conjuge_nome}</Text>
-              {data.conjuge_cpf && <Text style={styles.assinaturaCpf}>CPF {data.conjuge_cpf}</Text>}
-            </View>
+            <>
+              <View style={styles.assinaturaBloco}>
+                <Text style={styles.assinaturaPapel}>Cônjuge do locatário</Text>
+                <Text style={styles.assinaturaNome}>{data.conjuge_nome}</Text>
+                {data.conjuge_cpf && <Text style={styles.assinaturaCpf}>CPF {data.conjuge_cpf}</Text>}
+              </View>
+              <View style={styles.assinaturaLinha} />
+            </>
           )}
 
           {/* Moradores adicionais (co-locatários, moradores, responsáveis financeiros) */}
           {data.moradores_adicionais.map((m, idx) => (
-            <View key={idx} style={styles.assinaturaBloco}>
-              <Text style={styles.assinaturaPapel}>{m.papel}</Text>
-              <Text style={styles.assinaturaNome}>{m.nome}</Text>
-              {m.cpf && <Text style={styles.assinaturaCpf}>CPF {m.cpf}</Text>}
+            <View key={idx}>
+              <View style={styles.assinaturaBloco}>
+                <Text style={styles.assinaturaPapel}>{m.papel}</Text>
+                <Text style={styles.assinaturaNome}>{m.nome}</Text>
+                {m.cpf && <Text style={styles.assinaturaCpf}>CPF {m.cpf}</Text>}
+              </View>
+              <View style={styles.assinaturaLinha} />
             </View>
           ))}
 
           {data.fiador_nome && (
-            <View style={styles.assinaturaBloco}>
-              <Text style={styles.assinaturaPapel}>Fiador</Text>
-              <Text style={styles.assinaturaNome}>{data.fiador_nome}</Text>
-              {data.fiador_cpf && <Text style={styles.assinaturaCpf}>CPF {data.fiador_cpf}</Text>}
-            </View>
+            <>
+              <View style={styles.assinaturaBloco}>
+                <Text style={styles.assinaturaPapel}>Fiador</Text>
+                <Text style={styles.assinaturaNome}>{data.fiador_nome}</Text>
+                {data.fiador_cpf && <Text style={styles.assinaturaCpf}>CPF {data.fiador_cpf}</Text>}
+              </View>
+              <View style={styles.assinaturaLinha} />
+            </>
           )}
 
           {/* Testemunhas */}
@@ -466,6 +500,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                   </>
                 )}
               </View>
+              <View style={styles.assinaturaLinha} />
             </View>
           ))}
         </View>
