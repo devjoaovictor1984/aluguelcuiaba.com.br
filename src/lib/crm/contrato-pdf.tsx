@@ -20,9 +20,14 @@ function tryReadFontAsDataUrl(filename: string): string | null {
   }
 }
 
-const fontRegular = tryReadFontAsDataUrl('Poppins-Regular.ttf')
-const fontMedium = tryReadFontAsDataUrl('Poppins-Medium.ttf')
-const fontBold = tryReadFontAsDataUrl('Poppins-Bold.ttf')
+// DEBUG: Poppins temporariamente desativada — o erro "unsupported number"
+// no PDFDocument.translate aponta pra cálculo de coordenada NaN, que pode
+// vir das métricas da fonte custom. Voltamos a Helvetica pra confirmar
+// se é isso. Se gerar com Helvetica, o problema é a Poppins.
+const FORCAR_HELVETICA = true
+const fontRegular = FORCAR_HELVETICA ? null : tryReadFontAsDataUrl('Poppins-Regular.ttf')
+const fontMedium = FORCAR_HELVETICA ? null : tryReadFontAsDataUrl('Poppins-Medium.ttf')
+const fontBold = FORCAR_HELVETICA ? null : tryReadFontAsDataUrl('Poppins-Bold.ttf')
 
 const POPPINS_LOADED = !!(fontRegular && fontBold)
 const FAMILIA = POPPINS_LOADED ? 'Poppins' : 'Helvetica'
@@ -189,7 +194,7 @@ const styles = StyleSheet.create({
   capaSelo: {
     fontSize: 8,
     fontFamily: FAMILIA,
-    fontWeight: 'medium',
+    fontWeight: 'normal',
     color: COR.acento,
     textTransform: 'uppercase',
     letterSpacing: 1.2,
@@ -216,7 +221,7 @@ const styles = StyleSheet.create({
   capaCodigo: {
     fontSize: 8,
     fontFamily: FAMILIA,
-    fontWeight: 'medium',
+    fontWeight: 'normal',
     color: COR.cinzaClaro,
     textAlign: 'center',
     marginTop: 8,
@@ -291,7 +296,7 @@ const styles = StyleSheet.create({
   assinaturaPapel: {
     fontSize: 7.5,
     fontFamily: FAMILIA,
-    fontWeight: 'medium',
+    fontWeight: 'normal',
     color: COR.acento,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
@@ -312,7 +317,7 @@ const styles = StyleSheet.create({
   testemunha: {
     fontSize: 8.5,
     fontFamily: FAMILIA,
-    fontWeight: 'medium',
+    fontWeight: 'normal',
     color: COR.acento,
     textTransform: 'uppercase',
     letterSpacing: 0.6,
