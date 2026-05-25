@@ -52,6 +52,9 @@ export interface ContratoPDFData {
     rg: string | null
   }>
 
+  // Cláusulas da seguradora (texto livre) — só pra seguro fiança
+  clausulas_seguradora_texto: string | null
+
   // Cláusulas montadas
   clausulas: ContratoPDFClausula[]
 }
@@ -237,6 +240,14 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             <Text style={styles.clausulaCorpo}>{c.corpo}</Text>
           </View>
         ))}
+
+        {/* Cláusulas da seguradora (quando garantia é seguro fiança e tem texto) */}
+        {data.clausulas_seguradora_texto && (
+          <View style={{ marginTop: 16, paddingTop: 12, borderTopWidth: 0.5, borderTopColor: '#e5e7eb', borderTopStyle: 'solid' }} break>
+            <Text style={styles.tituloPrincipal}>Cláusulas da Seguradora</Text>
+            <Text style={styles.clausulaCorpo}>{data.clausulas_seguradora_texto}</Text>
+          </View>
+        )}
 
         {/* Folha de assinatura */}
         <View style={styles.assinaturaPagina} break>

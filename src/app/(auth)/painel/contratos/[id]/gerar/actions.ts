@@ -169,6 +169,62 @@ export async function atualizarOrdemClausulas(geracaoId: string, novaOrdem: stri
 }
 
 /**
+ * Atualiza as testemunhas (até 2) da geração.
+ */
+export async function atualizarTestemunhas(geracaoId: string, ids: string[]) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  if (!Array.isArray(ids)) return { error: 'IDs inválidos.' }
+  const limitada = ids.slice(0, 2)  // máximo 2 testemunhas
+
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({ testemunha_ids: limitada })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true }
+}
+
+/**
+ * Atualiza o texto livre com cláusulas da seguradora (quando garantia = seguro fiança).
+ */
+export async function atualizarClausulasSeguradora(geracaoId: string, texto: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+
+  const limpo = texto.trim()
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({ clausulas_seguradora_texto: limpo.length > 0 ? limpo : null })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true }
+}
+
+/**
  * Inclui ou remove uma cláusula adicional na geração.
  */
 export async function alternarClausulaNaGeracao(geracaoId: string, clausulaId: string, incluir: boolean) {

@@ -17,6 +17,7 @@ import {
 import { atualizarClausula } from '../../../clausulas/actions'
 import {
   atualizarOpcoesGeracao, atualizarOrdemClausulas, alternarClausulaNaGeracao,
+  atualizarTestemunhas, atualizarClausulasSeguradora,
 } from '../actions'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 
@@ -29,6 +30,13 @@ interface ClausulaLista {
   corpo: string
 }
 
+interface Pessoa {
+  id: string
+  nome: string
+  cpf_cnpj: string | null
+  tipo: string
+}
+
 interface Props {
   contratoId: string
   codigo: string
@@ -38,19 +46,59 @@ interface Props {
     tipo_seguro_incendio: 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
     saida_sem_multa_12m: boolean
     clausula_ids: string[]
+    testemunha_ids: string[]
+    clausulas_seguradora_texto: string
   }
   todasClausulas: ClausulaLista[]
+  pessoas: Pessoa[]
 }
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 text-sm transition"
 
-export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, todasClausulas }: Props) {
+export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, todasClausulas, pessoas }: Props) {
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
   const [clausulaIds, setClausulaIds] = useState(geracao.clausula_ids)
   const [mostrarAdicionais, setMostrarAdicionais] = useState(false)
+  const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
+  const [textoSeguradora, setTextoSeguradora] = useState(geracao.clausulas_seguradora_texto)
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
+
+  // Pessoas elegíveis pra testemunha — prioriza as marcadas como 'testemunha'
+  const pessoasOrdenadas = [...pessoas].sort((a, b) => {
+    if (a.tipo === 'testemunha' && b.tipo !== 'testemunha') return -1
+    if (b.tipo === 'testemunha' && a.tipo !== 'testemunha') return 1
+    return 0
+  })
+
+  const onToggleTestemunha = (id: string) => {
+    setErro('')
+    const ja = testemunhaIds.includes(id)
+    let novaLista: string[]
+    if (ja) {
+      novaLista = testemunhaIds.filter(x => x !== id)
+    } else {
+      if (testemunhaIds.length >= 2) {
+        setErro('Máximo 2 testemunhas. Desmarque uma antes.')
+        return
+      }
+      novaLista = [...testemunhaIds, id]
+    }
+    setTestemunhaIds(novaLista)
+    startTransition(async () => {
+      const r = await atualizarTestemunhas(geracao.id, novaLista)
+      if (r.error) setErro(r.error)
+    })
+  }
+
+  const onBlurSeguradora = () => {
+    if (textoSeguradora === geracao.clausulas_seguradora_texto) return
+    startTransition(async () => {
+      const r = await atualizarClausulasSeguradora(geracao.id, textoSeguradora)
+      if (r.error) setErro(r.error)
+    })
+  }
 
   // Mapa pra resolver id -> cláusula
   const mapaClausulas = new Map(todasClausulas.map(c => [c.id, c]))
@@ -173,11 +221,80 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
           </label>
         </section>
 
+        {/* Testemunhas — escolhe até 2 dos cadastros de pessoas */}
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Testemunhas</h2>
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              Até 2 — escolhidas aparecem com nome e CPF no PDF.
+            </p>
+          </div>
+          {pessoasOrdenadas.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">Nenhuma pessoa cadastrada ainda.</p>
+          ) : (
+            <div className="max-h-48 overflow-y-auto space-y-1">
+              {pessoasOrdenadas.map(p => {
+                const selecionada = testemunhaIds.includes(p.id)
+                return (
+                  <label
+                    key={p.id}
+                    className={`flex items-center gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                      selecionada ? 'bg-violet-50 border border-violet-300' : 'hover:bg-gray-50 border border-transparent'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selecionada}
+                      onChange={() => onToggleTestemunha(p.id)}
+                      disabled={isPending || (!selecionada && testemunhaIds.length >= 2)}
+                      className="accent-violet-600 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-900 truncate">{p.nome}</p>
+                      <p className="text-[10px] text-gray-500">
+                        {p.tipo === 'testemunha' && <span className="text-violet-600 font-bold">testemunha · </span>}
+                        {p.cpf_cnpj ? `CPF ${p.cpf_cnpj.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')}` : 'sem CPF'}
+                      </p>
+                    </div>
+                  </label>
+                )
+              })}
+            </div>
+          )}
+          <p className="text-[10px] text-gray-400">
+            Selecionadas: <strong>{testemunhaIds.length}/2</strong>
+          </p>
+        </section>
+
+        {/* Cláusulas da seguradora — só quando garantia = seguro_fianca */}
+        {garantiaTipo === 'seguro_fianca' && (
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
+            <div>
+              <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Cláusulas da seguradora</h2>
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                Cole aqui o texto que a seguradora fornece (Porto, Tokio, etc.). Aparece antes da folha de assinatura.
+              </p>
+            </div>
+            <textarea
+              value={textoSeguradora}
+              onChange={e => setTextoSeguradora(e.target.value)}
+              onBlur={onBlurSeguradora}
+              rows={6}
+              placeholder="Cláusulas próprias da seguradora..."
+              className="w-full text-xs font-mono leading-relaxed border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y"
+            />
+            {textoSeguradora && (
+              <p className="text-[10px] text-green-700">✓ Texto salvo ao sair do campo</p>
+            )}
+          </section>
+        )}
+
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Resumo</h2>
           <ul className="text-xs text-gray-600 space-y-1">
             <li><strong>{clausulasSelecionadas.length}</strong> cláusulas no contrato</li>
             <li><strong>{clausulasDisponiveis.length}</strong> disponíveis pra adicionar</li>
+            <li><strong>{testemunhaIds.length}/2</strong> testemunhas</li>
           </ul>
         </section>
 

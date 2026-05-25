@@ -38,7 +38,7 @@ export async function GET(
   // 1. Carrega a geração
   const { data: geracao } = await admin
     .from('contrato_geracoes')
-    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausula_ids')
+    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausula_ids, testemunha_ids, clausulas_seguradora_texto')
     .eq('id', geracaoId)
     .maybeSingle()
 
@@ -97,6 +97,16 @@ export async function GET(
       pessoa:pessoas(nome, cpf_cnpj)
     `)
     .eq('contrato_id', geracao.contrato_id)
+
+  // 2c. Carrega testemunhas selecionadas
+  const testemunhaIds = (geracao.testemunha_ids ?? []) as string[]
+  const { data: testemunhasRaw } = testemunhaIds.length > 0
+    ? await admin
+        .from('pessoas')
+        .select('id, nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf')
+        .in('id', testemunhaIds)
+        .eq('user_id', user.id)
+    : { data: [] }
 
   // 3. Carrega perfil do usuário (administradora)
   const { data: perfil } = await admin
@@ -245,7 +255,16 @@ export async function GET(
     moradores_adicionais: moradoresAdicionais,
     fiador_nome: fia?.nome ?? null,
     fiador_cpf: fmtCpf(fia?.cpf_cnpj ?? null),
-    testemunhas: [],  // preenchimento de testemunhas vem em iteração futura
+    // Mantém a ordem em que o usuário escolheu
+    testemunhas: testemunhaIds
+      .map(id => (testemunhasRaw ?? []).find(t => t.id === id))
+      .filter((t): t is NonNullable<typeof t> => !!t)
+      .map(t => ({
+        nome: t.nome,
+        cpf: fmtCpf(t.cpf_cnpj),
+        rg: t.rg ? [t.rg, t.rg_orgao_emissor, t.rg_uf].filter(Boolean).join(' ') : null,
+      })),
+    clausulas_seguradora_texto: geracao.clausulas_seguradora_texto ?? null,
     clausulas,
   }
 

@@ -58,6 +58,13 @@ export default async function GerarContratoPage({ params }: Props) {
     .order('tipo', { ascending: true })
     .order('numero', { ascending: true })
 
+  // Carrega pessoas elegíveis pra testemunha (qualquer pessoa cadastrada)
+  const { data: pessoasTestemunha } = await supabase
+    .from('pessoas')
+    .select('id, nome, cpf_cnpj, tipo')
+    .eq('user_id', acesso.userId)
+    .order('nome', { ascending: true })
+
   const inq = Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino
   const prop = Array.isArray(contrato.proprietario) ? contrato.proprietario[0] : contrato.proprietario
 
@@ -87,11 +94,14 @@ export default async function GerarContratoPage({ params }: Props) {
           tipo_seguro_incendio: r.geracao.tipo_seguro_incendio,
           saida_sem_multa_12m: r.geracao.saida_sem_multa_12m,
           clausula_ids: r.geracao.clausula_ids as string[],
+          testemunha_ids: (r.geracao.testemunha_ids as string[] | null) ?? [],
+          clausulas_seguradora_texto: r.geracao.clausulas_seguradora_texto ?? '',
         }}
         todasClausulas={(todasClausulas ?? []).map(c => ({
           ...c,
           tipo: c.tipo as TipoClausula,
         }))}
+        pessoas={(pessoasTestemunha ?? []) as Array<{ id: string; nome: string; cpf_cnpj: string | null; tipo: string }>}
       />
     </main>
   )
