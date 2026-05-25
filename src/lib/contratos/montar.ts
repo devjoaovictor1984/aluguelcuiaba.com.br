@@ -174,6 +174,30 @@ const numeroPorExtenso = (n: number | null | undefined): string => {
   return String(n)
 }
 
+/**
+ * Strip HTML tags e decodifica entidades comuns.
+ * A descrição do imóvel é salva via editor TipTap como HTML — no contrato
+ * precisamos do texto puro.
+ */
+const stripHtml = (html: string | null | undefined): string => {
+  if (!html) return ''
+  return html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n')
+    .replace(/<\/?p[^>]*>/gi, '')
+    .replace(/<\/?(div|span|strong|b|em|i|u|ul|ol|li)[^>]*>/gi, '')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim()
+}
+
 const enderecoCompleto = (p: Record<string, any> | null | undefined): string => {
   if (!p) return '[PREENCHER]'
   const partes = [
@@ -277,7 +301,12 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'IMOVEL_INSC_MUNICIPAL': return dados.imovel?.inscricao_municipal ?? FALLBACK
     case 'IMOVEL_UC_ENERGIA': return dados.imovel?.uc_energia ?? FALLBACK
     case 'IMOVEL_MATRICULA_AGUA': return dados.imovel?.matricula_agua ?? FALLBACK
-    case 'IMOVEL_DESCRICAO': return dados.imovel?.descricao_real ?? dados.imovel?.descricao ?? FALLBACK
+    case 'IMOVEL_DESCRICAO': {
+      // descricao_real (texto livre da aba "Dados pro contrato") tem prioridade;
+      // descricao (do anúncio) é HTML — precisa stripar tags.
+      const txt = dados.imovel?.descricao_real ?? stripHtml(dados.imovel?.descricao) ?? ''
+      return txt.trim().length > 0 ? txt : FALLBACK
+    }
     case 'IMOVEL_AREA_CONSTRUIDA':
       return dados.imovel?.area_construida_m2 ? `${dados.imovel.area_construida_m2} m²` : FALLBACK
     case 'IMOVEL_AREA_TERRENO':
