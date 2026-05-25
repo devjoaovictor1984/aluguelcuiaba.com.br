@@ -55,6 +55,7 @@ export async function GET(
       garantia_tipo, caucao_valor,
       seguro_fianca_seguradora, seguro_fianca_apolice,
       valor_seguro_fianca_mensal, valor_seguro_incendio_anual,
+      taxa_admin_tipo, taxa_admin_valor,
       imovel:imoveis(
         tipo, endereco_resumido, endereco_completo, endereco_numero, endereco_complemento,
         endereco_cep, descricao, descricao_real,
@@ -87,6 +88,15 @@ export async function GET(
     .single()
 
   if (!contrato) return NextResponse.json({ error: 'Contrato não encontrado' }, { status: 404 })
+
+  // 2b. Carrega moradores adicionais (co-locatários solidários, moradores, sócios signatários)
+  const { data: moradoresRaw } = await admin
+    .from('contratos_moradores')
+    .select(`
+      papel, mora_no_imovel,
+      pessoa:pessoas(nome, cpf_cnpj)
+    `)
+    .eq('contrato_id', geracao.contrato_id)
 
   // 3. Carrega perfil do usuário (administradora)
   const { data: perfil } = await admin
@@ -181,6 +191,34 @@ export async function GET(
     cepFmt ? `CEP ${cepFmt}` : null,
   ].filter(Boolean)
 
+  // Inferência: há administração imobiliária quando taxa_admin_valor > 0
+  const temAdministracao = (contrato.taxa_admin_valor ?? 0) > 0
+
+  // Mapeia papel técnico pra texto humano na folha de assinatura
+  const labelPapel: Record<string, string> = {
+    inquilino_solidario: 'Co-locatário solidário',
+    morador: 'Morador',
+    socio_signatario: 'Sócio signatário',
+  }
+  type MoradorRel = {
+    papel: string
+    mora_no_imovel: boolean
+    pessoa: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null
+  }
+  const moradoresAdicionais = (moradoresRaw ?? [])
+    .map((m: MoradorRel) => {
+      const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
+      if (!p?.nome) return null
+      // Solidário sempre aparece; morador comum só se mora no imóvel
+      if (m.papel === 'morador' && !m.mora_no_imovel) return null
+      return {
+        nome: p.nome,
+        cpf: fmtCpf(p.cpf_cnpj),
+        papel: labelPapel[m.papel] ?? m.papel,
+      }
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+
   // 8. Monta o data final do PDF
   const pdfData: ContratoPDFData = {
     codigo: contrato.codigo,
@@ -197,12 +235,17 @@ export async function GET(
       : null,
     locador_nome: prop?.nome ?? '[PREENCHER]',
     locador_cpf: fmtCpf(prop?.cpf_cnpj ?? null),
+    tem_administracao: temAdministracao,
+    admin_responsavel_nome: perfil?.nome ?? null,
+    admin_responsavel_creci: perfil?.creci ?? null,
     locatario_nome: inq?.nome ?? '[PREENCHER]',
     locatario_cpf: fmtCpf(inq?.cpf_cnpj ?? null),
     conjuge_nome: inq?.conjuge_nome ?? null,
     conjuge_cpf: fmtCpf(inq?.conjuge_cpf ?? null),
+    moradores_adicionais: moradoresAdicionais,
     fiador_nome: fia?.nome ?? null,
     fiador_cpf: fmtCpf(fia?.cpf_cnpj ?? null),
+    testemunhas: [],  // preenchimento de testemunhas vem em iteração futura
     clausulas,
   }
 

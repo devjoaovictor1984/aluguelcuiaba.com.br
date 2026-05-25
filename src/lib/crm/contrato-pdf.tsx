@@ -25,25 +25,44 @@ export interface ContratoPDFData {
   // Partes (pra folha de assinatura)
   locador_nome: string
   locador_cpf: string | null
+  /** True quando há administração imobiliária — quem assina é o admin/corretor representando o locador. */
+  tem_administracao: boolean
+  admin_responsavel_nome: string | null   // nome do corretor (ex: João Victor Vieira)
+  admin_responsavel_creci: string | null  // CRECI do corretor
+
   locatario_nome: string
   locatario_cpf: string | null
   conjuge_nome: string | null
   conjuge_cpf: string | null
+
+  // Moradores adicionais (co-locatários solidários, moradores, responsáveis financeiros)
+  moradores_adicionais: Array<{
+    nome: string
+    cpf: string | null
+    papel: string  // "Co-locatário solidário", "Morador", "Responsável financeiro"
+  }>
+
   fiador_nome: string | null
   fiador_cpf: string | null
+
+  // Testemunhas pré-cadastradas; se vazias, vira linha em branco
+  testemunhas: Array<{
+    nome: string
+    cpf: string | null
+    rg: string | null
+  }>
 
   // Cláusulas montadas
   clausulas: ContratoPDFClausula[]
 }
 
-const roxo = '#7c3aed'
 const cinza = '#6b7280'
 
 const styles = StyleSheet.create({
   page: {
     padding: 56,
-    paddingTop: 80,
-    paddingBottom: 60,
+    paddingTop: 110,    // cabeçalho fixo ocupa ~85px (logo 45 + linhas + border); 110 dá folga
+    paddingBottom: 65,
     fontSize: 10,
     fontFamily: 'Helvetica',
     color: '#1f2937',
@@ -231,11 +250,28 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             {cidadeUf}, {dataExtenso}.
           </Text>
 
-          <View style={styles.assinaturaBloco}>
-            <Text style={styles.assinaturaPapel}>Locador / Administradora</Text>
-            <Text style={styles.assinaturaNome}>{data.locador_nome}</Text>
-            {data.locador_cpf && <Text style={styles.assinaturaCpf}>CPF {data.locador_cpf}</Text>}
-          </View>
+          {/* Locador / Administradora — quando há administração, quem assina é o corretor */}
+          {data.tem_administracao ? (
+            <View style={styles.assinaturaBloco}>
+              <Text style={styles.assinaturaPapel}>Locador / Administradora</Text>
+              <Text style={styles.assinaturaNome}>
+                {data.admin_responsavel_nome ?? data.locador_nome}
+              </Text>
+              {data.admin_responsavel_creci && (
+                <Text style={styles.assinaturaCpf}>CRECI {data.admin_responsavel_creci}</Text>
+              )}
+              <Text style={styles.assinaturaCpf}>
+                Representando: {data.locador_nome}
+                {data.locador_cpf ? ` — CPF ${data.locador_cpf}` : ''}
+              </Text>
+            </View>
+          ) : (
+            <View style={styles.assinaturaBloco}>
+              <Text style={styles.assinaturaPapel}>Locador</Text>
+              <Text style={styles.assinaturaNome}>{data.locador_nome}</Text>
+              {data.locador_cpf && <Text style={styles.assinaturaCpf}>CPF {data.locador_cpf}</Text>}
+            </View>
+          )}
 
           <View style={styles.assinaturaBloco}>
             <Text style={styles.assinaturaPapel}>Locatário</Text>
@@ -251,6 +287,15 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </View>
           )}
 
+          {/* Moradores adicionais (co-locatários, moradores, responsáveis financeiros) */}
+          {data.moradores_adicionais.map((m, idx) => (
+            <View key={idx} style={styles.assinaturaBloco}>
+              <Text style={styles.assinaturaPapel}>{m.papel}</Text>
+              <Text style={styles.assinaturaNome}>{m.nome}</Text>
+              {m.cpf && <Text style={styles.assinaturaCpf}>CPF {m.cpf}</Text>}
+            </View>
+          ))}
+
           {data.fiador_nome && (
             <View style={styles.assinaturaBloco}>
               <Text style={styles.assinaturaPapel}>Fiador</Text>
@@ -259,17 +304,26 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </View>
           )}
 
-          <Text style={styles.testemunha}>Testemunha 1:</Text>
-          <View style={styles.assinaturaBloco}>
-            <Text style={styles.assinaturaCpf}>Nome: _____________________________________</Text>
-            <Text style={styles.assinaturaCpf}>CPF: ______________________________________</Text>
-          </View>
-
-          <Text style={styles.testemunha}>Testemunha 2:</Text>
-          <View style={styles.assinaturaBloco}>
-            <Text style={styles.assinaturaCpf}>Nome: _____________________________________</Text>
-            <Text style={styles.assinaturaCpf}>CPF: ______________________________________</Text>
-          </View>
+          {/* Testemunhas */}
+          {(data.testemunhas.length > 0 ? data.testemunhas : [null, null]).map((t, idx) => (
+            <View key={idx}>
+              <Text style={styles.testemunha}>Testemunha {idx + 1}:</Text>
+              <View style={styles.assinaturaBloco}>
+                {t ? (
+                  <>
+                    <Text style={styles.assinaturaNome}>{t.nome}</Text>
+                    {t.cpf && <Text style={styles.assinaturaCpf}>CPF {t.cpf}</Text>}
+                    {t.rg && <Text style={styles.assinaturaCpf}>RG {t.rg}</Text>}
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.assinaturaCpf}>Nome: _____________________________________</Text>
+                    <Text style={styles.assinaturaCpf}>CPF: ______________________________________</Text>
+                  </>
+                )}
+              </View>
+            </View>
+          ))}
         </View>
       </Page>
     </Document>
