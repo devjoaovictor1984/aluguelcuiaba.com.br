@@ -122,11 +122,12 @@ const styles = StyleSheet.create({
     lineHeight: 1.5,
   },
   // ── Cabeçalho institucional fixo (todas as páginas) ──
+  // A4 = 595.28pt de largura. Margem 56 de cada lado → width 483.28.
   cabecalhoInst: {
     position: 'absolute',
     top: 28,
     left: 56,
-    right: 56,
+    width: 483,
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
@@ -150,7 +151,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 28,
     left: 56,
-    right: 56,
+    width: 483,
     flexDirection: 'row',
     justifyContent: 'space-between',
     fontSize: 7.5,
@@ -367,7 +368,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
         {data.clausulas.map((c, idx) => (
           <View key={idx} style={styles.clausulaWrap} wrap={true}>
             <Text style={styles.clausulaTitulo}>
-              <Text style={styles.clausulaNumero}>{idx + 1}.</Text> {c.titulo}
+              {idx + 1}. {c.titulo}
             </Text>
             <Text style={styles.clausulaCorpo}>{c.corpo}</Text>
           </View>

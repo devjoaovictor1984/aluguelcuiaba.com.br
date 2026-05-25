@@ -287,7 +287,11 @@ export async function GET(
     const stack = err instanceof Error ? err.stack : undefined
     console.error('[contrato-pdf] erro ao gerar:', msg, stack)
     return NextResponse.json(
-      { error: 'Falha ao gerar PDF', detail: msg },
+      {
+        error: 'Falha ao gerar PDF',
+        detail: msg,
+        stack: stack ? stack.split('\n').slice(0, 20).join('\n') : null,
+      },
       { status: 500 }
     )
   }
