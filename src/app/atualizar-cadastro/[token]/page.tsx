@@ -11,11 +11,18 @@ interface Props {
 const LABELS_CAMPO: Record<string, string> = {
   nome: 'Nome completo',
   cpf_cnpj: 'CPF ou CNPJ',
-  rg: 'RG',
+  rg: 'RG (número)',
+  rg_orgao_emissor: 'Órgão emissor do RG (ex: SSP)',
+  rg_uf: 'UF de emissão do RG',
   data_nascimento: 'Data de nascimento',
+  naturalidade: 'Naturalidade (cidade-UF de nascimento)',
   estado_civil: 'Estado civil',
+  regime_bens: 'Regime de bens (se casado)',
   profissao: 'Profissão',
+  renda_mensal: 'Renda mensal',
   nacionalidade: 'Nacionalidade',
+  nome_pai: 'Nome do pai',
+  nome_mae: 'Nome da mãe',
   nome_fantasia: 'Nome fantasia',
   inscricao_estadual: 'Inscrição estadual',
   inscricao_municipal: 'Inscrição municipal',
@@ -37,6 +44,14 @@ const LABELS_CAMPO: Record<string, string> = {
   banco_conta: 'Conta',
   banco_tipo_conta: 'Tipo de conta',
   banco_titular: 'Titular da conta',
+  // Cônjuge
+  conjuge_nome: 'Nome do cônjuge',
+  conjuge_cpf: 'CPF do cônjuge',
+  conjuge_rg: 'RG do cônjuge',
+  conjuge_rg_orgao: 'Órgão emissor RG cônjuge',
+  conjuge_data_nascimento: 'Data de nascimento do cônjuge',
+  conjuge_profissao: 'Profissão do cônjuge',
+  conjuge_nacionalidade: 'Nacionalidade do cônjuge',
 }
 
 const LABELS_DOC: Record<string, string> = {

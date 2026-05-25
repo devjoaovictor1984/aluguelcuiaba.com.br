@@ -30,10 +30,30 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
   const [nome, setNome] = useState(inicial.nome ?? '')
   const [cpfCnpj, setCpfCnpj] = useState(inicial.cpf_cnpj ?? '')
   const [rg, setRg] = useState(inicial.rg ?? '')
+  const [rgOrgao, setRgOrgao] = useState((inicial as Record<string, unknown>).rg_orgao_emissor as string ?? '')
+  const [rgUf, setRgUf] = useState((inicial as Record<string, unknown>).rg_uf as string ?? '')
   const [dataNasc, setDataNasc] = useState(inicial.data_nascimento ?? '')
+  const [naturalidade, setNaturalidade] = useState((inicial as Record<string, unknown>).naturalidade as string ?? '')
   const [estadoCivil, setEstadoCivil] = useState(inicial.estado_civil ?? '')
+  const [regimeBens, setRegimeBens] = useState((inicial as Record<string, unknown>).regime_bens as string ?? '')
   const [profissao, setProfissao] = useState(inicial.profissao ?? '')
+  const [rendaMensal, setRendaMensal] = useState(
+    (inicial as Record<string, unknown>).renda_mensal != null
+      ? String((inicial as Record<string, unknown>).renda_mensal).replace('.', ',')
+      : ''
+  )
   const [nacionalidade, setNacionalidade] = useState(inicial.nacionalidade ?? 'Brasileira')
+  const [nomePai, setNomePai] = useState((inicial as Record<string, unknown>).nome_pai as string ?? '')
+  const [nomeMae, setNomeMae] = useState((inicial as Record<string, unknown>).nome_mae as string ?? '')
+
+  // Cônjuge
+  const [conjugeNome, setConjugeNome] = useState((inicial as Record<string, unknown>).conjuge_nome as string ?? '')
+  const [conjugeCpf, setConjugeCpf] = useState((inicial as Record<string, unknown>).conjuge_cpf as string ?? '')
+  const [conjugeRg, setConjugeRg] = useState((inicial as Record<string, unknown>).conjuge_rg as string ?? '')
+  const [conjugeRgOrgao, setConjugeRgOrgao] = useState((inicial as Record<string, unknown>).conjuge_rg_orgao as string ?? '')
+  const [conjugeDataNasc, setConjugeDataNasc] = useState((inicial as Record<string, unknown>).conjuge_data_nascimento as string ?? '')
+  const [conjugeProfissao, setConjugeProfissao] = useState((inicial as Record<string, unknown>).conjuge_profissao as string ?? '')
+  const [conjugeNacionalidade, setConjugeNacionalidade] = useState((inicial as Record<string, unknown>).conjuge_nacionalidade as string ?? '')
   const [nomeFantasia, setNomeFantasia] = useState(inicial.nome_fantasia ?? '')
   const [inscricaoEstadual, setInscricaoEstadual] = useState(inicial.inscricao_estadual ?? '')
   const [inscricaoMunicipal, setInscricaoMunicipal] = useState(inicial.inscricao_municipal ?? '')
@@ -86,10 +106,28 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
       tipo, nome, cpf_cnpj: cpfCnpj,
       // Campos PF (ignorados em PJ)
       rg: ehPJ ? null : rg,
+      rg_orgao_emissor: ehPJ ? null : (rgOrgao || null),
+      rg_uf: ehPJ ? null : (rgUf || null),
       data_nascimento: ehPJ ? null : (dataNasc || null),
+      naturalidade: ehPJ ? null : (naturalidade || null),
       estado_civil: ehPJ ? null : estadoCivil,
+      regime_bens: ehPJ ? null : (regimeBens || null),
       profissao: ehPJ ? null : profissao,
+      renda_mensal: ehPJ ? null : (() => {
+        const v = parseFloat(rendaMensal.replace(',', '.'))
+        return Number.isFinite(v) && v >= 0 ? v : null
+      })(),
       nacionalidade: ehPJ ? null : nacionalidade,
+      nome_pai: ehPJ ? null : (nomePai || null),
+      nome_mae: ehPJ ? null : (nomeMae || null),
+      // Cônjuge (só quando estado_civil casado/união estável)
+      conjuge_nome: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeNome || null) : null,
+      conjuge_cpf: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeCpf || null) : null,
+      conjuge_rg: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeRg || null) : null,
+      conjuge_rg_orgao: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeRgOrgao || null) : null,
+      conjuge_data_nascimento: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeDataNasc || null) : null,
+      conjuge_profissao: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeProfissao || null) : null,
+      conjuge_nacionalidade: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeNacionalidade || null) : null,
       // Campos PJ (ignorados em PF)
       nome_fantasia: ehPJ ? nomeFantasia : null,
       inscricao_estadual: ehPJ ? inscricaoEstadual : null,
@@ -190,8 +228,20 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
                 <input value={rg} onChange={e => setRg(e.target.value)} className={inputCls} />
               </div>
               <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Órgão emissor</label>
+                <input value={rgOrgao} onChange={e => setRgOrgao(e.target.value)} placeholder="SSP" className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">UF do RG</label>
+                <input value={rgUf} onChange={e => setRgUf(e.target.value.toUpperCase().slice(0, 2))} placeholder="MT" maxLength={2} className={`${inputCls} uppercase`} />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-gray-600 block mb-1">Nascimento</label>
                 <input type="date" value={dataNasc ?? ''} onChange={e => setDataNasc(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Naturalidade</label>
+                <input value={naturalidade} onChange={e => setNaturalidade(e.target.value)} placeholder="Cuiabá-MT" className={inputCls} />
               </div>
               <div>
                 <label className="text-xs font-medium text-gray-600 block mb-1">Estado civil</label>
@@ -204,18 +254,87 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
                   <option value="viuvo">Viúvo(a)</option>
                 </select>
               </div>
+              {(estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') && (
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Regime de bens</label>
+                  <select value={regimeBens} onChange={e => setRegimeBens(e.target.value)} className={inputCls}>
+                    <option value="">—</option>
+                    <option value="comunhao_parcial">Comunhão parcial</option>
+                    <option value="comunhao_universal">Comunhão universal</option>
+                    <option value="separacao_total">Separação total</option>
+                    <option value="separacao_obrigatoria">Separação obrigatória</option>
+                    <option value="participacao_final_aquestos">Participação final nos aquestos</option>
+                  </select>
+                </div>
+              )}
               <div>
                 <label className="text-xs font-medium text-gray-600 block mb-1">Profissão</label>
                 <input value={profissao ?? ''} onChange={e => setProfissao(e.target.value)} className={inputCls} />
               </div>
               <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Renda mensal (R$)</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={rendaMensal}
+                  onChange={e => setRendaMensal(e.target.value)}
+                  placeholder="0,00"
+                  className={inputCls}
+                />
+              </div>
+              <div>
                 <label className="text-xs font-medium text-gray-600 block mb-1">Nacionalidade</label>
                 <input value={nacionalidade ?? ''} onChange={e => setNacionalidade(e.target.value)} className={inputCls} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-gray-600 block mb-1">Nome do pai</label>
+                <input value={nomePai} onChange={e => setNomePai(e.target.value)} className={inputCls} />
+              </div>
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-gray-600 block mb-1">Nome da mãe</label>
+                <input value={nomeMae} onChange={e => setNomeMae(e.target.value)} className={inputCls} />
               </div>
             </>
           )}
         </div>
       </section>
+
+      {/* Cônjuge — só quando estado_civil = casado/união estável */}
+      {!ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') && (
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Dados do cônjuge</h2>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-gray-600 block mb-1">Nome completo do cônjuge</label>
+              <input value={conjugeNome} onChange={e => setConjugeNome(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">CPF</label>
+              <input value={conjugeCpf} onChange={e => setConjugeCpf(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">RG</label>
+              <input value={conjugeRg} onChange={e => setConjugeRg(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Órgão emissor / UF</label>
+              <input value={conjugeRgOrgao} onChange={e => setConjugeRgOrgao(e.target.value)} placeholder="SSP/MT" className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Nascimento</label>
+              <input type="date" value={conjugeDataNasc} onChange={e => setConjugeDataNasc(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Profissão</label>
+              <input value={conjugeProfissao} onChange={e => setConjugeProfissao(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Nacionalidade</label>
+              <input value={conjugeNacionalidade} onChange={e => setConjugeNacionalidade(e.target.value)} placeholder="Brasileira" className={inputCls} />
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Contato</h2>

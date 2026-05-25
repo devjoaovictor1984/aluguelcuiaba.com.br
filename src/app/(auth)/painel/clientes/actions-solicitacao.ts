@@ -8,14 +8,20 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import type { TipoDocumento } from './actions-documentos'
 
 const CAMPOS_VALIDOS = [
-  'nome', 'cpf_cnpj', 'rg', 'data_nascimento', 'estado_civil', 'profissao',
-  'nacionalidade', 'nome_fantasia', 'inscricao_estadual', 'inscricao_municipal',
+  'nome', 'cpf_cnpj', 'rg', 'rg_orgao_emissor', 'rg_uf',
+  'data_nascimento', 'naturalidade',
+  'estado_civil', 'regime_bens', 'profissao', 'renda_mensal',
+  'nacionalidade', 'nome_pai', 'nome_mae',
+  'nome_fantasia', 'inscricao_estadual', 'inscricao_municipal',
   'email', 'telefone', 'whatsapp',
   'endereco_cep', 'endereco_logradouro', 'endereco_numero', 'endereco_complemento',
   'endereco_bairro', 'endereco_cidade', 'endereco_estado',
   'pix_tipo', 'pix_chave',
   'banco_nome', 'banco_codigo', 'banco_agencia', 'banco_conta',
   'banco_tipo_conta', 'banco_titular',
+  // Cônjuge
+  'conjuge_nome', 'conjuge_cpf', 'conjuge_rg', 'conjuge_rg_orgao',
+  'conjuge_data_nascimento', 'conjuge_profissao', 'conjuge_nacionalidade',
 ] as const
 
 const TIPOS_DOC_VALIDOS: TipoDocumento[] = [

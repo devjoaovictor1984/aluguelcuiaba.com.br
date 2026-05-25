@@ -14,10 +14,25 @@ export interface PessoaInput {
   nome: string
   cpf_cnpj?: string | null
   rg?: string | null
+  rg_orgao_emissor?: string | null
+  rg_uf?: string | null
   data_nascimento?: string | null
+  naturalidade?: string | null
   estado_civil?: string | null
+  regime_bens?: string | null
   profissao?: string | null
+  renda_mensal?: number | null
   nacionalidade?: string | null
+  nome_pai?: string | null
+  nome_mae?: string | null
+  // Cônjuge (quando estado_civil = casado/união estável)
+  conjuge_nome?: string | null
+  conjuge_cpf?: string | null
+  conjuge_rg?: string | null
+  conjuge_rg_orgao?: string | null
+  conjuge_data_nascimento?: string | null
+  conjuge_profissao?: string | null
+  conjuge_nacionalidade?: string | null
   // Pessoa jurídica (preenchido quando cpf_cnpj tem 14 dígitos)
   nome_fantasia?: string | null
   inscricao_estadual?: string | null

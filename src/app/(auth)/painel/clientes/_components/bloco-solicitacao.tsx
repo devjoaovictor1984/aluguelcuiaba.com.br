@@ -16,11 +16,30 @@ const CAMPOS_GRUPOS: { titulo: string; campos: CampoOpt[] }[] = [
     campos: [
       { chave: 'nome', label: 'Nome' },
       { chave: 'cpf_cnpj', label: 'CPF/CNPJ' },
-      { chave: 'rg', label: 'RG' },
+      { chave: 'rg', label: 'RG (número)' },
+      { chave: 'rg_orgao_emissor', label: 'Órgão emissor RG' },
+      { chave: 'rg_uf', label: 'UF do RG' },
       { chave: 'data_nascimento', label: 'Data de nascimento' },
+      { chave: 'naturalidade', label: 'Naturalidade' },
       { chave: 'estado_civil', label: 'Estado civil' },
+      { chave: 'regime_bens', label: 'Regime de bens (se casado)' },
       { chave: 'profissao', label: 'Profissão' },
+      { chave: 'renda_mensal', label: 'Renda mensal' },
       { chave: 'nacionalidade', label: 'Nacionalidade' },
+      { chave: 'nome_pai', label: 'Nome do pai' },
+      { chave: 'nome_mae', label: 'Nome da mãe' },
+    ],
+  },
+  {
+    titulo: 'Cônjuge (se casado)',
+    campos: [
+      { chave: 'conjuge_nome', label: 'Nome do cônjuge' },
+      { chave: 'conjuge_cpf', label: 'CPF do cônjuge' },
+      { chave: 'conjuge_rg', label: 'RG do cônjuge' },
+      { chave: 'conjuge_rg_orgao', label: 'Órgão emissor RG cônjuge' },
+      { chave: 'conjuge_data_nascimento', label: 'Data nasc. do cônjuge' },
+      { chave: 'conjuge_profissao', label: 'Profissão do cônjuge' },
+      { chave: 'conjuge_nacionalidade', label: 'Nacionalidade do cônjuge' },
     ],
   },
   {
@@ -72,8 +91,24 @@ const DOCS: CampoOpt[] = [
 const PRESETS: { nome: string; campos: string[]; docs: string[] }[] = [
   {
     nome: 'Cadastro completo de inquilino',
-    campos: ['nome','cpf_cnpj','rg','data_nascimento','estado_civil','profissao','email','telefone','whatsapp','endereco_cep','endereco_logradouro','endereco_numero','endereco_bairro','endereco_cidade','endereco_estado'],
+    campos: [
+      'nome','cpf_cnpj','rg','rg_orgao_emissor','rg_uf','data_nascimento','naturalidade',
+      'estado_civil','regime_bens','profissao','renda_mensal','nacionalidade','nome_pai','nome_mae',
+      'email','telefone','whatsapp',
+      'endereco_cep','endereco_logradouro','endereco_numero','endereco_complemento','endereco_bairro','endereco_cidade','endereco_estado',
+    ],
     docs: ['rg','cpf','comprovante_residencia','comprovante_renda'],
+  },
+  {
+    nome: 'Inquilino casado (com cônjuge)',
+    campos: [
+      'nome','cpf_cnpj','rg','rg_orgao_emissor','rg_uf','data_nascimento','naturalidade',
+      'estado_civil','regime_bens','profissao','renda_mensal','nacionalidade','nome_pai','nome_mae',
+      'email','telefone','whatsapp',
+      'endereco_cep','endereco_logradouro','endereco_numero','endereco_complemento','endereco_bairro','endereco_cidade','endereco_estado',
+      'conjuge_nome','conjuge_cpf','conjuge_rg','conjuge_rg_orgao','conjuge_data_nascimento','conjuge_profissao','conjuge_nacionalidade',
+    ],
+    docs: ['rg','cpf','comprovante_residencia','comprovante_renda','certidao_casamento'],
   },
   {
     nome: 'Só dados bancários (proprietário)',
