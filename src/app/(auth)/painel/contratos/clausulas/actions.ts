@@ -15,7 +15,7 @@ export interface ClausulaInput {
 }
 
 const TIPOS_VALIDOS: TipoClausula[] = [
-  'generica', 'caucao', 'fiador', 'seguro_fianca', 'seguro_incendio', 'adicional',
+  'generica', 'sem_garantia', 'caucao', 'fiador', 'seguro_fianca', 'seguro_incendio', 'adicional',
 ]
 
 function valida(input: ClausulaInput): string | null {
@@ -109,9 +109,12 @@ export async function excluirClausula(id: string) {
 
 /**
  * Popula a tabela com o seed das cláusulas do contrato modelo IMOBILIATTO.
- * Recusa se o usuário já tem cláusulas cadastradas (pra não duplicar).
+ *
+ * Se `sobrescrever=true`, apaga TODAS as cláusulas atuais do usuário antes
+ * de reimportar — útil pra quem já importou uma versão antiga do seed e
+ * quer pegar os textos mais novos. Cuidado: edições manuais são perdidas.
  */
-export async function importarContratoModelo() {
+export async function importarContratoModelo(sobrescrever = false) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
@@ -120,8 +123,16 @@ export async function importarContratoModelo() {
     .select('id', { count: 'exact', head: true })
     .eq('user_id', acesso.userId)
 
-  if ((count ?? 0) > 0) {
-    return { error: 'Você já tem cláusulas cadastradas. Exclua-as primeiro se quiser reimportar.' }
+  if ((count ?? 0) > 0 && !sobrescrever) {
+    return { error: 'Você já tem cláusulas cadastradas. Use "Reimportar" pra sobrescrever ou exclua-as manualmente antes.' }
+  }
+
+  if (sobrescrever && (count ?? 0) > 0) {
+    const { error: delErr } = await supabase
+      .from('contrato_clausulas')
+      .delete()
+      .eq('user_id', acesso.userId)
+    if (delErr) return { error: `Falha ao limpar cláusulas atuais: ${delErr.message}` }
   }
 
   const rows = SEED_CLAUSULAS.map(c => ({

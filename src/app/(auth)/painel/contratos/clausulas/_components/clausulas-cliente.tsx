@@ -50,6 +50,19 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
     })
   }
 
+  const onReimportarModelo = () => {
+    if (!confirm(
+      'ATENÇÃO: vai apagar TODAS as suas cláusulas atuais e reimportar o modelo padrão.\n\n' +
+      'Edições que você fez serão PERDIDAS.\n\nConfirmar?'
+    )) return
+    setErro('')
+    startTransition(async () => {
+      const r = await importarContratoModelo(true)
+      if (r.error) { setErro(r.error); return }
+      recarregar()
+    })
+  }
+
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
       {/* Cabeçalho */}
@@ -65,7 +78,19 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {!vazio && (
+            <button
+              type="button"
+              onClick={onReimportarModelo}
+              disabled={isPending}
+              className="text-xs font-medium text-amber-700 hover:bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 flex items-center gap-1.5 disabled:opacity-50"
+              title="Apaga as atuais e reimporta o modelo atualizado"
+            >
+              {isPending ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+              Reimportar modelo
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setMostrarPlaceholders(true)}
@@ -82,7 +107,7 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
           <FileSignature size={28} className="text-violet-600 mx-auto mb-2" />
           <h2 className="text-base font-semibold text-violet-900 mb-1">Comece com o contrato modelo</h2>
           <p className="text-sm text-violet-800/90 mb-4 max-w-md mx-auto">
-            Importa 13 cláusulas prontas (caução, fiador, seguros, mora, rescisão, etc.) baseadas no modelo IMOBILIATTO. Você edita o que quiser depois.
+            Importa 28 cláusulas prontas: genéricas (partes, objeto, prazo, aluguel, mora, rescisão…), todas as variações de garantia (sem garantia, caução, fiador, seguro fiança) e seguro incêndio (3 modalidades). Você edita o que quiser depois.
           </p>
           <button
             type="button"

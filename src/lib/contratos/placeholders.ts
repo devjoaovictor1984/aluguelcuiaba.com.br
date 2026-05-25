@@ -95,10 +95,11 @@ export const PLACEHOLDERS: Placeholder[] = [
 
 export const TIPOS_CLAUSULA = [
   { valor: 'generica',         label: 'Genéricas',        descricao: 'Vão em todos os contratos' },
+  { valor: 'sem_garantia',     label: 'Sem garantia',     descricao: 'Quando o contrato é celebrado sem nenhuma garantia locatícia' },
   { valor: 'caucao',           label: 'Caução',           descricao: 'Só quando a garantia é caução em dinheiro' },
   { valor: 'fiador',           label: 'Fiador',           descricao: 'Só quando há fiador pessoa física' },
   { valor: 'seguro_fianca',    label: 'Seguro fiança',    descricao: 'Só quando contratado seguro fiança' },
-  { valor: 'seguro_incendio',  label: 'Seguro incêndio',  descricao: 'Cláusulas extras de seguro de incêndio' },
+  { valor: 'seguro_incendio',  label: 'Seguro incêndio',  descricao: 'Variações: cobrado à parte, embutido no pacote ou dispensado' },
   { valor: 'adicional',        label: 'Adicionais',       descricao: 'Opcionais, escolhidas caso a caso' },
 ] as const
 
