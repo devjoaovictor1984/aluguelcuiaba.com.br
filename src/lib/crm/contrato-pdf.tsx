@@ -4,35 +4,36 @@ import path from 'path'
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
 
 // ── Carregamento de Poppins ─────────────────────────────────────────
-// Lê os TTFs do filesystem como Buffer (síncrono) — garante que estão
-// disponíveis antes do render. Em runtime URL o react-pdf às vezes começa
-// a renderizar antes do download terminar e gera coordenadas absurdas.
-// Se ler falhar (path issue em algum ambiente), cai pra Helvetica padrão.
-function tryReadFont(filename: string): Buffer | null {
+// Lê os TTFs do filesystem e converte em data URL base64. O typing do
+// react-pdf aceita Buffer no `src`, mas internamente chama .substring()
+// no valor — então só funciona com string. Data URL resolve isso e
+// também garante que a fonte está disponível antes do render começar
+// (sem dependência de download de URL externa).
+function tryReadFontAsDataUrl(filename: string): string | null {
   try {
     const p = path.join(process.cwd(), 'public', 'fonts', filename)
     if (!fs.existsSync(p)) return null
-    return fs.readFileSync(p)
+    const buf = fs.readFileSync(p)
+    return `data:font/ttf;base64,${buf.toString('base64')}`
   } catch {
     return null
   }
 }
 
-const ttfRegular = tryReadFont('Poppins-Regular.ttf')
-const ttfMedium = tryReadFont('Poppins-Medium.ttf')
-const ttfBold = tryReadFont('Poppins-Bold.ttf')
+const fontRegular = tryReadFontAsDataUrl('Poppins-Regular.ttf')
+const fontMedium = tryReadFontAsDataUrl('Poppins-Medium.ttf')
+const fontBold = tryReadFontAsDataUrl('Poppins-Bold.ttf')
 
-const POPPINS_LOADED = !!(ttfRegular && ttfBold)
+const POPPINS_LOADED = !!(fontRegular && fontBold)
 const FAMILIA = POPPINS_LOADED ? 'Poppins' : 'Helvetica'
 
 if (POPPINS_LOADED) {
-  // O react-pdf aceita Buffer no `src` (typing diz string, mas funciona)
   Font.register({
     family: 'Poppins',
     fonts: [
-      { src: ttfRegular as unknown as string, fontWeight: 'normal' },
-      ...(ttfMedium ? [{ src: ttfMedium as unknown as string, fontWeight: 'medium' as const }] : []),
-      { src: ttfBold as unknown as string, fontWeight: 'bold' },
+      { src: fontRegular!, fontWeight: 'normal' },
+      ...(fontMedium ? [{ src: fontMedium, fontWeight: 'medium' as const }] : []),
+      { src: fontBold!, fontWeight: 'bold' },
     ],
   })
 }
