@@ -135,6 +135,20 @@ export interface DadosContrato {
     valor_seguro_fianca_mensal?: number | null
     valor_seguro_incendio_anual?: number | null
   } | null
+
+  // Contrato de administração (quando aplicável)
+  administracao?: {
+    codigo?: string | null
+    data_inicio?: string | null
+    data_termino?: string | null
+    prazo_meses?: number | null
+    taxa_tipo?: 'percentual' | 'fixo' | null
+    taxa_valor?: number | null
+    dia_repasse?: number | null
+    aviso_previo_dias?: number | null
+    multa_rescisao_meses?: number | null
+    exclusividade?: boolean | null
+  } | null
 }
 
 // ── Formatadores ──
@@ -391,6 +405,31 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'SEGURO_APOLICE': return dados.contrato?.seguro_fianca_apolice ?? FALLBACK
     case 'SEGURO_VALOR': return fmtBRL(dados.contrato?.valor_seguro_fianca_mensal)
     case 'SEGURO_VIGENCIA': return '12 meses'
+
+    // ── Contrato de Administração ──
+    case 'ADM_CODIGO': return dados.administracao?.codigo ?? FALLBACK
+    case 'ADM_DATA_INICIO': return fmtData(dados.administracao?.data_inicio)
+    case 'ADM_DATA_TERMINO': return fmtData(dados.administracao?.data_termino)
+    case 'ADM_PRAZO_MESES': return dados.administracao?.prazo_meses != null ? String(dados.administracao.prazo_meses) : '12'
+    case 'ADM_TAXA_VALOR': {
+      const t = dados.administracao
+      if (!t || t.taxa_valor == null) return FALLBACK
+      return t.taxa_tipo === 'fixo' ? fmtBRL(t.taxa_valor) : `${t.taxa_valor}%`
+    }
+    case 'ADM_TAXA_DESCRICAO': {
+      const t = dados.administracao
+      if (!t || t.taxa_valor == null) return FALLBACK
+      if (t.taxa_tipo === 'fixo') {
+        return `${fmtBRL(t.taxa_valor)} (${numeroPorExtenso(Math.floor(t.taxa_valor))} reais) mensais`
+      }
+      return `${t.taxa_valor}% (${numeroPorExtenso(Math.floor(t.taxa_valor))} por cento) sobre o aluguel`
+    }
+    case 'ADM_DIA_REPASSE': return dados.administracao?.dia_repasse != null ? String(dados.administracao.dia_repasse) : '5'
+    case 'ADM_AVISO_PREVIO_DIAS': return dados.administracao?.aviso_previo_dias != null ? String(dados.administracao.aviso_previo_dias) : '30'
+    case 'ADM_MULTA_MESES': return dados.administracao?.multa_rescisao_meses != null ? String(dados.administracao.multa_rescisao_meses) : '3'
+    case 'ADM_EXCLUSIVIDADE': return dados.administracao?.exclusividade === false
+      ? 'sem exclusividade de captação'
+      : 'em regime de exclusividade'
 
     default: return `{{${chave}}}`  // não conhecido: mantém pra usuário ver
   }

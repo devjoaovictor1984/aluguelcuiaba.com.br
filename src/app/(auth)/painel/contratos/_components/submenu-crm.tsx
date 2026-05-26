@@ -2,12 +2,13 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, FileSignature, Users, Wallet, Cake, FileText, Receipt, MessageCircle, Trash2, ArrowLeft } from 'lucide-react'
+import { LayoutDashboard, FileSignature, Users, Wallet, Cake, FileText, Receipt, MessageCircle, Trash2, ArrowLeft, Briefcase } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const ITENS = [
   { href: '/painel/inicio',        label: 'Início',     icon: LayoutDashboard, match: 'inicio' },
-  { href: '/painel/contratos',     label: 'Contratos',  icon: FileSignature,   match: 'contratos' },
+  { href: '/painel/contratos',     label: 'Contratos',  icon: FileSignature,   match: 'painel/contratos' },
+  { href: '/painel/administracoes', label: 'Admin.',    icon: Briefcase,       match: 'administracoes' },
   { href: '/painel/clientes',      label: 'Clientes',   icon: Users,           match: 'clientes' },
   { href: '/painel/cobrancas',     label: 'Cobranças',  icon: MessageCircle,   match: 'cobrancas' },
   { href: '/painel/financeiro',    label: 'Financeiro', icon: Wallet,          match: 'financeiro' },

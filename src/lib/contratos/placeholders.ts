@@ -101,6 +101,18 @@ export const PLACEHOLDERS: Placeholder[] = [
   { chave: 'SEGURO_APOLICE', label: 'Número da apólice', exemplo: '00.000.000.0000', origem: 'seguro' },
   { chave: 'SEGURO_VALOR', label: 'Valor da cobertura', exemplo: 'R$ 100.000,00', origem: 'seguro' },
   { chave: 'SEGURO_VIGENCIA', label: 'Vigência da apólice', exemplo: '12 meses', origem: 'seguro' },
+
+  // ── Contrato de Administração (proprietário ↔ administradora) ──
+  { chave: 'ADM_CODIGO', label: 'Código do contrato de administração', exemplo: 'ADM2026-001', origem: 'valores' },
+  { chave: 'ADM_DATA_INICIO', label: 'Início da administração', exemplo: '01/01/2026', origem: 'prazo' },
+  { chave: 'ADM_DATA_TERMINO', label: 'Término da administração', exemplo: '31/12/2026', origem: 'prazo' },
+  { chave: 'ADM_PRAZO_MESES', label: 'Prazo da administração em meses', exemplo: '12', origem: 'prazo' },
+  { chave: 'ADM_TAXA_VALOR', label: 'Valor/percentual da taxa de administração', exemplo: '10%', origem: 'valores' },
+  { chave: 'ADM_TAXA_DESCRICAO', label: 'Descrição da taxa', exemplo: '10% (dez por cento) sobre o aluguel', origem: 'valores' },
+  { chave: 'ADM_DIA_REPASSE', label: 'Dia do repasse ao proprietário', exemplo: '5', origem: 'valores' },
+  { chave: 'ADM_AVISO_PREVIO_DIAS', label: 'Dias de aviso prévio pra rescisão', exemplo: '30', origem: 'prazo' },
+  { chave: 'ADM_MULTA_MESES', label: 'Multa rescisória em meses', exemplo: '3', origem: 'garantia' },
+  { chave: 'ADM_EXCLUSIVIDADE', label: 'Exclusividade (sim/não)', exemplo: 'em regime de exclusividade', origem: 'admin' },
 ]
 
 export const TIPOS_CLAUSULA = [
@@ -111,6 +123,7 @@ export const TIPOS_CLAUSULA = [
   { valor: 'seguro_fianca',    label: 'Seguro fiança',    descricao: 'Só quando contratado seguro fiança' },
   { valor: 'seguro_incendio',  label: 'Seguro incêndio',  descricao: 'Variações: cobrado à parte, embutido no pacote ou dispensado' },
   { valor: 'adicional',        label: 'Adicionais',       descricao: 'Opcionais, escolhidas caso a caso' },
+  { valor: 'administracao',    label: 'Administração',    descricao: 'Cláusulas do contrato de administração imobiliária (entre proprietário e admin)' },
 ] as const
 
 export type TipoClausula = typeof TIPOS_CLAUSULA[number]['valor']

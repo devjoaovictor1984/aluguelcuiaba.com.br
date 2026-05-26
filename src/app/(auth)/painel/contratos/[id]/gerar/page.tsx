@@ -13,13 +13,70 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
+function unwrap<T>(v: T | T[] | null | undefined): T | null {
+  if (!v) return null
+  return Array.isArray(v) ? (v[0] ?? null) : v
+}
+
+function PainelErroDebug({ titulo, mensagem, stack, contratoId }: {
+  titulo: string
+  mensagem: string
+  stack?: string | null
+  contratoId: string
+}) {
+  return (
+    <main className="p-6">
+      <div className="max-w-2xl mx-auto bg-red-50 border border-red-200 rounded-2xl p-6">
+        <div className="flex items-start gap-3 mb-3">
+          <AlertCircle className="text-red-600 shrink-0" />
+          <div>
+            <h2 className="font-bold text-red-900">{titulo}</h2>
+            <p className="text-sm text-red-800 mt-1">{mensagem}</p>
+          </div>
+        </div>
+        {stack && (
+          <details className="mt-4">
+            <summary className="text-xs font-semibold text-red-700 cursor-pointer">
+              Stack trace (clique pra expandir)
+            </summary>
+            <pre className="text-[10px] mt-2 bg-white p-3 rounded border border-red-200 overflow-auto max-h-96 whitespace-pre-wrap">
+              {stack}
+            </pre>
+          </details>
+        )}
+        <Link href={`/painel/contratos/${contratoId}`} className="inline-block mt-4 text-sm text-violet-700 hover:underline">
+          Voltar ao contrato
+        </Link>
+      </div>
+    </main>
+  )
+}
+
 export default async function GerarContratoPage({ params }: Props) {
+  const { id: contratoId } = await params
+  try {
+    return await renderizarEditor(contratoId)
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err)
+    const stack = err instanceof Error ? err.stack : null
+    console.error('[gerar/page] erro:', msg, stack)
+    return (
+      <PainelErroDebug
+        contratoId={contratoId}
+        titulo="Erro ao abrir o gerador de contrato"
+        mensagem={msg}
+        stack={stack}
+      />
+    )
+  }
+}
+
+async function renderizarEditor(contratoId: string) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
-  const { id: contratoId } = await params
 
   // Confirma posse
-  const { data: contrato } = await supabase
+  const { data: contrato, error: contratoErr } = await supabase
     .from('contratos_locacao')
     .select(`
       id, codigo, garantia_tipo, valor_aluguel, data_inicio, data_termino,
@@ -37,6 +94,7 @@ export default async function GerarContratoPage({ params }: Props) {
     .eq('user_id', acesso.userId)
     .maybeSingle()
 
+  if (contratoErr) throw new Error(`Query contratos_locacao: ${contratoErr.message}`)
   if (!contrato) redirect('/painel/contratos')
 
   // Obtém ou cria geração
@@ -72,11 +130,10 @@ export default async function GerarContratoPage({ params }: Props) {
     .eq('user_id', acesso.userId)
     .order('nome', { ascending: true })
 
-  // IDs das partes do contrato (locador, locatário, fiador) — pra filtrar docs
-  const partesIds = [
-    contrato.proprietario?.[0]?.id ?? (contrato.proprietario as { id?: string } | null)?.id,
-    contrato.inquilino?.[0]?.id ?? (contrato.inquilino as { id?: string } | null)?.id,
-  ].filter((x): x is string => !!x)
+  // IDs das partes do contrato (locador, locatário) — pra filtrar docs
+  const propTmp = unwrap(contrato.proprietario)
+  const inqTmp = unwrap(contrato.inquilino)
+  const partesIds = [propTmp?.id, inqTmp?.id].filter((x): x is string => !!x)
 
   // Carrega documentos das partes (pra escolher anexos)
   const { data: documentosPartes } = partesIds.length > 0
@@ -88,9 +145,9 @@ export default async function GerarContratoPage({ params }: Props) {
         .order('created_at', { ascending: false })
     : { data: [] }
 
-  const inq = Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino
-  const prop = Array.isArray(contrato.proprietario) ? contrato.proprietario[0] : contrato.proprietario
-  const im = Array.isArray(contrato.imovel) ? contrato.imovel[0] : contrato.imovel
+  const inq = inqTmp
+  const prop = propTmp
+  const im = unwrap(contrato.imovel)
 
   // Detecta dados do imóvel faltando pra contrato robusto
   const dadosImovelFaltando: string[] = []

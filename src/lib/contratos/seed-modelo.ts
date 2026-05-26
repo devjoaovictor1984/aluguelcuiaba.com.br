@@ -590,4 +590,109 @@ Parágrafo segundo. Antes de completar 12 meses, mantém-se integralmente a mult
 
 Parágrafo terceiro. A dispensa da multa rescisória não exonera o LOCATÁRIO das demais obrigações de devolução regular do IMÓVEL.`,
   },
+
+  // ════════════════════════════════════════════════════════════════
+  //  ADMINISTRAÇÃO IMOBILIÁRIA — contrato entre proprietário e admin
+  // ════════════════════════════════════════════════════════════════
+
+  {
+    tipo: 'administracao', categoria: 'partes', titulo: 'Das partes', numero: 1,
+    corpo: `CONTRATANTE / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_NACIONALIDADE}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, portador(a) do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, residente e domiciliado(a) em {{LOCADOR_ENDERECO}}, doravante denominado(a) simplesmente CONTRATANTE.
+
+CONTRATADA / ADMINISTRADORA: {{ADMIN_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com sede em {{ADMIN_ENDERECO}}, neste ato representada por {{ADMIN_RESPONSAVEL}}, corretor(a) de imóveis, CRECI {{ADMIN_RESPONSAVEL_CRECI}}, doravante denominada simplesmente ADMINISTRADORA.
+
+As partes ajustam o presente CONTRATO DE ADMINISTRAÇÃO IMOBILIÁRIA, regido pela Lei nº 8.245/1991, pelo Código Civil, pelo Código de Defesa do Consumidor quando aplicável e pelas cláusulas seguintes.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'objeto', titulo: 'Do objeto', numero: 2,
+    corpo: `O presente contrato tem por objeto a prestação de serviços de administração imobiliária pela ADMINISTRADORA sobre o imóvel de propriedade do CONTRATANTE situado em {{IMOVEL_ENDERECO}}, CEP {{IMOVEL_CEP}}, doravante denominado simplesmente IMÓVEL.
+
+Parágrafo primeiro. A administração compreende, sem se limitar a: divulgação, captação de inquilinos, análise cadastral, intermediação de locação, elaboração de contratos, vistorias inicial e final, entrega/recebimento de chaves, cobrança mensal de aluguel e encargos, repasse ao CONTRATANTE, gestão de inadimplência, comunicações com inquilinos, condomínios, prestadores e órgãos públicos.
+
+Parágrafo segundo. {{ADM_EXCLUSIVIDADE}}, sendo vedada ao CONTRATANTE a captação direta ou através de terceiros enquanto vigente este contrato.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'prazo', titulo: 'Do prazo e renovação', numero: 3,
+    corpo: `O presente contrato tem prazo de {{ADM_PRAZO_MESES}} (doze) meses, com início em {{ADM_DATA_INICIO}} e término em {{ADM_DATA_TERMINO}}.
+
+Parágrafo primeiro. Findo o prazo, o contrato será renovado automaticamente por iguais períodos sucessivos, salvo manifestação contrária por escrito de qualquer das partes com antecedência mínima de {{ADM_AVISO_PREVIO_DIAS}} (trinta) dias do término.
+
+Parágrafo segundo. A vigência da administração subsiste mesmo após o término do contrato de locação atualmente vigente, podendo a ADMINISTRADORA buscar novo inquilino para o IMÓVEL.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'taxa', titulo: 'Da taxa de administração', numero: 4,
+    corpo: `O CONTRATANTE remunerará a ADMINISTRADORA com taxa equivalente a {{ADM_TAXA_DESCRICAO}}, devida mensalmente sobre o aluguel efetivamente recebido.
+
+Parágrafo primeiro. A primeira parcela do aluguel poderá ser destinada integralmente à ADMINISTRADORA como comissão de intermediação locatícia, conforme uso e costume do mercado imobiliário, se assim ajustado em parágrafo específico.
+
+Parágrafo segundo. A taxa será descontada automaticamente do valor recebido antes do repasse ao CONTRATANTE, sendo demonstrada em extrato mensal disponível ao CONTRATANTE.
+
+Parágrafo terceiro. A taxa não incide sobre IPTU, condomínio, seguros, multas, indenizações por danos, reembolsos e demais valores que não constituam aluguel propriamente dito.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'repasse', titulo: 'Do repasse ao proprietário', numero: 5,
+    corpo: `O repasse mensal do aluguel recebido, deduzidas a taxa de administração e demais encargos legítimos, será efetuado ao CONTRATANTE até o dia {{ADM_DIA_REPASSE}} de cada mês, mediante crédito em conta bancária ou chave PIX informada pelo CONTRATANTE.
+
+Parágrafo primeiro. Caso o aluguel não seja recebido até a data de repasse, a ADMINISTRADORA fica desobrigada de efetuá-lo até o efetivo pagamento pelo inquilino, sem que isso configure inadimplemento de sua parte.
+
+Parágrafo segundo. Eventuais despesas necessárias e autorizadas pelo CONTRATANTE (pequenos reparos, taxas administrativas, despesas de cobrança) serão deduzidas do repasse, com apresentação de comprovantes.
+
+Parágrafo terceiro. O CONTRATANTE compromete-se a manter atualizados seus dados bancários junto à ADMINISTRADORA. Eventual atraso no repasse por desatualização cadastral ou erro nos dados fornecidos não configura mora da ADMINISTRADORA.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'obrigacoes_adm', titulo: 'Das obrigações da administradora', numero: 6,
+    corpo: `Compete à ADMINISTRADORA, no exercício de seu mandato:
+I. anunciar o IMÓVEL nos canais adequados;
+II. analisar candidatos a inquilino, verificar referências e idoneidade financeira;
+III. elaborar contrato de locação, vistorias e termos correlatos;
+IV. promover entrega e recebimento de chaves;
+V. emitir cobranças mensais, recibos e comunicações ao inquilino;
+VI. realizar gestão de inadimplência: cobrança extrajudicial, acordo, protesto, negativação e ação judicial quando autorizada;
+VII. prestar contas ao CONTRATANTE mediante demonstrativo mensal;
+VIII. comunicar ao CONTRATANTE fatos relevantes (sinistros, ações judiciais, propostas, ofertas de compra, vistorias);
+IX. zelar pela conservação do IMÓVEL nas vistorias periódicas e finais;
+X. manter sigilo de dados do CONTRATANTE e do inquilino, observando a Lei Geral de Proteção de Dados.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'obrigacoes_contratante', titulo: 'Das obrigações do contratante', numero: 7,
+    corpo: `Compete ao CONTRATANTE:
+I. entregar o IMÓVEL apto à locação, com documentação regularizada (matrícula, IPTU, ligações de água/luz);
+II. autorizar expressamente a ADMINISTRADORA a representá-lo em todos os atos da locação;
+III. comunicar imediatamente à ADMINISTRADORA: venda, oneração, decisão judicial, mudança de estado civil, falecimento ou outro fato que afete a administração;
+IV. manter atualizados seus dados pessoais, bancários e de contato;
+V. responder por vícios estruturais, defeitos ocultos e reparos extraordinários do IMÓVEL;
+VI. arcar com IPTU, taxas, contribuições, despesas extraordinárias do condomínio e demais obrigações inerentes à propriedade;
+VII. respeitar o regime de exclusividade pactuado, abstendo-se de captar inquilino diretamente.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'rescisao', titulo: 'Da rescisão', numero: 8,
+    corpo: `O presente contrato poderá ser rescindido por qualquer das partes, mediante aviso prévio de {{ADM_AVISO_PREVIO_DIAS}} (trinta) dias, sem incidência de multa, desde que respeitadas as obrigações pendentes e a continuidade do contrato de locação vigente até o seu termo natural.
+
+Parágrafo primeiro. Em caso de rescisão por iniciativa do CONTRATANTE durante o prazo contratual e sem motivo justificado, será devida multa equivalente a {{ADM_MULTA_MESES}} (três) meses de taxa de administração calculada sobre o aluguel vigente.
+
+Parágrafo segundo. A rescisão imotivada não afasta a obrigação do CONTRATANTE de respeitar o contrato de locação vigente firmado pela ADMINISTRADORA com o inquilino, sob pena de responder por perdas e danos.
+
+Parágrafo terceiro. Configurarão justa causa pra rescisão sem multa: descumprimento reiterado de obrigações; falência ou insolvência da ADMINISTRADORA; perda do CRECI; conduta lesiva aos interesses do CONTRATANTE.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'comunicacoes', titulo: 'Das comunicações e LGPD', numero: 9,
+    corpo: `As comunicações entre as partes ocorrerão preferencialmente por escrito, inclusive WhatsApp, e-mail, plataforma digital ou notificação extrajudicial, ficando válidas quando comprovado envio ou recebimento.
+
+Parágrafo único. As partes consentem com o tratamento de dados pessoais necessários à execução deste contrato, nos termos da Lei nº 13.709/2018, comprometendo-se com a guarda, sigilo e uso adequado das informações, observadas as finalidades pactuadas.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'foro', titulo: 'Do foro', numero: 10,
+    corpo: `Fica eleito o foro da Comarca de Cuiabá-MT para dirimir quaisquer dúvidas ou controvérsias decorrentes deste contrato, com renúncia expressa a qualquer outro, por mais privilegiado que seja.
+
+E, por estarem justos e contratados, plenamente cientes da seriedade das obrigações assumidas, assinam o presente instrumento digitalmente, em vias de igual teor, juntamente com 02 (duas) testemunhas.`,
+  },
 ]
