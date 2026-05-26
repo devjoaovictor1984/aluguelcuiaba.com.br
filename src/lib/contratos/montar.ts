@@ -56,6 +56,15 @@ export interface DadosContrato {
     conjuge_data_nascimento?: string | null
     conjuge_profissao?: string | null
     conjuge_nacionalidade?: string | null
+    conjuge_naturalidade?: string | null
+    conjuge_nome_pai?: string | null
+    conjuge_nome_mae?: string | null
+    conjuge_endereco_logradouro?: string | null
+    conjuge_endereco_numero?: string | null
+    conjuge_endereco_bairro?: string | null
+    conjuge_endereco_cidade?: string | null
+    conjuge_endereco_estado?: string | null
+    conjuge_endereco_cep?: string | null
   } | null
 
   // Fiador
@@ -102,6 +111,12 @@ export interface DadosContrato {
     area_terreno_m2?: number | null
     descricao_real?: string | null
     descricao?: string | null
+    cartorio_registro?: string | null
+    livro_folha_matricula?: string | null
+    hidrometro_numero?: string | null
+    hidrometro_leitura_inicial?: string | null
+    medidor_energia_numero?: string | null
+    medidor_energia_leitura_inicial?: string | null
   } | null
 
   // Contrato
@@ -257,6 +272,25 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'CONJUGE_DATA_NASC': return fmtData(dados.locatario?.conjuge_data_nascimento)
     case 'CONJUGE_PROFISSAO': return dados.locatario?.conjuge_profissao ?? FALLBACK
     case 'CONJUGE_NACIONALIDADE': return dados.locatario?.conjuge_nacionalidade ?? FALLBACK
+    case 'CONJUGE_NATURALIDADE': return dados.locatario?.conjuge_naturalidade ?? FALLBACK
+    case 'CONJUGE_NOME_PAI': return dados.locatario?.conjuge_nome_pai ?? FALLBACK
+    case 'CONJUGE_NOME_MAE': return dados.locatario?.conjuge_nome_mae ?? FALLBACK
+    case 'CONJUGE_ENDERECO': {
+      // Se cônjuge tem endereço próprio, usa; senão usa do titular
+      const l = dados.locatario
+      if (!l) return FALLBACK
+      if (l.conjuge_endereco_logradouro) {
+        return enderecoCompleto({
+          endereco_logradouro: l.conjuge_endereco_logradouro,
+          endereco_numero: l.conjuge_endereco_numero,
+          endereco_bairro: l.conjuge_endereco_bairro,
+          endereco_cidade: l.conjuge_endereco_cidade,
+          endereco_estado: l.conjuge_endereco_estado,
+          endereco_cep: l.conjuge_endereco_cep,
+        })
+      }
+      return enderecoCompleto(l)
+    }
 
     // ── Administradora ──
     case 'ADMIN_RAZAO_SOCIAL': return dados.admin?.razao_social ?? dados.admin?.nome ?? FALLBACK
@@ -311,6 +345,12 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       return dados.imovel?.area_construida_m2 ? `${dados.imovel.area_construida_m2} m²` : FALLBACK
     case 'IMOVEL_AREA_TERRENO':
       return dados.imovel?.area_terreno_m2 ? `${dados.imovel.area_terreno_m2} m²` : FALLBACK
+    case 'IMOVEL_CARTORIO': return dados.imovel?.cartorio_registro ?? FALLBACK
+    case 'IMOVEL_LIVRO_FOLHA': return dados.imovel?.livro_folha_matricula ?? FALLBACK
+    case 'IMOVEL_HIDROMETRO_NUMERO': return dados.imovel?.hidrometro_numero ?? FALLBACK
+    case 'IMOVEL_HIDROMETRO_LEITURA': return dados.imovel?.hidrometro_leitura_inicial ?? FALLBACK
+    case 'IMOVEL_MEDIDOR_ENERGIA_NUMERO': return dados.imovel?.medidor_energia_numero ?? FALLBACK
+    case 'IMOVEL_MEDIDOR_ENERGIA_LEITURA': return dados.imovel?.medidor_energia_leitura_inicial ?? FALLBACK
 
     // ── Valores ──
     case 'ALUGUEL_VALOR': return fmtBRL(dados.contrato?.valor_aluguel)

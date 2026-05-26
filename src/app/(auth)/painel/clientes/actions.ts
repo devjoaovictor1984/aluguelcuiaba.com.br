@@ -33,6 +33,15 @@ export interface PessoaInput {
   conjuge_data_nascimento?: string | null
   conjuge_profissao?: string | null
   conjuge_nacionalidade?: string | null
+  conjuge_naturalidade?: string | null
+  conjuge_nome_pai?: string | null
+  conjuge_nome_mae?: string | null
+  conjuge_endereco_logradouro?: string | null
+  conjuge_endereco_numero?: string | null
+  conjuge_endereco_bairro?: string | null
+  conjuge_endereco_cidade?: string | null
+  conjuge_endereco_estado?: string | null
+  conjuge_endereco_cep?: string | null
   // Pessoa jurídica (preenchido quando cpf_cnpj tem 14 dígitos)
   nome_fantasia?: string | null
   inscricao_estadual?: string | null

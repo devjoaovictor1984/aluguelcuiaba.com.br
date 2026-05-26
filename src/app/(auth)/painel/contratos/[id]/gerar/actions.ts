@@ -169,6 +169,197 @@ export async function atualizarOrdemClausulas(geracaoId: string, novaOrdem: stri
 }
 
 /**
+ * Marca a geração como "gerado" — sinaliza que o corretor já baixou o PDF.
+ * Não salva snapshot no bucket porque o PDF é regenerado dinamicamente pela
+ * rota /api/contratos/[id]/pdf sempre que aberto. Se quiser preservar o
+ * estado, use o upload do PDF assinado.
+ */
+export async function marcarComoGerado(geracaoId: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id, status')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+
+  // Não regride status (assinado > gerado > rascunho)
+  const novoStatus = g.status === 'assinado' ? 'assinado' : 'gerado'
+
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({
+      gerado_em: new Date().toISOString(),
+      status: novoStatus,
+    })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true }
+}
+
+/**
+ * Atualiza quais documentos do cadastro vão ao final do contrato (anexos).
+ */
+export async function atualizarAnexosDocumentos(geracaoId: string, ids: string[]) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  if (!Array.isArray(ids)) return { error: 'IDs inválidos.' }
+
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({ anexo_documento_ids: ids })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true }
+}
+
+/**
+ * Atualiza flags de aluguel inclui IPTU/condomínio.
+ */
+export async function atualizarFlagsAluguel(geracaoId: string, input: {
+  aluguel_inclui_iptu: boolean
+  aluguel_inclui_condominio: boolean
+}) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({
+      aluguel_inclui_iptu: input.aluguel_inclui_iptu,
+      aluguel_inclui_condominio: input.aluguel_inclui_condominio,
+    })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true }
+}
+
+/**
+ * Upload do PDF assinado. Sobrescreve o anterior se houver.
+ * Marca status='assinado' e preenche assinado_em.
+ */
+export async function uploadContratoAssinado(geracaoId: string, formData: FormData) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const file = formData.get('file')
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: 'Arquivo não enviado.' }
+  }
+  if (file.size > 20 * 1024 * 1024) {
+    return { error: 'Arquivo maior que 20MB.' }
+  }
+  if (file.type !== 'application/pdf') {
+    return { error: 'O arquivo precisa ser um PDF.' }
+  }
+
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id, pdf_assinado_path, contrato:contratos_locacao!inner(codigo)')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+
+  // Remove o assinado anterior, se houver
+  if (g.pdf_assinado_path) {
+    await supabase.storage.from('contratos-pdf').remove([g.pdf_assinado_path])
+  }
+
+  const codigoRaw = Array.isArray(g.contrato) ? g.contrato[0]?.codigo : (g.contrato as { codigo?: string } | null)?.codigo
+  const codigo = (codigoRaw ?? geracaoId.slice(0, 8)).replace(/[^a-zA-Z0-9-]/g, '_')
+  const path = `${acesso.userId}/${geracaoId}/contrato-${codigo}-assinado-${Date.now()}.pdf`
+  const bytes = await file.arrayBuffer()
+
+  const { error: upErr } = await supabase.storage
+    .from('contratos-pdf')
+    .upload(path, new Uint8Array(bytes), { contentType: 'application/pdf', upsert: false })
+  if (upErr) return { error: upErr.message }
+
+  const { data: pub } = supabase.storage.from('contratos-pdf').getPublicUrl(path)
+
+  const { error: dbErr } = await supabase
+    .from('contrato_geracoes')
+    .update({
+      pdf_assinado_url: pub.publicUrl,
+      pdf_assinado_path: path,
+      assinado_em: new Date().toISOString(),
+      status: 'assinado',
+    })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (dbErr) {
+    await supabase.storage.from('contratos-pdf').remove([path])
+    return { error: dbErr.message }
+  }
+
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true, url: pub.publicUrl }
+}
+
+/**
+ * Remove o PDF assinado e reverte status pra 'gerado'.
+ */
+export async function removerContratoAssinado(geracaoId: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id, pdf_assinado_path')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+
+  if (g.pdf_assinado_path) {
+    await supabase.storage.from('contratos-pdf').remove([g.pdf_assinado_path])
+  }
+
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({
+      pdf_assinado_url: null,
+      pdf_assinado_path: null,
+      assinado_em: null,
+      status: 'rascunho',
+    })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true }
+}
+
+/**
  * Atualiza as testemunhas (até 2) da geração.
  */
 export async function atualizarTestemunhas(geracaoId: string, ids: string[]) {

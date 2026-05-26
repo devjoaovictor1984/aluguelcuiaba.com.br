@@ -1,10 +1,170 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
+import { PDFDocument } from 'pdf-lib'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
 import { aplicarPlaceholders, type DadosContrato } from '@/lib/contratos/montar'
 import React from 'react'
+
+// ── Helpers pra montar dados do PDF ─────────────────────────────────
+
+type ContratoLite = {
+  valor_aluguel?: number | null
+  iptu_mensal?: number | null
+  condominio_mensal?: number | null
+  caucao_valor?: number | null
+  data_inicio?: string | null
+  data_primeiro_aluguel?: string | null
+  dia_vencimento?: number | null
+  duracao_meses?: number | null
+  garantia_tipo?: string | null
+}
+
+function fmtBRL(v: number | null | undefined): string {
+  if (v == null) return 'R$ 0,00'
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+}
+
+function fmtData(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const s = iso.slice(0, 10)
+  const [y, m, d] = s.split('-')
+  return `${d}/${m}/${y}`
+}
+
+function montarQuadroEntrada(c: ContratoLite) {
+  const aluguel = c.valor_aluguel ?? 0
+  const iptu = c.iptu_mensal ?? 0
+  const caucao = c.caucao_valor ?? 0
+  const itens: Array<{ descricao: string; base: string; valor: string; obs?: string }> = []
+
+  if (c.garantia_tipo === 'caucao' && caucao > 0) {
+    const meses = aluguel > 0 ? Math.round(caucao / aluguel) : 3
+    itens.push({
+      descricao: 'Caução locatícia em dinheiro',
+      base: `${meses} × ${fmtBRL(aluguel)}`,
+      valor: fmtBRL(caucao),
+    })
+  }
+  if (aluguel > 0) {
+    itens.push({
+      descricao: 'Primeiro aluguel',
+      base: 'Período inicial',
+      valor: fmtBRL(aluguel),
+    })
+  }
+  if (iptu > 0) {
+    itens.push({
+      descricao: 'IPTU mensal',
+      base: 'Período inicial',
+      valor: fmtBRL(iptu),
+    })
+  }
+  if (itens.length === 0) return []
+
+  const total = (c.garantia_tipo === 'caucao' ? caucao : 0) + aluguel + iptu
+  itens.push({
+    descricao: 'Total da entrada',
+    base: '—',
+    valor: fmtBRL(total),
+  })
+  return itens
+}
+
+function montarTabela12Meses(c: ContratoLite) {
+  if (!c.data_inicio || !c.dia_vencimento || !c.valor_aluguel) return []
+  const aluguel = c.valor_aluguel
+  const iptu = c.iptu_mensal ?? 0
+  const total = aluguel + iptu
+
+  const inicio = new Date(c.data_inicio + 'T00:00:00')
+  const linhas: Array<{
+    parcela: number
+    periodo: string
+    vencimento: string
+    aluguel: string
+    iptu: string
+    total: string
+  }> = []
+
+  for (let i = 0; i < 12; i++) {
+    const periodoIni = new Date(inicio.getFullYear(), inicio.getMonth() + i, inicio.getDate())
+    const periodoFim = new Date(inicio.getFullYear(), inicio.getMonth() + i + 1, inicio.getDate() - 1)
+    const venc = new Date(periodoIni.getFullYear(), periodoIni.getMonth(), c.dia_vencimento)
+
+    linhas.push({
+      parcela: i + 1,
+      periodo: `${periodoIni.toLocaleDateString('pt-BR')} a ${periodoFim.toLocaleDateString('pt-BR')}`,
+      vencimento: venc.toLocaleDateString('pt-BR'),
+      aluguel: fmtBRL(aluguel),
+      iptu: iptu > 0 ? fmtBRL(iptu) : '—',
+      total: fmtBRL(total),
+    })
+  }
+  return linhas
+}
+
+function montarTermoChaves(
+  c: ContratoLite & { data_inicio?: string | null },
+  dados: { imovel?: { endereco_completo?: string | null; endereco_resumido?: string | null; bairro_nome?: string | null } | null }
+): { endereco_imovel: string; data_entrega: string; qtd_chaves: number; qtd_controles: number; qtd_tags: number } {
+  const im = dados.imovel
+  const endereco = im?.endereco_completo ?? im?.endereco_resumido ?? '[ENDEREÇO DO IMÓVEL]'
+  return {
+    endereco_imovel: endereco + (im?.bairro_nome ? `, ${im.bairro_nome}` : ''),
+    data_entrega: fmtData(c.data_inicio ?? null),
+    qtd_chaves: 0,
+    qtd_controles: 0,
+    qtd_tags: 0,
+  }
+}
+
+/**
+ * Faz merge do PDF principal com os PDFs anexados (documentos das partes).
+ * Imagens (jpg/png) também são suportadas — são embarcadas como página única.
+ */
+async function mergeAnexos(
+  principal: Uint8Array,
+  anexos: Array<{ buffer: Uint8Array; mime: string }>
+): Promise<Uint8Array> {
+  if (anexos.length === 0) return principal
+
+  const pdfFinal = await PDFDocument.load(principal)
+
+  for (const anexo of anexos) {
+    try {
+      if (anexo.mime === 'application/pdf') {
+        const src = await PDFDocument.load(anexo.buffer, { ignoreEncryption: true })
+        const paginas = await pdfFinal.copyPages(src, src.getPageIndices())
+        paginas.forEach(p => pdfFinal.addPage(p))
+      } else if (anexo.mime === 'image/jpeg' || anexo.mime === 'image/jpg') {
+        const img = await pdfFinal.embedJpg(anexo.buffer)
+        const pag = pdfFinal.addPage([595.28, 841.89])  // A4
+        const escala = Math.min(495 / img.width, 750 / img.height)
+        pag.drawImage(img, {
+          x: 50, y: 50,
+          width: img.width * escala,
+          height: img.height * escala,
+        })
+      } else if (anexo.mime === 'image/png') {
+        const img = await pdfFinal.embedPng(anexo.buffer)
+        const pag = pdfFinal.addPage([595.28, 841.89])
+        const escala = Math.min(495 / img.width, 750 / img.height)
+        pag.drawImage(img, {
+          x: 50, y: 50,
+          width: img.width * escala,
+          height: img.height * escala,
+        })
+      }
+    } catch (e) {
+      console.error('[contrato-pdf] falha ao anexar:', e)
+      // continua com os outros anexos
+    }
+  }
+
+  return pdfFinal.save()
+}
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -39,7 +199,7 @@ export async function GET(
   // 1. Carrega a geração
   const { data: geracao } = await admin
     .from('contrato_geracoes')
-    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausula_ids, testemunha_ids, clausulas_seguradora_texto')
+    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids')
     .eq('id', geracaoId)
     .maybeSingle()
 
@@ -62,6 +222,9 @@ export async function GET(
         endereco_cep, descricao, descricao_real,
         matricula_cartorio, inscricao_municipal, uc_energia, matricula_agua,
         area_construida_m2, area_terreno_m2,
+        cartorio_registro, livro_folha_matricula,
+        hidrometro_numero, hidrometro_leitura_inicial,
+        medidor_energia_numero, medidor_energia_leitura_inicial,
         bairro:bairros(nome)
       ),
       proprietario:pessoas!proprietario_id(
@@ -77,7 +240,11 @@ export async function GET(
         endereco_logradouro, endereco_numero, endereco_complemento,
         endereco_bairro, endereco_cidade, endereco_estado, endereco_cep,
         conjuge_nome, conjuge_cpf, conjuge_rg, conjuge_data_nascimento,
-        conjuge_profissao, conjuge_nacionalidade
+        conjuge_profissao, conjuge_nacionalidade,
+        conjuge_naturalidade, conjuge_nome_pai, conjuge_nome_mae,
+        conjuge_endereco_logradouro, conjuge_endereco_numero,
+        conjuge_endereco_bairro, conjuge_endereco_cidade,
+        conjuge_endereco_estado, conjuge_endereco_cep
       ),
       fiador:pessoas!fiador_id(
         nome, cpf_cnpj, rg,
@@ -267,14 +434,46 @@ export async function GET(
       })),
     clausulas_seguradora_texto: geracao.clausulas_seguradora_texto ?? null,
     clausulas,
+    quadro_entrada: montarQuadroEntrada(contrato),
+    tabela_12_meses: montarTabela12Meses(contrato),
+    termo_chaves: montarTermoChaves(contrato, dadosContrato),
   }
 
-  // 9. Renderiza
+  // 9. Renderiza o contrato principal
   const element = React.createElement(ContratoDocument, { data: pdfData }) as unknown as React.ReactElement<DocumentProps>
   const buffer = await renderToBuffer(element)
 
+  // 10. Anexa PDFs dos documentos selecionados (Fase D)
+  const anexoIds = (geracao.anexo_documento_ids ?? []) as string[]
+  let finalBytes: Uint8Array = new Uint8Array(buffer)
+  if (anexoIds.length > 0) {
+    const { data: docs } = await admin
+      .from('pessoas_documentos')
+      .select('id, arquivo_path, mime_type')
+      .in('id', anexoIds)
+      .eq('user_id', user.id)
+
+    if (docs && docs.length > 0) {
+      // baixa cada arquivo do storage
+      const anexosBuffers: Array<{ buffer: Uint8Array; mime: string }> = []
+      // mantém a ordem do array de IDs (não a ordem que vem do select)
+      const mapaDoc = new Map(docs.map(d => [d.id, d]))
+      for (const id of anexoIds) {
+        const d = mapaDoc.get(id)
+        if (!d) continue
+        const { data: blob } = await admin.storage
+          .from('documentos-pessoas')
+          .download(d.arquivo_path)
+        if (!blob) continue
+        const ab = await blob.arrayBuffer()
+        anexosBuffers.push({ buffer: new Uint8Array(ab), mime: d.mime_type ?? 'application/pdf' })
+      }
+      finalBytes = await mergeAnexos(finalBytes, anexosBuffers)
+    }
+  }
+
   const filename = `contrato-${contrato.codigo}.pdf`
-  return new Response(new Uint8Array(buffer), {
+  return new Response(finalBytes as unknown as BodyInit, {
     status: 200,
     headers: {
       'Content-Type': 'application/pdf',

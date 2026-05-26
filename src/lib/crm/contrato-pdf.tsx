@@ -20,14 +20,12 @@ function tryReadFontAsDataUrl(filename: string): string | null {
   }
 }
 
-// DEBUG: Poppins temporariamente desativada — o erro "unsupported number"
-// no PDFDocument.translate aponta pra cálculo de coordenada NaN, que pode
-// vir das métricas da fonte custom. Voltamos a Helvetica pra confirmar
-// se é isso. Se gerar com Helvetica, o problema é a Poppins.
-const FORCAR_HELVETICA = true
-const fontRegular = FORCAR_HELVETICA ? null : tryReadFontAsDataUrl('Poppins-Regular.ttf')
-const fontMedium = FORCAR_HELVETICA ? null : tryReadFontAsDataUrl('Poppins-Medium.ttf')
-const fontBold = FORCAR_HELVETICA ? null : tryReadFontAsDataUrl('Poppins-Bold.ttf')
+// Poppins reabilitada — o bug "unsupported number" anterior não vinha
+// da fonte e sim de bordas em position:absolute. Mantemos as fontes
+// como data URL (base64) pra funcionar em qualquer ambiente.
+const fontRegular = tryReadFontAsDataUrl('Poppins-Regular.ttf')
+const fontMedium = tryReadFontAsDataUrl('Poppins-Medium.ttf')
+const fontBold = tryReadFontAsDataUrl('Poppins-Bold.ttf')
 
 const POPPINS_LOADED = !!(fontRegular && fontBold)
 const FAMILIA = POPPINS_LOADED ? 'Poppins' : 'Helvetica'
@@ -102,6 +100,28 @@ export interface ContratoPDFData {
 
   // Cláusulas montadas
   clausulas: ContratoPDFClausula[]
+
+  // Quadro financeiro de entrada (caução + 1º aluguel + IPTU)
+  quadro_entrada: Array<{ descricao: string; base: string; valor: string; obs?: string }>
+
+  // Tabela dos 12 primeiros meses
+  tabela_12_meses: Array<{
+    parcela: number
+    periodo: string
+    vencimento: string
+    aluguel: string
+    iptu: string
+    total: string
+  }>
+
+  // Termo de entrega de chaves (página separada)
+  termo_chaves: {
+    endereco_imovel: string
+    data_entrega: string  // dd/mm/yyyy
+    qtd_chaves: number
+    qtd_controles: number
+    qtd_tags: number
+  } | null
 }
 
 const COR = {
@@ -333,148 +353,575 @@ function fmtDataExtenso(iso: string): string {
   return `${d.toString().padStart(2, '0')} de ${meses[m - 1]} de ${y}`
 }
 
+// Cores do tema (Poppins + violeta IMOBILIATTO)
+const ROXO = '#581c87'
+const ROXO_CLARO = '#7c3aed'
+const CINZA = '#6b7280'
+const CINZA_CLARO = '#9ca3af'
+const TEXTO = '#1f2937'
+const TEXTO_FORTE = '#111827'
+
 export function ContratoDocument({ data }: { data: ContratoPDFData }) {
   const nomeInst = data.anunciante_razao_social ?? data.anunciante_nome
   const dataExtenso = fmtDataExtenso(data.data_assinatura)
   const cidadeUf = data.anunciante_cidade_uf ?? 'Cuiabá-MT'
 
-  // VERSÃO MÍNIMA — sem fixed, sem position absolute, sem image, sem break,
-  // sem render prop. Layout linear simples. Se isto gerar, vou adicionando
-  // complexidade de volta até reproduzir o erro.
+  // Visual elegante mas sem usar position:absolute + border (que quebrava
+  // o render). Cabeçalho aparece só na primeira página; layout linear.
   return (
     <Document
       title={`Contrato ${data.codigo}`}
       author={nomeInst}
       subject={`Contrato de Locação Residencial — ${data.locatario_nome}`}
     >
-      <Page size="A4" style={{ padding: 56, fontSize: 10, fontFamily: 'Helvetica', lineHeight: 1.5 }}>
-        {/* Cabeçalho institucional (NÃO fixed) */}
-        <View style={{ marginBottom: 14, paddingBottom: 8 }}>
-          <Text style={{ fontSize: 11, fontWeight: 'bold' }}>{nomeInst}</Text>
-          {data.anunciante_creci_juridico && (
-            <Text style={{ fontSize: 8 }}>CRECI-J {data.anunciante_creci_juridico}</Text>
-          )}
+      <Page
+        size="A4"
+        style={{
+          paddingTop: 56,
+          paddingBottom: 56,
+          paddingLeft: 56,
+          paddingRight: 56,
+          fontSize: 10,
+          fontFamily: FAMILIA,
+          color: TEXTO,
+          lineHeight: 1.55,
+        }}
+      >
+        {/* ── Cabeçalho institucional FIXED (todas as páginas) ──
+           Usa `fixed` no fluxo normal (não absolute) com height fixo —
+           react-pdf duplica em cada página. Sem border (linha vem como
+           View separada). */}
+        <View fixed style={{ marginBottom: 12 }}>
+          <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
+            {nomeInst}
+            {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
+          </Text>
           {data.anunciante_creci && (
-            <Text style={{ fontSize: 8 }}>{data.anunciante_nome} — CRECI {data.anunciante_creci}</Text>
+            <Text style={{ fontSize: 8, color: CINZA }}>
+              {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
+            </Text>
           )}
           {data.anunciante_endereco && (
-            <Text style={{ fontSize: 8 }}>{data.anunciante_endereco}</Text>
+            <Text style={{ fontSize: 8, color: CINZA }}>{data.anunciante_endereco}</Text>
           )}
           {data.anunciante_cnpj && (
-            <Text style={{ fontSize: 8 }}>CNPJ {data.anunciante_cnpj}</Text>
+            <Text style={{ fontSize: 8, color: CINZA }}>CNPJ {data.anunciante_cnpj}</Text>
           )}
+          <View style={{ height: 1.5, backgroundColor: ROXO_CLARO, marginTop: 8 }} />
         </View>
 
-        {/* Título */}
-        <Text style={{ fontSize: 14, fontWeight: 'bold', textAlign: 'center', marginBottom: 20 }}>
-          CONTRATO DE LOCAÇÃO RESIDENCIAL{'\n'}COM ADMINISTRAÇÃO IMOBILIÁRIA
-        </Text>
+        {/* Paginação fixed no rodapé */}
+        <Text
+          fixed
+          style={{
+            position: 'absolute',
+            bottom: 24,
+            left: 56,
+            right: 56,
+            fontSize: 8,
+            color: CINZA_CLARO,
+            textAlign: 'center',
+          }}
+          render={({ pageNumber, totalPages }) =>
+            `Contrato ${data.codigo} · Página ${pageNumber} de ${totalPages}`
+          }
+        />
 
-        <Text style={{ fontSize: 9, textAlign: 'center', marginBottom: 20 }}>
-          Nº {data.codigo} — {data.locatario_nome}
-        </Text>
+        {/* ── Capa / Título ── */}
+        <View style={{ marginBottom: 22 }}>
+          <Text style={{
+            fontSize: 8,
+            fontFamily: FAMILIA,
+            fontWeight: 'bold',
+            color: ROXO_CLARO,
+            textAlign: 'center',
+            letterSpacing: 1.4,
+            marginBottom: 8,
+          }}>
+            INSTRUMENTO PARTICULAR
+          </Text>
+          <Text style={{
+            fontSize: 17,
+            fontFamily: FAMILIA,
+            fontWeight: 'bold',
+            color: TEXTO_FORTE,
+            textAlign: 'center',
+            lineHeight: 1.25,
+            marginBottom: 8,
+          }}>
+            Contrato de Locação Residencial{'\n'}com Administração Imobiliária
+          </Text>
+          <Text style={{ fontSize: 10, color: CINZA, textAlign: 'center' }}>
+            {data.locatario_nome}
+          </Text>
+          <Text style={{
+            fontSize: 8,
+            fontFamily: FAMILIA,
+            fontWeight: 'bold',
+            color: CINZA_CLARO,
+            textAlign: 'center',
+            letterSpacing: 0.6,
+            marginTop: 6,
+          }}>
+            Nº {data.codigo}
+          </Text>
+        </View>
 
-        {/* Cláusulas */}
+        {/* Linha separadora */}
+        <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 22 }} />
+
+        {/* ── Cláusulas ── */}
         {data.clausulas.map((c, idx) => (
-          <View key={idx} style={{ marginBottom: 12 }}>
-            <Text style={{ fontSize: 11, fontWeight: 'bold', marginBottom: 4 }}>
+          <View key={idx} style={{ marginBottom: 14 }} wrap={false}>
+            <Text style={{
+              fontSize: 10.5,
+              fontFamily: FAMILIA,
+              fontWeight: 'bold',
+              color: TEXTO_FORTE,
+              marginBottom: 5,
+            }}>
               {idx + 1}. {c.titulo}
             </Text>
-            <Text style={{ fontSize: 10, textAlign: 'justify' }}>{c.corpo}</Text>
+            <Text style={{
+              fontSize: 10,
+              fontFamily: FAMILIA,
+              color: TEXTO,
+              textAlign: 'justify',
+              lineHeight: 1.6,
+            }}>
+              {c.corpo}
+            </Text>
           </View>
         ))}
 
-        {/* Seguradora */}
-        {data.clausulas_seguradora_texto && (
-          <View style={{ marginTop: 18 }}>
-            <Text style={{ fontSize: 12, fontWeight: 'bold', textAlign: 'center', marginBottom: 10 }}>
-              CLÁUSULAS DA SEGURADORA
+        {/* ── Quadro financeiro de entrada ── */}
+        {data.quadro_entrada.length > 0 && (
+          <View style={{ marginTop: 18 }} wrap={false}>
+            <Text style={{
+              fontSize: 11.5,
+              fontFamily: FAMILIA,
+              fontWeight: 'bold',
+              color: TEXTO_FORTE,
+              marginBottom: 8,
+            }}>
+              Quadro financeiro de entrada
             </Text>
-            <Text style={{ fontSize: 10, textAlign: 'justify' }}>{data.clausulas_seguradora_texto}</Text>
+            <View style={{ borderTopWidth: 0 }}>
+              {/* cabeçalho */}
+              <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
+                <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>DESCRIÇÃO</Text>
+                <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA }}>BASE</Text>
+                <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>VALOR</Text>
+              </View>
+              {data.quadro_entrada.map((r, i) => (
+                <View key={i} style={{
+                  flexDirection: 'row',
+                  paddingVertical: 5,
+                  paddingHorizontal: 6,
+                  backgroundColor: i === data.quadro_entrada.length - 1 ? '#faf5ff' : undefined,
+                }}>
+                  <Text style={{
+                    flex: 3,
+                    fontSize: 9.5,
+                    fontWeight: i === data.quadro_entrada.length - 1 ? 'bold' : 'normal',
+                    color: TEXTO,
+                  }}>
+                    {r.descricao}
+                  </Text>
+                  <Text style={{ flex: 2, fontSize: 9, color: CINZA }}>{r.base}</Text>
+                  <Text style={{
+                    flex: 2,
+                    fontSize: 9.5,
+                    fontWeight: i === data.quadro_entrada.length - 1 ? 'bold' : 'normal',
+                    color: TEXTO_FORTE,
+                    textAlign: 'right',
+                  }}>
+                    {r.valor}
+                  </Text>
+                </View>
+              ))}
+            </View>
+            <Text style={{ fontSize: 8, color: CINZA_CLARO, marginTop: 5 }}>
+              Valores devidos no ato da assinatura e antes da entrega das chaves.
+            </Text>
           </View>
         )}
 
-        {/* Folha de assinatura — sem break, fica em sequência */}
-        <View style={{ marginTop: 24 }}>
-          <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 14 }}>
-            E, por estarem justos e contratados, assinam o presente instrumento, em vias de igual teor, juntamente com 02 (duas) testemunhas.
+        {/* ── Tabela dos 12 primeiros meses ── */}
+        {data.tabela_12_meses.length > 0 && (
+          <View style={{ marginTop: 20 }} wrap={false}>
+            <Text style={{
+              fontSize: 11.5,
+              fontFamily: FAMILIA,
+              fontWeight: 'bold',
+              color: TEXTO_FORTE,
+              marginBottom: 8,
+            }}>
+              Tabela dos 12 primeiros meses
+            </Text>
+            <View>
+              <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
+                <Text style={{ width: 30, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>#</Text>
+                <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>PERÍODO</Text>
+                <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA }}>VENCIMENTO</Text>
+                <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>ALUGUEL</Text>
+                <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>IPTU</Text>
+                <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>TOTAL</Text>
+              </View>
+              {data.tabela_12_meses.map((p, i) => (
+                <View
+                  key={i}
+                  style={{
+                    flexDirection: 'row',
+                    paddingVertical: 4,
+                    paddingHorizontal: 6,
+                    backgroundColor: i % 2 === 1 ? '#fafafa' : undefined,
+                  }}
+                >
+                  <Text style={{ width: 30, fontSize: 9, color: CINZA, textAlign: 'center' }}>{p.parcela}</Text>
+                  <Text style={{ flex: 3, fontSize: 9, color: TEXTO }}>{p.periodo}</Text>
+                  <Text style={{ flex: 2, fontSize: 9, color: TEXTO }}>{p.vencimento}</Text>
+                  <Text style={{ flex: 2, fontSize: 9, color: TEXTO, textAlign: 'right' }}>{p.aluguel}</Text>
+                  <Text style={{ flex: 2, fontSize: 9, color: CINZA, textAlign: 'right' }}>{p.iptu}</Text>
+                  <Text style={{ flex: 2, fontSize: 9, color: TEXTO_FORTE, fontWeight: 'bold', textAlign: 'right' }}>{p.total}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={{ fontSize: 8, color: CINZA_CLARO, marginTop: 5 }}>
+              Após esse período, o aluguel será reajustado anualmente conforme cláusula de reajuste.
+            </Text>
+          </View>
+        )}
+
+        {/* ── Cláusulas da seguradora ── */}
+        {data.clausulas_seguradora_texto && (
+          <View style={{ marginTop: 22 }} wrap={false}>
+            <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 12 }} />
+            <Text style={{
+              fontSize: 13,
+              fontFamily: FAMILIA,
+              fontWeight: 'bold',
+              color: TEXTO_FORTE,
+              textAlign: 'center',
+              letterSpacing: 0.5,
+              marginBottom: 12,
+            }}>
+              CLÁUSULAS DA SEGURADORA
+            </Text>
+            <Text style={{
+              fontSize: 10,
+              fontFamily: FAMILIA,
+              color: TEXTO,
+              textAlign: 'justify',
+              lineHeight: 1.6,
+            }}>
+              {data.clausulas_seguradora_texto}
+            </Text>
+          </View>
+        )}
+
+        {/* ── Folha de assinatura ── */}
+        <View style={{ marginTop: 28 }}>
+          <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 16 }} />
+
+          <Text style={{
+            fontSize: 10,
+            fontFamily: FAMILIA,
+            color: TEXTO,
+            textAlign: 'justify',
+            lineHeight: 1.6,
+            marginBottom: 14,
+          }}>
+            E, por estarem justos e contratados, plenamente cientes da seriedade das obrigações
+            assumidas, assinam o presente instrumento digitalmente, em vias de igual teor,
+            juntamente com 02 (duas) testemunhas.
           </Text>
 
-          <Text style={{ fontSize: 10, fontWeight: 'bold', textAlign: 'center', marginBottom: 24 }}>
+          <Text style={{
+            fontSize: 10.5,
+            fontFamily: FAMILIA,
+            fontWeight: 'bold',
+            color: TEXTO_FORTE,
+            textAlign: 'center',
+            marginVertical: 18,
+          }}>
             {cidadeUf}, {dataExtenso}.
           </Text>
 
+          {/* Locador / Administradora */}
           {data.tem_administracao ? (
             <View style={{ marginBottom: 22 }}>
-              <Text style={{ fontSize: 8, marginBottom: 2 }}>LOCADOR / ADMINISTRADORA</Text>
-              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>
-                {data.admin_responsavel_nome ?? data.locador_nome}
-              </Text>
+              <Text style={blocoPapel}>LOCADOR / ADMINISTRADORA</Text>
+              <Text style={blocoNome}>{data.admin_responsavel_nome ?? data.locador_nome}</Text>
               {data.admin_responsavel_creci && (
-                <Text style={{ fontSize: 9 }}>CRECI {data.admin_responsavel_creci}</Text>
+                <Text style={blocoSecundario}>CRECI {data.admin_responsavel_creci}</Text>
               )}
-              <Text style={{ fontSize: 9 }}>
+              <Text style={blocoSecundario}>
                 Representando: {data.locador_nome}
                 {data.locador_cpf ? ` — CPF ${data.locador_cpf}` : ''}
               </Text>
+              <View style={linhaAssinatura} />
             </View>
           ) : (
             <View style={{ marginBottom: 22 }}>
-              <Text style={{ fontSize: 8, marginBottom: 2 }}>LOCADOR</Text>
-              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{data.locador_nome}</Text>
-              {data.locador_cpf && <Text style={{ fontSize: 9 }}>CPF {data.locador_cpf}</Text>}
+              <Text style={blocoPapel}>LOCADOR</Text>
+              <Text style={blocoNome}>{data.locador_nome}</Text>
+              {data.locador_cpf && <Text style={blocoSecundario}>CPF {data.locador_cpf}</Text>}
+              <View style={linhaAssinatura} />
+            </View>
+          )}
+
+          {/* Locatário */}
+          <View style={{ marginBottom: 22 }}>
+            <Text style={blocoPapel}>LOCATÁRIO</Text>
+            <Text style={blocoNome}>{data.locatario_nome}</Text>
+            {data.locatario_cpf && <Text style={blocoSecundario}>CPF {data.locatario_cpf}</Text>}
+            <View style={linhaAssinatura} />
+          </View>
+
+          {/* Cônjuge */}
+          {data.conjuge_nome && (
+            <View style={{ marginBottom: 22 }}>
+              <Text style={blocoPapel}>CÔNJUGE DO LOCATÁRIO</Text>
+              <Text style={blocoNome}>{data.conjuge_nome}</Text>
+              {data.conjuge_cpf && <Text style={blocoSecundario}>CPF {data.conjuge_cpf}</Text>}
+              <View style={linhaAssinatura} />
+            </View>
+          )}
+
+          {/* Moradores adicionais */}
+          {data.moradores_adicionais.map((m, idx) => (
+            <View key={idx} style={{ marginBottom: 22 }}>
+              <Text style={blocoPapel}>{m.papel.toUpperCase()}</Text>
+              <Text style={blocoNome}>{m.nome}</Text>
+              {m.cpf && <Text style={blocoSecundario}>CPF {m.cpf}</Text>}
+              <View style={linhaAssinatura} />
+            </View>
+          ))}
+
+          {/* Fiador */}
+          {data.fiador_nome && (
+            <View style={{ marginBottom: 22 }}>
+              <Text style={blocoPapel}>FIADOR</Text>
+              <Text style={blocoNome}>{data.fiador_nome}</Text>
+              {data.fiador_cpf && <Text style={blocoSecundario}>CPF {data.fiador_cpf}</Text>}
+              <View style={linhaAssinatura} />
+            </View>
+          )}
+
+          {/* Testemunhas */}
+          {(data.testemunhas.length > 0 ? data.testemunhas : [null, null]).map((t, idx) => (
+            <View key={idx} style={{ marginBottom: 22 }}>
+              <Text style={blocoPapel}>TESTEMUNHA {idx + 1}</Text>
+              {t ? (
+                <>
+                  <Text style={blocoNome}>{t.nome}</Text>
+                  {t.cpf && <Text style={blocoSecundario}>CPF {t.cpf}</Text>}
+                  {t.rg && <Text style={blocoSecundario}>RG {t.rg}</Text>}
+                </>
+              ) : (
+                <>
+                  <Text style={blocoSecundario}>Nome: _____________________________________</Text>
+                  <Text style={blocoSecundario}>CPF: ______________________________________</Text>
+                </>
+              )}
+              <View style={linhaAssinatura} />
+            </View>
+          ))}
+
+          {/* Rodapé final */}
+          <Text style={{
+            fontSize: 7.5,
+            color: CINZA_CLARO,
+            textAlign: 'center',
+            marginTop: 24,
+          }}>
+            Contrato {data.codigo} · {nomeInst} · Gerado em {fmtDataExtenso(data.data_assinatura)}
+          </Text>
+        </View>
+      </Page>
+
+      {/* ════════ Página separada: Termo de Entrega de Chaves ════════ */}
+      {data.termo_chaves && (
+        <Page
+          size="A4"
+          style={{
+            paddingTop: 56,
+            paddingBottom: 56,
+            paddingLeft: 56,
+            paddingRight: 56,
+            fontSize: 10,
+            fontFamily: FAMILIA,
+            color: TEXTO,
+            lineHeight: 1.55,
+          }}
+        >
+          {/* Cabeçalho institucional fixed também aqui */}
+          <View fixed style={{ marginBottom: 12 }}>
+            <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
+              {nomeInst}
+              {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
+            </Text>
+            {data.anunciante_creci && (
+              <Text style={{ fontSize: 8, color: CINZA }}>
+                {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
+              </Text>
+            )}
+            {data.anunciante_endereco && (
+              <Text style={{ fontSize: 8, color: CINZA }}>{data.anunciante_endereco}</Text>
+            )}
+            {data.anunciante_cnpj && (
+              <Text style={{ fontSize: 8, color: CINZA }}>CNPJ {data.anunciante_cnpj}</Text>
+            )}
+            <View style={{ height: 1.5, backgroundColor: ROXO_CLARO, marginTop: 8 }} />
+          </View>
+
+          <View style={{ marginTop: 24, marginBottom: 22 }}>
+            <Text style={{
+              fontSize: 8,
+              fontFamily: FAMILIA,
+              fontWeight: 'bold',
+              color: ROXO_CLARO,
+              textAlign: 'center',
+              letterSpacing: 1.4,
+              marginBottom: 8,
+            }}>
+              ANEXO AO CONTRATO {data.codigo}
+            </Text>
+            <Text style={{
+              fontSize: 17,
+              fontFamily: FAMILIA,
+              fontWeight: 'bold',
+              color: TEXTO_FORTE,
+              textAlign: 'center',
+              letterSpacing: 0.3,
+            }}>
+              Termo de Entrega de Chaves
+            </Text>
+          </View>
+
+          <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 18 }} />
+
+          <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 12, lineHeight: 1.65 }}>
+            Pelo presente Termo, o LOCADOR/ADMINISTRADORA entrega ao LOCATÁRIO, nesta data, as chaves,
+            controles, tags e demais meios de ingresso referentes ao imóvel situado em{' '}
+            <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.endereco_imovel}</Text>.
+          </Text>
+
+          <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 14, lineHeight: 1.65 }}>
+            O LOCATÁRIO declara que recebe a posse direta do imóvel em{' '}
+            <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.data_entrega}</Text>, para uso
+            exclusivamente residencial, assumindo, a partir desta data, responsabilidade pela guarda,
+            conservação, limpeza, pagamento de aluguel, encargos, consumos, tributos, seguros, multas
+            e demais obrigações previstas no contrato de locação.
+          </Text>
+
+          <Text style={{
+            fontSize: 11,
+            fontFamily: FAMILIA,
+            fontWeight: 'bold',
+            color: TEXTO_FORTE,
+            marginTop: 10,
+            marginBottom: 6,
+          }}>
+            Itens entregues:
+          </Text>
+
+          <View style={{ backgroundColor: '#faf5ff', padding: 12, marginBottom: 16 }}>
+            <Text style={{ fontSize: 10, marginBottom: 4 }}>
+              I. <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.qtd_chaves}</Text>{' '}
+              chave{data.termo_chaves.qtd_chaves === 1 ? '' : 's'} da porta principal e/ou portão
+            </Text>
+            <Text style={{ fontSize: 10, marginBottom: 4 }}>
+              II. <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.qtd_controles}</Text>{' '}
+              controle{data.termo_chaves.qtd_controles === 1 ? '' : 's'} remoto(s)
+            </Text>
+            <Text style={{ fontSize: 10 }}>
+              III. <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.qtd_tags}</Text>{' '}
+              tag{data.termo_chaves.qtd_tags === 1 ? '' : 's'} / cartão(ões) de acesso
+            </Text>
+          </View>
+
+          <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 24, lineHeight: 1.65 }}>
+            O LOCATÁRIO declara ciência de que a devolução do imóvel somente será considerada válida
+            mediante entrega formal de todas as chaves, controles, tags e acessos, realização de
+            vistoria final e quitação das obrigações pendentes, conforme cláusulas contratuais.
+          </Text>
+
+          <Text style={{
+            fontSize: 10.5,
+            fontFamily: FAMILIA,
+            fontWeight: 'bold',
+            color: TEXTO_FORTE,
+            textAlign: 'center',
+            marginVertical: 22,
+          }}>
+            {cidadeUf}, {dataExtenso}.
+          </Text>
+
+          {/* Assinaturas do termo */}
+          {data.tem_administracao ? (
+            <View style={{ marginBottom: 22 }}>
+              <Text style={blocoPapel}>LOCADOR / ADMINISTRADORA</Text>
+              <Text style={blocoNome}>{data.admin_responsavel_nome ?? data.locador_nome}</Text>
+              {data.admin_responsavel_creci && (
+                <Text style={blocoSecundario}>CRECI {data.admin_responsavel_creci}</Text>
+              )}
+              <View style={linhaAssinatura} />
+            </View>
+          ) : (
+            <View style={{ marginBottom: 22 }}>
+              <Text style={blocoPapel}>LOCADOR</Text>
+              <Text style={blocoNome}>{data.locador_nome}</Text>
+              <View style={linhaAssinatura} />
             </View>
           )}
 
           <View style={{ marginBottom: 22 }}>
-            <Text style={{ fontSize: 8, marginBottom: 2 }}>LOCATÁRIO</Text>
-            <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{data.locatario_nome}</Text>
-            {data.locatario_cpf && <Text style={{ fontSize: 9 }}>CPF {data.locatario_cpf}</Text>}
+            <Text style={blocoPapel}>LOCATÁRIO (RECEBI AS CHAVES)</Text>
+            <Text style={blocoNome}>{data.locatario_nome}</Text>
+            {data.locatario_cpf && <Text style={blocoSecundario}>CPF {data.locatario_cpf}</Text>}
+            <View style={linhaAssinatura} />
           </View>
 
-          {data.conjuge_nome && (
-            <View style={{ marginBottom: 22 }}>
-              <Text style={{ fontSize: 8, marginBottom: 2 }}>CÔNJUGE DO LOCATÁRIO</Text>
-              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{data.conjuge_nome}</Text>
-              {data.conjuge_cpf && <Text style={{ fontSize: 9 }}>CPF {data.conjuge_cpf}</Text>}
-            </View>
-          )}
-
-          {data.moradores_adicionais.map((m, idx) => (
-            <View key={idx} style={{ marginBottom: 22 }}>
-              <Text style={{ fontSize: 8, marginBottom: 2 }}>{m.papel.toUpperCase()}</Text>
-              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{m.nome}</Text>
-              {m.cpf && <Text style={{ fontSize: 9 }}>CPF {m.cpf}</Text>}
-            </View>
-          ))}
-
-          {data.fiador_nome && (
-            <View style={{ marginBottom: 22 }}>
-              <Text style={{ fontSize: 8, marginBottom: 2 }}>FIADOR</Text>
-              <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{data.fiador_nome}</Text>
-              {data.fiador_cpf && <Text style={{ fontSize: 9 }}>CPF {data.fiador_cpf}</Text>}
-            </View>
-          )}
-
-          {(data.testemunhas.length > 0 ? data.testemunhas : [null, null]).map((t, idx) => (
-            <View key={idx} style={{ marginBottom: 18 }}>
-              <Text style={{ fontSize: 8, marginBottom: 2 }}>TESTEMUNHA {idx + 1}</Text>
-              {t ? (
-                <>
-                  <Text style={{ fontSize: 10, fontWeight: 'bold' }}>{t.nome}</Text>
-                  {t.cpf && <Text style={{ fontSize: 9 }}>CPF {t.cpf}</Text>}
-                  {t.rg && <Text style={{ fontSize: 9 }}>RG {t.rg}</Text>}
-                </>
-              ) : (
-                <>
-                  <Text style={{ fontSize: 9 }}>Nome: _____________________________________</Text>
-                  <Text style={{ fontSize: 9 }}>CPF: ______________________________________</Text>
-                </>
-              )}
-            </View>
-          ))}
-        </View>
-      </Page>
+          {/* Rodapé */}
+          <Text style={{
+            fontSize: 7.5,
+            color: CINZA_CLARO,
+            textAlign: 'center',
+            marginTop: 18,
+          }}>
+            Termo de Entrega de Chaves — Anexo ao Contrato {data.codigo} · {nomeInst}
+          </Text>
+        </Page>
+      )}
     </Document>
   )
+}
+
+// ── Estilos compartilhados na folha de assinatura ──
+const blocoPapel = {
+  fontSize: 7.5,
+  fontFamily: FAMILIA,
+  fontWeight: 'bold' as const,
+  color: ROXO,
+  letterSpacing: 0.8,
+  marginBottom: 3,
+}
+const blocoNome = {
+  fontSize: 10.5,
+  fontFamily: FAMILIA,
+  fontWeight: 'bold' as const,
+  color: TEXTO_FORTE,
+  marginBottom: 1,
+}
+const blocoSecundario = {
+  fontSize: 9,
+  fontFamily: FAMILIA,
+  color: CINZA,
+}
+const linhaAssinatura = {
+  height: 0.6,
+  backgroundColor: '#d1d5db',
+  marginTop: 14,
 }

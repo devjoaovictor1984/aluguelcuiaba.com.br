@@ -14,6 +14,12 @@ export interface DadosContrato {
   area_construida_m2: string  // string no form pra aceitar vírgula; converte no save
   area_terreno_m2: string
   descricao_real: string
+  cartorio_registro: string
+  livro_folha_matricula: string
+  hidrometro_numero: string
+  hidrometro_leitura_inicial: string
+  medidor_energia_numero: string
+  medidor_energia_leitura_inicial: string
 }
 
 export const DADOS_CONTRATO_VAZIO: DadosContrato = {
@@ -28,6 +34,12 @@ export const DADOS_CONTRATO_VAZIO: DadosContrato = {
   area_construida_m2: '',
   area_terreno_m2: '',
   descricao_real: '',
+  cartorio_registro: '',
+  livro_folha_matricula: '',
+  hidrometro_numero: '',
+  hidrometro_leitura_inicial: '',
+  medidor_energia_numero: '',
+  medidor_energia_leitura_inicial: '',
 }
 
 /** Hidrata a partir do Imovel (linha do banco) — converte null em ''. */
@@ -43,6 +55,12 @@ export function dadosContratoDeImovel(im: Partial<{
   area_construida_m2: number | null
   area_terreno_m2: number | null
   descricao_real: string | null
+  cartorio_registro: string | null
+  livro_folha_matricula: string | null
+  hidrometro_numero: string | null
+  hidrometro_leitura_inicial: string | null
+  medidor_energia_numero: string | null
+  medidor_energia_leitura_inicial: string | null
 }>): DadosContrato {
   return {
     endereco_completo: im.endereco_completo ?? '',
@@ -56,6 +74,12 @@ export function dadosContratoDeImovel(im: Partial<{
     area_construida_m2: im.area_construida_m2?.toString().replace('.', ',') ?? '',
     area_terreno_m2: im.area_terreno_m2?.toString().replace('.', ',') ?? '',
     descricao_real: im.descricao_real ?? '',
+    cartorio_registro: im.cartorio_registro ?? '',
+    livro_folha_matricula: im.livro_folha_matricula ?? '',
+    hidrometro_numero: im.hidrometro_numero ?? '',
+    hidrometro_leitura_inicial: im.hidrometro_leitura_inicial ?? '',
+    medidor_energia_numero: im.medidor_energia_numero ?? '',
+    medidor_energia_leitura_inicial: im.medidor_energia_leitura_inicial ?? '',
   }
 }
 
@@ -83,5 +107,11 @@ export function dadosContratoParaDb(d: DadosContrato): Record<string, string | n
     area_construida_m2: numOrNull(d.area_construida_m2),
     area_terreno_m2: numOrNull(d.area_terreno_m2),
     descricao_real: trimOrNull(d.descricao_real),
+    cartorio_registro: trimOrNull(d.cartorio_registro),
+    livro_folha_matricula: trimOrNull(d.livro_folha_matricula),
+    hidrometro_numero: trimOrNull(d.hidrometro_numero),
+    hidrometro_leitura_inicial: trimOrNull(d.hidrometro_leitura_inicial),
+    medidor_energia_numero: trimOrNull(d.medidor_energia_numero),
+    medidor_energia_leitura_inicial: trimOrNull(d.medidor_energia_leitura_inicial),
   }
 }

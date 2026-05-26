@@ -42,6 +42,10 @@ export const PLACEHOLDERS: Placeholder[] = [
   { chave: 'CONJUGE_DATA_NASC', label: 'Data nascimento cônjuge', exemplo: '02/05/1989', origem: 'conjuge_locatario' },
   { chave: 'CONJUGE_PROFISSAO', label: 'Profissão do cônjuge', exemplo: 'empresária', origem: 'conjuge_locatario' },
   { chave: 'CONJUGE_NACIONALIDADE', label: 'Nacionalidade do cônjuge', exemplo: 'brasileira', origem: 'conjuge_locatario' },
+  { chave: 'CONJUGE_NATURALIDADE', label: 'Naturalidade do cônjuge', exemplo: 'Rondonópolis-MT', origem: 'conjuge_locatario' },
+  { chave: 'CONJUGE_NOME_PAI', label: 'Nome do pai do cônjuge', exemplo: 'Luiz Jorge', origem: 'conjuge_locatario' },
+  { chave: 'CONJUGE_NOME_MAE', label: 'Nome da mãe do cônjuge', exemplo: 'Jandira Nogueira Dias Jorge', origem: 'conjuge_locatario' },
+  { chave: 'CONJUGE_ENDERECO', label: 'Endereço do cônjuge (vazio = mesmo do titular)', exemplo: 'Rua X, 100, Bairro Y, Cuiabá-MT', origem: 'conjuge_locatario' },
 
   // ── Administradora (imobiliária do corretor) ──
   { chave: 'ADMIN_RAZAO_SOCIAL', label: 'Razão social da administradora', exemplo: 'IMOBILIATTO', origem: 'admin' },
@@ -61,6 +65,12 @@ export const PLACEHOLDERS: Placeholder[] = [
   { chave: 'IMOVEL_DESCRICAO', label: 'Descrição detalhada do imóvel', exemplo: 'Casa térrea, 3 quartos sendo 1 suíte, sala, cozinha…', origem: 'imovel' },
   { chave: 'IMOVEL_AREA_CONSTRUIDA', label: 'Área construída', exemplo: '120 m²', origem: 'imovel' },
   { chave: 'IMOVEL_AREA_TERRENO', label: 'Área do terreno', exemplo: '250 m²', origem: 'imovel' },
+  { chave: 'IMOVEL_CARTORIO', label: 'Cartório de registro do imóvel', exemplo: '1º Ofício de Registro de Imóveis de Cuiabá', origem: 'imovel' },
+  { chave: 'IMOVEL_LIVRO_FOLHA', label: 'Livro/folha da matrícula', exemplo: 'Livro 2, folha 123', origem: 'imovel' },
+  { chave: 'IMOVEL_HIDROMETRO_NUMERO', label: 'Número do hidrômetro', exemplo: 'A-12345', origem: 'imovel' },
+  { chave: 'IMOVEL_HIDROMETRO_LEITURA', label: 'Leitura inicial do hidrômetro', exemplo: '00012345', origem: 'imovel' },
+  { chave: 'IMOVEL_MEDIDOR_ENERGIA_NUMERO', label: 'Número do medidor de energia', exemplo: 'M-98765', origem: 'imovel' },
+  { chave: 'IMOVEL_MEDIDOR_ENERGIA_LEITURA', label: 'Leitura inicial do medidor de energia', exemplo: '0098765', origem: 'imovel' },
 
   // ── Valores ──
   { chave: 'ALUGUEL_VALOR', label: 'Valor do aluguel', exemplo: 'R$ 3.500,00', origem: 'valores' },

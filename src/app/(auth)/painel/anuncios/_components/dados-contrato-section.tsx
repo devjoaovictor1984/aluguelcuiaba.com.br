@@ -107,6 +107,20 @@ export function DadosContratoSection({ value, onChange, defaultOpen = false }: P
               />
               <input
                 type="text"
+                value={value.cartorio_registro}
+                onChange={e => set('cartorio_registro', e.target.value)}
+                placeholder="Cartório de registro (ex: 1º Ofício de Cuiabá)"
+                className={inputCls}
+              />
+              <input
+                type="text"
+                value={value.livro_folha_matricula}
+                onChange={e => set('livro_folha_matricula', e.target.value)}
+                placeholder="Livro / folha da matrícula"
+                className={inputCls}
+              />
+              <input
+                type="text"
                 value={value.inscricao_municipal}
                 onChange={e => set('inscricao_municipal', e.target.value)}
                 placeholder="Inscrição municipal (IPTU)"
@@ -131,6 +145,41 @@ export function DadosContratoSection({ value, onChange, defaultOpen = false }: P
                 value={value.matricula_agua}
                 onChange={e => set('matricula_agua', e.target.value)}
                 placeholder="Matrícula água"
+                className={inputCls}
+              />
+            </div>
+          </div>
+
+          {/* Medidores — números e leituras iniciais */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Medidores (números e leitura inicial)</p>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                value={value.hidrometro_numero}
+                onChange={e => set('hidrometro_numero', e.target.value)}
+                placeholder="Hidrômetro nº"
+                className={inputCls}
+              />
+              <input
+                type="text"
+                value={value.hidrometro_leitura_inicial}
+                onChange={e => set('hidrometro_leitura_inicial', e.target.value)}
+                placeholder="Leitura inicial água"
+                className={inputCls}
+              />
+              <input
+                type="text"
+                value={value.medidor_energia_numero}
+                onChange={e => set('medidor_energia_numero', e.target.value)}
+                placeholder="Medidor energia nº"
+                className={inputCls}
+              />
+              <input
+                type="text"
+                value={value.medidor_energia_leitura_inicial}
+                onChange={e => set('medidor_energia_leitura_inicial', e.target.value)}
+                placeholder="Leitura inicial energia"
                 className={inputCls}
               />
             </div>

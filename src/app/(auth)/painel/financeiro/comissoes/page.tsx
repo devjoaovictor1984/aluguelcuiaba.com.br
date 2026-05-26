@@ -23,7 +23,14 @@ interface ParcelaRow {
   nf_numero?: string | null
 }
 
-interface ImovelLite { id: string; titulo: string }
+interface ImovelLite {
+  id: string
+  titulo: string
+  endereco_resumido?: string | null
+  endereco_completo?: string | null
+  endereco_numero?: string | null
+  endereco_cep?: string | null
+}
 interface PessoaLite { id: string; nome: string; cpf_cnpj: string | null }
 
 interface ContratoRow {
@@ -94,7 +101,7 @@ export default async function ComissoesPage({ searchParams }: Props) {
       id, codigo, status, taxa_admin_tipo, taxa_admin_valor,
       inquilino:pessoas!inquilino_id(id, nome, cpf_cnpj),
       proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj),
-      imovel:imoveis(id, titulo)
+      imovel:imoveis(id, titulo, endereco_resumido, endereco_completo, endereco_numero, endereco_cep)
     `)
       .eq('user_id', acesso.userId)
       .is('deleted_at', null),
@@ -123,6 +130,8 @@ export default async function ComissoesPage({ searchParams }: Props) {
     contratoCodigo: string
     inquilino: string
     imovel: string
+    imovelEndereco: string | null
+    imovelCep: string | null
     parcelas: number
     comissao: number
     aluguel: number
@@ -180,11 +189,16 @@ export default async function ComissoesPage({ searchParams }: Props) {
 
     let lc = g.contratos.get(c.id)
     if (!lc) {
+      // Quick view pra emissão de nota: CEP do imóvel + endereço breve
+      const enderecoImovel = imo?.endereco_completo ?? imo?.endereco_resumido ?? null
+      const cepImovel = imo?.endereco_cep ?? null
       lc = {
         contratoId: c.id,
         contratoCodigo: c.codigo,
         inquilino: inq?.nome ?? '—',
         imovel: imo?.titulo ?? '—',
+        imovelEndereco: enderecoImovel,
+        imovelCep: cepImovel,
         parcelas: 0,
         comissao: 0,
         aluguel: 0,
@@ -285,7 +299,14 @@ export default async function ComissoesPage({ searchParams }: Props) {
                       )}
                     </h2>
                     <p className="text-xs text-gray-500">
-                      {g.cpfCnpj ? `CPF/CNPJ ${g.cpfCnpj} · ` : ''}
+                      {g.cpfCnpj && (
+                        <>
+                          <span className="font-mono select-all" title="Clique pra selecionar — útil pra colar na nota de serviço">
+                            CPF/CNPJ {g.cpfCnpj}
+                          </span>
+                          {' · '}
+                        </>
+                      )}
                       {g.contratos.size} contrato{g.contratos.size === 1 ? '' : 's'} · {g.qtdParcelas} parcela{g.qtdParcelas === 1 ? '' : 's'} paga{g.qtdParcelas === 1 ? '' : 's'}
                     </p>
                   </div>
@@ -325,7 +346,14 @@ export default async function ComissoesPage({ searchParams }: Props) {
                             {l.contratoCodigo}
                           </Link>
                         </td>
-                        <td className="px-4 py-2 text-gray-700">{l.imovel}</td>
+                        <td className="px-4 py-2 text-gray-700">
+                          {l.imovel}
+                          {l.imovelCep && (
+                            <span className="block text-[10px] text-gray-400 font-mono select-all" title="CEP — pra colar na nota de serviço">
+                              CEP {l.imovelCep.replace(/^(\d{5})(\d{3})$/, '$1-$2')}
+                            </span>
+                          )}
+                        </td>
                         <td className="px-4 py-2 text-gray-700">{l.inquilino}</td>
                         <td className="px-4 py-2 text-center text-gray-600">{l.parcelas}</td>
                         <td className="px-4 py-2 text-right text-gray-700">{formatarBRL(l.aluguel)}</td>

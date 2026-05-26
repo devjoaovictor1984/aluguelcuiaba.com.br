@@ -124,6 +124,12 @@ export interface Imovel {
   area_construida_m2: number | null
   area_terreno_m2: number | null
   descricao_real: string | null
+  cartorio_registro: string | null
+  livro_folha_matricula: string | null
+  hidrometro_numero: string | null
+  hidrometro_leitura_inicial: string | null
+  medidor_energia_numero: string | null
+  medidor_energia_leitura_inicial: string | null
   created_at: string
   updated_at: string
   bairro?: Bairro

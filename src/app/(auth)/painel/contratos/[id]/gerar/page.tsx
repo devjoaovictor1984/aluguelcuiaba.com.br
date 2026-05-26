@@ -23,8 +23,15 @@ export default async function GerarContratoPage({ params }: Props) {
     .from('contratos_locacao')
     .select(`
       id, codigo, garantia_tipo, valor_aluguel, data_inicio, data_termino,
-      inquilino:pessoas!inquilino_id(nome),
-      proprietario:pessoas!proprietario_id(nome)
+      imovel_id,
+      inquilino:pessoas!inquilino_id(id, nome),
+      proprietario:pessoas!proprietario_id(id, nome),
+      imovel:imoveis(
+        id, titulo,
+        endereco_completo, endereco_numero, endereco_cep,
+        matricula_cartorio, inscricao_municipal,
+        uc_energia, matricula_agua
+      )
     `)
     .eq('id', contratoId)
     .eq('user_id', acesso.userId)
@@ -65,8 +72,33 @@ export default async function GerarContratoPage({ params }: Props) {
     .eq('user_id', acesso.userId)
     .order('nome', { ascending: true })
 
+  // IDs das partes do contrato (locador, locatário, fiador) — pra filtrar docs
+  const partesIds = [
+    contrato.proprietario?.[0]?.id ?? (contrato.proprietario as { id?: string } | null)?.id,
+    contrato.inquilino?.[0]?.id ?? (contrato.inquilino as { id?: string } | null)?.id,
+  ].filter((x): x is string => !!x)
+
+  // Carrega documentos das partes (pra escolher anexos)
+  const { data: documentosPartes } = partesIds.length > 0
+    ? await supabase
+        .from('pessoas_documentos')
+        .select('id, pessoa_id, tipo, arquivo_path, nome_original, pessoa:pessoas!pessoa_id(nome)')
+        .in('pessoa_id', partesIds)
+        .eq('user_id', acesso.userId)
+        .order('created_at', { ascending: false })
+    : { data: [] }
+
   const inq = Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino
   const prop = Array.isArray(contrato.proprietario) ? contrato.proprietario[0] : contrato.proprietario
+  const im = Array.isArray(contrato.imovel) ? contrato.imovel[0] : contrato.imovel
+
+  // Detecta dados do imóvel faltando pra contrato robusto
+  const dadosImovelFaltando: string[] = []
+  if (!im?.endereco_completo) dadosImovelFaltando.push('endereço completo')
+  if (!im?.matricula_cartorio) dadosImovelFaltando.push('matrícula do cartório')
+  if (!im?.inscricao_municipal) dadosImovelFaltando.push('inscrição municipal')
+  if (!im?.uc_energia) dadosImovelFaltando.push('UC energia')
+  if (!im?.matricula_agua) dadosImovelFaltando.push('matrícula água')
 
   return (
     <main className="px-4 py-4 pb-20 max-w-7xl mx-auto">
@@ -85,6 +117,27 @@ export default async function GerarContratoPage({ params }: Props) {
         </div>
       </div>
 
+      {dadosImovelFaltando.length > 0 && contrato.imovel_id && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">
+          <div className="w-8 h-8 bg-amber-200 rounded-full flex items-center justify-center shrink-0 text-amber-900 font-bold">!</div>
+          <div className="flex-1">
+            <h2 className="text-sm font-bold text-amber-900 mb-1">
+              Faltam dados do imóvel pro contrato
+            </h2>
+            <p className="text-xs text-amber-800 mb-2">
+              {dadosImovelFaltando.join(', ')}. Sem isso, os placeholders correspondentes vão sair
+              como <code className="bg-amber-100 px-1 rounded">[PREENCHER]</code> no PDF.
+            </p>
+            <Link
+              href={`/painel/anuncios/${contrato.imovel_id}/editar`}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-amber-900 hover:text-amber-700 underline"
+            >
+              Preencher agora →
+            </Link>
+          </div>
+        </div>
+      )}
+
       <EditorContrato
         contratoId={contratoId}
         codigo={contrato.codigo}
@@ -96,12 +149,31 @@ export default async function GerarContratoPage({ params }: Props) {
           clausula_ids: r.geracao.clausula_ids as string[],
           testemunha_ids: (r.geracao.testemunha_ids as string[] | null) ?? [],
           clausulas_seguradora_texto: r.geracao.clausulas_seguradora_texto ?? '',
+          aluguel_inclui_iptu: r.geracao.aluguel_inclui_iptu ?? false,
+          aluguel_inclui_condominio: r.geracao.aluguel_inclui_condominio ?? false,
+          pdf_assinado_url: r.geracao.pdf_assinado_url ?? null,
+          assinado_em: r.geracao.assinado_em ?? null,
+          status: r.geracao.status ?? 'rascunho',
+          anexo_documento_ids: (r.geracao.anexo_documento_ids as string[] | null) ?? [],
         }}
         todasClausulas={(todasClausulas ?? []).map(c => ({
           ...c,
           tipo: c.tipo as TipoClausula,
         }))}
         pessoas={(pessoasTestemunha ?? []) as Array<{ id: string; nome: string; cpf_cnpj: string | null; tipo: string }>}
+        documentosPartes={
+          ((documentosPartes ?? []) as Array<{
+            id: string
+            tipo: string
+            nome_original: string
+            pessoa: { nome: string } | { nome: string }[] | null
+          }>).map(d => ({
+            id: d.id,
+            tipo: d.tipo,
+            nome_original: d.nome_original,
+            pessoa_nome: Array.isArray(d.pessoa) ? d.pessoa[0]?.nome ?? '—' : d.pessoa?.nome ?? '—',
+          }))
+        }
       />
     </main>
   )

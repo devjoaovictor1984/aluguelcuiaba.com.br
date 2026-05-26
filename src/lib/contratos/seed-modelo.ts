@@ -398,4 +398,196 @@ Parágrafo terceiro. Eventual alteração no valor da apólice, renovação, sub
 
 Parágrafo único. A dispensa do seguro incêndio não exime o LOCATÁRIO de responder por danos causados ao imóvel por mau uso, culpa, dolo, negligência, imprudência, imperícia, conduta de ocupantes, visitantes, empregados, prestadores de serviço ou terceiros sob sua responsabilidade.`,
   },
+
+  // ════════════════════════════════════════════════════════════════
+  //  ADICIONAIS — escolhidas caso a caso pelo corretor no editor
+  // ════════════════════════════════════════════════════════════════
+
+  // PINTURA — entregue pintado de novo
+  {
+    tipo: 'adicional', categoria: 'pintura', titulo: 'Da pintura — imóvel entregue pintado de novo', numero: 1,
+    corpo: `O IMÓVEL está sendo entregue com PINTURA NOVA, conforme constatado em vistoria inicial.
+
+Parágrafo primeiro. O LOCATÁRIO obriga-se a devolver o IMÓVEL ao final da locação com a mesma qualidade de pintura recebida, providenciando, às suas expensas, pintura nova das paredes internas e demais superfícies pintadas, com tinta e cor compatíveis com as existentes, ressalvado o desgaste natural decorrente do uso regular.
+
+Parágrafo segundo. Caso o LOCATÁRIO opte por não realizar a pintura no momento da devolução, autoriza desde já que o valor correspondente seja descontado da caução ou cobrado adicionalmente, conforme orçamento apresentado pela LOCADORA/ADMINISTRADORA.
+
+Parágrafo terceiro. Manchas anormais, furos excessivos, rabiscos, perfurações, descascamentos provocados por uso indevido ou alteração de cor sem autorização escrita configurarão obrigação adicional de reparo, não confundida com a pintura geral de devolução.`,
+  },
+
+  // PINTURA — entregue não pintado de novo (do contrato modelo)
+  {
+    tipo: 'adicional', categoria: 'pintura', titulo: 'Da pintura — imóvel não entregue com pintura nova', numero: 2,
+    corpo: `O IMÓVEL NÃO ESTÁ SENDO ENTREGUE COM PINTURA NOVA, conforme constatado em vistoria inicial.
+
+Parágrafo primeiro. Assim, o LOCATÁRIO não será obrigado a devolvê-lo com pintura nova, salvo se der causa a manchas, furos excessivos, sujeira anormal, pintura irregular, dano, infiltração por mau uso, alteração de cor, rabiscos, perfurações, descascamentos provocados por uso indevido ou qualquer deterioração além do desgaste natural.
+
+Parágrafo segundo. Eventuais reparos pontuais (furos, manchas localizadas, retoques) decorrentes de uso indevido serão de responsabilidade do LOCATÁRIO, podendo ser descontados da caução ou cobrados adicionalmente conforme orçamento.`,
+  },
+
+  // ANIMAIS — permitidos com restrições
+  {
+    tipo: 'adicional', categoria: 'animais', titulo: 'Da permissão de animais de estimação (com restrições)', numero: 3,
+    corpo: `Fica autorizada a permanência de animais de estimação no IMÓVEL, observadas as seguintes condições:
+
+I. respeito ao convívio com vizinhança, sossego e regras condominiais, quando aplicáveis;
+II. responsabilidade integral do LOCATÁRIO por danos, sujeira, odores, ruídos, ferimentos e prejuízos causados pelos animais a pessoas, móveis, paredes, pisos, jardins, áreas comuns ou terceiros;
+III. obrigatoriedade de manter o animal vacinado, vermifugado e em condições sanitárias adequadas;
+IV. ao final da locação, devolver o IMÓVEL livre de odores, marcas, arranhões, pelos acumulados em ralos/condutos e demais sinais visíveis da presença do animal, sob pena de cobrança de limpeza e reparos.
+
+Parágrafo único. Reclamações reiteradas de vizinhança ou condomínio relativas aos animais poderão autorizar a LOCADORA/ADMINISTRADORA a exigir a retirada do animal, sob pena de configurar infração contratual.`,
+  },
+
+  // ANIMAIS — proibidos
+  {
+    tipo: 'adicional', categoria: 'animais', titulo: 'Da proibição de animais de estimação', numero: 4,
+    corpo: `É expressamente PROIBIDA a permanência de animais de estimação de qualquer espécie no IMÓVEL, salvo autorização prévia, expressa e escrita da LOCADORA/ADMINISTRADORA.
+
+Parágrafo único. O descumprimento desta cláusula configurará infração contratual, autorizando a notificação para retirada imediata do animal e, persistindo o descumprimento, rescisão contratual com cobrança das obrigações cabíveis, sem prejuízo do ressarcimento por eventuais danos.`,
+  },
+
+  // MOBILIADO COM INVENTÁRIO
+  {
+    tipo: 'adicional', categoria: 'mobilia', titulo: 'Do imóvel mobiliado e inventário de móveis', numero: 5,
+    corpo: `O IMÓVEL é locado MOBILIADO, contendo móveis, eletrodomésticos, utensílios e demais bens descritos no inventário anexo a este contrato e no termo de vistoria inicial.
+
+Parágrafo primeiro. O LOCATÁRIO recebe os bens em estado de funcionamento e conservação adequados ao uso a que se destinam, obrigando-se a conservá-los, mantê-los limpos, providenciar pequenos reparos decorrentes de uso ordinário e devolvê-los, ao final da locação, no mesmo estado em que os recebeu, ressalvado o desgaste natural.
+
+Parágrafo segundo. A perda, dano, deterioração anormal, furto, extravio ou substituição não autorizada de qualquer item do inventário é de responsabilidade do LOCATÁRIO, que deverá repor item idêntico ou de qualidade equivalente, ou indenizar o valor de reposição.
+
+Parágrafo terceiro. É vedada a remoção dos bens do inventário para fora do IMÓVEL sem autorização prévia, expressa e escrita da LOCADORA/ADMINISTRADORA.`,
+  },
+
+  // REFORMA AUTORIZADA
+  {
+    tipo: 'adicional', categoria: 'reforma', titulo: 'Da autorização para reforma específica', numero: 6,
+    corpo: `Fica autorizada, em caráter excepcional, a realização da seguinte reforma/benfeitoria pelo LOCATÁRIO no IMÓVEL: [DETALHAR REFORMA AUTORIZADA].
+
+Parágrafo primeiro. A reforma será integralmente custeada pelo LOCATÁRIO, sem direito a indenização, retenção, abatimento de aluguel ou qualquer compensação posterior, salvo ajuste expresso em contrário.
+
+Parágrafo segundo. O LOCATÁRIO compromete-se a executar a reforma com materiais de qualidade equivalente ou superior aos existentes, contratar profissionais qualificados, observar normas técnicas e de segurança e respeitar o cronograma comunicado à LOCADORA/ADMINISTRADORA.
+
+Parágrafo terceiro. Ao final da locação, a benfeitoria incorporada ao IMÓVEL não gerará direito automático de remoção ou indenização, podendo a LOCADORA/ADMINISTRADORA exigir, conforme conveniência, a restauração do estado anterior às expensas do LOCATÁRIO.`,
+  },
+
+  // INTERNET/TV INCLUSAS
+  {
+    tipo: 'adicional', categoria: 'servicos', titulo: 'Internet e TV inclusas no pacote locatício', numero: 7,
+    corpo: `Encontra-se incluído no pacote locatício mensal, ao valor global ajustado neste contrato, o seguinte serviço: [DETALHAR — ex: internet fibra 500 Mbps via operadora X; TV por assinatura plano básico].
+
+Parágrafo primeiro. O LOCATÁRIO usufruirá do serviço durante toda a vigência da locação, sendo de sua responsabilidade o uso adequado dos equipamentos (modem, roteador, decoder, antena), comunicando imediatamente qualquer defeito ou interrupção à LOCADORA/ADMINISTRADORA.
+
+Parágrafo segundo. Mudança de plano, cancelamento, alteração de operadora ou inclusão de serviços adicionais por iniciativa do LOCATÁRIO ocorrerá às suas expensas, mediante autorização prévia e escrita.
+
+Parágrafo terceiro. No término da locação, o LOCATÁRIO devolverá os equipamentos no mesmo estado em que os recebeu, sob pena de cobrança pela reposição.`,
+  },
+
+  // VAGAS DETALHADAS
+  {
+    tipo: 'adicional', categoria: 'garagem', titulo: 'Das vagas de garagem e estacionamento', numero: 8,
+    corpo: `O IMÓVEL inclui [QUANTIDADE] vaga(s) de garagem, [DETALHAR LOCALIZAÇÃO — ex: vaga nº 12 e nº 13 no subsolo; ou garagem coberta nos fundos do imóvel].
+
+Parágrafo primeiro. As vagas são de uso exclusivo do LOCATÁRIO e seus ocupantes regulares, sendo vedada cessão, sublocação, troca ou aluguel a terceiros sem autorização expressa.
+
+Parágrafo segundo. O LOCATÁRIO obriga-se a respeitar as regras condominiais e de boa convivência relativas ao uso das vagas, sendo responsável por danos causados a outros veículos, paredes, portões, controles de acesso e demais equipamentos.
+
+Parágrafo terceiro. A LOCADORA/ADMINISTRADORA não responde por furtos, danos, arranhões ou prejuízos a veículos estacionados na garagem, salvo culpa direta comprovada.`,
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  //  ADICIONAIS — JURÍDICAS (escolhidas caso a caso, mas recomendadas)
+  // ════════════════════════════════════════════════════════════════
+
+  // LGPD
+  {
+    tipo: 'adicional', categoria: 'lgpd', titulo: 'Da proteção de dados pessoais (LGPD)', numero: 10,
+    corpo: `As partes declaram ciência e consentimento mútuo para o tratamento de seus dados pessoais constantes deste contrato (nome, CPF, RG, endereço, telefone, e-mail e demais), nos termos da Lei Geral de Proteção de Dados — Lei nº 13.709/2018.
+
+Parágrafo primeiro. O tratamento dos dados terá como finalidade exclusiva a execução deste contrato, cobranças, comunicações, emissão de recibos, registros contábeis e fiscais, defesa em eventuais ações judiciais e cumprimento de obrigações legais.
+
+Parágrafo segundo. As partes obrigam-se a manter sigilo sobre dados pessoais de que tenham conhecimento em razão deste contrato, a adotar medidas razoáveis de segurança e a comunicar incidentes que envolvam tais dados.
+
+Parágrafo terceiro. Os dados serão armazenados pelo prazo necessário ao cumprimento das obrigações contratuais e legais e, ao fim, serão eliminados ou anonimizados, salvo dever legal de guarda.
+
+Parágrafo quarto. Os titulares dos dados poderão exercer os direitos previstos no art. 18 da LGPD mediante requerimento à ADMINISTRADORA, pelos canais de contato informados neste contrato.`,
+  },
+
+  // CESSÃO DE POSIÇÃO CONTRATUAL
+  {
+    tipo: 'adicional', categoria: 'cessao', titulo: 'Da vedação à cessão e sublocação', numero: 11,
+    corpo: `É expressamente vedada ao LOCATÁRIO a cessão, transferência, sublocação, comodato, empréstimo ou repasse, total ou parcial, da posição contratual ou do uso do IMÓVEL a terceiros, a qualquer título, sem prévia, expressa e escrita autorização da LOCADORA/ADMINISTRADORA.
+
+Parágrafo único. O descumprimento configurará infração contratual grave, autorizando rescisão imediata com cobrança da multa rescisória e indenização por perdas e danos, sem prejuízo de demais medidas legais cabíveis.`,
+  },
+
+  // SUB-ROGAÇÃO (quando há seguradora)
+  {
+    tipo: 'adicional', categoria: 'subrogacao', titulo: 'Da sub-rogação da seguradora', numero: 12,
+    corpo: `Caso a seguradora pague indenização ao LOCADOR em razão de inadimplência, dano ou descumprimento contratual atribuível ao LOCATÁRIO, ficará automaticamente sub-rogada nos direitos do LOCADOR contra o LOCATÁRIO até o limite do valor pago, podendo cobrar diretamente do LOCATÁRIO o ressarcimento integral.
+
+Parágrafo único. O LOCATÁRIO reconhece e aceita expressamente essa sub-rogação, declarando ciência de que o pagamento pela seguradora não extingue sua obrigação principal — apenas transfere o crédito à seguradora.`,
+  },
+
+  // DEVER DE INFORMAÇÃO
+  {
+    tipo: 'adicional', categoria: 'informacao', titulo: 'Do dever de informação e atualização cadastral', numero: 13,
+    corpo: `O LOCATÁRIO obriga-se a manter atualizados, junto à ADMINISTRADORA, seus dados pessoais e de contato (telefone, WhatsApp, e-mail, endereço de correspondência) durante toda a vigência da locação e até o encerramento total das obrigações.
+
+Parágrafo primeiro. Toda comunicação enviada aos endereços e contatos constantes deste contrato será considerada válida para todos os fins, sendo de responsabilidade do LOCATÁRIO eventual prejuízo decorrente de desatualização cadastral.
+
+Parágrafo segundo. O LOCATÁRIO obriga-se também a informar imediatamente a ADMINISTRADORA sobre: ações judiciais que possam afetar a locação, problemas estruturais no IMÓVEL, sinistros, danos, notificações públicas, alterações na composição familiar/ocupantes e quaisquer fatos relevantes.`,
+  },
+
+  // RENÚNCIA À RETENÇÃO POR BENFEITORIAS
+  {
+    tipo: 'adicional', categoria: 'benfeitorias', titulo: 'Da renúncia à retenção por benfeitorias', numero: 14,
+    corpo: `O LOCATÁRIO renuncia expressamente ao direito de retenção do IMÓVEL por eventuais benfeitorias úteis ou voluptuárias, ainda que autorizadas, salvo ajuste expresso e escrito em contrário previsto neste instrumento ou em termo aditivo.
+
+Parágrafo primeiro. Benfeitorias necessárias urgentes, devidamente comunicadas e justificadas, poderão ser indenizadas ou compensadas com aluguel, mediante prévio acordo escrito.
+
+Parágrafo segundo. Esta renúncia se estende a fiador, cônjuge e demais ocupantes do IMÓVEL.`,
+  },
+
+  // INDENIZAÇÃO POR DANOS
+  {
+    tipo: 'adicional', categoria: 'danos', titulo: 'Da indenização por danos ao imóvel', numero: 15,
+    corpo: `Sem prejuízo da multa rescisória e demais cominações, o LOCATÁRIO indenizará integralmente o LOCADOR pelos danos que vier a causar ao IMÓVEL, móveis, equipamentos, instalações e demais bens, decorrentes de mau uso, culpa, dolo, negligência, imprudência ou imperícia, próprios ou de seus familiares, visitantes, empregados, prestadores de serviço ou animais.
+
+Parágrafo primeiro. Os danos serão apurados em vistoria final, podendo ser objeto de orçamentos prévios apresentados ao LOCATÁRIO, com prazo razoável de manifestação.
+
+Parágrafo segundo. O valor da indenização poderá ser descontado da caução, quando houver, ou cobrado em parcela única ou de forma parcelada, conforme acordo, sem prejuízo da cobrança judicial em caso de inadimplência.`,
+  },
+
+  // ALUGUEL INCLUI IPTU
+  {
+    tipo: 'adicional', categoria: 'aluguel_inclui', titulo: 'IPTU incluso no aluguel', numero: 16,
+    corpo: `Para a presente locação, o valor do aluguel mensal de {{ALUGUEL_VALOR}} já contempla o IPTU do IMÓVEL, ficando o LOCADOR responsável pelo seu recolhimento direto à municipalidade.
+
+Parágrafo único. Eventual cobrança suplementar, retroativa, revisão ou diferença de IPTU lançada pela municipalidade será de responsabilidade exclusiva do LOCADOR, não podendo ser repassada ao LOCATÁRIO, salvo quanto a multas e juros decorrentes de atraso atribuível ao LOCATÁRIO em comunicar fatos que impactem o lançamento.`,
+  },
+
+  // ALUGUEL INCLUI CONDOMÍNIO
+  {
+    tipo: 'adicional', categoria: 'aluguel_inclui', titulo: 'Condomínio incluso no aluguel', numero: 17,
+    corpo: `Para a presente locação, o valor do aluguel mensal de {{ALUGUEL_VALOR}} já contempla a taxa de condomínio ordinária do IMÓVEL, ficando o LOCADOR responsável pelo pagamento mensal direto ao condomínio.
+
+Parágrafo primeiro. Despesas extraordinárias do condomínio (obras, reformas, fundo de reserva extraordinário) seguem o regime legal da Lei nº 8.245/1991 — não estão inclusas no aluguel.
+
+Parágrafo segundo. Multas condominiais decorrentes de conduta do LOCATÁRIO, ocupantes, visitantes ou animais permanecem de responsabilidade exclusiva do LOCATÁRIO.`,
+  },
+
+  // SAÍDA SEM MULTA APÓS 12 MESES
+  {
+    tipo: 'adicional', categoria: 'rescisao', titulo: 'Saída sem multa após 12 meses', numero: 18,
+    corpo: `Fica expressamente convencionado entre as partes que, após o cumprimento mínimo de 12 (doze) meses completos de locação, o LOCATÁRIO poderá rescindir antecipadamente o presente contrato SEM incidência da multa rescisória de 3 (três) aluguéis prevista na cláusula de rescisão antecipada.
+
+Parágrafo primeiro. A dispensa da multa rescisória após 12 meses fica condicionada a:
+I. comunicação por escrito ao LOCADOR/ADMINISTRADORA com antecedência mínima de 30 (trinta) dias;
+II. pagamento integral de aluguéis, IPTU, consumos, encargos, multas e demais obrigações até a efetiva entrega das chaves;
+III. devolução do IMÓVEL nas condições descritas na vistoria inicial, ressalvado o desgaste natural decorrente do uso regular.
+
+Parágrafo segundo. Antes de completar 12 meses, mantém-se integralmente a multa rescisória proporcional prevista no contrato.
+
+Parágrafo terceiro. A dispensa da multa rescisória não exonera o LOCATÁRIO das demais obrigações de devolução regular do IMÓVEL.`,
+  },
 ]

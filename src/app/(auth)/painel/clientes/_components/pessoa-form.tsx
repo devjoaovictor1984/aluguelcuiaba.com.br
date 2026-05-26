@@ -54,6 +54,15 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
   const [conjugeDataNasc, setConjugeDataNasc] = useState((inicial as Record<string, unknown>).conjuge_data_nascimento as string ?? '')
   const [conjugeProfissao, setConjugeProfissao] = useState((inicial as Record<string, unknown>).conjuge_profissao as string ?? '')
   const [conjugeNacionalidade, setConjugeNacionalidade] = useState((inicial as Record<string, unknown>).conjuge_nacionalidade as string ?? '')
+  const [conjugeNaturalidade, setConjugeNaturalidade] = useState((inicial as Record<string, unknown>).conjuge_naturalidade as string ?? '')
+  const [conjugeNomePai, setConjugeNomePai] = useState((inicial as Record<string, unknown>).conjuge_nome_pai as string ?? '')
+  const [conjugeNomeMae, setConjugeNomeMae] = useState((inicial as Record<string, unknown>).conjuge_nome_mae as string ?? '')
+  const [conjugeEndereco, setConjugeEndereco] = useState((inicial as Record<string, unknown>).conjuge_endereco_logradouro as string ?? '')
+  const [conjugeEnderecoNumero, setConjugeEnderecoNumero] = useState((inicial as Record<string, unknown>).conjuge_endereco_numero as string ?? '')
+  const [conjugeEnderecoBairro, setConjugeEnderecoBairro] = useState((inicial as Record<string, unknown>).conjuge_endereco_bairro as string ?? '')
+  const [conjugeEnderecoCidade, setConjugeEnderecoCidade] = useState((inicial as Record<string, unknown>).conjuge_endereco_cidade as string ?? '')
+  const [conjugeEnderecoEstado, setConjugeEnderecoEstado] = useState((inicial as Record<string, unknown>).conjuge_endereco_estado as string ?? '')
+  const [conjugeEnderecoCep, setConjugeEnderecoCep] = useState((inicial as Record<string, unknown>).conjuge_endereco_cep as string ?? '')
   const [nomeFantasia, setNomeFantasia] = useState(inicial.nome_fantasia ?? '')
   const [inscricaoEstadual, setInscricaoEstadual] = useState(inicial.inscricao_estadual ?? '')
   const [inscricaoMunicipal, setInscricaoMunicipal] = useState(inicial.inscricao_municipal ?? '')
@@ -128,6 +137,15 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
       conjuge_data_nascimento: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeDataNasc || null) : null,
       conjuge_profissao: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeProfissao || null) : null,
       conjuge_nacionalidade: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeNacionalidade || null) : null,
+      conjuge_naturalidade: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeNaturalidade || null) : null,
+      conjuge_nome_pai: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeNomePai || null) : null,
+      conjuge_nome_mae: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeNomeMae || null) : null,
+      conjuge_endereco_logradouro: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeEndereco || null) : null,
+      conjuge_endereco_numero: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeEnderecoNumero || null) : null,
+      conjuge_endereco_bairro: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeEnderecoBairro || null) : null,
+      conjuge_endereco_cidade: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeEnderecoCidade || null) : null,
+      conjuge_endereco_estado: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeEnderecoEstado || null) : null,
+      conjuge_endereco_cep: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeEnderecoCep || null) : null,
       // Campos PJ (ignorados em PF)
       nome_fantasia: ehPJ ? nomeFantasia : null,
       inscricao_estadual: ehPJ ? inscricaoEstadual : null,
@@ -331,6 +349,50 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Nacionalidade</label>
               <input value={conjugeNacionalidade} onChange={e => setConjugeNacionalidade(e.target.value)} placeholder="Brasileira" className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">Naturalidade</label>
+              <input value={conjugeNaturalidade} onChange={e => setConjugeNaturalidade(e.target.value)} placeholder="Cuiabá-MT" className={inputCls} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-gray-600 block mb-1">Nome do pai do cônjuge</label>
+              <input value={conjugeNomePai} onChange={e => setConjugeNomePai(e.target.value)} className={inputCls} />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-medium text-gray-600 block mb-1">Nome da mãe do cônjuge</label>
+              <input value={conjugeNomeMae} onChange={e => setConjugeNomeMae(e.target.value)} className={inputCls} />
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-3">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">
+              Endereço do cônjuge <span className="text-gray-400 normal-case font-normal">(deixe vazio se for o mesmo do titular)</span>
+            </p>
+            <div className="grid sm:grid-cols-2 gap-3">
+              <div className="sm:col-span-2">
+                <label className="text-xs font-medium text-gray-600 block mb-1">Logradouro</label>
+                <input value={conjugeEndereco} onChange={e => setConjugeEndereco(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Número</label>
+                <input value={conjugeEnderecoNumero} onChange={e => setConjugeEnderecoNumero(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">CEP</label>
+                <input value={conjugeEnderecoCep} onChange={e => setConjugeEnderecoCep(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Bairro</label>
+                <input value={conjugeEnderecoBairro} onChange={e => setConjugeEnderecoBairro(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">Cidade</label>
+                <input value={conjugeEnderecoCidade} onChange={e => setConjugeEnderecoCidade(e.target.value)} className={inputCls} />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-gray-600 block mb-1">UF</label>
+                <input value={conjugeEnderecoEstado} onChange={e => setConjugeEnderecoEstado(e.target.value.toUpperCase().slice(0, 2))} placeholder="MT" maxLength={2} className={`${inputCls} uppercase`} />
+              </div>
             </div>
           </div>
         </section>
