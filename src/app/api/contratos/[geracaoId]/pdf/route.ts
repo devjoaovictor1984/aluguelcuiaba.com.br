@@ -20,6 +20,12 @@ type ContratoLite = {
   dia_vencimento?: number | null
   duracao_meses?: number | null
   garantia_tipo?: string | null
+  aluguel_inclui_iptu?: boolean | null
+  aluguel_inclui_condominio?: boolean | null
+  aluguel_inclui_agua?: boolean | null
+  aluguel_inclui_energia?: boolean | null
+  aluguel_inclui_gas?: boolean | null
+  aluguel_inclui_internet?: boolean | null
 }
 
 function fmtBRL(v: number | null | undefined): string {
@@ -36,8 +42,9 @@ function fmtData(iso: string | null | undefined): string {
 
 function montarQuadroEntrada(c: ContratoLite) {
   const aluguel = c.valor_aluguel ?? 0
-  const iptu = c.iptu_mensal ?? 0
-  const condominio = c.condominio_mensal ?? 0
+  // IPTU/condomínio só entram como linha separada se NÃO estiverem inclusos no aluguel
+  const iptu = c.aluguel_inclui_iptu ? 0 : (c.iptu_mensal ?? 0)
+  const condominio = c.aluguel_inclui_condominio ? 0 : (c.condominio_mensal ?? 0)
   const seguroFianca = c.valor_seguro_fianca_mensal ?? 0
   const caucao = c.caucao_valor ?? 0
   const itens: Array<{ descricao: string; base: string; valor: string; obs?: string }> = []
@@ -73,26 +80,32 @@ function montarQuadroEntrada(c: ContratoLite) {
 }
 
 function montarTabela12Meses(c: ContratoLite) {
-  if (!c.data_inicio || !c.dia_vencimento || !c.valor_aluguel) return []
+  // Início da tabela: data do PRIMEIRO ALUGUEL (não data de início do contrato).
+  // O usuário pode definir início em 10/06 e primeiro aluguel em 10/07, por exemplo.
+  const dataBase = c.data_primeiro_aluguel ?? c.data_inicio
+  if (!dataBase || !c.dia_vencimento || !c.valor_aluguel) {
+    return { colunas: { iptu: false, condominio: false, seguro: false }, linhas: [] }
+  }
+
   const aluguel = c.valor_aluguel
-  const iptu = c.iptu_mensal ?? 0
-  const condominio = c.condominio_mensal ?? 0
+  const iptu = c.aluguel_inclui_iptu ? 0 : (c.iptu_mensal ?? 0)
+  const condominio = c.aluguel_inclui_condominio ? 0 : (c.condominio_mensal ?? 0)
   const seguroFianca = (c.garantia_tipo === 'seguro_fianca') ? (c.valor_seguro_fianca_mensal ?? 0) : 0
   const total = aluguel + iptu + condominio + seguroFianca
 
-  const inicio = new Date(c.data_inicio + 'T00:00:00')
-  const linhas: Array<{
-    parcela: number
-    periodo: string
-    vencimento: string
-    aluguel: string
-    iptu: string
-    total: string
-  }> = []
+  const colunas = {
+    iptu: iptu > 0,
+    condominio: condominio > 0,
+    seguro: seguroFianca > 0,
+  }
+
+  const base = new Date(dataBase + 'T00:00:00')
+  const linhas = []
 
   for (let i = 0; i < 12; i++) {
-    const periodoIni = new Date(inicio.getFullYear(), inicio.getMonth() + i, inicio.getDate())
-    const periodoFim = new Date(inicio.getFullYear(), inicio.getMonth() + i + 1, inicio.getDate() - 1)
+    // Cada parcela começa no mesmo dia do mês, deslocando i meses do mês base
+    const periodoIni = new Date(base.getFullYear(), base.getMonth() + i, base.getDate())
+    const periodoFim = new Date(base.getFullYear(), base.getMonth() + i + 1, base.getDate() - 1)
     const venc = new Date(periodoIni.getFullYear(), periodoIni.getMonth(), c.dia_vencimento)
 
     linhas.push({
@@ -100,11 +113,13 @@ function montarTabela12Meses(c: ContratoLite) {
       periodo: `${periodoIni.toLocaleDateString('pt-BR')} a ${periodoFim.toLocaleDateString('pt-BR')}`,
       vencimento: venc.toLocaleDateString('pt-BR'),
       aluguel: fmtBRL(aluguel),
-      iptu: iptu > 0 ? fmtBRL(iptu) : '—',
+      iptu: colunas.iptu ? fmtBRL(iptu) : null,
+      condominio: colunas.condominio ? fmtBRL(condominio) : null,
+      seguro: colunas.seguro ? fmtBRL(seguroFianca) : null,
       total: fmtBRL(total),
     })
   }
-  return linhas
+  return { colunas, linhas }
 }
 
 function montarTermoChaves(

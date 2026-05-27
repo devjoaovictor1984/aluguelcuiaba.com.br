@@ -258,7 +258,7 @@ export async function GET(
       clausulas_seguradora_texto: null,
       clausulas,
       quadro_entrada: [],
-      tabela_12_meses: [],
+      tabela_12_meses: { colunas: { iptu: false, condominio: false, seguro: false }, linhas: [] },
       termo_chaves: null,
     }
 

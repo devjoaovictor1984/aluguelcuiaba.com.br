@@ -109,15 +109,24 @@ export interface ContratoPDFData {
   // Quadro financeiro de entrada (caução + 1º aluguel + IPTU)
   quadro_entrada: Array<{ descricao: string; base: string; valor: string; obs?: string }>
 
-  // Tabela dos 12 primeiros meses
-  tabela_12_meses: Array<{
-    parcela: number
-    periodo: string
-    vencimento: string
-    aluguel: string
-    iptu: string
-    total: string
-  }>
+  // Tabela dos 12 primeiros meses — colunas dinâmicas conforme o que é cobrado separado
+  tabela_12_meses: {
+    colunas: {
+      iptu: boolean        // mostrar coluna IPTU? (só se iptu_mensal > 0 e NÃO incluso)
+      condominio: boolean  // idem condomínio
+      seguro: boolean      // idem seguro fiança mensal
+    }
+    linhas: Array<{
+      parcela: number
+      periodo: string
+      vencimento: string
+      aluguel: string
+      iptu: string | null         // null = sem coluna
+      condominio: string | null
+      seguro: string | null
+      total: string
+    }>
+  }
 
   // Termo de entrega de chaves (página separada)
   termo_chaves: {
@@ -567,7 +576,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
         )}
 
         {/* ── Tabela dos 12 primeiros meses ── */}
-        {data.tabela_12_meses.length > 0 && (
+        {data.tabela_12_meses.linhas.length > 0 && (
           <View style={{ marginTop: 20 }}>
             <Text style={{
               fontSize: 11.5,
@@ -584,10 +593,18 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>PERÍODO</Text>
                 <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA }}>VENCIMENTO</Text>
                 <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>ALUGUEL</Text>
-                <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>IPTU</Text>
+                {data.tabela_12_meses.colunas.iptu && (
+                  <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>IPTU</Text>
+                )}
+                {data.tabela_12_meses.colunas.condominio && (
+                  <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>CONDOM.</Text>
+                )}
+                {data.tabela_12_meses.colunas.seguro && (
+                  <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>SEG. FIANÇA</Text>
+                )}
                 <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>TOTAL</Text>
               </View>
-              {data.tabela_12_meses.map((p, i) => (
+              {data.tabela_12_meses.linhas.map((p, i) => (
                 <View
                   key={i}
                   style={{
@@ -601,7 +618,15 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                   <Text style={{ flex: 3, fontSize: 9, color: TEXTO }}>{p.periodo}</Text>
                   <Text style={{ flex: 2, fontSize: 9, color: TEXTO }}>{p.vencimento}</Text>
                   <Text style={{ flex: 2, fontSize: 9, color: TEXTO, textAlign: 'right' }}>{p.aluguel}</Text>
-                  <Text style={{ flex: 2, fontSize: 9, color: CINZA, textAlign: 'right' }}>{p.iptu}</Text>
+                  {data.tabela_12_meses.colunas.iptu && (
+                    <Text style={{ flex: 2, fontSize: 9, color: TEXTO, textAlign: 'right' }}>{p.iptu ?? ''}</Text>
+                  )}
+                  {data.tabela_12_meses.colunas.condominio && (
+                    <Text style={{ flex: 2, fontSize: 9, color: TEXTO, textAlign: 'right' }}>{p.condominio ?? ''}</Text>
+                  )}
+                  {data.tabela_12_meses.colunas.seguro && (
+                    <Text style={{ flex: 2, fontSize: 9, color: TEXTO, textAlign: 'right' }}>{p.seguro ?? ''}</Text>
+                  )}
                   <Text style={{ flex: 2, fontSize: 9, color: TEXTO_FORTE, fontWeight: 'bold', textAlign: 'right' }}>{p.total}</Text>
                 </View>
               ))}
@@ -873,15 +898,21 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           <View style={{ backgroundColor: '#faf5ff', padding: 12, marginBottom: 16 }}>
             <Text style={{ fontSize: 10, marginBottom: 4 }}>
-              I. <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.qtd_chaves}</Text>{' '}
+              I. <Text style={{ fontWeight: 'bold' }}>
+                {data.termo_chaves.qtd_chaves > 0 ? data.termo_chaves.qtd_chaves : '_____'}
+              </Text>{' '}
               chave{data.termo_chaves.qtd_chaves === 1 ? '' : 's'} da porta principal e/ou portão
             </Text>
             <Text style={{ fontSize: 10, marginBottom: 4 }}>
-              II. <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.qtd_controles}</Text>{' '}
+              II. <Text style={{ fontWeight: 'bold' }}>
+                {data.termo_chaves.qtd_controles > 0 ? data.termo_chaves.qtd_controles : '_____'}
+              </Text>{' '}
               controle{data.termo_chaves.qtd_controles === 1 ? '' : 's'} remoto(s)
             </Text>
             <Text style={{ fontSize: 10 }}>
-              III. <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.qtd_tags}</Text>{' '}
+              III. <Text style={{ fontWeight: 'bold' }}>
+                {data.termo_chaves.qtd_tags > 0 ? data.termo_chaves.qtd_tags : '_____'}
+              </Text>{' '}
               tag{data.termo_chaves.qtd_tags === 1 ? '' : 's'} / cartão(ões) de acesso
             </Text>
           </View>

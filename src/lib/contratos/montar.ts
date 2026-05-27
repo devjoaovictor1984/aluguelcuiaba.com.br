@@ -393,10 +393,13 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'IPTU_VALOR': return fmtBRL(dados.contrato?.iptu_mensal ?? 0)
     case 'VENCIMENTO_DIA': return dados.contrato?.dia_vencimento != null ? String(dados.contrato.dia_vencimento) : FALLBACK
     case 'TOTAL_MENSAL': {
-      const a = dados.contrato?.valor_aluguel ?? 0
-      const i = dados.contrato?.iptu_mensal ?? 0
-      const c = dados.contrato?.condominio_mensal ?? 0
-      return fmtBRL(a + i + c)
+      const c = dados.contrato
+      const a = c?.valor_aluguel ?? 0
+      // Só soma IPTU/condomínio se NÃO estiverem inclusos no aluguel.
+      // Garante consistência com a tabela dos 12 meses e o quadro de entrada.
+      const i = c?.aluguel_inclui_iptu ? 0 : (c?.iptu_mensal ?? 0)
+      const co = c?.aluguel_inclui_condominio ? 0 : (c?.condominio_mensal ?? 0)
+      return fmtBRL(a + i + co)
     }
 
     case 'ENCARGOS_INCLUSOS': {
@@ -428,7 +431,21 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'PRAZO_MESES': return dados.contrato?.duracao_meses != null ? String(dados.contrato.duracao_meses) : '30'
     case 'PRAZO_EXTENSO': return numeroPorExtenso(dados.contrato?.duracao_meses ?? 30)
     case 'DATA_INICIO': return fmtData(dados.contrato?.data_inicio)
-    case 'DATA_FIM': return fmtData(dados.contrato?.data_termino)
+    case 'DATA_FIM': {
+      // Se data_termino veio preenchido, usa. Senão calcula a partir de
+      // data_inicio + duracao_meses (1 dia antes do mesmo dia, meses depois).
+      const c = dados.contrato
+      if (c?.data_termino) return fmtData(c.data_termino)
+      if (c?.data_inicio && c?.duracao_meses) {
+        const inicio = new Date(c.data_inicio + 'T00:00:00')
+        const fim = new Date(inicio.getFullYear(), inicio.getMonth() + c.duracao_meses, inicio.getDate() - 1)
+        const y = fim.getFullYear()
+        const m = String(fim.getMonth() + 1).padStart(2, '0')
+        const d = String(fim.getDate()).padStart(2, '0')
+        return `${d}/${m}/${y}`
+      }
+      return FALLBACK
+    }
 
     // ── Caução ──
     case 'CAUCAO_VALOR': return fmtBRL(dados.contrato?.caucao_valor)
