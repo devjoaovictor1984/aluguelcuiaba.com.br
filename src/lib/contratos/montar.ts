@@ -153,19 +153,19 @@ export interface DadosContrato {
 
 // ── Formatadores ──
 const fmtBRL = (v: number | null | undefined): string => {
-  if (v == null) return '[PREENCHER]'
+  if (v == null) return ''
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 }
 
 const fmtData = (iso: string | null | undefined): string => {
-  if (!iso) return '[PREENCHER]'
+  if (!iso) return ''
   const s = iso.slice(0, 10)
   const [y, m, d] = s.split('-')
   return `${d}/${m}/${y}`
 }
 
 const fmtCpf = (s: string | null | undefined): string => {
-  if (!s) return '[PREENCHER]'
+  if (!s) return ''
   const d = s.replace(/\D/g, '')
   if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
   if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
@@ -173,14 +173,14 @@ const fmtCpf = (s: string | null | undefined): string => {
 }
 
 const fmtCnpj = (s: string | null | undefined): string => {
-  if (!s) return '[PREENCHER]'
+  if (!s) return ''
   const d = s.replace(/\D/g, '')
   if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
   return s
 }
 
 const fmtCep = (s: string | null | undefined): string => {
-  if (!s) return '[PREENCHER]'
+  if (!s) return ''
   const d = s.replace(/\D/g, '')
   if (d.length === 8) return d.replace(/^(\d{5})(\d{3})$/, '$1-$2')
   return s

@@ -491,9 +491,12 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           </View>
         ))}
 
-        {/* ── Quadro financeiro de entrada ── */}
+        {/* ── Quadro financeiro de entrada ──
+           `break` força nova página antes deste bloco. Resolve o bug em que
+           múltiplos `wrap={false}` próximos (cláusulas + quadro + tabela)
+           geram sobreposição de coordenadas no react-pdf. */}
         {data.quadro_entrada.length > 0 && (
-          <View style={{ marginTop: 18 }} wrap={false}>
+          <View break style={{ marginTop: 0 }}>
             <Text style={{
               fontSize: 11.5,
               fontFamily: FAMILIA,
@@ -503,7 +506,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             }}>
               Quadro financeiro de entrada
             </Text>
-            <View style={{ borderTopWidth: 0 }}>
+            <View>
               {/* cabeçalho */}
               <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
                 <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>DESCRIÇÃO</Text>
@@ -546,7 +549,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
         {/* ── Tabela dos 12 primeiros meses ── */}
         {data.tabela_12_meses.length > 0 && (
-          <View style={{ marginTop: 20 }} wrap={false}>
+          <View style={{ marginTop: 20 }}>
             <Text style={{
               fontSize: 11.5,
               fontFamily: FAMILIA,
@@ -592,7 +595,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
         {/* ── Cláusulas da seguradora ── */}
         {data.clausulas_seguradora_texto && (
-          <View style={{ marginTop: 22 }} wrap={false}>
+          <View style={{ marginTop: 22 }}>
             <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 12 }} />
             <Text style={{
               fontSize: 13,
@@ -617,8 +620,10 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           </View>
         )}
 
-        {/* ── Folha de assinatura ── */}
-        <View style={{ marginTop: 28 }}>
+        {/* ── Folha de assinatura ──
+           `break` garante página dedicada pra assinatura (evita estouro
+           visual quando a seguradora ocupa muito espaço). */}
+        <View break style={{ marginTop: 0 }}>
           <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 16 }} />
 
           <Text style={{
