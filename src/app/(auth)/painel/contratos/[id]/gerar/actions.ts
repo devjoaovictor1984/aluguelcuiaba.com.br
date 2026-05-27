@@ -21,6 +21,8 @@ interface ContratoContext {
   tipoAtuacao: TipoAtuacao
   tipoMobilia: TipoMobilia
   aceitaPet: AceitaPet
+  /** true se alguma flag aluguel_inclui_* estiver marcada → usa variantes "pacote" das cláusulas 7/16 */
+  aluguelPacote: boolean
 }
 
 /**
@@ -74,11 +76,17 @@ async function selecionarClausulasIniciais(
   const aceitaAlgumPet = ctx.aceitaPet !== 'nao'
 
   const selecionadas = clausulas.filter(c => {
-    // Genéricas: sempre, EXCETO "Das partes" quando atuação != administração
+    // Genéricas: sempre, EXCETO:
+    //   - "Das partes" quando atuação != administração (vira variante 'atuacao')
+    //   - "aluguel" e "obrigacoes_loc" quando aluguel pacote (vira variante 'aluguel_pacote')
     if (c.tipo === 'generica') {
       if (c.categoria === 'partes' && !usarPartesGenerica) return false
+      if (ctx.aluguelPacote && (c.categoria === 'aluguel' || c.categoria === 'obrigacoes_loc')) return false
       return true
     }
+
+    // Aluguel pacote: variantes que substituem cláusula 7/16
+    if (c.tipo === 'aluguel_pacote') return ctx.aluguelPacote
 
     // Fundamentação legal: sempre
     if (c.tipo === 'fundamentacao') return true
@@ -142,7 +150,7 @@ export async function obterOuCriarGeracao(contratoId: string) {
   // Confirma posse do contrato
   const { data: contrato } = await supabase
     .from('contratos_locacao')
-    .select('id, user_id, garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet, valor_seguro_incendio_anual')
+    .select('id, user_id, garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet, valor_seguro_incendio_anual, aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua, aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet')
     .eq('id', contratoId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
@@ -152,6 +160,12 @@ export async function obterOuCriarGeracao(contratoId: string) {
   // Caso contrário, deixa dispensado. Usuário pode trocar no editor.
   const seguroIncendioDefault: TipoSeguroIncendio =
     (contrato.valor_seguro_incendio_anual ?? 0) > 0 ? 'cobrado_parte' : 'dispensado'
+
+  const aluguelPacote = !!(
+    contrato.aluguel_inclui_iptu || contrato.aluguel_inclui_condominio ||
+    contrato.aluguel_inclui_agua || contrato.aluguel_inclui_energia ||
+    contrato.aluguel_inclui_gas || contrato.aluguel_inclui_internet
+  )
 
   // Já existe geração?
   const { data: existente } = await supabase
@@ -171,6 +185,7 @@ export async function obterOuCriarGeracao(contratoId: string) {
     tipoAtuacao: (contrato.tipo_atuacao ?? 'administracao') as TipoAtuacao,
     tipoMobilia: (contrato.tipo_mobilia ?? 'sem') as TipoMobilia,
     aceitaPet: (contrato.aceita_pet ?? 'nao') as AceitaPet,
+    aluguelPacote,
   })
 
   const { data: nova, error } = await supabase
@@ -203,7 +218,7 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
 
   const { data: atual } = await supabase
     .from('contrato_geracoes')
-    .select('id, contrato_id, tipo_seguro_incendio, clausula_ids, contratos_locacao:contratos_locacao!inner(garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet)')
+    .select('id, contrato_id, tipo_seguro_incendio, clausula_ids, contratos_locacao:contratos_locacao!inner(garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet, aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua, aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet)')
     .eq('id', geracaoId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
@@ -214,12 +229,18 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
   // Trocou o tipo de seguro incêndio? Re-seleciona pra trocar a cláusula
   if (atual.tipo_seguro_incendio !== opcoes.tipo_seguro_incendio) {
     const contratoRel = Array.isArray(atual.contratos_locacao) ? atual.contratos_locacao[0] : atual.contratos_locacao
+    const aluguelPacoteRel = !!(
+      contratoRel.aluguel_inclui_iptu || contratoRel.aluguel_inclui_condominio ||
+      contratoRel.aluguel_inclui_agua || contratoRel.aluguel_inclui_energia ||
+      contratoRel.aluguel_inclui_gas || contratoRel.aluguel_inclui_internet
+    )
     clausulaIds = await selecionarClausulasIniciais(supabase, acesso.userId, {
       garantiaTipo: contratoRel.garantia_tipo,
       tipoSeguroIncendio: opcoes.tipo_seguro_incendio,
       tipoAtuacao: (contratoRel.tipo_atuacao ?? 'administracao') as TipoAtuacao,
       tipoMobilia: (contratoRel.tipo_mobilia ?? 'sem') as TipoMobilia,
       aceitaPet: (contratoRel.aceita_pet ?? 'nao') as AceitaPet,
+      aluguelPacote: aluguelPacoteRel,
     })
   }
 

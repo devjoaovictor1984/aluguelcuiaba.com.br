@@ -134,6 +134,12 @@ export interface DadosContrato {
     seguro_fianca_apolice?: string | null
     valor_seguro_fianca_mensal?: number | null
     valor_seguro_incendio_anual?: number | null
+    aluguel_inclui_iptu?: boolean | null
+    aluguel_inclui_condominio?: boolean | null
+    aluguel_inclui_agua?: boolean | null
+    aluguel_inclui_energia?: boolean | null
+    aluguel_inclui_gas?: boolean | null
+    aluguel_inclui_internet?: boolean | null
   } | null
 
   // Contrato de administração (quando aplicável)
@@ -155,6 +161,19 @@ export interface DadosContrato {
 const fmtBRL = (v: number | null | undefined): string => {
   if (v == null) return ''
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+}
+
+/**
+ * Junta lista de strings com vírgulas + " e " antes do último.
+ *   ['a']                → 'a'
+ *   ['a', 'b']           → 'a e b'
+ *   ['a', 'b', 'c']      → 'a, b e c'
+ *   []                   → ''
+ */
+const listarPt = (arr: string[]): string => {
+  if (arr.length === 0) return ''
+  if (arr.length === 1) return arr[0]
+  return arr.slice(0, -1).join(', ') + ' e ' + arr[arr.length - 1]
 }
 
 const fmtData = (iso: string | null | undefined): string => {
@@ -378,6 +397,31 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       const i = dados.contrato?.iptu_mensal ?? 0
       const c = dados.contrato?.condominio_mensal ?? 0
       return fmtBRL(a + i + c)
+    }
+
+    case 'ENCARGOS_INCLUSOS': {
+      const c = dados.contrato
+      if (!c) return FALLBACK
+      const itens: string[] = []
+      if (c.aluguel_inclui_iptu) itens.push('IPTU')
+      if (c.aluguel_inclui_condominio) itens.push('condomínio ordinário')
+      if (c.aluguel_inclui_agua) itens.push('água')
+      if (c.aluguel_inclui_energia) itens.push('energia elétrica')
+      if (c.aluguel_inclui_gas) itens.push('gás')
+      if (c.aluguel_inclui_internet) itens.push('internet')
+      return listarPt(itens)
+    }
+    case 'ENCARGOS_SEPARADOS': {
+      const c = dados.contrato
+      if (!c) return FALLBACK
+      const itens: string[] = []
+      if (!c.aluguel_inclui_iptu) itens.push('IPTU')
+      if (!c.aluguel_inclui_condominio) itens.push('condomínio ordinário')
+      if (!c.aluguel_inclui_agua) itens.push('água')
+      if (!c.aluguel_inclui_energia) itens.push('energia elétrica')
+      if (!c.aluguel_inclui_gas) itens.push('gás')
+      if (!c.aluguel_inclui_internet) itens.push('internet')
+      return listarPt(itens)
     }
 
     // ── Prazo ──

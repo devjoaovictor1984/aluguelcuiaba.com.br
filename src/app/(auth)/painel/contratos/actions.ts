@@ -50,6 +50,14 @@ export interface ContratoInput {
   tem_inventario_bens: boolean
   aceita_pet: 'sim' | 'nao' | 'autorizacao' | 'condominio'
   pet_observacao: string | null
+
+  // Aluguel pacote (v38): quando o aluguel já inclui encargos
+  aluguel_inclui_iptu: boolean
+  aluguel_inclui_condominio: boolean
+  aluguel_inclui_agua: boolean
+  aluguel_inclui_energia: boolean
+  aluguel_inclui_gas: boolean
+  aluguel_inclui_internet: boolean
 }
 
 function valida(input: ContratoInput): string | null {
@@ -158,6 +166,12 @@ export async function criarContrato(input: ContratoInput) {
       tem_inventario_bens: input.tem_inventario_bens,
       aceita_pet: input.aceita_pet,
       pet_observacao: input.pet_observacao,
+      aluguel_inclui_iptu: input.aluguel_inclui_iptu,
+      aluguel_inclui_condominio: input.aluguel_inclui_condominio,
+      aluguel_inclui_agua: input.aluguel_inclui_agua,
+      aluguel_inclui_energia: input.aluguel_inclui_energia,
+      aluguel_inclui_gas: input.aluguel_inclui_gas,
+      aluguel_inclui_internet: input.aluguel_inclui_internet,
     })
     .select('id, codigo')
     .single()

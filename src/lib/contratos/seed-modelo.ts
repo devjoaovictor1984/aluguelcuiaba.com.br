@@ -809,4 +809,42 @@ Parágrafo único. O LOCATÁRIO responderá integralmente por danos, multas cond
 
 Parágrafo único. Em imóvel mobiliado, semi-mobiliado ou parcialmente mobiliado, os LOCATÁRIOS responderão também por danos, odores, manchas, rasgos, arranhões, pelos impregnados ou deteriorações causadas pelo animal em sofás, colchões, camas, cortinas, tapetes, cadeiras, móveis, eletrodomésticos e demais bens inventariados.`,
   },
+
+  // ════════════════════════════════════════════════════════════════
+  //  ALUGUEL PACOTE — variantes quando o aluguel inclui encargos
+  //  (auto-inject usa em vez da cláusula 7/16 padrão se ENCARGOS_INCLUSOS
+  //  tiver algum item)
+  // ════════════════════════════════════════════════════════════════
+
+  {
+    tipo: 'aluguel_pacote', categoria: 'aluguel', titulo: 'Aluguel pacote — valor e encargos', numero: 1,
+    corpo: `O aluguel mensal ajustado é de {{ALUGUEL_VALOR}} ({{ALUGUEL_EXTENSO}}), com vencimento todo dia {{VENCIMENTO_DIA}} de cada mês, em regime de pacote único.
+
+Parágrafo primeiro. O valor mensal pactuado já inclui, sem cobrança à parte: {{ENCARGOS_INCLUSOS}}.
+
+Parágrafo segundo. Continuam de responsabilidade do LOCATÁRIO, quando aplicáveis e cobrados separadamente: {{ENCARGOS_SEPARADOS}}, além de multas condominiais causadas pelo LOCATÁRIO, ocupantes, visitantes ou terceiros sob sua responsabilidade.
+
+Parágrafo terceiro. O pagamento deverá ser realizado por PIX, transferência, boleto ou outro meio informado por escrito pela ADMINISTRADORA ou pelo LOCADOR.
+
+Parágrafo quarto. O não recebimento de boleto, mensagem, aviso ou cobrança não isenta o LOCATÁRIO do pagamento pontual, cabendo-lhe solicitar a segunda via ou os dados de pagamento antes do vencimento.
+
+Parágrafo quinto. Pagamentos parciais, tolerâncias, atrasos aceitos, acordos pontuais ou recebimentos fora do prazo não caracterizam novação, renúncia de direito, perdão de dívida ou alteração definitiva das condições deste contrato.
+
+Parágrafo sexto. Eventual reajuste de IPTU, taxa condominial ordinária, contribuições, despesas extraordinárias ou consumos individualizados poderá ensejar revisão do pacote, mediante aviso prévio mínimo de 30 (trinta) dias, sem prejuízo da cláusula de reajuste anual.`,
+  },
+
+  {
+    tipo: 'aluguel_pacote', categoria: 'obrigacoes_loc', titulo: 'Obrigações do locatário (aluguel pacote)', numero: 2,
+    corpo: `Além das demais obrigações previstas neste contrato e na lei, o LOCATÁRIO obriga-se a:
+I. pagar pontualmente o valor mensal do pacote ({{ALUGUEL_VALOR}}), bem como os encargos cobrados à parte ({{ENCARGOS_SEPARADOS}}), seguros, multas e demais despesas sob sua responsabilidade;
+II. usar o IMÓVEL exclusivamente para moradia residencial, preservando vizinhança, sossego, segurança e normas locais;
+III. conservar o IMÓVEL como se seu fosse, evitando deterioração, sujeira excessiva, danos e uso incompatível;
+IV. não transferir, emprestar, sublocar, ceder ou permitir uso por terceiros sem autorização expressa;
+V. não realizar obras, alterações, pinturas ou instalações fixas sem autorização escrita;
+VI. comunicar imediatamente danos, defeitos, infiltrações, vazamentos, notificações, multas, cobranças e intimações;
+VII. pagar multas decorrentes de sua conduta, de seus ocupantes, visitantes, animais ou prestadores de serviço;
+VIII. manter contas dos consumos individuais ({{ENCARGOS_SEPARADOS}}) em dia e apresentar comprovantes quando solicitados;
+IX. permitir vistorias e visitas conforme previsto neste contrato;
+X. devolver o IMÓVEL livre de pessoas e bens, limpo, com chaves, controles, acessos e encargos quitados, observando que o pacote mensal não dispensa a quitação de débitos individualizados eventualmente existentes.`,
+  },
 ]

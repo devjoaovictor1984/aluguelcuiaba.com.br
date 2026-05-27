@@ -34,6 +34,14 @@ export interface WizardState {
   aceita_pet: 'sim' | 'nao' | 'autorizacao' | 'condominio'
   pet_observacao: string
 
+  // Cobertura do aluguel — quando o aluguel já inclui encargos
+  aluguel_inclui_iptu: boolean
+  aluguel_inclui_condominio: boolean
+  aluguel_inclui_agua: boolean
+  aluguel_inclui_energia: boolean
+  aluguel_inclui_gas: boolean
+  aluguel_inclui_internet: boolean
+
   // Etapa 3 — garantia
   garantia_tipo: 'fiador' | 'caucao' | 'seguro_fianca' | 'sem_garantia'
   fiador_id: string
@@ -73,6 +81,12 @@ export const ESTADO_INICIAL: WizardState = {
   tem_inventario_bens: false,
   aceita_pet: 'nao',
   pet_observacao: '',
+  aluguel_inclui_iptu: false,
+  aluguel_inclui_condominio: false,
+  aluguel_inclui_agua: false,
+  aluguel_inclui_energia: false,
+  aluguel_inclui_gas: false,
+  aluguel_inclui_internet: false,
   garantia_tipo: 'seguro_fianca',
   fiador_id: '',
   caucao_valor: '',

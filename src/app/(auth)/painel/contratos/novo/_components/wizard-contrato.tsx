@@ -173,6 +173,12 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
       tem_inventario_bens: s.tem_inventario_bens,
       aceita_pet: s.aceita_pet,
       pet_observacao: s.pet_observacao || null,
+      aluguel_inclui_iptu: s.aluguel_inclui_iptu,
+      aluguel_inclui_condominio: s.aluguel_inclui_condominio,
+      aluguel_inclui_agua: s.aluguel_inclui_agua,
+      aluguel_inclui_energia: s.aluguel_inclui_energia,
+      aluguel_inclui_gas: s.aluguel_inclui_gas,
+      aluguel_inclui_internet: s.aluguel_inclui_internet,
     }
 
     startTransition(async () => {
@@ -508,6 +514,33 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Data do seguro incêndio</label>
               <input type="date" value={s.seguro_incendio_data} onChange={e => setField('seguro_incendio_data', e.target.value)} className={inputCls} />
+            </div>
+          </div>
+
+          {/* Cobertura do aluguel — encargos inclusos no pacote */}
+          <div className="pt-3 border-t border-gray-50 space-y-2">
+            <p className="text-xs font-medium text-gray-600">O aluguel já inclui no valor?</p>
+            <p className="text-[11px] text-gray-400 -mt-1">
+              Marca o que estiver embutido no aluguel. A cláusula 7 e 16 do contrato vão se adaptar.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+              {([
+                { k: 'aluguel_inclui_iptu',       l: 'IPTU'                },
+                { k: 'aluguel_inclui_condominio', l: 'Condomínio'          },
+                { k: 'aluguel_inclui_agua',       l: 'Água'                },
+                { k: 'aluguel_inclui_energia',    l: 'Energia elétrica'    },
+                { k: 'aluguel_inclui_gas',        l: 'Gás'                 },
+                { k: 'aluguel_inclui_internet',   l: 'Internet'            },
+              ] as const).map(o => (
+                <label key={o.k} className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 cursor-pointer text-xs font-medium transition-colors ${
+                  s[o.k] ? 'border-violet-700 bg-violet-50 text-violet-700' : 'border-gray-100 text-gray-600 hover:border-violet-300'
+                }`}>
+                  <input type="checkbox" checked={s[o.k]}
+                    onChange={e => setField(o.k, e.target.checked)}
+                    className="accent-violet-700" />
+                  {o.l}
+                </label>
+              ))}
             </div>
           </div>
 

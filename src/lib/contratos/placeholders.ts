@@ -72,6 +72,10 @@ export const PLACEHOLDERS: Placeholder[] = [
   { chave: 'IMOVEL_MEDIDOR_ENERGIA_NUMERO', label: 'Número do medidor de energia', exemplo: 'M-98765', origem: 'imovel' },
   { chave: 'IMOVEL_MEDIDOR_ENERGIA_LEITURA', label: 'Leitura inicial do medidor de energia', exemplo: '0098765', origem: 'imovel' },
 
+  // ── Cobertura do aluguel (pacote) ──
+  { chave: 'ENCARGOS_INCLUSOS', label: 'Lista de encargos inclusos no aluguel (gerado)', exemplo: 'IPTU, condomínio e água', origem: 'valores' },
+  { chave: 'ENCARGOS_SEPARADOS', label: 'Lista de encargos cobrados à parte (gerado)', exemplo: 'energia elétrica, gás e internet', origem: 'valores' },
+
   // ── Valores ──
   { chave: 'ALUGUEL_VALOR', label: 'Valor do aluguel', exemplo: 'R$ 3.500,00', origem: 'valores' },
   { chave: 'ALUGUEL_EXTENSO', label: 'Valor do aluguel por extenso', exemplo: 'três mil e quinhentos reais', origem: 'valores' },
@@ -126,6 +130,7 @@ export const TIPOS_CLAUSULA = [
   { valor: 'seguro_incendio',  label: 'Seguro incêndio',  descricao: 'Variações: cobrado à parte, embutido no pacote ou dispensado' },
   { valor: 'mobilia',          label: 'Mobília',          descricao: 'Cláusulas de mobília (sem/semi/parcial/total) e inventário de bens' },
   { valor: 'pet',              label: 'Pet',              descricao: 'Política de pet (aceita / não aceita / com autorização / conforme condomínio) e limpeza' },
+  { valor: 'aluguel_pacote',   label: 'Aluguel pacote',   descricao: 'Variantes das cláusulas de aluguel/obrigações quando o aluguel já inclui condomínio, IPTU, água, etc.' },
   { valor: 'adicional',        label: 'Adicionais',       descricao: 'Opcionais, escolhidas caso a caso' },
   { valor: 'administracao',    label: 'Administração',    descricao: 'Cláusulas do contrato de administração imobiliária (entre proprietário e admin)' },
 ] as const

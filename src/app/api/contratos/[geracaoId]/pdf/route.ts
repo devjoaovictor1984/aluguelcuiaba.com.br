@@ -220,6 +220,8 @@ export async function GET(
       valor_seguro_fianca_mensal, valor_seguro_incendio_anual,
       taxa_admin_tipo, taxa_admin_valor,
       tipo_atuacao, intermediador_assina, tipo_mobilia, aceita_pet,
+      aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua,
+      aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet,
       imovel:imoveis(
         tipo, endereco_resumido, endereco_completo, endereco_numero, endereco_complemento,
         endereco_cep, descricao, descricao_real,
@@ -348,6 +350,12 @@ export async function GET(
       seguro_fianca_apolice: contrato.seguro_fianca_apolice,
       valor_seguro_fianca_mensal: contrato.valor_seguro_fianca_mensal,
       valor_seguro_incendio_anual: contrato.valor_seguro_incendio_anual,
+      aluguel_inclui_iptu: contrato.aluguel_inclui_iptu ?? false,
+      aluguel_inclui_condominio: contrato.aluguel_inclui_condominio ?? false,
+      aluguel_inclui_agua: contrato.aluguel_inclui_agua ?? false,
+      aluguel_inclui_energia: contrato.aluguel_inclui_energia ?? false,
+      aluguel_inclui_gas: contrato.aluguel_inclui_gas ?? false,
+      aluguel_inclui_internet: contrato.aluguel_inclui_internet ?? false,
     },
   }
 
