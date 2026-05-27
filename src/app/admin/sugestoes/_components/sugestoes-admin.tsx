@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bug, Lightbulb, HelpCircle, MessageSquare, Check, X, Clock, Inbox } from 'lucide-react'
-import { atualizarStatusSugestao, type StatusSugestao } from '../../../_actions/sugestoes'
+import { atualizarStatusSugestao, type StatusSugestao } from '@/app/(auth)/painel/_actions/sugestoes'
 
 interface Sugestao {
   id: string

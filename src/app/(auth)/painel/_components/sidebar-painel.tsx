@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FileSignature, Briefcase, Users, MessageCircle, Wallet,
-  FileText, Cake, Receipt, Trash2, Home, Plus, LogOut, Menu, X, Lightbulb,
+  FileText, Cake, Receipt, Trash2, Home, Plus, LogOut, Menu, X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -36,10 +36,6 @@ const GRUPO_ANUNCIOS: ItemNav[] = [
 const GRUPO_CONTA: ItemNav[] = [
   { href: '/painel/perfil/recibo', label: 'Recibo',  icon: Receipt, match: ['/painel/perfil/recibo'] },
   { href: '/painel/lixeira',       label: 'Lixeira', icon: Trash2,  match: ['/painel/lixeira'] },
-]
-
-const GRUPO_ADMIN: ItemNav[] = [
-  { href: '/painel/admin/sugestoes', label: 'Sugestões', icon: Lightbulb, match: ['/painel/admin/sugestoes'] },
 ]
 
 interface Props {
@@ -110,7 +106,6 @@ export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, lo
         {renderGrupo('CRM Locação', GRUPO_CRM)}
         {renderGrupo('Anúncios', GRUPO_ANUNCIOS)}
         {renderGrupo('Conta', GRUPO_CONTA)}
-        {isAdmin && renderGrupo('Admin', GRUPO_ADMIN)}
       </nav>
 
       {/* Rodapé com usuário */}
