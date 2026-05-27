@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { SidebarPainel } from './_components/sidebar-painel'
+import { BotaoSugestao } from './_components/botao-sugestao'
 
 async function logoutAction() {
   'use server'
@@ -37,6 +38,7 @@ export default async function PainelLayout({ children }: { children: React.React
       <div className="lg:pl-60">
         {children}
       </div>
+      <BotaoSugestao />
     </div>
   )
 }
