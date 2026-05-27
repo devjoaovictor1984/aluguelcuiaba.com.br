@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { FormNovoAdm } from './form'
 
 export default async function NovoContratoAdmPage() {
@@ -25,6 +26,10 @@ export default async function NovoContratoAdmPage() {
 
   return (
     <main className="px-4 py-6 max-w-3xl mx-auto pb-32">
+      <Breadcrumbs items={[
+        { label: 'Contratos de administração', href: '/painel/administracoes' },
+        { label: 'Novo' },
+      ]} />
       <div className="flex items-center gap-3 mb-6">
         <Link
           href="/painel/administracoes"

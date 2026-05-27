@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { ChevronLeft, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { obterOuCriarGeracao } from './actions'
 import { EditorContrato } from './_components/editor-contrato'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
@@ -159,6 +160,11 @@ async function renderizarEditor(contratoId: string) {
 
   return (
     <main className="px-4 py-4 pb-20 max-w-7xl mx-auto">
+      <Breadcrumbs items={[
+        { label: 'Contratos', href: '/painel/contratos' },
+        { label: contrato.codigo, href: `/painel/contratos/${contratoId}` },
+        { label: 'Gerar contrato' },
+      ]} />
       <div className="flex items-center gap-3 mb-4">
         <Link
           href={`/painel/contratos/${contratoId}`}

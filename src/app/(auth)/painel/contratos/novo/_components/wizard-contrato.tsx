@@ -208,24 +208,65 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
             </div>
           ) : (
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
-              {imoveis.map(im => {
-                const sel = s.imovel_id === im.id
-                const bairro = Array.isArray(im.bairro) ? im.bairro[0] : im.bairro
+              {(() => {
+                const livres = imoveis.filter(im => !im.ocupado)
+                const ocupados = imoveis.filter(im => im.ocupado)
                 return (
-                  <button key={im.id} type="button" onClick={() => onEscolherImovel(im.id)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-colors ${
-                      sel ? 'border-violet-700 bg-violet-50' : 'border-gray-100 hover:border-violet-300'
-                    }`}>
-                    <p className="text-sm font-semibold text-gray-900">{im.titulo}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      {bairro?.nome ?? '—'}
-                      {im.endereco_resumido && ` · ${im.endereco_resumido}`}
-                      {' · '}
-                      <span className="text-violet-700 font-medium">{fmtBRL(im.preco)}</span>
-                    </p>
-                  </button>
+                  <>
+                    {livres.map(im => {
+                      const sel = s.imovel_id === im.id
+                      const bairro = Array.isArray(im.bairro) ? im.bairro[0] : im.bairro
+                      return (
+                        <button key={im.id} type="button" onClick={() => onEscolherImovel(im.id)}
+                          className={`w-full text-left px-4 py-3 rounded-xl border-2 transition-colors ${
+                            sel ? 'border-violet-700 bg-violet-50' : 'border-gray-100 hover:border-violet-300'
+                          }`}>
+                          <p className="text-sm font-semibold text-gray-900">{im.titulo}</p>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {bairro?.nome ?? '—'}
+                            {im.endereco_resumido && ` · ${im.endereco_resumido}`}
+                            {' · '}
+                            <span className="text-violet-700 font-medium">{fmtBRL(im.preco)}</span>
+                          </p>
+                        </button>
+                      )
+                    })}
+
+                    {ocupados.length > 0 && (
+                      <>
+                        <div className="pt-3 mt-3 border-t border-gray-100">
+                          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 mb-2">
+                            Indisponíveis ({ocupados.length}) — já com contrato ativo
+                          </p>
+                        </div>
+                        {ocupados.map(im => {
+                          const bairro = Array.isArray(im.bairro) ? im.bairro[0] : im.bairro
+                          return (
+                            <div
+                              key={im.id}
+                              className="w-full text-left px-4 py-3 rounded-xl border-2 border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed"
+                              title={`Imóvel já vinculado ao contrato ${im.contrato_vigente_codigo}`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm font-semibold text-gray-700">{im.titulo}</p>
+                                  <p className="text-xs text-gray-500 mt-0.5">
+                                    {bairro?.nome ?? '—'}
+                                    {im.endereco_resumido && ` · ${im.endereco_resumido}`}
+                                  </p>
+                                </div>
+                                <span className="text-[10px] font-mono bg-amber-100 text-amber-800 px-2 py-0.5 rounded shrink-0">
+                                  {im.contrato_vigente_codigo}
+                                </span>
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </>
+                    )}
+                  </>
                 )
-              })}
+              })()}
             </div>
           )}
         </section>

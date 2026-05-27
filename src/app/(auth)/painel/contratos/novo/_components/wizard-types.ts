@@ -5,6 +5,10 @@ export interface ImovelLite {
   endereco_resumido: string | null
   proprietario_id: string | null
   bairro: { nome: string } | { nome: string }[] | null
+  /** True quando o imóvel já tem contrato ativo. Bloqueia seleção. */
+  ocupado?: boolean
+  /** Código do contrato vigente, pra exibir no card desabilitado. */
+  contrato_vigente_codigo?: string | null
 }
 
 export interface PessoaLite {

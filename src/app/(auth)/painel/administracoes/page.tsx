@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { Briefcase, Plus, Home, User } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -36,6 +37,7 @@ export default async function AdministracoesPage() {
 
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <Breadcrumbs items={[{ label: 'Contratos de administração' }]} />
       <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
         <div className="min-w-0">
           <h1 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">

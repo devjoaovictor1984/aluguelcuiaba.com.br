@@ -95,7 +95,8 @@ export async function obterOuCriarGeracao(contratoId: string) {
     .single()
 
   if (error || !nova) return { error: error?.message ?? 'Falha ao criar geração.' }
-  revalidatePath(`/painel/contratos/${contratoId}/gerar`)
+  // Sem revalidatePath: chamada durante render (page.tsx). Next 16 proíbe.
+  // A página já tem force-dynamic.
   return { ok: true, geracao: nova }
 }
 

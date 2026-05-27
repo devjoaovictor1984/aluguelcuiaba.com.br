@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { ChevronLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { FormEditarAdm } from './form-editar'
 
 export default async function EditarContratoAdmPage({ params }: { params: Promise<{ id: string }> }) {
@@ -36,6 +37,11 @@ export default async function EditarContratoAdmPage({ params }: { params: Promis
 
   return (
     <main className="px-4 py-6 max-w-3xl mx-auto pb-32">
+      <Breadcrumbs items={[
+        { label: 'Contratos de administração', href: '/painel/administracoes' },
+        { label: contrato.codigo, href: `/painel/administracoes/${id}` },
+        { label: 'Editar' },
+      ]} />
       <div className="flex items-center gap-3 mb-6">
         <Link
           href={`/painel/administracoes/${id}`}

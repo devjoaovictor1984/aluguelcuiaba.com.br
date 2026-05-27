@@ -50,7 +50,7 @@ export default async function NovoContratoPage() {
     )
   }
 
-  const [{ data: imoveis }, { data: pessoas }] = await Promise.all([
+  const [{ data: imoveis }, { data: pessoas }, { data: contratosAtivos }] = await Promise.all([
     supabase
       .from('imoveis')
       .select('id, titulo, preco, endereco_resumido, proprietario_id, bairro:bairros(nome)')
@@ -62,7 +62,25 @@ export default async function NovoContratoPage() {
       .eq('user_id', acesso.userId)
       .is('deleted_at', null)
       .order('nome', { ascending: true }),
+    // Pega contratos ativos pra marcar imóveis ocupados
+    supabase
+      .from('contratos_locacao')
+      .select('codigo, imovel_id, status')
+      .eq('user_id', acesso.userId)
+      .in('status', ['ativo', 'inadimplente'])
+      .is('deleted_at', null),
   ])
+
+  // Mapeia imovel_id → código do contrato ativo
+  const mapaOcupados = new Map<string, string>()
+  for (const c of contratosAtivos ?? []) {
+    if (c.imovel_id) mapaOcupados.set(c.imovel_id, c.codigo)
+  }
+  const imoveisMarcados = (imoveis ?? []).map(im => ({
+    ...im,
+    ocupado: mapaOcupados.has(im.id),
+    contrato_vigente_codigo: mapaOcupados.get(im.id) ?? null,
+  }))
 
   return (
     <div className="px-6 pt-6">
@@ -76,7 +94,7 @@ export default async function NovoContratoPage() {
           <span className="ml-1 text-gray-400">· {totalContratos}/{limite} no plano {PLANOS[plano]?.nome}</span>
         )}
       </p>
-      <WizardContrato imoveis={imoveis ?? []} pessoas={pessoas ?? []} />
+      <WizardContrato imoveis={imoveisMarcados} pessoas={pessoas ?? []} />
     </div>
   )
 }

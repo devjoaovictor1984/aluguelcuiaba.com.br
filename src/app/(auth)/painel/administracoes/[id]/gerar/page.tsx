@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { ChevronLeft, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { obterOuCriarGeracaoAdm } from './actions'
 import { EditorContratoAdm } from './_components/editor-contrato-adm'
 
@@ -116,6 +117,11 @@ async function renderizar(contratoAdmId: string) {
 
   return (
     <main className="px-4 py-4 pb-20 max-w-7xl mx-auto">
+      <Breadcrumbs items={[
+        { label: 'Contratos de administração', href: '/painel/administracoes' },
+        { label: contrato.codigo, href: `/painel/administracoes/${contratoAdmId}` },
+        { label: 'Editor de cláusulas' },
+      ]} />
       <div className="flex items-center gap-3 mb-4">
         <Link
           href={`/painel/administracoes/${contratoAdmId}`}

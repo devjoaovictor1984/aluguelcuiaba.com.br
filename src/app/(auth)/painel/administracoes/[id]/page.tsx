@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { ChevronLeft, Briefcase, User, Home, Calendar, Percent, FileDown, Eye, Pencil } from 'lucide-react'
+import { Breadcrumbs } from '@/components/breadcrumbs'
 import { BotaoExcluirAdm } from './_components/botao-excluir-adm'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
@@ -48,6 +49,10 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <Breadcrumbs items={[
+        { label: 'Contratos de administração', href: '/painel/administracoes' },
+        { label: contrato.codigo },
+      ]} />
       <div className="flex items-start sm:items-center justify-between gap-3 flex-wrap">
         <div className="flex items-center gap-3 min-w-0">
           <Link

@@ -56,7 +56,8 @@ export async function obterOuCriarGeracaoAdm(contratoAdmId: string) {
     .single()
 
   if (error || !nova) return { error: error?.message ?? 'Falha ao criar geração.' }
-  revalidatePath(`/painel/administracoes/${contratoAdmId}/gerar`)
+  // Sem revalidatePath: essa função é chamada de dentro do render (page.tsx)
+  // e o Next 16 proíbe revalidate durante render. A página já tem force-dynamic.
   return { ok: true, geracao: nova }
 }
 
