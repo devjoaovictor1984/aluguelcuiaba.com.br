@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -75,7 +75,6 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
   const [clausulaIds, setClausulaIds] = useState(geracao.clausula_ids)
-  const [mostrarAdicionais, setMostrarAdicionais] = useState(false)
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
   const [textoSeguradora, setTextoSeguradora] = useState(geracao.clausulas_seguradora_texto)
 
@@ -308,7 +307,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
         status={statusGeracao}
       />
 
-      <div className="grid lg:grid-cols-[280px_1fr] gap-4">
+      <div className="grid lg:grid-cols-[260px_300px_1fr] gap-4">
       {/* Sidebar */}
       <aside className="space-y-4">
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
@@ -581,6 +580,14 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
         </div>
       </aside>
 
+      {/* Catálogo de cláusulas disponíveis (sempre visível) */}
+      <CatalogoDisponiveis
+        clausulas={clausulasDisponiveis}
+        isPending={isPending}
+        onIncluir={onIncluir}
+        onCriarNova={() => { setModalNovaClausula(true); setNovaClausulaTitulo(''); setNovaClausulaCorpo(''); setErroNovaClausula('') }}
+      />
+
       {/* Editor */}
       <section className="space-y-2">
         {erro && (
@@ -615,54 +622,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
 
         {clausulasSelecionadas.length === 0 && (
           <div className="text-center py-12 text-sm text-gray-400 bg-white rounded-2xl border border-dashed border-gray-200">
-            Nenhuma cláusula selecionada. Use &ldquo;Adicionar cláusula&rdquo; abaixo.
-          </div>
-        )}
-
-        {/* Adicionais */}
-        <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => setMostrarAdicionais(v => !v)}
-            className="flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 py-3 rounded-xl border-2 border-dashed border-violet-200"
-          >
-            <Plus size={13} /> {mostrarAdicionais ? 'Esconder' : 'Adicionar'} do banco ({clausulasDisponiveis.length})
-          </button>
-          <button
-            type="button"
-            onClick={() => { setModalNovaClausula(true); setNovaClausulaTitulo(''); setNovaClausulaCorpo(''); setErroNovaClausula('') }}
-            className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 py-3 rounded-xl border-2 border-dashed border-amber-300"
-          >
-            <Plus size={13} /> Criar cláusula nova
-          </button>
-        </div>
-
-        {mostrarAdicionais && (
-          <div className="mt-2 space-y-1.5">
-            {clausulasDisponiveis.map(c => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => onIncluir(c.id)}
-                disabled={isPending}
-                className="w-full text-left bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 rounded-lg p-3 transition-colors disabled:opacity-50"
-              >
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded">
-                      {c.tipo === 'generica' ? 'geral' : c.tipo}
-                    </span>
-                    <span className="text-[9px] text-gray-400">{c.categoria}</span>
-                  </div>
-                  <Plus size={12} className="text-violet-600 shrink-0" />
-                </div>
-                <p className="text-xs font-semibold text-gray-900">{c.titulo}</p>
-                <p className="text-[11px] text-gray-500 line-clamp-1 mt-0.5">{c.corpo.slice(0, 100)}…</p>
-              </button>
-            ))}
-            {clausulasDisponiveis.length === 0 && (
-              <p className="text-xs text-center text-gray-400 py-4">Todas as cláusulas já estão no contrato.</p>
-            )}
+            Contrato em branco. Use o catálogo à esquerda pra adicionar cláusulas.
           </div>
         )}
 
@@ -999,4 +959,124 @@ const LABEL_GARANTIA: Record<string, string> = {
   caucao: 'Caução em dinheiro',
   fiador: 'Fiador',
   seguro_fianca: 'Seguro fiança',
+}
+
+// ── Catálogo de cláusulas disponíveis (coluna do meio) ──
+function CatalogoDisponiveis({
+  clausulas, isPending, onIncluir, onCriarNova,
+}: {
+  clausulas: ClausulaLista[]
+  isPending: boolean
+  onIncluir: (id: string) => void
+  onCriarNova: () => void
+}) {
+  const [busca, setBusca] = useState('')
+  const [filtroTipo, setFiltroTipo] = useState<string>('todos')
+
+  const tipos = useMemo(() => {
+    const set = new Set(clausulas.map(c => c.tipo))
+    return Array.from(set)
+  }, [clausulas])
+
+  const filtradas = useMemo(() => {
+    const b = busca.trim().toLowerCase()
+    return clausulas.filter(c => {
+      if (filtroTipo !== 'todos' && c.tipo !== filtroTipo) return false
+      if (!b) return true
+      return (
+        c.titulo.toLowerCase().includes(b) ||
+        c.categoria.toLowerCase().includes(b) ||
+        c.corpo.toLowerCase().includes(b)
+      )
+    })
+  }, [clausulas, busca, filtroTipo])
+
+  const labelTipo = (t: string): string => {
+    if (t === 'generica') return 'Geral'
+    if (t === 'atuacao') return 'Atuação'
+    if (t === 'aluguel_pacote') return 'Aluguel pacote'
+    if (t === 'fundamentacao') return 'Fundamentação'
+    return t.charAt(0).toUpperCase() + t.slice(1).replace('_', ' ')
+  }
+
+  return (
+    <aside className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col max-h-[85vh] overflow-hidden">
+      <header className="p-3 border-b border-gray-100 space-y-2 shrink-0">
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">
+            Catálogo · {clausulas.length}
+          </h2>
+          <button
+            type="button"
+            onClick={onCriarNova}
+            className="text-[11px] font-semibold text-amber-700 hover:bg-amber-50 px-2 py-1 rounded inline-flex items-center gap-1"
+            title="Criar cláusula nova (banco do usuário)"
+          >
+            <Plus size={11} /> Nova
+          </button>
+        </div>
+        <input
+          type="text"
+          value={busca}
+          onChange={e => setBusca(e.target.value)}
+          placeholder="Buscar por título…"
+          className="w-full text-xs px-2.5 py-1.5 rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-violet-500"
+        />
+        {tipos.length > 1 && (
+          <div className="flex flex-wrap gap-1">
+            <button
+              type="button"
+              onClick={() => setFiltroTipo('todos')}
+              className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors ${
+                filtroTipo === 'todos' ? 'bg-violet-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Todos
+            </button>
+            {tipos.map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setFiltroTipo(t)}
+                className={`text-[10px] font-medium px-2 py-0.5 rounded-full transition-colors ${
+                  filtroTipo === t ? 'bg-violet-700 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {labelTipo(t)}
+              </button>
+            ))}
+          </div>
+        )}
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+        {filtradas.length === 0 ? (
+          <p className="text-xs text-center text-gray-400 py-8">
+            {clausulas.length === 0
+              ? 'Todas as cláusulas já estão no contrato.'
+              : 'Nenhuma encontrada com este filtro.'}
+          </p>
+        ) : (
+          filtradas.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onIncluir(c.id)}
+              disabled={isPending}
+              className="w-full text-left bg-gray-50 hover:bg-violet-50 hover:shadow-sm border border-gray-100 hover:border-violet-300 rounded-lg p-2.5 transition-all disabled:opacity-50 group"
+            >
+              <div className="flex items-start justify-between gap-1.5 mb-1">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 bg-white border border-gray-200 px-1.5 py-0.5 rounded">
+                  {labelTipo(c.tipo)}
+                </span>
+                <Plus size={12} className="text-gray-300 group-hover:text-violet-700 shrink-0 mt-0.5" />
+              </div>
+              <p className="text-xs font-semibold text-gray-900 line-clamp-2">{c.titulo}</p>
+              <p className="text-[10px] text-gray-500 line-clamp-2 mt-1">{c.corpo.slice(0, 120)}…</p>
+            </button>
+          ))
+        )}
+      </div>
+    </aside>
+  )
 }
