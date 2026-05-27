@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, Briefcase, User, Home, Calendar, Percent, FileDown, Eye } from 'lucide-react'
+import { ChevronLeft, Briefcase, User, Home, Calendar, Percent, FileDown, Eye, Pencil } from 'lucide-react'
+import { BotaoExcluirAdm } from './_components/botao-excluir-adm'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 
@@ -66,14 +67,26 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
             <p className="text-xs text-gray-500 truncate">Contrato de Administração Imobiliária</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 shrink-0 flex-wrap">
+          <Link
+            href={`/painel/administracoes/${id}/editar`}
+            className="flex items-center gap-1.5 bg-white hover:bg-gray-50 text-gray-700 text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl border border-gray-200"
+          >
+            <Pencil size={14} /> Editar
+          </Link>
+          <Link
+            href={`/painel/administracoes/${id}/gerar`}
+            className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl"
+          >
+            <Briefcase size={14} /> Editor de cláusulas
+          </Link>
           <a
             href={`/api/contratos-admin/${id}/pdf`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl"
+            className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-semibold px-3 py-2 rounded-xl"
           >
-            <Eye size={14} /> Visualizar PDF
+            <Eye size={14} /> PDF
           </a>
           <a
             href={`/api/contratos-admin/${id}/pdf`}
@@ -165,6 +178,8 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
           <p className="text-sm text-amber-900 whitespace-pre-wrap">{contrato.observacoes}</p>
         </div>
       )}
+
+      <BotaoExcluirAdm contratoAdmId={id} codigo={contrato.codigo} />
     </div>
   )
 }

@@ -1,10 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
+import { PDFDocument } from 'pdf-lib'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
 import { aplicarPlaceholders, type DadosContrato } from '@/lib/contratos/montar'
 import React from 'react'
+
+async function mergeAnexos(
+  principal: Uint8Array,
+  anexos: Array<{ buffer: Uint8Array; mime: string }>
+): Promise<Uint8Array> {
+  if (anexos.length === 0) return principal
+  const pdfFinal = await PDFDocument.load(principal)
+
+  for (const a of anexos) {
+    try {
+      if (a.mime === 'application/pdf') {
+        const src = await PDFDocument.load(a.buffer, { ignoreEncryption: true })
+        const pgs = await pdfFinal.copyPages(src, src.getPageIndices())
+        pgs.forEach(p => pdfFinal.addPage(p))
+      } else if (a.mime === 'image/jpeg' || a.mime === 'image/jpg') {
+        const img = await pdfFinal.embedJpg(a.buffer)
+        const pag = pdfFinal.addPage([595.28, 841.89])
+        const esc = Math.min(495 / img.width, 750 / img.height)
+        pag.drawImage(img, { x: 50, y: 50, width: img.width * esc, height: img.height * esc })
+      } else if (a.mime === 'image/png') {
+        const img = await pdfFinal.embedPng(a.buffer)
+        const pag = pdfFinal.addPage([595.28, 841.89])
+        const esc = Math.min(495 / img.width, 750 / img.height)
+        pag.drawImage(img, { x: 50, y: 50, width: img.width * esc, height: img.height * esc })
+      }
+    } catch (e) {
+      console.error('[contrato-admin-pdf] falha ao anexar:', e)
+    }
+  }
+  return pdfFinal.save()
+}
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -90,20 +122,46 @@ export async function GET(
       cepFmt ? `CEP ${cepFmt}` : null,
     ].filter(Boolean)
 
-    // 3. Carrega TODAS as cláusulas tipo='administracao' ativas do user
-    const { data: clausulasRaw } = await admin
-      .from('contrato_clausulas')
-      .select('id, titulo, corpo, numero')
-      .eq('user_id', user.id)
-      .eq('tipo', 'administracao')
-      .eq('ativa', true)
-      .order('numero', { ascending: true })
+    // 3a. Tenta pegar a geração existente desse contrato (ordem editada pelo user)
+    const { data: geracao } = await admin
+      .from('contrato_admin_geracoes')
+      .select('id, clausula_ids, testemunha_ids, anexo_documento_ids')
+      .eq('contrato_admin_id', c.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-    if (!clausulasRaw || clausulasRaw.length === 0) {
+    // 3b. Define IDs das cláusulas: ordem da geração se existir, senão todas
+    let clausulaIdsOrdem: string[] | null = (geracao?.clausula_ids as string[] | null) ?? null
+
+    if (!clausulaIdsOrdem || clausulaIdsOrdem.length === 0) {
+      // Fallback: todas tipo='administracao' ativas do user, ordenadas
+      const { data: todas } = await admin
+        .from('contrato_clausulas')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('tipo', 'administracao')
+        .eq('ativa', true)
+        .order('numero', { ascending: true })
+      clausulaIdsOrdem = (todas ?? []).map(x => x.id)
+    }
+
+    if (clausulaIdsOrdem.length === 0) {
       return NextResponse.json({
         error: 'Nenhuma cláusula de administração cadastrada. Vá em /painel/contratos/clausulas e reimporte o modelo.',
       }, { status: 400 })
     }
+
+    const { data: clausulasRawUnordered } = await admin
+      .from('contrato_clausulas')
+      .select('id, titulo, corpo, numero')
+      .in('id', clausulaIdsOrdem)
+
+    // Reordena seguindo clausulaIdsOrdem
+    const mapaCl = new Map((clausulasRawUnordered ?? []).map(cl => [cl.id, cl]))
+    const clausulasRaw = clausulaIdsOrdem
+      .map(id => mapaCl.get(id))
+      .filter((x): x is NonNullable<typeof x> => !!x)
 
     // 4. Monta dados pros placeholders
     const prop = Array.isArray(c.proprietario) ? c.proprietario[0] : c.proprietario
@@ -152,6 +210,16 @@ export async function GET(
       corpo: aplicarPlaceholders(cl.corpo, dadosContrato),
     }))
 
+    // Testemunhas selecionadas
+    const testemunhaIds = (geracao?.testemunha_ids ?? []) as string[]
+    const { data: testemunhasRaw } = testemunhaIds.length > 0
+      ? await admin
+          .from('pessoas')
+          .select('id, nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf')
+          .in('id', testemunhaIds)
+          .eq('user_id', user.id)
+      : { data: [] }
+
     // 5. Monta data pro PDF
     const pdfData: ContratoPDFData = {
       codigo: c.codigo,
@@ -179,7 +247,14 @@ export async function GET(
       moradores_adicionais: [],
       fiador_nome: null,
       fiador_cpf: null,
-      testemunhas: [],
+      testemunhas: testemunhaIds
+        .map(id => (testemunhasRaw ?? []).find(t => t.id === id))
+        .filter((t): t is NonNullable<typeof t> => !!t)
+        .map(t => ({
+          nome: t.nome,
+          cpf: fmtCpf(t.cpf_cnpj),
+          rg: t.rg ? [t.rg, t.rg_orgao_emissor, t.rg_uf].filter(Boolean).join(' ') : null,
+        })),
       clausulas_seguradora_texto: null,
       clausulas,
       quadro_entrada: [],
@@ -190,8 +265,32 @@ export async function GET(
     const element = React.createElement(ContratoDocument, { data: pdfData }) as unknown as React.ReactElement<DocumentProps>
     const buffer = await renderToBuffer(element)
 
+    // Merge dos anexos selecionados
+    const anexoIds = (geracao?.anexo_documento_ids ?? []) as string[]
+    let finalBytes: Uint8Array = new Uint8Array(buffer)
+    if (anexoIds.length > 0) {
+      const { data: docs } = await admin
+        .from('pessoas_documentos')
+        .select('id, arquivo_path, mime_type')
+        .in('id', anexoIds)
+        .eq('user_id', user.id)
+      if (docs && docs.length > 0) {
+        const mapaDoc = new Map(docs.map(d => [d.id, d]))
+        const anexosBuffers: Array<{ buffer: Uint8Array; mime: string }> = []
+        for (const id of anexoIds) {
+          const d = mapaDoc.get(id)
+          if (!d) continue
+          const { data: blob } = await admin.storage.from('documentos-pessoas').download(d.arquivo_path)
+          if (!blob) continue
+          const ab = await blob.arrayBuffer()
+          anexosBuffers.push({ buffer: new Uint8Array(ab), mime: d.mime_type ?? 'application/pdf' })
+        }
+        finalBytes = await mergeAnexos(finalBytes, anexosBuffers)
+      }
+    }
+
     const filename = `contrato-administracao-${c.codigo}.pdf`
-    return new Response(new Uint8Array(buffer) as unknown as BodyInit, {
+    return new Response(finalBytes as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

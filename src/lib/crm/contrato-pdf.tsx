@@ -390,23 +390,33 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
         {/* ── Cabeçalho institucional FIXED (todas as páginas) ──
            Usa `fixed` no fluxo normal (não absolute) com height fixo —
            react-pdf duplica em cada página. Sem border (linha vem como
-           View separada). */}
+           View separada). Logo à esquerda quando disponível. */}
         <View fixed style={{ marginBottom: 12 }}>
-          <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
-            {nomeInst}
-            {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
-          </Text>
-          {data.anunciante_creci && (
-            <Text style={{ fontSize: 8, color: CINZA }}>
-              {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
-            </Text>
-          )}
-          {data.anunciante_endereco && (
-            <Text style={{ fontSize: 8, color: CINZA }}>{data.anunciante_endereco}</Text>
-          )}
-          {data.anunciante_cnpj && (
-            <Text style={{ fontSize: 8, color: CINZA }}>CNPJ {data.anunciante_cnpj}</Text>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {data.anunciante_logo_url && (
+              <Image
+                src={data.anunciante_logo_url}
+                style={{ width: 56, height: 56, objectFit: 'contain' }}
+              />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
+                {nomeInst}
+                {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
+              </Text>
+              {data.anunciante_creci && (
+                <Text style={{ fontSize: 8, color: CINZA }}>
+                  {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
+                </Text>
+              )}
+              {data.anunciante_endereco && (
+                <Text style={{ fontSize: 8, color: CINZA }}>{data.anunciante_endereco}</Text>
+              )}
+              {data.anunciante_cnpj && (
+                <Text style={{ fontSize: 8, color: CINZA }}>CNPJ {data.anunciante_cnpj}</Text>
+              )}
+            </View>
+          </View>
           <View style={{ height: 1.5, backgroundColor: ROXO_CLARO, marginTop: 8 }} />
         </View>
 
@@ -758,21 +768,31 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
         >
           {/* Cabeçalho institucional fixed também aqui */}
           <View fixed style={{ marginBottom: 12 }}>
-            <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
-              {nomeInst}
-              {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
-            </Text>
-            {data.anunciante_creci && (
-              <Text style={{ fontSize: 8, color: CINZA }}>
-                {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
-              </Text>
-            )}
-            {data.anunciante_endereco && (
-              <Text style={{ fontSize: 8, color: CINZA }}>{data.anunciante_endereco}</Text>
-            )}
-            {data.anunciante_cnpj && (
-              <Text style={{ fontSize: 8, color: CINZA }}>CNPJ {data.anunciante_cnpj}</Text>
-            )}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {data.anunciante_logo_url && (
+                <Image
+                  src={data.anunciante_logo_url}
+                  style={{ width: 56, height: 56, objectFit: 'contain' }}
+                />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
+                  {nomeInst}
+                  {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
+                </Text>
+                {data.anunciante_creci && (
+                  <Text style={{ fontSize: 8, color: CINZA }}>
+                    {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
+                  </Text>
+                )}
+                {data.anunciante_endereco && (
+                  <Text style={{ fontSize: 8, color: CINZA }}>{data.anunciante_endereco}</Text>
+                )}
+                {data.anunciante_cnpj && (
+                  <Text style={{ fontSize: 8, color: CINZA }}>CNPJ {data.anunciante_cnpj}</Text>
+                )}
+              </View>
+            </View>
             <View style={{ height: 1.5, backgroundColor: ROXO_CLARO, marginTop: 8 }} />
           </View>
 
