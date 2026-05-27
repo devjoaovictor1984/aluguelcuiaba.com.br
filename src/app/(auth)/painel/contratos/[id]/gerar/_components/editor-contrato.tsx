@@ -23,6 +23,8 @@ import {
   atualizarAnexosDocumentos, marcarComoGerado,
 } from '../actions'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
+import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
+import { ProgressoContrato } from './progresso-contrato'
 
 interface ClausulaLista {
   id: string
@@ -295,8 +297,18 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
 
   const pdfUrl = `/api/contratos/${geracao.id}/pdf`
 
+  const categoriasIncluidas = clausulasSelecionadas.map(c => c.categoria)
+
   return (
-    <div className="grid lg:grid-cols-[280px_1fr] gap-4">
+    <div className="space-y-4">
+      {/* Barra de progresso gamificada */}
+      <ProgressoContrato
+        categoriasIncluidas={categoriasIncluidas}
+        totalClausulas={clausulasSelecionadas.length}
+        status={statusGeracao}
+      />
+
+      <div className="grid lg:grid-cols-[280px_1fr] gap-4">
       {/* Sidebar */}
       <aside className="space-y-4">
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
@@ -730,6 +742,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
           </div>
         )}
       </section>
+      </div>
     </div>
   )
 }
@@ -744,9 +757,7 @@ function ClausulaCardEditor({
   onSalvar: (titulo: string, corpo: string) => void
   onRemover: () => void
 }) {
-  const [editando, setEditando] = useState(false)
-  const [titulo, setTitulo] = useState(clausula.titulo)
-  const [corpo, setCorpo] = useState(clausula.corpo)
+  const [modalAberto, setModalAberto] = useState(false)
 
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
@@ -759,98 +770,225 @@ function ClausulaCardEditor({
   }
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`bg-white rounded-xl border ${editando ? 'border-violet-300 shadow-sm' : 'border-gray-200'} overflow-hidden`}
-    >
-      <div className="flex items-start gap-1 px-3 py-2 bg-gray-50 border-b border-gray-100">
-        <button
-          type="button"
-          {...attributes}
-          {...listeners}
-          className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 p-1 -ml-1 touch-none"
-          aria-label="Arrastar pra reordenar"
-        >
-          <GripVertical size={14} />
-        </button>
-        <span className="text-xs font-mono font-bold text-violet-700 px-1.5">
-          {numero}.
-        </span>
-        {editando ? (
-          <input
-            type="text"
-            value={titulo}
-            onChange={e => setTitulo(e.target.value)}
-            className="flex-1 text-sm font-bold text-gray-900 bg-white border border-violet-200 px-2 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-violet-500"
-          />
-        ) : (
+    <>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-violet-300 transition-colors"
+      >
+        <div className="flex items-start gap-1 px-3 py-2 bg-gray-50 border-b border-gray-100">
+          <button
+            type="button"
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 p-1 -ml-1 touch-none"
+            aria-label="Arrastar pra reordenar"
+          >
+            <GripVertical size={14} />
+          </button>
+          <span className="text-xs font-mono font-bold text-violet-700 px-1.5">
+            {numero}.
+          </span>
           <h3 className="flex-1 text-sm font-bold text-gray-900 py-0.5">
             {clausula.titulo}
           </h3>
-        )}
-        <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded shrink-0">
-          {clausula.tipo === 'generica' ? 'geral' : clausula.tipo}
-        </span>
+          <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded shrink-0">
+            {clausula.tipo === 'generica' ? 'geral' : clausula.tipo}
+          </span>
+        </div>
+
+        <div className="p-3">
+          <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-4">
+            {clausula.corpo}
+          </p>
+          <div className="flex justify-end gap-2 mt-2">
+            <button
+              type="button"
+              onClick={() => setModalAberto(true)}
+              className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded"
+            >
+              Editar
+            </button>
+            <button
+              type="button"
+              onClick={onRemover}
+              disabled={isPending}
+              className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50"
+              title="Remover deste contrato (não exclui do banco)"
+            >
+              <X size={12} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <div className="p-3">
-        {editando ? (
-          <>
-            <textarea
-              value={corpo}
-              onChange={e => setCorpo(e.target.value)}
-              rows={Math.max(6, Math.min(20, corpo.split('\n').length + 1))}
-              className="w-full text-xs font-mono leading-relaxed border border-gray-200 rounded p-2 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y"
-            />
-            <p className="text-[10px] text-amber-700 mt-1">
-              ⚠️ Editar aqui altera a cláusula no seu banco — vai refletir em todos os contratos futuros.
+      {modalAberto && (
+        <ModalEdicaoClausula
+          clausula={clausula}
+          isPending={isPending}
+          onFechar={() => setModalAberto(false)}
+          onSalvar={(t, b) => { onSalvar(t, b); setModalAberto(false) }}
+        />
+      )}
+    </>
+  )
+}
+
+// ── Modal de edição da cláusula com sidebar de placeholders ──
+function ModalEdicaoClausula({
+  clausula, isPending, onSalvar, onFechar,
+}: {
+  clausula: ClausulaLista
+  isPending: boolean
+  onSalvar: (titulo: string, corpo: string) => void
+  onFechar: () => void
+}) {
+  const [titulo, setTitulo] = useState(clausula.titulo)
+  const [corpo, setCorpo] = useState(clausula.corpo)
+  const [copiado, setCopiado] = useState<string | null>(null)
+
+  const copiarPlaceholder = async (chave: string) => {
+    const txt = `{{${chave}}}`
+    try {
+      await navigator.clipboard.writeText(txt)
+      setCopiado(chave)
+      setTimeout(() => setCopiado(null), 1200)
+    } catch {
+      // fallback silencioso
+    }
+  }
+
+  // Agrupa placeholders por origem pra UI mais navegável
+  const grupos = PLACEHOLDERS.reduce<Record<string, typeof PLACEHOLDERS>>((acc, p) => {
+    if (!acc[p.origem]) acc[p.origem] = []
+    acc[p.origem].push(p)
+    return acc
+  }, {})
+
+  const labelOrigem: Record<string, string> = {
+    locador: 'Locador',
+    locatario: 'Locatário',
+    conjuge_locatario: 'Cônjuge',
+    admin: 'Administradora',
+    imovel: 'Imóvel',
+    valores: 'Valores',
+    prazo: 'Prazo',
+    garantia: 'Garantia',
+    fiador: 'Fiador',
+    seguro: 'Seguro',
+  }
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+      onClick={() => !isPending && onFechar()}
+    >
+      <div
+        className="bg-white rounded-2xl max-w-5xl w-full shadow-xl flex flex-col max-h-[90vh]"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <header className="flex items-center justify-between gap-3 p-4 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Editar cláusula</h2>
+            <p className="text-[11px] text-amber-700 mt-0.5">
+              ⚠️ Esta edição altera a cláusula no seu banco e refletirá em <strong>todos os contratos futuros</strong>.
             </p>
-            <div className="flex gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => { onSalvar(titulo, corpo); setEditando(false) }}
-                disabled={isPending}
-                className="flex-1 flex items-center justify-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg"
-              >
-                {isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
-                Salvar
-              </button>
-              <button
-                type="button"
-                onClick={() => { setTitulo(clausula.titulo); setCorpo(clausula.corpo); setEditando(false) }}
-                disabled={isPending}
-                className="px-3 text-xs text-gray-500 hover:text-gray-700"
-              >
-                Cancelar
-              </button>
+          </div>
+          <button
+            type="button"
+            onClick={onFechar}
+            disabled={isPending}
+            className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100"
+          >
+            <X size={18} />
+          </button>
+        </header>
+
+        {/* Body: split editor + placeholders */}
+        <div className="grid lg:grid-cols-[1fr_240px] gap-0 flex-1 overflow-hidden">
+          {/* Editor */}
+          <div className="p-4 space-y-3 overflow-y-auto">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">Título</label>
+              <input
+                type="text"
+                value={titulo}
+                onChange={e => setTitulo(e.target.value)}
+                className="w-full text-sm font-medium text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
             </div>
-          </>
-        ) : (
-          <>
-            <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-4">
-              {clausula.corpo}
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">Corpo</label>
+              <textarea
+                value={corpo}
+                onChange={e => setCorpo(e.target.value)}
+                rows={Math.max(10, Math.min(24, corpo.split('\n').length + 2))}
+                className="w-full text-xs font-mono leading-relaxed border border-gray-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y"
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                Use placeholders <span className="font-mono">{'{{CHAVE}}'}</span> que serão substituídos no PDF.
+              </p>
+            </div>
+          </div>
+
+          {/* Sidebar de placeholders */}
+          <aside className="border-t lg:border-t-0 lg:border-l border-gray-100 bg-gray-50 p-3 overflow-y-auto">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-2">
+              Placeholders disponíveis
             </p>
-            <div className="flex justify-end gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => setEditando(true)}
-                className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded"
-              >
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={onRemover}
-                disabled={isPending}
-                className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50"
-                title="Remover deste contrato (não exclui do banco)"
-              >
-                <X size={12} />
-              </button>
+            <p className="text-[10px] text-gray-400 mb-3">
+              Clique pra copiar e colar no corpo.
+            </p>
+            <div className="space-y-3">
+              {Object.entries(grupos).map(([origem, lista]) => (
+                <div key={origem}>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">
+                    {labelOrigem[origem] ?? origem}
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {lista.map(p => (
+                      <button
+                        key={p.chave}
+                        type="button"
+                        onClick={() => copiarPlaceholder(p.chave)}
+                        title={p.label + ' · Ex: ' + p.exemplo}
+                        className={`text-[10px] font-mono px-1.5 py-0.5 rounded border transition-colors ${
+                          copiado === p.chave
+                            ? 'bg-emerald-100 border-emerald-300 text-emerald-700'
+                            : 'bg-white border-gray-200 text-gray-700 hover:bg-violet-50 hover:border-violet-300'
+                        }`}
+                      >
+                        {copiado === p.chave ? '✓ copiado' : `{{${p.chave}}}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
             </div>
-          </>
-        )}
+          </aside>
+        </div>
+
+        {/* Footer */}
+        <footer className="flex items-center justify-end gap-2 p-3 border-t border-gray-100 shrink-0">
+          <button
+            type="button"
+            onClick={onFechar}
+            disabled={isPending}
+            className="text-xs text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={() => onSalvar(titulo, corpo)}
+            disabled={isPending || !titulo.trim() || !corpo.trim()}
+            className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg"
+          >
+            {isPending ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+            Salvar
+          </button>
+        </footer>
       </div>
     </div>
   )
