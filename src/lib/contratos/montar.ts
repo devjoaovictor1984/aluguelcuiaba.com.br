@@ -253,7 +253,9 @@ const rgCompleto = (p: Record<string, any> | null | undefined): string => {
  * Resolve um placeholder pelo nome (sem as chaves) com base nos dados.
  */
 function resolverPlaceholder(chave: string, dados: DadosContrato): string {
-  const FALLBACK = '[PREENCHER]'
+  // Vazio = não aparece nada (em vez de [PREENCHER]). Texto pode ficar
+  // com lacunas, mas o usuário pode editar a cláusula pra adaptar.
+  const FALLBACK = ''
 
   switch (chave) {
     // ── Locador ──
@@ -436,8 +438,22 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
 }
 
 /**
- * Aplica todos os placeholders no corpo da cláusula.
+ * Aplica todos os placeholders no corpo da cláusula e limpa pontuação
+ * "órfã" que sobra quando o valor era vazio (ex: ", ," vira ",").
  */
 export function aplicarPlaceholders(corpo: string, dados: DadosContrato): string {
-  return corpo.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, chave) => resolverPlaceholder(chave, dados))
+  let r = corpo.replace(/\{\{([A-Z0-9_]+)\}\}/g, (_, chave) => resolverPlaceholder(chave, dados))
+
+  // Limpeza pós-substituição: evita ", , ", "CPF nº ,", etc.
+  r = r
+    .replace(/,(\s*,)+/g, ',')              // vírgulas duplas → uma
+    .replace(/\s+,/g, ',')                  // espaço antes de vírgula
+    .replace(/\(\s*,\s*\)/g, '')            // ( , ) vazio
+    .replace(/\(\s*\)/g, '')                // ( ) vazio
+    .replace(/[ \t]+/g, ' ')                // múltiplos espaços
+    .replace(/(CPF nº|RG|CNPJ)\s*[.,]/g, '$1') // "CPF nº ," sobra como "CPF nº"
+    .replace(/, +(\.)/g, '$1')              // vírgula antes de ponto
+    .replace(/\s+([.,;:])/g, '$1')          // espaço antes de pontuação
+    .replace(/\n[ \t]*\n[ \t]*\n+/g, '\n\n') // múltiplas linhas em branco → 2
+  return r
 }

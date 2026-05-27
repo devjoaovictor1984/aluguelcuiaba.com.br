@@ -387,11 +387,11 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           lineHeight: 1.55,
         }}
       >
-        {/* ── Cabeçalho institucional FIXED (todas as páginas) ──
-           Usa `fixed` no fluxo normal (não absolute) com height fixo —
-           react-pdf duplica em cada página. Sem border (linha vem como
-           View separada). Logo à esquerda quando disponível. */}
-        <View fixed style={{ marginBottom: 12 }}>
+        {/* ── Cabeçalho institucional (só 1ª página) ──
+           Removido `fixed` porque estava gerando coordenadas inválidas
+           em texto (bug "unsupported number" em renderText). Aparece só
+           na primeira página. */}
+        <View style={{ marginBottom: 12 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
             {data.anunciante_logo_url && (
               <Image
@@ -420,22 +420,9 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           <View style={{ height: 1.5, backgroundColor: ROXO_CLARO, marginTop: 8 }} />
         </View>
 
-        {/* Paginação fixed no rodapé */}
-        <Text
-          fixed
-          style={{
-            position: 'absolute',
-            bottom: 24,
-            left: 56,
-            right: 56,
-            fontSize: 8,
-            color: CINZA_CLARO,
-            textAlign: 'center',
-          }}
-          render={({ pageNumber, totalPages }) =>
-            `Contrato ${data.codigo} · Página ${pageNumber} de ${totalPages}`
-          }
-        />
+        {/* Paginação removida temporariamente — `fixed` + `render` estava
+           causando bug "unsupported number" em algumas combinações de
+           conteúdo. Rodapé só no final do documento (no bloco final). */}
 
         {/* ── Capa / Título ── */}
         <View style={{ marginBottom: 22 }}>
@@ -766,8 +753,8 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             lineHeight: 1.55,
           }}
         >
-          {/* Cabeçalho institucional fixed também aqui */}
-          <View fixed style={{ marginBottom: 12 }}>
+          {/* Cabeçalho institucional (só 1ª página do termo, sem fixed) */}
+          <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               {data.anunciante_logo_url && (
                 <Image
