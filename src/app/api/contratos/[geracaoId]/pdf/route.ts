@@ -13,6 +13,7 @@ type ContratoLite = {
   valor_aluguel?: number | null
   iptu_mensal?: number | null
   condominio_mensal?: number | null
+  valor_seguro_fianca_mensal?: number | null
   caucao_valor?: number | null
   data_inicio?: string | null
   data_primeiro_aluguel?: string | null
@@ -36,6 +37,8 @@ function fmtData(iso: string | null | undefined): string {
 function montarQuadroEntrada(c: ContratoLite) {
   const aluguel = c.valor_aluguel ?? 0
   const iptu = c.iptu_mensal ?? 0
+  const condominio = c.condominio_mensal ?? 0
+  const seguroFianca = c.valor_seguro_fianca_mensal ?? 0
   const caucao = c.caucao_valor ?? 0
   const itens: Array<{ descricao: string; base: string; valor: string; obs?: string }> = []
 
@@ -48,27 +51,24 @@ function montarQuadroEntrada(c: ContratoLite) {
     })
   }
   if (aluguel > 0) {
-    itens.push({
-      descricao: 'Primeiro aluguel',
-      base: 'Período inicial',
-      valor: fmtBRL(aluguel),
-    })
+    itens.push({ descricao: 'Primeiro aluguel', base: 'Período inicial', valor: fmtBRL(aluguel) })
   }
   if (iptu > 0) {
-    itens.push({
-      descricao: 'IPTU mensal',
-      base: 'Período inicial',
-      valor: fmtBRL(iptu),
-    })
+    itens.push({ descricao: 'IPTU mensal', base: 'Período inicial', valor: fmtBRL(iptu) })
+  }
+  if (condominio > 0) {
+    itens.push({ descricao: 'Condomínio mensal', base: 'Período inicial', valor: fmtBRL(condominio) })
+  }
+  if (seguroFianca > 0 && c.garantia_tipo === 'seguro_fianca') {
+    itens.push({ descricao: 'Seguro fiança mensal', base: 'Período inicial', valor: fmtBRL(seguroFianca) })
   }
   if (itens.length === 0) return []
 
-  const total = (c.garantia_tipo === 'caucao' ? caucao : 0) + aluguel + iptu
-  itens.push({
-    descricao: 'Total da entrada',
-    base: '—',
-    valor: fmtBRL(total),
-  })
+  const total =
+    (c.garantia_tipo === 'caucao' ? caucao : 0) +
+    aluguel + iptu + condominio +
+    (c.garantia_tipo === 'seguro_fianca' ? seguroFianca : 0)
+  itens.push({ descricao: 'Total da entrada', base: '—', valor: fmtBRL(total) })
   return itens
 }
 
@@ -76,7 +76,9 @@ function montarTabela12Meses(c: ContratoLite) {
   if (!c.data_inicio || !c.dia_vencimento || !c.valor_aluguel) return []
   const aluguel = c.valor_aluguel
   const iptu = c.iptu_mensal ?? 0
-  const total = aluguel + iptu
+  const condominio = c.condominio_mensal ?? 0
+  const seguroFianca = (c.garantia_tipo === 'seguro_fianca') ? (c.valor_seguro_fianca_mensal ?? 0) : 0
+  const total = aluguel + iptu + condominio + seguroFianca
 
   const inicio = new Date(c.data_inicio + 'T00:00:00')
   const linhas: Array<{

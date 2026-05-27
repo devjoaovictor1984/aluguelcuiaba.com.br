@@ -142,11 +142,16 @@ export async function obterOuCriarGeracao(contratoId: string) {
   // Confirma posse do contrato
   const { data: contrato } = await supabase
     .from('contratos_locacao')
-    .select('id, user_id, garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet')
+    .select('id, user_id, garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet, valor_seguro_incendio_anual')
     .eq('id', contratoId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
   if (!contrato) return { error: 'Contrato não encontrado.' }
+
+  // Default do seguro incêndio: se contrato tem valor anual > 0, presume cobrado à parte.
+  // Caso contrário, deixa dispensado. Usuário pode trocar no editor.
+  const seguroIncendioDefault: TipoSeguroIncendio =
+    (contrato.valor_seguro_incendio_anual ?? 0) > 0 ? 'cobrado_parte' : 'dispensado'
 
   // Já existe geração?
   const { data: existente } = await supabase
@@ -162,7 +167,7 @@ export async function obterOuCriarGeracao(contratoId: string) {
   // Cria nova com defaults
   const clausulaIds = await selecionarClausulasIniciais(supabase, acesso.userId, {
     garantiaTipo: contrato.garantia_tipo,
-    tipoSeguroIncendio: 'dispensado',
+    tipoSeguroIncendio: seguroIncendioDefault,
     tipoAtuacao: (contrato.tipo_atuacao ?? 'administracao') as TipoAtuacao,
     tipoMobilia: (contrato.tipo_mobilia ?? 'sem') as TipoMobilia,
     aceitaPet: (contrato.aceita_pet ?? 'nao') as AceitaPet,
@@ -173,7 +178,7 @@ export async function obterOuCriarGeracao(contratoId: string) {
     .insert({
       user_id: acesso.userId,
       contrato_id: contratoId,
-      tipo_seguro_incendio: 'dispensado',
+      tipo_seguro_incendio: seguroIncendioDefault,
       saida_sem_multa_12m: false,
       clausula_ids: clausulaIds,
       anexo_documento_ids: [],
