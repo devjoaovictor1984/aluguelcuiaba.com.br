@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useTransition } from 'react'
+import { useState, useMemo, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -53,6 +53,36 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
   const setField = <K extends keyof WizardState>(k: K, v: WizardState[K]) => {
     set(prev => ({ ...prev, [k]: v }))
   }
+
+  // Marca se o usuário editou manualmente data_primeiro_aluguel — pra parar de
+  // sobrescrever com o cálculo automático.
+  const [primeiroAluguelManual, setPrimeiroAluguelManual] = useState(false)
+
+  // Auto-calcula data_primeiro_aluguel sempre que data_inicio, dia_vencimento ou
+  // garantia mudam. Regras de mercado:
+  //  - seguro_fianca / fiador → 1 mês depois da entrada (no dia de vencimento)
+  //  - caução                 → no mesmo mês da entrada (no dia de vencimento)
+  //  - sem_garantia           → no mesmo mês da entrada (no dia de vencimento)
+  useEffect(() => {
+    if (primeiroAluguelManual) return
+    if (!s.data_inicio || !s.dia_vencimento) return
+
+    const dia = parseInt(s.dia_vencimento)
+    if (!Number.isFinite(dia) || dia < 1 || dia > 31) return
+
+    const inicio = new Date(s.data_inicio + 'T00:00:00')
+    // Mês seguinte se seguro_fianca/fiador, mesmo mês caso contrário
+    const adicionarMes = s.garantia_tipo === 'seguro_fianca' || s.garantia_tipo === 'fiador'
+    const mesAlvo = inicio.getMonth() + (adicionarMes ? 1 : 0)
+    const candidato = new Date(inicio.getFullYear(), mesAlvo, dia)
+    const y = candidato.getFullYear()
+    const m = String(candidato.getMonth() + 1).padStart(2, '0')
+    const d = String(candidato.getDate()).padStart(2, '0')
+    const iso = `${y}-${m}-${d}`
+    if (iso !== s.data_primeiro_aluguel) {
+      set(prev => ({ ...prev, data_primeiro_aluguel: iso }))
+    }
+  }, [s.data_inicio, s.dia_vencimento, s.garantia_tipo, primeiroAluguelManual, s.data_primeiro_aluguel])
 
   const inquilinos    = useMemo(() => pessoas.filter(p => p.tipo === 'inquilino'),    [pessoas])
   const proprietarios = useMemo(() => pessoas.filter(p => p.tipo === 'proprietario'), [pessoas])
@@ -603,8 +633,27 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
               <input type="date" value={s.data_inicio} onChange={e => setField('data_inicio', e.target.value)} className={inputCls} />
             </div>
             <div>
-              <label className="text-xs font-medium text-gray-600 block mb-1">1º aluguel *</label>
-              <input type="date" value={s.data_primeiro_aluguel} onChange={e => setField('data_primeiro_aluguel', e.target.value)} className={inputCls} />
+              <label className="text-xs font-medium text-gray-600 block mb-1">
+                1º aluguel * {!primeiroAluguelManual && s.data_primeiro_aluguel && (
+                  <span className="text-violet-600 font-normal">(automático)</span>
+                )}
+              </label>
+              <input
+                type="date"
+                value={s.data_primeiro_aluguel}
+                onChange={e => { setField('data_primeiro_aluguel', e.target.value); setPrimeiroAluguelManual(true) }}
+                className={inputCls}
+              />
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                {s.garantia_tipo === 'seguro_fianca' || s.garantia_tipo === 'fiador'
+                  ? 'Com seguro fiança/fiador, o 1º aluguel vence 1 mês após a entrada.'
+                  : 'Sem caução adicional, o 1º aluguel vence no mês da entrada.'}
+                {primeiroAluguelManual && (
+                  <button type="button" onClick={() => setPrimeiroAluguelManual(false)} className="text-violet-600 hover:underline ml-1">
+                    voltar ao automático
+                  </button>
+                )}
+              </p>
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Duração (meses) *</label>
