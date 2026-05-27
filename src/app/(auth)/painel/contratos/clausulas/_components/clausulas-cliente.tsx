@@ -9,7 +9,7 @@ import {
 import { TIPOS_CLAUSULA, PLACEHOLDERS, type TipoClausula } from '@/lib/contratos/placeholders'
 import {
   criarClausula, atualizarClausula, alternarAtiva, excluirClausula,
-  importarContratoModelo,
+  importarContratoModelo, importarClausulasFaltantes,
 } from '../actions'
 
 export interface ClausulaRow {
@@ -63,6 +63,16 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
     })
   }
 
+  const onImportarFaltantes = () => {
+    setErro('')
+    startTransition(async () => {
+      const r = await importarClausulasFaltantes()
+      if (r.error) { setErro(r.error); return }
+      if (r.mensagem) alert(r.mensagem)
+      recarregar()
+    })
+  }
+
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
       {/* Cabeçalho */}
@@ -80,16 +90,28 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {!vazio && (
-            <button
-              type="button"
-              onClick={onReimportarModelo}
-              disabled={isPending}
-              className="text-xs font-medium text-amber-700 hover:bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 flex items-center gap-1.5 disabled:opacity-50"
-              title="Apaga as atuais e reimporta o modelo atualizado"
-            >
-              {isPending ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-              Reimportar modelo
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onImportarFaltantes}
+                disabled={isPending}
+                className="text-xs font-medium text-emerald-700 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 disabled:opacity-50"
+                title="Importa apenas as cláusulas novas do seed (preserva suas edições)"
+              >
+                {isPending ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                Importar novas
+              </button>
+              <button
+                type="button"
+                onClick={onReimportarModelo}
+                disabled={isPending}
+                className="text-xs font-medium text-amber-700 hover:bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 flex items-center gap-1.5 disabled:opacity-50"
+                title="Apaga as atuais e reimporta o modelo atualizado"
+              >
+                {isPending ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                Reimportar modelo
+              </button>
+            </>
           )}
           <button
             type="button"

@@ -151,3 +151,42 @@ export async function importarContratoModelo(sobrescrever = false) {
   revalidatePath('/painel/contratos/clausulas')
   return { ok: true, importadas: rows.length }
 }
+
+/**
+ * Adiciona apenas as cláusulas do seed que AINDA NÃO existem no banco do user
+ * (matching por titulo+tipo). Útil pra puxar cláusulas novas que entraram no
+ * seed sem apagar nada que o usuário já editou.
+ */
+export async function importarClausulasFaltantes() {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { data: existentes } = await supabase
+    .from('contrato_clausulas')
+    .select('titulo, tipo')
+    .eq('user_id', acesso.userId)
+
+  const setExistente = new Set((existentes ?? []).map(c => `${c.tipo}::${c.titulo}`))
+
+  const faltantes = SEED_CLAUSULAS.filter(c => !setExistente.has(`${c.tipo}::${c.titulo}`))
+
+  if (faltantes.length === 0) {
+    return { ok: true, importadas: 0, mensagem: 'Banco já está em dia — nada a importar.' }
+  }
+
+  const rows = faltantes.map(c => ({
+    user_id: acesso.userId,
+    tipo: c.tipo,
+    categoria: c.categoria,
+    titulo: c.titulo,
+    numero: c.numero,
+    corpo: c.corpo,
+    ativa: true,
+  }))
+
+  const { error } = await supabase.from('contrato_clausulas').insert(rows)
+  if (error) return { error: error.message }
+
+  revalidatePath('/painel/contratos/clausulas')
+  return { ok: true, importadas: rows.length, mensagem: `${rows.length} cláusula(s) nova(s) importada(s).` }
+}
