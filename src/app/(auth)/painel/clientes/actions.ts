@@ -88,12 +88,61 @@ function limpar(input: PessoaInput): PessoaInput {
   return clean as unknown as PessoaInput
 }
 
+/**
+ * Verifica se o CPF/CNPJ ou WhatsApp já existe em OUTRA pessoa do mesmo user.
+ * Retorna o nome da pessoa duplicada se houver, senão null.
+ */
+async function checarDuplicidade(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  cpfCnpj: string | null | undefined,
+  whatsapp: string | null | undefined,
+  excluirId?: string,
+): Promise<{ campo: 'cpf' | 'whatsapp'; nome: string } | null> {
+  const cpfLimpo = cpfCnpj?.replace(/\D/g, '') || null
+  const wppLimpo = whatsapp?.replace(/\D/g, '') || null
+  if (!cpfLimpo && !wppLimpo) return null
+
+  if (cpfLimpo) {
+    let q = supabase
+      .from('pessoas')
+      .select('id, nome')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .eq('cpf_cnpj', cpfLimpo)
+    if (excluirId) q = q.neq('id', excluirId)
+    const { data } = await q.limit(1).maybeSingle()
+    if (data) return { campo: 'cpf', nome: data.nome }
+  }
+
+  if (wppLimpo) {
+    let q = supabase
+      .from('pessoas')
+      .select('id, nome')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .eq('whatsapp', wppLimpo)
+    if (excluirId) q = q.neq('id', excluirId)
+    const { data } = await q.limit(1).maybeSingle()
+    if (data) return { campo: 'whatsapp', nome: data.nome }
+  }
+
+  return null
+}
+
 export async function criarPessoa(input: PessoaInput) {
   const erro = valida(input)
   if (erro) return { error: erro }
 
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+
+  // Bloqueia duplicidade de CPF/CNPJ ou WhatsApp
+  const dup = await checarDuplicidade(supabase, acesso.userId, input.cpf_cnpj, input.whatsapp)
+  if (dup) {
+    const campoLabel = dup.campo === 'cpf' ? 'CPF/CNPJ' : 'WhatsApp'
+    return { error: `${campoLabel} já cadastrado em "${dup.nome}". Edite a pessoa existente em vez de criar uma nova.` }
+  }
 
   const { data, error } = await supabase
     .from('pessoas')
@@ -110,8 +159,15 @@ export async function atualizarPessoa(id: string, input: PessoaInput) {
   const erro = valida(input)
   if (erro) return { error: erro }
 
-  await exigirAcessoCRM()
+  const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+
+  // Bloqueia trocar CPF/WhatsApp pra um já usado por outra pessoa
+  const dup = await checarDuplicidade(supabase, acesso.userId, input.cpf_cnpj, input.whatsapp, id)
+  if (dup) {
+    const campoLabel = dup.campo === 'cpf' ? 'CPF/CNPJ' : 'WhatsApp'
+    return { error: `${campoLabel} já cadastrado em "${dup.nome}". Use outra pessoa ou ajuste o dado lá.` }
+  }
 
   const { error } = await supabase
     .from('pessoas')
