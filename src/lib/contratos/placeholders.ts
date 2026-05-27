@@ -117,11 +117,15 @@ export const PLACEHOLDERS: Placeholder[] = [
 
 export const TIPOS_CLAUSULA = [
   { valor: 'generica',         label: 'Genéricas',        descricao: 'Vão em todos os contratos' },
+  { valor: 'fundamentacao',    label: 'Fundamentação',    descricao: 'Cláusula introdutória citando a Lei do Inquilinato (Lei 8.245/91)' },
+  { valor: 'atuacao',          label: 'Atuação',          descricao: 'Variantes da cláusula "Das partes" conforme tipo de atuação (administração / intermediação / locação direta)' },
   { valor: 'sem_garantia',     label: 'Sem garantia',     descricao: 'Quando o contrato é celebrado sem nenhuma garantia locatícia' },
   { valor: 'caucao',           label: 'Caução',           descricao: 'Só quando a garantia é caução em dinheiro' },
   { valor: 'fiador',           label: 'Fiador',           descricao: 'Só quando há fiador pessoa física' },
   { valor: 'seguro_fianca',    label: 'Seguro fiança',    descricao: 'Só quando contratado seguro fiança' },
   { valor: 'seguro_incendio',  label: 'Seguro incêndio',  descricao: 'Variações: cobrado à parte, embutido no pacote ou dispensado' },
+  { valor: 'mobilia',          label: 'Mobília',          descricao: 'Cláusulas de mobília (sem/semi/parcial/total) e inventário de bens' },
+  { valor: 'pet',              label: 'Pet',              descricao: 'Política de pet (aceita / não aceita / com autorização / conforme condomínio) e limpeza' },
   { valor: 'adicional',        label: 'Adicionais',       descricao: 'Opcionais, escolhidas caso a caso' },
   { valor: 'administracao',    label: 'Administração',    descricao: 'Cláusulas do contrato de administração imobiliária (entre proprietário e admin)' },
 ] as const
@@ -129,8 +133,10 @@ export const TIPOS_CLAUSULA = [
 export type TipoClausula = typeof TIPOS_CLAUSULA[number]['valor']
 
 export const CATEGORIAS_ORDEM = [
-  'partes',         // 1. Das partes
+  'fundamentacao',  // 0. Lei do Inquilinato (intro)
+  'partes',         // 1. Das partes (3 variantes: admin/intermediacao/direta)
   'objeto',         // 2. Do objeto da locação
+  'mobilia',        //    Da mobília (após objeto, antes do prazo)
   'prazo',          // 3. Do prazo, início e entrega das chaves
   'aluguel',        // 4. Do aluguel, IPTU e encargos
   'caucao',         // 5. Da caução (só em contrato com caução)
@@ -139,6 +145,7 @@ export const CATEGORIAS_ORDEM = [
   'reajuste',       // 6. Do reajuste
   'mora',           // 7. Da mora e cobrança
   'destinacao',     // 8. Da destinação e ocupação
+  'pet',            //    Pet (após destinação)
   'conservacao',    // 9. Da conservação
   'vistoria',       // 10. Da vistoria
   'modificacoes',   // 11. Das modificações e obras

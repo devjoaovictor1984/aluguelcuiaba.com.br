@@ -26,6 +26,14 @@ export interface WizardState {
   inquilino_id: string
   proprietario_id: string
 
+  // Etapa 2b — perfil do contrato
+  tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
+  intermediador_assina: boolean
+  tipo_mobilia: 'sem' | 'semi' | 'parcial' | 'total'
+  tem_inventario_bens: boolean
+  aceita_pet: 'sim' | 'nao' | 'autorizacao' | 'condominio'
+  pet_observacao: string
+
   // Etapa 3 — garantia
   garantia_tipo: 'fiador' | 'caucao' | 'seguro_fianca' | 'sem_garantia'
   fiador_id: string
@@ -59,6 +67,12 @@ export const ESTADO_INICIAL: WizardState = {
   imovel_id: '',
   inquilino_id: '',
   proprietario_id: '',
+  tipo_atuacao: 'administracao',
+  intermediador_assina: false,
+  tipo_mobilia: 'sem',
+  tem_inventario_bens: false,
+  aceita_pet: 'nao',
+  pet_observacao: '',
   garantia_tipo: 'seguro_fianca',
   fiador_id: '',
   caucao_valor: '',

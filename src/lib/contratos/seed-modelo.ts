@@ -695,4 +695,118 @@ Parágrafo único. As partes consentem com o tratamento de dados pessoais necess
 
 E, por estarem justos e contratados, plenamente cientes da seriedade das obrigações assumidas, assinam o presente instrumento digitalmente, em vias de igual teor, juntamente com 02 (duas) testemunhas.`,
   },
+
+  // ════════════════════════════════════════════════════════════════
+  //  FUNDAMENTAÇÃO LEGAL (Lei 8.245/91) — vai antes das partes
+  // ════════════════════════════════════════════════════════════════
+
+  {
+    tipo: 'fundamentacao', categoria: 'fundamentacao', titulo: 'Da fundamentação legal', numero: 1,
+    corpo: `As partes ajustam o presente contrato de locação com fundamento na Lei nº 8.245/1991 (Lei do Inquilinato), especialmente quanto aos deveres do locador e do locatário, às garantias locatícias, à conservação do imóvel, ao pagamento dos encargos, ao direito de preferência, à rescisão, à multa proporcional e às demais disposições aplicáveis à locação de imóvel urbano residencial.`,
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  //  ATUAÇÃO — variantes da cláusula "Das partes"
+  //  (auto-inject escolhe UMA conforme contratos.tipo_atuacao)
+  // ════════════════════════════════════════════════════════════════
+
+  {
+    tipo: 'atuacao', categoria: 'partes', titulo: 'Das partes (intermediação)', numero: 1,
+    corpo: `LOCADOR / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_NACIONALIDADE}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, portador(a) do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, residente e domiciliado(a) em {{LOCADOR_ENDERECO}}, doravante denominado(a) simplesmente LOCADOR.
+
+INTERMEDIADOR(A): {{ADMIN_RAZAO_SOCIAL}}, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com endereço profissional em {{ADMIN_ENDERECO}}, neste ato representada por {{ADMIN_RESPONSAVEL}}, corretor(a) de imóveis, CRECI {{ADMIN_RESPONSAVEL_CRECI}}, participou exclusivamente da intermediação da presente locação, não assumindo a administração do imóvel, a cobrança de aluguéis, a gestão de reparos, a prestação de contas ou a representação do LOCADOR, salvo disposição expressa em contrato próprio.
+
+LOCATÁRIO: {{LOCATARIO_NOME}}, {{LOCATARIO_NACIONALIDADE}}, {{LOCATARIO_ESTADO_CIVIL}}, {{LOCATARIO_PROFISSAO}}, nascido(a) em {{LOCATARIO_DATA_NASC}}, natural de {{LOCATARIO_NATURALIDADE}}, portador(a) do RG {{LOCATARIO_RG}} e CPF nº {{LOCATARIO_CPF}}, filho(a) de {{LOCATARIO_NOME_PAI}} e {{LOCATARIO_NOME_MAE}}, residente e domiciliado(a) em {{LOCATARIO_ENDERECO}}, doravante denominado(a) LOCATÁRIO.
+
+As partes ajustam o presente CONTRATO DE LOCAÇÃO RESIDENCIAL, regido pela Lei nº 8.245/1991, pelo Código Civil e pelas cláusulas a seguir. Fica expressamente ajustado que a presente locação foi apenas intermediada por {{ADMIN_RAZAO_SOCIAL}}, não havendo administração imobiliária continuada, salvo contratação específica em instrumento próprio. Após a assinatura deste contrato e entrega das chaves, as obrigações de cobrança, recebimento, manutenção, notificações, reajustes, tratativas e encerramento da locação serão realizadas diretamente entre LOCADOR e LOCATÁRIO, ou por terceiro formalmente autorizado.`,
+  },
+
+  {
+    tipo: 'atuacao', categoria: 'partes', titulo: 'Das partes (locação direta)', numero: 2,
+    corpo: `LOCADOR / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_NACIONALIDADE}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, portador(a) do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, residente e domiciliado(a) em {{LOCADOR_ENDERECO}}, doravante denominado(a) simplesmente LOCADOR.
+
+LOCATÁRIO: {{LOCATARIO_NOME}}, {{LOCATARIO_NACIONALIDADE}}, {{LOCATARIO_ESTADO_CIVIL}}, {{LOCATARIO_PROFISSAO}}, nascido(a) em {{LOCATARIO_DATA_NASC}}, natural de {{LOCATARIO_NATURALIDADE}}, portador(a) do RG {{LOCATARIO_RG}} e CPF nº {{LOCATARIO_CPF}}, filho(a) de {{LOCATARIO_NOME_PAI}} e {{LOCATARIO_NOME_MAE}}, residente e domiciliado(a) em {{LOCATARIO_ENDERECO}}, doravante denominado(a) LOCATÁRIO.
+
+As partes ajustam o presente CONTRATO DE LOCAÇÃO RESIDENCIAL, celebrado diretamente entre LOCADOR e LOCATÁRIO, sem intermediação de corretor ou administradora, regido pela Lei nº 8.245/1991, pelo Código Civil e pelas cláusulas a seguir. As obrigações de cobrança, recebimento, manutenção, notificações, reajustes, tratativas e encerramento da locação serão realizadas diretamente entre as partes, ou por terceiro formalmente autorizado.`,
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  //  MOBÍLIA — 4 variantes + cláusula genérica de inventário
+  // ════════════════════════════════════════════════════════════════
+
+  {
+    tipo: 'mobilia', categoria: 'mobilia', titulo: 'Da mobília — imóvel sem mobília', numero: 1,
+    corpo: `O imóvel é entregue sem mobília, salvo itens fixos eventualmente descritos no laudo de vistoria inicial, tais como armários planejados, luminárias, box, espelhos, cortinas, cooktop, forno embutido, ar-condicionado ou outros bens incorporados ou existentes no imóvel.`,
+  },
+
+  {
+    tipo: 'mobilia', categoria: 'mobilia', titulo: 'Da mobília — imóvel semi-mobiliado', numero: 2,
+    corpo: `O imóvel é entregue semi-mobiliado, contendo os bens, móveis, eletrodomésticos, armários, equipamentos e utensílios descritos no laudo de vistoria inicial/inventário de bens, que passa a integrar este contrato.`,
+  },
+
+  {
+    tipo: 'mobilia', categoria: 'mobilia', titulo: 'Da mobília — imóvel parcialmente mobiliado', numero: 3,
+    corpo: `O imóvel é entregue parcialmente mobiliado, apenas com os itens expressamente descritos no inventário de bens anexo, não se presumindo a existência de outros móveis, eletrodomésticos ou utensílios além daqueles listados e fotografados.`,
+  },
+
+  {
+    tipo: 'mobilia', categoria: 'mobilia', titulo: 'Da mobília — imóvel 100% mobiliado', numero: 4,
+    corpo: `O imóvel é entregue 100% mobiliado, com móveis, eletrodomésticos, eletrônicos, utensílios, equipamentos, armários, luminárias, cortinas, itens decorativos e demais bens descritos no inventário de bens e no laudo de vistoria inicial, os quais integram este contrato para todos os fins.`,
+  },
+
+  {
+    tipo: 'mobilia', categoria: 'mobilia', titulo: 'Inventário de bens e responsabilidade', numero: 5,
+    corpo: `Os bens móveis, eletrodomésticos, eletrônicos, utensílios, equipamentos, armários e demais itens existentes no imóvel deverão ser descritos em inventário próprio, com indicação de quantidade, marca, modelo, cor, estado de conservação, funcionamento e registro fotográfico sempre que possível.
+
+Parágrafo primeiro. Os LOCATÁRIOS declaram receber os bens no estado indicado no laudo de vistoria inicial e obrigam-se a conservá-los e devolvê-los no mesmo estado, ressalvado o desgaste natural decorrente do uso regular.
+
+Parágrafo segundo. É vedado aos LOCATÁRIOS remover, vender, doar, emprestar, substituir, desmontar, descartar, transportar para outro local ou alterar os bens do imóvel sem autorização prévia e escrita do LOCADOR ou da ADMINISTRADORA, quando houver.
+
+Parágrafo terceiro. Em caso de quebra, perda, extravio, dano, mau uso, inutilização, substituição indevida ou ausência de devolução de qualquer item, os LOCATÁRIOS deverão reparar, substituir por bem equivalente ou indenizar o LOCADOR pelo valor de reposição.
+
+Parágrafo quarto. Na vistoria final, os bens serão conferidos item por item, com base no inventário inicial. A devolução do imóvel somente será considerada regular após a conferência do imóvel e dos bens inventariados.`,
+  },
+
+  // ════════════════════════════════════════════════════════════════
+  //  PET — 4 variantes + cláusula de limpeza/devolução
+  // ════════════════════════════════════════════════════════════════
+
+  {
+    tipo: 'pet', categoria: 'pet', titulo: 'Da política de pet — não aceita', numero: 1,
+    corpo: `Os LOCATÁRIOS declaram ciência de que o LOCADOR não autoriza, por condição contratual específica desta locação, a permanência de animais domésticos no imóvel sem autorização prévia e escrita.
+
+Parágrafo único. Eventual permanência de animal sem autorização poderá caracterizar infração contratual, especialmente se houver danos ao imóvel, perturbação ao sossego, risco à segurança, problema de higiene, descumprimento de normas condominiais ou prejuízo a terceiros.`,
+  },
+
+  {
+    tipo: 'pet', categoria: 'pet', titulo: 'Da política de pet — aceita', numero: 2,
+    corpo: `Fica permitida a permanência de animal doméstico no imóvel, desde que respeitadas as normas legais, contratuais e condominiais, bem como as regras de higiene, segurança, sossego, salubridade, circulação em áreas comuns e boa vizinhança.
+
+Parágrafo primeiro. Os LOCATÁRIOS serão integralmente responsáveis por danos, sujeira excessiva, odores, barulhos, riscos, mordidas, arranhões, infestação de pulgas/carrapatos, danos a móveis, portas, pisos, rodapés, telas, pintura, cortinas, estofados, jardins, áreas comuns ou quaisquer prejuízos causados pelo animal.
+
+Parágrafo segundo. Os LOCATÁRIOS deverão manter o animal em condições adequadas de higiene, vacinação, segurança e controle, respondendo por multas condominiais, reclamações formais, danos a terceiros e despesas decorrentes da permanência do animal.
+
+Parágrafo terceiro. Se o animal causar prejuízo ao sossego, segurança, saúde, higiene ou conservação do imóvel, o LOCADOR ou a ADMINISTRADORA poderá exigir providências corretivas, reparos, indenizações ou, em casos graves e persistentes, a retirada do animal, respeitados os meios legais cabíveis.`,
+  },
+
+  {
+    tipo: 'pet', categoria: 'pet', titulo: 'Da política de pet — somente com autorização', numero: 3,
+    corpo: `A permanência de animal doméstico no imóvel dependerá de autorização prévia e escrita do LOCADOR ou da ADMINISTRADORA, quando houver, devendo o LOCATÁRIO informar espécie, porte, quantidade, características do animal e assumir responsabilidade integral por danos, higiene, segurança, sossego e normas condominiais.
+
+Parágrafo único. Concedida a autorização, os LOCATÁRIOS responderão por todos os prejuízos causados pelo animal, incluindo danos ao imóvel, multas condominiais, reclamações formais e despesas de higienização ao final da locação.`,
+  },
+
+  {
+    tipo: 'pet', categoria: 'pet', titulo: 'Da política de pet — conforme condomínio', numero: 4,
+    corpo: `A permanência de animal doméstico observará as regras da convenção, regimento interno e normas administrativas do condomínio, bem como os limites de segurança, sossego, higiene, salubridade e boa convivência.
+
+Parágrafo único. O LOCATÁRIO responderá integralmente por danos, multas condominiais, reclamações formais e despesas causadas pelo animal, bem como pelo cumprimento das normas condominiais aplicáveis à manutenção e circulação do pet em áreas comuns.`,
+  },
+
+  {
+    tipo: 'pet', categoria: 'pet', titulo: 'Limpeza, desinfecção e devolução (com pet)', numero: 5,
+    corpo: `Havendo permanência de animal doméstico no imóvel, os LOCATÁRIOS obrigam-se, ao final da locação, a devolver o imóvel limpo, higienizado, livre de odores, pelos, resíduos, pulgas, carrapatos, danos em portas, pisos, rodapés, telas, estofados, móveis, jardins e demais itens, respondendo por limpeza especializada, dedetização, higienização, reparos ou indenizações quando constatada necessidade na vistoria final.
+
+Parágrafo único. Em imóvel mobiliado, semi-mobiliado ou parcialmente mobiliado, os LOCATÁRIOS responderão também por danos, odores, manchas, rasgos, arranhões, pelos impregnados ou deteriorações causadas pelo animal em sofás, colchões, camas, cortinas, tapetes, cadeiras, móveis, eletrodomésticos e demais bens inventariados.`,
+  },
 ]

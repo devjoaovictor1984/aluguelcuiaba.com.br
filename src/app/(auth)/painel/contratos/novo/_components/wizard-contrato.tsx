@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Home, User, Shield, DollarSign, Check, ArrowRight, ArrowLeft,
-  AlertCircle, Loader2, FileSignature,
+  AlertCircle, Loader2, FileSignature, Sofa,
 } from 'lucide-react'
 import { criarContrato, type ContratoInput } from '../../actions'
 import { gerarParcelas, resumirParcelas } from '@/lib/crm/calculos'
@@ -22,9 +22,10 @@ interface Props {
 const ETAPAS = [
   { id: 1, label: 'Imóvel',     icon: Home },
   { id: 2, label: 'Pessoas',    icon: User },
-  { id: 3, label: 'Garantia',   icon: Shield },
-  { id: 4, label: 'Valores',    icon: DollarSign },
-  { id: 5, label: 'Revisão',    icon: Check },
+  { id: 3, label: 'Perfil',     icon: Sofa },
+  { id: 4, label: 'Garantia',   icon: Shield },
+  { id: 5, label: 'Valores',    icon: DollarSign },
+  { id: 6, label: 'Revisão',    icon: Check },
 ]
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
@@ -102,6 +103,13 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
       if (!s.proprietario_id) return 'Escolha o proprietário.'
     }
     if (etapa === 3) {
+      // Perfil: validação leve — só checa que o pet não está com texto solto sem permitir
+      if ((s.aceita_pet === 'nao') && s.pet_observacao.trim()) {
+        // permitido — só observação informativa
+      }
+      // Mobília mobiliada sem inventário: aceita, mas o checklist do PDF avisará
+    }
+    if (etapa === 4) {
       if (s.garantia_tipo === 'fiador' && !s.fiador_id) return 'Escolha o fiador.'
       if (s.garantia_tipo === 'caucao' && !parseNumero(s.caucao_valor)) return 'Informe o valor da caução.'
       if (s.garantia_tipo === 'seguro_fianca') {
@@ -109,7 +117,7 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
         if (!s.seguro_fianca_apolice.trim()) return 'Informe o número da apólice.'
       }
     }
-    if (etapa === 4) {
+    if (etapa === 5) {
       if (!parseNumero(s.valor_aluguel)) return 'Informe o valor do aluguel.'
       if (!s.data_inicio) return 'Informe a data de início.'
       if (!s.data_primeiro_aluguel) return 'Informe a data do 1º aluguel.'
@@ -159,6 +167,12 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
       clausulas_extras: s.clausulas_extras || null,
       indice_reajuste: s.indice_reajuste || null,
       data_proximo_reajuste: s.data_proximo_reajuste || null,
+      tipo_atuacao: s.tipo_atuacao,
+      intermediador_assina: s.intermediador_assina,
+      tipo_mobilia: s.tipo_mobilia,
+      tem_inventario_bens: s.tem_inventario_bens,
+      aceita_pet: s.aceita_pet,
+      pet_observacao: s.pet_observacao || null,
     }
 
     startTransition(async () => {
@@ -311,8 +325,101 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
         </section>
       )}
 
-      {/* Etapa 3 — Garantia */}
+      {/* Etapa 3 — Perfil (atuação, mobília, pet) */}
       {etapa === 3 && (
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-6">
+          <h2 className="text-base font-semibold text-gray-900">Perfil do contrato</h2>
+
+          {/* Tipo de atuação */}
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-2">Qual o seu papel nesta locação?</p>
+            <div className="grid sm:grid-cols-3 gap-2">
+              {([
+                { v: 'administracao', l: 'Vou administrar', d: 'Cobro aluguel, presto contas, gerencio reparos.' },
+                { v: 'intermediacao', l: 'Só intermediei',  d: 'Aproximei as partes; depois eles tocam direto.' },
+                { v: 'direto',        l: 'Locação direta',  d: 'Sem corretor — contrato direto locador↔locatário.' },
+              ] as const).map(o => (
+                <button key={o.v} type="button" onClick={() => setField('tipo_atuacao', o.v)}
+                  className={`text-left px-3 py-3 rounded-xl border-2 transition-colors ${
+                    s.tipo_atuacao === o.v ? 'border-violet-700 bg-violet-50' : 'border-gray-100 hover:border-violet-300'
+                  }`}>
+                  <p className={`text-sm font-medium ${s.tipo_atuacao === o.v ? 'text-violet-700' : 'text-gray-800'}`}>{o.l}</p>
+                  <p className="text-[11px] text-gray-500 mt-1">{o.d}</p>
+                </button>
+              ))}
+            </div>
+            {s.tipo_atuacao === 'intermediacao' && (
+              <label className="flex items-center gap-2 mt-3 text-xs text-gray-700">
+                <input type="checkbox" checked={s.intermediador_assina}
+                  onChange={e => setField('intermediador_assina', e.target.checked)} />
+                Intermediador assina o contrato como testemunha/parte
+              </label>
+            )}
+          </div>
+
+          {/* Mobília */}
+          <div className="pt-4 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-700 mb-2">Como o imóvel é entregue?</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {([
+                { v: 'sem',     l: 'Sem mobília'     },
+                { v: 'semi',    l: 'Semi-mobiliado'  },
+                { v: 'parcial', l: 'Parcial'         },
+                { v: 'total',   l: '100% mobiliado'  },
+              ] as const).map(o => (
+                <button key={o.v} type="button" onClick={() => setField('tipo_mobilia', o.v)}
+                  className={`px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors ${
+                    s.tipo_mobilia === o.v ? 'border-violet-700 bg-violet-50 text-violet-700' : 'border-gray-100 text-gray-600 hover:border-violet-300'
+                  }`}>
+                  {o.l}
+                </button>
+              ))}
+            </div>
+            {s.tipo_mobilia !== 'sem' && (
+              <label className="flex items-center gap-2 mt-3 text-xs text-gray-700">
+                <input type="checkbox" checked={s.tem_inventario_bens}
+                  onChange={e => setField('tem_inventario_bens', e.target.checked)} />
+                Tenho inventário de bens anexado (recomendado)
+              </label>
+            )}
+            {s.tipo_mobilia !== 'sem' && !s.tem_inventario_bens && (
+              <p className="text-[11px] text-amber-600 mt-1">
+                ⚠ Imóvel mobiliado sem inventário — recomenda-se anexar lista com fotos antes de assinar.
+              </p>
+            )}
+          </div>
+
+          {/* Pet */}
+          <div className="pt-4 border-t border-gray-100">
+            <p className="text-xs font-semibold text-gray-700 mb-2">O imóvel aceita pet?</p>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {([
+                { v: 'nao',          l: 'Não aceita'        },
+                { v: 'sim',          l: 'Sim, aceita'       },
+                { v: 'autorizacao',  l: 'Com autorização'   },
+                { v: 'condominio',   l: 'Conforme condomínio' },
+              ] as const).map(o => (
+                <button key={o.v} type="button" onClick={() => setField('aceita_pet', o.v)}
+                  className={`px-3 py-2.5 rounded-xl border-2 text-sm font-medium transition-colors ${
+                    s.aceita_pet === o.v ? 'border-violet-700 bg-violet-50 text-violet-700' : 'border-gray-100 text-gray-600 hover:border-violet-300'
+                  }`}>
+                  {o.l}
+                </button>
+              ))}
+            </div>
+            {s.aceita_pet !== 'nao' && (
+              <div className="mt-3">
+                <label className="text-xs font-medium text-gray-600 block mb-1">Observação (opcional)</label>
+                <input value={s.pet_observacao} onChange={e => setField('pet_observacao', e.target.value)}
+                  placeholder="Ex: 1 cachorro de pequeno porte" className={inputCls} />
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      {/* Etapa 4 — Garantia */}
+      {etapa === 4 && (
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4">
           <h2 className="text-base font-semibold text-gray-900">Qual a garantia do contrato?</h2>
 
@@ -370,8 +477,8 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
         </section>
       )}
 
-      {/* Etapa 4 — Valores */}
-      {etapa === 4 && (
+      {/* Etapa 5 — Valores */}
+      {etapa === 5 && (
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
           <h2 className="text-base font-semibold text-gray-900">Valores e prazos</h2>
 
@@ -506,8 +613,8 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
         </section>
       )}
 
-      {/* Etapa 5 — Revisão */}
-      {etapa === 5 && (
+      {/* Etapa 6 — Revisão */}
+      {etapa === 6 && (
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
           <h2 className="text-base font-semibold text-gray-900 flex items-center gap-2">
             <FileSignature size={18} className="text-violet-600" />
@@ -533,6 +640,35 @@ export function WizardContrato({ imoveis, pessoas }: Props) {
                 {s.garantia_tipo === 'sem_garantia' ? 'Sem garantia' : s.garantia_tipo.replace('_', ' ')}
                 {s.garantia_tipo === 'fiador' && ` · ${pessoas.find(p => p.id === s.fiador_id)?.nome ?? '—'}`}
                 {s.garantia_tipo === 'caucao' && ` · ${fmtBRL(parseNumero(s.caucao_valor))}`}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs text-gray-400 mb-1">Atuação</p>
+              <p className="font-semibold text-gray-900">
+                {s.tipo_atuacao === 'administracao' && 'Administração imobiliária'}
+                {s.tipo_atuacao === 'intermediacao' && `Intermediação${s.intermediador_assina ? ' (assina)' : ''}`}
+                {s.tipo_atuacao === 'direto' && 'Locação direta'}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs text-gray-400 mb-1">Mobília</p>
+              <p className="font-semibold text-gray-900">
+                {s.tipo_mobilia === 'sem' && 'Sem mobília'}
+                {s.tipo_mobilia === 'semi' && 'Semi-mobiliado'}
+                {s.tipo_mobilia === 'parcial' && 'Parcialmente mobiliado'}
+                {s.tipo_mobilia === 'total' && '100% mobiliado'}
+                {s.tipo_mobilia !== 'sem' && s.tem_inventario_bens && ' · com inventário'}
+                {s.tipo_mobilia !== 'sem' && !s.tem_inventario_bens && ' · sem inventário ⚠'}
+              </p>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3">
+              <p className="text-xs text-gray-400 mb-1">Pet</p>
+              <p className="font-semibold text-gray-900">
+                {s.aceita_pet === 'nao' && 'Não aceita'}
+                {s.aceita_pet === 'sim' && 'Aceita'}
+                {s.aceita_pet === 'autorizacao' && 'Com autorização'}
+                {s.aceita_pet === 'condominio' && 'Conforme condomínio'}
+                {s.pet_observacao && ` · ${s.pet_observacao}`}
               </p>
             </div>
           </div>

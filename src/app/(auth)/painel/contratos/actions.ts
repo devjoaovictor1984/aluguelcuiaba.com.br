@@ -42,6 +42,14 @@ export interface ContratoInput {
   clausulas_extras: string | null
   indice_reajuste: string | null
   data_proximo_reajuste: string | null
+
+  // Perfil do contrato (v37): controla cláusulas auto-injetadas
+  tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
+  intermediador_assina: boolean
+  tipo_mobilia: 'sem' | 'semi' | 'parcial' | 'total'
+  tem_inventario_bens: boolean
+  aceita_pet: 'sim' | 'nao' | 'autorizacao' | 'condominio'
+  pet_observacao: string | null
 }
 
 function valida(input: ContratoInput): string | null {
@@ -144,6 +152,12 @@ export async function criarContrato(input: ContratoInput) {
       clausulas_extras: input.clausulas_extras,
       indice_reajuste: input.indice_reajuste,
       data_proximo_reajuste: input.data_proximo_reajuste,
+      tipo_atuacao: input.tipo_atuacao,
+      intermediador_assina: input.intermediador_assina,
+      tipo_mobilia: input.tipo_mobilia,
+      tem_inventario_bens: input.tem_inventario_bens,
+      aceita_pet: input.aceita_pet,
+      pet_observacao: input.pet_observacao,
     })
     .select('id, codigo')
     .single()

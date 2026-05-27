@@ -3,47 +3,131 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { CATEGORIAS_ORDEM } from '@/lib/contratos/placeholders'
 
 type TipoSeguroIncendio = 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
+type TipoAtuacao = 'administracao' | 'intermediacao' | 'direto'
+type TipoMobilia = 'sem' | 'semi' | 'parcial' | 'total'
+type AceitaPet = 'sim' | 'nao' | 'autorizacao' | 'condominio'
 
 export interface OpcoesGeracao {
   tipo_seguro_incendio: TipoSeguroIncendio
   saida_sem_multa_12m: boolean
 }
 
+interface ContratoContext {
+  garantiaTipo: string
+  tipoSeguroIncendio: TipoSeguroIncendio
+  tipoAtuacao: TipoAtuacao
+  tipoMobilia: TipoMobilia
+  aceitaPet: AceitaPet
+}
+
 /**
  * Seleciona quais cláusulas entram numa geração baseado nas opções:
- *  - todas as 'generica'
+ *  - todas as 'generica' (incluindo a "Das partes" da administração)
+ *  - se intermediação/direto, substitui "Das partes" pela variante de 'atuacao'
+ *  - 1 cláusula de fundamentação legal (no início)
  *  - 1 cláusula de garantia (tipo = contratos_locacao.garantia_tipo)
  *  - 1 cláusula de seguro_incendio (categoria = tipo_seguro_incendio)
+ *  - 1 variante de mobília (tipo='mobilia', titulo casa com tipo_mobilia) + cláusula de inventário se mobiliado
+ *  - 1 variante de pet (tipo='pet', titulo casa com aceita_pet) + cláusula de limpeza se aceita pet
  *
  * Retorna IDs ordenados pelo número de cada cláusula.
  */
 async function selecionarClausulasIniciais(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
-  garantiaTipo: string,
-  tipoSeguroIncendio: TipoSeguroIncendio,
+  ctx: ContratoContext,
 ): Promise<string[]> {
   const { data: clausulas } = await supabase
     .from('contrato_clausulas')
-    .select('id, tipo, categoria, numero')
+    .select('id, tipo, categoria, numero, titulo')
     .eq('user_id', userId)
     .eq('ativa', true)
     .order('numero', { ascending: true })
 
   if (!clausulas) return []
 
+  // ── Atuação: define qual cláusula "Das partes" usar ──
+  // - 'administracao' → cláusula genérica de "Das partes" (já existente, tipo 'generica' categoria 'partes')
+  // - 'intermediacao' → tipo 'atuacao' com titulo contendo 'intermediação'
+  // - 'direto'        → tipo 'atuacao' com titulo contendo 'direta'
+  const usarPartesGenerica = ctx.tipoAtuacao === 'administracao'
+
+  // ── Mobília: casa pelo titulo (variantes têm "imóvel sem mobília", "semi-mobiliado", etc) ──
+  const mobiliaMatcher: Record<TipoMobilia, RegExp> = {
+    sem: /sem mobília/i,
+    semi: /semi-mobiliado/i,
+    parcial: /parcialmente mobiliado/i,
+    total: /100% mobiliado/i,
+  }
+  const temMobilia = ctx.tipoMobilia !== 'sem'
+
+  // ── Pet ──
+  const petMatcher: Record<AceitaPet, RegExp> = {
+    nao: /não aceita/i,
+    sim: /— aceita/i,
+    autorizacao: /com autorização/i,
+    condominio: /conforme condomínio/i,
+  }
+  const aceitaAlgumPet = ctx.aceitaPet !== 'nao'
+
   const selecionadas = clausulas.filter(c => {
-    if (c.tipo === 'generica') return true
-    if (c.tipo === garantiaTipo) return true                                  // 'sem_garantia', 'caucao', 'fiador' ou 'seguro_fianca'
-    if (c.tipo === 'seguro_incendio' && c.categoria === tipoSeguroIncendio) return true
+    // Genéricas: sempre, EXCETO "Das partes" quando atuação != administração
+    if (c.tipo === 'generica') {
+      if (c.categoria === 'partes' && !usarPartesGenerica) return false
+      return true
+    }
+
+    // Fundamentação legal: sempre
+    if (c.tipo === 'fundamentacao') return true
+
+    // Atuação: só a variante que casa
+    if (c.tipo === 'atuacao') {
+      if (ctx.tipoAtuacao === 'intermediacao') return /intermediação/i.test(c.titulo)
+      if (ctx.tipoAtuacao === 'direto') return /direta/i.test(c.titulo)
+      return false
+    }
+
+    // Garantia
+    if (c.tipo === ctx.garantiaTipo) return true
+
+    // Seguro incêndio
+    if (c.tipo === 'seguro_incendio' && c.categoria === ctx.tipoSeguroIncendio) return true
+
+    // Mobília
+    if (c.tipo === 'mobilia') {
+      // Inventário: só se há mobília (qualquer variante)
+      if (/inventário/i.test(c.titulo)) return temMobilia
+      // Variante: só a que casa
+      return mobiliaMatcher[ctx.tipoMobilia].test(c.titulo)
+    }
+
+    // Pet
+    if (c.tipo === 'pet') {
+      // Limpeza: só se aceita pet de alguma forma
+      if (/limpeza/i.test(c.titulo)) return aceitaAlgumPet
+      // Variante: só a que casa
+      return petMatcher[ctx.aceitaPet].test(c.titulo)
+    }
+
     return false
   })
 
-  // Ordena: primeiro por número (genéricas em sequência), garantia entra no número 10, seguro incêndio no 11
+  // Ordena por CATEGORIAS_ORDEM e, dentro da mesma categoria, por número.
+  // Garante que "Das partes" (categoria 'partes') vem antes de "objeto", etc.
+  const idx = (cat: string) => {
+    const i = (CATEGORIAS_ORDEM as readonly string[]).indexOf(cat)
+    return i === -1 ? 999 : i
+  }
   return selecionadas
-    .sort((a, b) => a.numero - b.numero)
+    .sort((a, b) => {
+      const ca = idx(a.categoria)
+      const cb = idx(b.categoria)
+      if (ca !== cb) return ca - cb
+      return a.numero - b.numero
+    })
     .map(c => c.id)
 }
 
@@ -58,7 +142,7 @@ export async function obterOuCriarGeracao(contratoId: string) {
   // Confirma posse do contrato
   const { data: contrato } = await supabase
     .from('contratos_locacao')
-    .select('id, user_id, garantia_tipo')
+    .select('id, user_id, garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet')
     .eq('id', contratoId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
@@ -76,9 +160,13 @@ export async function obterOuCriarGeracao(contratoId: string) {
   if (existente) return { ok: true, geracao: existente }
 
   // Cria nova com defaults
-  const clausulaIds = await selecionarClausulasIniciais(
-    supabase, acesso.userId, contrato.garantia_tipo, 'dispensado'
-  )
+  const clausulaIds = await selecionarClausulasIniciais(supabase, acesso.userId, {
+    garantiaTipo: contrato.garantia_tipo,
+    tipoSeguroIncendio: 'dispensado',
+    tipoAtuacao: (contrato.tipo_atuacao ?? 'administracao') as TipoAtuacao,
+    tipoMobilia: (contrato.tipo_mobilia ?? 'sem') as TipoMobilia,
+    aceitaPet: (contrato.aceita_pet ?? 'nao') as AceitaPet,
+  })
 
   const { data: nova, error } = await supabase
     .from('contrato_geracoes')
@@ -110,7 +198,7 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
 
   const { data: atual } = await supabase
     .from('contrato_geracoes')
-    .select('id, contrato_id, tipo_seguro_incendio, clausula_ids, contratos_locacao:contratos_locacao!inner(garantia_tipo)')
+    .select('id, contrato_id, tipo_seguro_incendio, clausula_ids, contratos_locacao:contratos_locacao!inner(garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet)')
     .eq('id', geracaoId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
@@ -121,9 +209,13 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
   // Trocou o tipo de seguro incêndio? Re-seleciona pra trocar a cláusula
   if (atual.tipo_seguro_incendio !== opcoes.tipo_seguro_incendio) {
     const contratoRel = Array.isArray(atual.contratos_locacao) ? atual.contratos_locacao[0] : atual.contratos_locacao
-    clausulaIds = await selecionarClausulasIniciais(
-      supabase, acesso.userId, contratoRel.garantia_tipo, opcoes.tipo_seguro_incendio
-    )
+    clausulaIds = await selecionarClausulasIniciais(supabase, acesso.userId, {
+      garantiaTipo: contratoRel.garantia_tipo,
+      tipoSeguroIncendio: opcoes.tipo_seguro_incendio,
+      tipoAtuacao: (contratoRel.tipo_atuacao ?? 'administracao') as TipoAtuacao,
+      tipoMobilia: (contratoRel.tipo_mobilia ?? 'sem') as TipoMobilia,
+      aceitaPet: (contratoRel.aceita_pet ?? 'nao') as AceitaPet,
+    })
   }
 
   const { error } = await supabase

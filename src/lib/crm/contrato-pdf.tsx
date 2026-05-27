@@ -73,6 +73,11 @@ export interface ContratoPDFData {
   admin_responsavel_nome: string | null   // nome do corretor (ex: João Victor Vieira)
   admin_responsavel_creci: string | null  // CRECI do corretor
 
+  /** Tipo de atuação do corretor — controla título e bloco de assinatura. */
+  tipo_atuacao?: 'administracao' | 'intermediacao' | 'direto'
+  /** Se for intermediação, o corretor assina como testemunha/parte. */
+  intermediador_assina?: boolean
+
   locatario_nome: string
   locatario_cpf: string | null
   conjuge_nome: string | null
@@ -366,6 +371,16 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
   const dataExtenso = fmtDataExtenso(data.data_assinatura)
   const cidadeUf = data.anunciante_cidade_uf ?? 'Cuiabá-MT'
 
+  // Subtítulo do contrato muda conforme tipo de atuação:
+  // - administracao: "com Administração Imobiliária" (default)
+  // - intermediacao: "(intermediado por X)"
+  // - direto:        "Direta entre Locador e Locatário"
+  const atuacao = data.tipo_atuacao ?? (data.tem_administracao ? 'administracao' : 'administracao')
+  const subtituloContrato =
+    atuacao === 'administracao' ? 'com Administração Imobiliária' :
+    atuacao === 'intermediacao' ? `Intermediada por ${nomeInst}` :
+    'Direta entre Locador e Locatário'
+
   // Visual elegante mas sem usar position:absolute + border (que quebrava
   // o render). Cabeçalho aparece só na primeira página; layout linear.
   return (
@@ -446,7 +461,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             lineHeight: 1.25,
             marginBottom: 8,
           }}>
-            Contrato de Locação Residencial{'\n'}com Administração Imobiliária
+            Contrato de Locação Residencial{'\n'}{subtituloContrato}
           </Text>
           <Text style={{ fontSize: 10, color: CINZA, textAlign: 'center' }}>
             {data.locatario_nome}
@@ -650,8 +665,8 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             {cidadeUf}, {dataExtenso}.
           </Text>
 
-          {/* Locador / Administradora */}
-          {data.tem_administracao ? (
+          {/* Locador / Administradora / Intermediador (conforme tipo de atuação) */}
+          {atuacao === 'administracao' && data.tem_administracao ? (
             <View style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>LOCADOR / ADMINISTRADORA</Text>
               <Text style={blocoNome}>{data.admin_responsavel_nome ?? data.locador_nome}</Text>
@@ -680,6 +695,19 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             {data.locatario_cpf && <Text style={blocoSecundario}>CPF {data.locatario_cpf}</Text>}
             <View style={linhaAssinatura} />
           </View>
+
+          {/* Intermediador (só se atuação for intermediação E corretor optou por assinar) */}
+          {atuacao === 'intermediacao' && data.intermediador_assina && data.admin_responsavel_nome && (
+            <View style={{ marginBottom: 22 }}>
+              <Text style={blocoPapel}>INTERMEDIADOR(A)</Text>
+              <Text style={blocoNome}>{data.admin_responsavel_nome}</Text>
+              {data.admin_responsavel_creci && (
+                <Text style={blocoSecundario}>CRECI {data.admin_responsavel_creci}</Text>
+              )}
+              <Text style={blocoSecundario}>{nomeInst}</Text>
+              <View style={linhaAssinatura} />
+            </View>
+          )}
 
           {/* Cônjuge */}
           {data.conjuge_nome && (

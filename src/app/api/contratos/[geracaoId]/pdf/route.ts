@@ -217,6 +217,7 @@ export async function GET(
       seguro_fianca_seguradora, seguro_fianca_apolice,
       valor_seguro_fianca_mensal, valor_seguro_incendio_anual,
       taxa_admin_tipo, taxa_admin_valor,
+      tipo_atuacao, intermediador_assina, tipo_mobilia, aceita_pet,
       imovel:imoveis(
         tipo, endereco_resumido, endereco_completo, endereco_numero, endereco_complemento,
         endereco_cep, descricao, descricao_real,
@@ -416,6 +417,8 @@ export async function GET(
     tem_administracao: temAdministracao,
     admin_responsavel_nome: perfil?.nome ?? null,
     admin_responsavel_creci: perfil?.creci ?? null,
+    tipo_atuacao: (contrato.tipo_atuacao ?? 'administracao') as 'administracao' | 'intermediacao' | 'direto',
+    intermediador_assina: contrato.intermediador_assina ?? false,
     locatario_nome: inq?.nome ?? '[PREENCHER]',
     locatario_cpf: fmtCpf(inq?.cpf_cnpj ?? null),
     conjuge_nome: inq?.conjuge_nome ?? null,
