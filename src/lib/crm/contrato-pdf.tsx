@@ -393,7 +393,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
         size="A4"
         style={{
           paddingTop: 56,
-          paddingBottom: 70,   // espaço pro rodapé fixo
+          paddingBottom: 56,
           paddingLeft: 56,
           paddingRight: 56,
           fontSize: 10,
@@ -402,23 +402,9 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           lineHeight: 1.55,
         }}
       >
-        {/* ── Rodapé fixo (todas as páginas) ── */}
-        <Text
-          fixed
-          style={{
-            position: 'absolute',
-            bottom: 28,
-            left: 56,
-            right: 56,
-            textAlign: 'center',
-            fontSize: 7.5,
-            fontFamily: FAMILIA,
-            color: CINZA_CLARO,
-          }}
-          render={({ pageNumber, totalPages }) =>
-            `Contrato ${data.codigo} · AluguelCuiaba.com.br · Página ${pageNumber} de ${totalPages}`
-          }
-        />
+        {/* Rodapé fixo desativado novamente — combinação Text fixed +
+           position absolute reincide no bug "unsupported number" em
+           renderText. Mantemos rodapé estático só no final da página. */}
 
         {/* ── Cabeçalho institucional (só 1ª página) ──
            Removido `fixed` porque estava gerando coordenadas inválidas
@@ -777,6 +763,15 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </View>
           ))}
 
+          {/* Rodapé estático no final */}
+          <Text style={{
+            fontSize: 7.5,
+            color: CINZA_CLARO,
+            textAlign: 'center',
+            marginTop: 24,
+          }}>
+            Contrato {data.codigo} · AluguelCuiaba.com.br · Gerado em {fmtDataExtenso(data.data_assinatura)}
+          </Text>
         </View>
       </Page>
 
@@ -786,7 +781,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           size="A4"
           style={{
             paddingTop: 56,
-            paddingBottom: 70,
+            paddingBottom: 56,
             paddingLeft: 56,
             paddingRight: 56,
             fontSize: 10,
@@ -795,24 +790,6 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             lineHeight: 1.55,
           }}
         >
-          {/* Rodapé fixo */}
-          <Text
-            fixed
-            style={{
-              position: 'absolute',
-              bottom: 28,
-              left: 56,
-              right: 56,
-              textAlign: 'center',
-              fontSize: 7.5,
-              fontFamily: FAMILIA,
-              color: CINZA_CLARO,
-            }}
-            render={({ pageNumber, totalPages }) =>
-              `Termo de Entrega de Chaves · Anexo ao Contrato ${data.codigo} · AluguelCuiaba.com.br · Página ${pageNumber} de ${totalPages}`
-            }
-          />
-
           {/* Cabeçalho institucional (só 1ª página do termo, sem fixed) */}
           <View style={{ marginBottom: 12 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -951,6 +928,15 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             <View style={linhaAssinatura} />
           </View>
 
+          {/* Rodapé estático */}
+          <Text style={{
+            fontSize: 7.5,
+            color: CINZA_CLARO,
+            textAlign: 'center',
+            marginTop: 24,
+          }}>
+            Termo de Entrega de Chaves · Anexo ao Contrato {data.codigo} · AluguelCuiaba.com.br
+          </Text>
         </Page>
       )}
     </Document>

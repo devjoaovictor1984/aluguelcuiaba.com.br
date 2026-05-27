@@ -212,8 +212,6 @@ async function renderizarEditor(contratoId: string) {
           clausula_ids: r.geracao.clausula_ids as string[],
           testemunha_ids: (r.geracao.testemunha_ids as string[] | null) ?? [],
           clausulas_seguradora_texto: r.geracao.clausulas_seguradora_texto ?? '',
-          aluguel_inclui_iptu: r.geracao.aluguel_inclui_iptu ?? false,
-          aluguel_inclui_condominio: r.geracao.aluguel_inclui_condominio ?? false,
           pdf_assinado_url: r.geracao.pdf_assinado_url ?? null,
           assinado_em: r.geracao.assinado_em ?? null,
           status: r.geracao.status ?? 'rascunho',

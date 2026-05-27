@@ -19,7 +19,7 @@ import { atualizarClausula, criarClausula } from '../../../clausulas/actions'
 import {
   atualizarOpcoesGeracao, atualizarOrdemClausulas, alternarClausulaNaGeracao,
   atualizarTestemunhas, atualizarClausulasSeguradora,
-  atualizarFlagsAluguel, uploadContratoAssinado, removerContratoAssinado,
+  uploadContratoAssinado, removerContratoAssinado,
   atualizarAnexosDocumentos, marcarComoGerado,
 } from '../actions'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
@@ -51,8 +51,6 @@ interface Props {
     clausula_ids: string[]
     testemunha_ids: string[]
     clausulas_seguradora_texto: string
-    aluguel_inclui_iptu: boolean
-    aluguel_inclui_condominio: boolean
     pdf_assinado_url: string | null
     assinado_em: string | null
     status: string
@@ -79,9 +77,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
   const [textoSeguradora, setTextoSeguradora] = useState(geracao.clausulas_seguradora_texto)
 
-  // Flags aluguel inclui IPTU / condomínio
-  const [aluguelIncluiIptu, setAluguelIncluiIptu] = useState(geracao.aluguel_inclui_iptu)
-  const [aluguelIncluiCondominio, setAluguelIncluiCondominio] = useState(geracao.aluguel_inclui_condominio)
+
 
   // Upload contrato assinado
   const [statusGeracao, setStatusGeracao] = useState(geracao.status)
@@ -137,20 +133,6 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
     })
   }
 
-  // Flags aluguel inclui
-  const onToggleAluguelInclui = (campo: 'iptu' | 'condominio') => {
-    const novoIptu = campo === 'iptu' ? !aluguelIncluiIptu : aluguelIncluiIptu
-    const novoCondominio = campo === 'condominio' ? !aluguelIncluiCondominio : aluguelIncluiCondominio
-    setAluguelIncluiIptu(novoIptu)
-    setAluguelIncluiCondominio(novoCondominio)
-    startTransition(async () => {
-      const r = await atualizarFlagsAluguel(geracao.id, {
-        aluguel_inclui_iptu: novoIptu,
-        aluguel_inclui_condominio: novoCondominio,
-      })
-      if (r.error) setErro(r.error)
-    })
-  }
 
   // Upload contrato assinado
   const onSelecionarPdfAssinado = (file: File | null) => {
@@ -357,29 +339,10 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
           </label>
 
           <div className="pt-3 border-t border-gray-100">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 mb-2">Aluguel inclui</p>
-            <label className="flex items-center gap-2 cursor-pointer mb-1.5">
-              <input
-                type="checkbox"
-                checked={aluguelIncluiIptu}
-                onChange={() => onToggleAluguelInclui('iptu')}
-                disabled={isPending}
-                className="accent-violet-600"
-              />
-              <span className="text-sm text-gray-700">IPTU</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={aluguelIncluiCondominio}
-                onChange={() => onToggleAluguelInclui('condominio')}
-                disabled={isPending}
-                className="accent-violet-600"
-              />
-              <span className="text-sm text-gray-700">Condomínio</span>
-            </label>
-            <p className="text-[10px] text-gray-400 mt-1.5">
-              Quando marcado, sugere adicionar a cláusula correspondente no contrato.
+            <p className="text-[10px] text-gray-400">
+              Encargos inclusos no aluguel (IPTU/condomínio/água/luz/gás/internet) são definidos
+              no <strong>cadastro do contrato</strong> e injetam a variante "pacote" das cláusulas
+              7 e 16 automaticamente.
             </p>
           </div>
         </section>
