@@ -229,7 +229,7 @@ export async function GET(
     .from('contratos_locacao')
     .select(`
       id, codigo, valor_aluguel, iptu_mensal, condominio_mensal,
-      data_inicio, data_termino, duracao_meses, dia_vencimento,
+      data_inicio, data_primeiro_aluguel, data_termino, duracao_meses, dia_vencimento,
       garantia_tipo, caucao_valor,
       seguro_fianca_seguradora, seguro_fianca_apolice,
       valor_seguro_fianca_mensal, valor_seguro_incendio_anual,
