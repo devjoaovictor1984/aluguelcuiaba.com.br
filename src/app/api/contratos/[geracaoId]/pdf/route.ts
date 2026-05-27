@@ -80,10 +80,15 @@ function montarQuadroEntrada(c: ContratoLite) {
 }
 
 function montarTabela12Meses(c: ContratoLite) {
-  // Início da tabela: data do PRIMEIRO ALUGUEL (não data de início do contrato).
-  // O usuário pode definir início em 10/06 e primeiro aluguel em 10/07, por exemplo.
-  const dataBase = c.data_primeiro_aluguel ?? c.data_inicio
-  if (!dataBase || !c.dia_vencimento || !c.valor_aluguel) {
+  // PERÍODO da parcela: sempre a partir da DATA DE INÍCIO do contrato.
+  //   Parcela 1 cobre data_inicio até dia anterior do próximo mês.
+  // VENCIMENTO da parcela: a partir de data_primeiro_aluguel.
+  //   Com seguro fiança/fiador, primeiro_aluguel costuma ser 1 mês após início
+  //   (pagamento "postecipado" da 1ª parcela); sem garantia ou caução,
+  //   primeiro_aluguel = início (pagamento antecipado).
+  const dataInicio = c.data_inicio
+  const dataPrimeiroVenc = c.data_primeiro_aluguel ?? c.data_inicio
+  if (!dataInicio || !dataPrimeiroVenc || !c.valor_aluguel) {
     return { colunas: { iptu: false, condominio: false, seguro: false }, linhas: [] }
   }
 
@@ -99,14 +104,14 @@ function montarTabela12Meses(c: ContratoLite) {
     seguro: seguroFianca > 0,
   }
 
-  const base = new Date(dataBase + 'T00:00:00')
+  const inicio = new Date(dataInicio + 'T00:00:00')
+  const primeiroVenc = new Date(dataPrimeiroVenc + 'T00:00:00')
   const linhas = []
 
   for (let i = 0; i < 12; i++) {
-    // Cada parcela começa no mesmo dia do mês, deslocando i meses do mês base
-    const periodoIni = new Date(base.getFullYear(), base.getMonth() + i, base.getDate())
-    const periodoFim = new Date(base.getFullYear(), base.getMonth() + i + 1, base.getDate() - 1)
-    const venc = new Date(periodoIni.getFullYear(), periodoIni.getMonth(), c.dia_vencimento)
+    const periodoIni = new Date(inicio.getFullYear(), inicio.getMonth() + i, inicio.getDate())
+    const periodoFim = new Date(inicio.getFullYear(), inicio.getMonth() + i + 1, inicio.getDate() - 1)
+    const venc = new Date(primeiroVenc.getFullYear(), primeiroVenc.getMonth() + i, primeiroVenc.getDate())
 
     linhas.push({
       parcela: i + 1,
