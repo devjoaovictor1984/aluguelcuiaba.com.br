@@ -15,7 +15,8 @@ export interface ClausulaInput {
 }
 
 const TIPOS_VALIDOS: TipoClausula[] = [
-  'generica', 'sem_garantia', 'caucao', 'fiador', 'seguro_fianca', 'seguro_incendio', 'adicional',
+  'generica', 'sem_garantia', 'caucao', 'fiador', 'seguro_fianca', 'seguro_incendio',
+  'adicional', 'administracao', 'atuacao', 'fundamentacao', 'mobilia', 'pet', 'aluguel_pacote',
 ]
 
 function valida(input: ClausulaInput): string | null {
