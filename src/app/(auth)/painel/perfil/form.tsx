@@ -322,24 +322,26 @@ export function PerfilForm({ userId, email, perfilInicial, isNovo }: Props) {
           </div>
         )}
 
-        {tipo === 'imobiliaria' && (
+        {(tipo === 'imobiliaria' || tipo === 'corretor') && (
           <div className="space-y-3 pt-2 border-t border-gray-100">
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-2">
-              Dados jurídicos da imobiliária
+              {tipo === 'imobiliaria' ? 'Dados jurídicos da imobiliária' : 'Dados jurídicos (opcional)'}
             </p>
             <p className="text-xs text-gray-500 -mt-1">
-              Aparecem no cabeçalho de contratos, vistorias e recibos.
+              {tipo === 'imobiliaria'
+                ? 'Aparecem no cabeçalho de contratos, vistorias e recibos.'
+                : 'Se você é MEI ou tem CNPJ próprio, aparece no contrato como administradora. Opcional para corretor PF.'}
             </p>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">Razão social</label>
+              <label className="text-sm font-medium text-gray-700">Razão social {tipo === 'corretor' && <span className="text-gray-400">(opcional)</span>}</label>
               <input type="text" value={razaoSocial} onChange={e => setRazaoSocial(e.target.value)} placeholder="Ex: IMOBILIATTO" className={inputCls} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">CNPJ</label>
+              <label className="text-sm font-medium text-gray-700">CNPJ {tipo === 'corretor' && <span className="text-gray-400">(opcional)</span>}</label>
               <input type="text" inputMode="numeric" value={cnpj} onChange={e => setCnpj(mascaraCNPJ(e.target.value))} placeholder="00.000.000/0000-00" className={inputCls} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-sm font-medium text-gray-700">CRECI Jurídico</label>
+              <label className="text-sm font-medium text-gray-700">CRECI Jurídico {tipo === 'corretor' && <span className="text-gray-400">(opcional)</span>}</label>
               <input type="text" value={creciJuridico} onChange={e => setCreciJuridico(e.target.value)} placeholder="Ex: 14137-J" className={inputCls} />
               <p className="text-xs text-gray-400">CRECI da pessoa jurídica, distinto do CRECI do corretor responsável.</p>
             </div>
