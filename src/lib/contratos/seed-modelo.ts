@@ -363,6 +363,20 @@ Parágrafo quinto. Caso a seguradora indenize o LOCADOR por débito, dano, multa
 Parágrafo sexto. O seguro-fiança não isenta o LOCATÁRIO de cumprir todas as obrigações deste contrato, inclusive pagamento pontual dos aluguéis, encargos, seguros, consumos, multas, reparos, indenizações e devolução regular do imóvel.`,
   },
 
+  // Responsabilidade pelo pagamento do seguro fiança + quem mora no imóvel
+  {
+    tipo: 'seguro_fianca', categoria: 'garantia', titulo: 'Da responsabilidade pelo pagamento e da ocupação do imóvel', numero: 11,
+    corpo: `O custo mensal do seguro-fiança contratado junto à seguradora {{SEGURO_SEGURADORA}}, apólice nº {{SEGURO_APOLICE}}, é de responsabilidade financeira do LOCATÁRIO {{LOCATARIO_NOME}}, portador(a) do CPF nº {{LOCATARIO_CPF}}, que arcará com o pagamento integral do prêmio enquanto vigente esta locação.
+
+Parágrafo primeiro. A ocupação efetiva do IMÓVEL será exercida pelo LOCATÁRIO {{LOCATARIO_NOME}} e seus dependentes diretos. Quaisquer co-locatários, moradores adicionais ou responsáveis financeiros distintos deverão constar nas assinaturas finais com sua respectiva qualificação, respondendo solidariamente pelas obrigações deste contrato.
+
+Parágrafo segundo. Caso o responsável financeiro pelo seguro-fiança seja pessoa distinta do ocupante do imóvel, ambos firmam o presente instrumento com pleno conhecimento e aceitação, mantendo-se a solidariedade nas obrigações locatícias.
+
+Parágrafo terceiro. Em caso de inadimplência do prêmio do seguro-fiança, a SEGURADORA poderá cancelar a apólice, hipótese em que o LOCATÁRIO deverá substituir a garantia em prazo razoável estipulado pela ADMINISTRADORA ou sujeitar-se à rescisão contratual com despejo, sem prejuízo de cobrança e demais medidas legais cabíveis.
+
+Parágrafo quarto. Qualquer alteração no responsável pelo pagamento do prêmio ou na composição dos ocupantes do imóvel deverá ser previamente comunicada por escrito ao LOCADOR ou à ADMINISTRADORA, sob pena de caracterizar infração contratual.`,
+  },
+
   // ════════════════════════════════════════════════════════════════
   //  SEGURO INCÊNDIO — 3 variações, usa categoria pra diferenciar
   // ════════════════════════════════════════════════════════════════

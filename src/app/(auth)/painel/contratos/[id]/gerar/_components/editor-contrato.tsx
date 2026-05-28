@@ -475,50 +475,65 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
         )}
 
         {/* Anexos — PDFs/imagens das partes incluídos ao final do contrato */}
-        {documentosPartes.length > 0 && (
-          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
-            <div>
-              <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-                <FileDown size={12} /> Anexos pro contrato
-              </h2>
-              <p className="text-[10px] text-gray-400 mt-0.5">
-                Documentos das partes que vão ao final do PDF (RG, comprovantes, etc.).
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+              <FileDown size={12} /> Anexos pro contrato
+            </h2>
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              Documentos das partes que vão ao final do PDF (RG, comprovantes, etc.).
+            </p>
+          </div>
+
+          {documentosPartes.length === 0 ? (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-[11px] text-amber-800 space-y-1">
+              <p className="font-semibold">Nenhum documento cadastrado ainda.</p>
+              <p>
+                Pra anexar RG, CPF, comprovante de renda ou outros documentos no final do contrato,
+                vai em <strong>Clientes</strong> → abre a pessoa (locador / locatário / fiador) →
+                sobe os arquivos na seção <strong>Documentos</strong>.
+              </p>
+              <p>
+                Voltando aqui, os arquivos aparecem listados — você marca quais vão no PDF.
               </p>
             </div>
-            <div className="max-h-56 overflow-y-auto space-y-1">
-              {documentosPartes.map(d => {
-                const sel = anexoIds.includes(d.id)
-                return (
-                  <label
-                    key={d.id}
-                    className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
-                      sel ? 'bg-violet-50 border border-violet-300' : 'hover:bg-gray-50 border border-transparent'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={sel}
-                      onChange={() => onToggleAnexo(d.id)}
-                      disabled={isPending}
-                      className="accent-violet-600 mt-0.5 shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-900 truncate">
-                        {d.nome_original}
-                      </p>
-                      <p className="text-[10px] text-gray-500">
-                        <span className="font-mono uppercase">{d.tipo}</span> · {d.pessoa_nome}
-                      </p>
-                    </div>
-                  </label>
-                )
-              })}
-            </div>
-            <p className="text-[10px] text-gray-400">
-              Selecionados: <strong>{anexoIds.length}</strong>
-            </p>
-          </section>
-        )}
+          ) : (
+            <>
+              <div className="max-h-56 overflow-y-auto space-y-1">
+                {documentosPartes.map(d => {
+                  const sel = anexoIds.includes(d.id)
+                  return (
+                    <label
+                      key={d.id}
+                      className={`flex items-start gap-2 p-2 rounded-lg cursor-pointer transition-colors ${
+                        sel ? 'bg-violet-50 border border-violet-300' : 'hover:bg-gray-50 border border-transparent'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={sel}
+                        onChange={() => onToggleAnexo(d.id)}
+                        disabled={isPending}
+                        className="accent-violet-600 mt-0.5 shrink-0"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold text-gray-900 truncate">
+                          {d.nome_original}
+                        </p>
+                        <p className="text-[10px] text-gray-500">
+                          <span className="font-mono uppercase">{d.tipo}</span> · {d.pessoa_nome}
+                        </p>
+                      </div>
+                    </label>
+                  )
+                })}
+              </div>
+              <p className="text-[10px] text-gray-400">
+                Selecionados: <strong>{anexoIds.length}</strong> · vão no final do PDF na ordem listada.
+              </p>
+            </>
+          )}
+        </section>
 
         {/* Contrato assinado — upload do PDF assinado */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
