@@ -208,21 +208,73 @@ const fmtCep = (s: string | null | undefined): string => {
   return s
 }
 
-const numeroPorExtenso = (n: number | null | undefined): string => {
-  if (n == null) return '[PREENCHER]'
-  // Implementação simples — pra valores típicos de aluguel/prazo
+// Converte inteiro 0–999.999.999 em extenso (pt-BR).
+const inteiroPorExtenso = (n: number): string => {
+  if (n === 0) return 'zero'
   const unidades = ['', 'um', 'dois', 'três', 'quatro', 'cinco', 'seis', 'sete', 'oito', 'nove']
   const dezenas10a19 = ['dez', 'onze', 'doze', 'treze', 'quatorze', 'quinze', 'dezesseis', 'dezessete', 'dezoito', 'dezenove']
   const dezenas = ['', '', 'vinte', 'trinta', 'quarenta', 'cinquenta', 'sessenta', 'setenta', 'oitenta', 'noventa']
-  if (n === 0) return 'zero'
-  if (n < 10) return unidades[n]
-  if (n < 20) return dezenas10a19[n - 10]
-  if (n < 100) {
-    const d = Math.floor(n / 10)
-    const u = n % 10
-    return u === 0 ? dezenas[d] : `${dezenas[d]} e ${unidades[u]}`
+  const centenas = ['', 'cento', 'duzentos', 'trezentos', 'quatrocentos', 'quinhentos', 'seiscentos', 'setecentos', 'oitocentos', 'novecentos']
+
+  // Converte 0–999
+  const ate999 = (x: number): string => {
+    if (x === 0) return ''
+    if (x === 100) return 'cem'
+    const c = Math.floor(x / 100)
+    const resto = x % 100
+    const partes: string[] = []
+    if (c > 0) partes.push(centenas[c])
+    if (resto > 0) {
+      if (resto < 10) partes.push(unidades[resto])
+      else if (resto < 20) partes.push(dezenas10a19[resto - 10])
+      else {
+        const d = Math.floor(resto / 10)
+        const u = resto % 10
+        partes.push(u === 0 ? dezenas[d] : `${dezenas[d]} e ${unidades[u]}`)
+      }
+    }
+    return partes.join(' e ')
   }
-  return String(n)
+
+  const milhoes = Math.floor(n / 1_000_000)
+  const milhares = Math.floor((n % 1_000_000) / 1000)
+  const resto = n % 1000
+
+  const blocos: string[] = []
+  if (milhoes > 0) blocos.push(milhoes === 1 ? 'um milhão' : `${ate999(milhoes)} milhões`)
+  if (milhares > 0) blocos.push(milhares === 1 ? 'mil' : `${ate999(milhares)} mil`)
+  if (resto > 0) blocos.push(ate999(resto))
+
+  // Junta blocos: usa " e " antes do último bloco quando o último é < 100 ou múltiplo de cem
+  let out = ''
+  for (let i = 0; i < blocos.length; i++) {
+    if (i === 0) out = blocos[i]
+    else {
+      const ultimoNum = i === blocos.length - 1 ? resto : milhares
+      const usaE = i === blocos.length - 1 && (resto === 0 || resto < 100 || resto % 100 === 0)
+      out += (usaE ? ' e ' : ', ') + blocos[i]
+      void ultimoNum
+    }
+  }
+  return out
+}
+
+// Mantido pra compatibilidade (prazo em meses, etc) — só o inteiro.
+const numeroPorExtenso = (n: number | null | undefined): string => {
+  if (n == null) return '[PREENCHER]'
+  return inteiroPorExtenso(Math.floor(n))
+}
+
+// Valor monetário por extenso: "dois mil e oitocentos reais",
+// "cento e onze reais e onze centavos".
+const valorPorExtenso = (v: number | null | undefined): string => {
+  if (v == null) return ''
+  const reais = Math.floor(v)
+  const centavos = Math.round((v - reais) * 100)
+  const parteReais = reais === 0 ? '' : `${inteiroPorExtenso(reais)} ${reais === 1 ? 'real' : 'reais'}`
+  const parteCentavos = centavos === 0 ? '' : `${inteiroPorExtenso(centavos)} ${centavos === 1 ? 'centavo' : 'centavos'}`
+  if (parteReais && parteCentavos) return `${parteReais} e ${parteCentavos}`
+  return parteReais || parteCentavos || 'zero reais'
 }
 
 /**
@@ -392,7 +444,7 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
 
     // ── Valores ──
     case 'ALUGUEL_VALOR': return fmtBRL(dados.contrato?.valor_aluguel)
-    case 'ALUGUEL_EXTENSO': return numeroPorExtenso(dados.contrato?.valor_aluguel ? Math.floor(dados.contrato.valor_aluguel) : null) + ' reais'
+    case 'ALUGUEL_EXTENSO': return valorPorExtenso(dados.contrato?.valor_aluguel)
     case 'IPTU_VALOR': return fmtBRL(dados.contrato?.iptu_mensal ?? 0)
     case 'VENCIMENTO_DIA': return dados.contrato?.dia_vencimento != null ? String(dados.contrato.dia_vencimento) : FALLBACK
     case 'TOTAL_MENSAL': {
@@ -443,15 +495,12 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       const a = c?.valor_aluguel ?? 0
       const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
       const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
-      return numeroPorExtenso(Math.floor(a + i + co)) + ' reais'
+      return valorPorExtenso(a + i + co)
     }
 
     // Seguro fiança mensal
     case 'SEGURO_FIANCA_VALOR': return fmtBRL(dados.contrato?.valor_seguro_fianca_mensal ?? 0)
-    case 'SEGURO_FIANCA_EXTENSO': {
-      const v = dados.contrato?.valor_seguro_fianca_mensal ?? 0
-      return numeroPorExtenso(Math.floor(v)) + ' reais'
-    }
+    case 'SEGURO_FIANCA_EXTENSO': return valorPorExtenso(dados.contrato?.valor_seguro_fianca_mensal ?? 0)
 
     // Seguro incêndio: SEMPRE retorna vazio no contexto de "boleto mensal".
     // Regra de mercado: seguro incêndio é obrigatório por lei (Lei 8.245/91),
@@ -476,7 +525,7 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
       const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
       const sf = c?.valor_seguro_fianca_mensal ?? 0
-      return numeroPorExtenso(Math.floor(a + i + co + sf)) + ' reais'
+      return valorPorExtenso(a + i + co + sf)
     }
 
     case 'OUTROS_ENCARGOS_FIXOS': return ''  // texto livre — corretor edita depois se quiser
@@ -503,7 +552,7 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
 
     // ── Caução ──
     case 'CAUCAO_VALOR': return fmtBRL(dados.contrato?.caucao_valor)
-    case 'CAUCAO_EXTENSO': return numeroPorExtenso(dados.contrato?.caucao_valor ? Math.floor(dados.contrato.caucao_valor) : null) + ' reais'
+    case 'CAUCAO_EXTENSO': return valorPorExtenso(dados.contrato?.caucao_valor)
     case 'CAUCAO_MESES': {
       const v = dados.contrato?.caucao_valor ?? 0
       const a = dados.contrato?.valor_aluguel ?? 0
@@ -537,7 +586,7 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       const t = dados.administracao
       if (!t || t.taxa_valor == null) return FALLBACK
       if (t.taxa_tipo === 'fixo') {
-        return `${fmtBRL(t.taxa_valor)} (${numeroPorExtenso(Math.floor(t.taxa_valor))} reais) mensais`
+        return `${fmtBRL(t.taxa_valor)} (${valorPorExtenso(t.taxa_valor)}) mensais`
       }
       return `${t.taxa_valor}% (${numeroPorExtenso(Math.floor(t.taxa_valor))} por cento) sobre o aluguel`
     }

@@ -472,6 +472,14 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             }}>
               {tituloFinalidade}{'\n'}{subtituloContrato}
             </Text>
+            {data.resumo_capa?.garantia_str && (
+              <Text style={{
+                fontSize: 10, fontFamily: FAMILIA, color: CINZA,
+                textAlign: 'center', marginTop: 4,
+              }}>
+                Garantia: {data.resumo_capa.garantia_str}
+              </Text>
+            )}
             <Text style={{
               fontSize: 10, fontFamily: FAMILIA, fontWeight: 'bold', color: CINZA_CLARO,
               textAlign: 'center', letterSpacing: 1.2, marginTop: 12,
