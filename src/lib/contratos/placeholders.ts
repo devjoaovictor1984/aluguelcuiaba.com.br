@@ -152,9 +152,10 @@ export const CATEGORIAS_ORDEM = [
   'mobilia',        //    Da mobília (após objeto, antes do prazo)
   'prazo',          // 3. Do prazo, início e entrega das chaves
   'aluguel',        // 4. Do aluguel, IPTU e encargos
-  'caucao',         // 5. Da caução (só em contrato com caução)
-  'fiador',         //    Do fiador (só com fiador)
-  'seguro',         //    Do seguro
+  'garantia',       // 5. Da garantia (caução / fiador / seguro fiança / sem garantia)
+  'caucao',         //    (legado)
+  'fiador',         //    (legado)
+  'seguro',         //    (legado)
   'reajuste',       // 6. Do reajuste
   'mora',           // 7. Da mora e cobrança
   'destinacao',     // 8. Da destinação e ocupação

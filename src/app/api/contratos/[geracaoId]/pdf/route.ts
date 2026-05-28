@@ -4,7 +4,7 @@ import { PDFDocument } from 'pdf-lib'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
-import { aplicarPlaceholders, type DadosContrato } from '@/lib/contratos/montar'
+import { aplicarPlaceholders, limparTituloDuplicado, type DadosContrato } from '@/lib/contratos/montar'
 import React from 'react'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
@@ -489,11 +489,12 @@ export async function GET(
     },
   }
 
-  // 6. Aplica placeholders em cada cláusula
+  // 6. Aplica placeholders em cada cláusula + remove título duplicado no corpo
+  //    (acontece quando user/ChatGPT cola o título em maiúsculas no início do texto)
   const clausulas: ContratoPDFClausula[] = clausulasOrdenadas.map((c, idx) => ({
     numero: idx + 1,
     titulo: c.titulo,
-    corpo: aplicarPlaceholders(c.corpo, dadosContrato),
+    corpo: aplicarPlaceholders(limparTituloDuplicado(c.titulo, c.corpo), dadosContrato),
   }))
 
   // 7. Endereço da admin

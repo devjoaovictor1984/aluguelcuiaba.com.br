@@ -566,7 +566,27 @@ export function aplicarPlaceholders(corpo: string, dados: DadosContrato): string
     .replace(/[ \t]+/g, ' ')                // múltiplos espaços
     .replace(/(CPF nº|RG|CNPJ)\s*[.,]/g, '$1') // "CPF nº ," sobra como "CPF nº"
     .replace(/, +(\.)/g, '$1')              // vírgula antes de ponto
+    .replace(/:\s*\./g, '.')                // ": ." quando placeholder fica vazio
+    .replace(/:\s*$/gm, '.')                // ":" no fim de linha sem conteúdo
     .replace(/\s+([.,;:])/g, '$1')          // espaço antes de pontuação
     .replace(/\n[ \t]*\n[ \t]*\n+/g, '\n\n') // múltiplas linhas em branco → 2
   return r
+}
+
+/**
+ * Remove primeira linha do corpo se ela for igual ao título da cláusula
+ * (case insensitive). Acontece quando o usuário (ou ChatGPT) cola o título
+ * em maiúsculas no início do texto, e o PDF mostra título duplicado.
+ */
+export function limparTituloDuplicado(titulo: string, corpo: string): string {
+  if (!titulo?.trim()) return corpo
+  const linhas = corpo.split('\n')
+  if (linhas.length === 0) return corpo
+  const primeira = linhas[0].trim().toLowerCase().replace(/[.,;:!?]+$/g, '')
+  const tituloNorm = titulo.trim().toLowerCase().replace(/[.,;:!?]+$/g, '')
+  // Match exato OU primeira linha contém o título (ex: title prefixado por "1. ")
+  if (primeira === tituloNorm || (tituloNorm.length > 8 && primeira.includes(tituloNorm))) {
+    return linhas.slice(1).join('\n').replace(/^\n+/, '')
+  }
+  return corpo
 }
