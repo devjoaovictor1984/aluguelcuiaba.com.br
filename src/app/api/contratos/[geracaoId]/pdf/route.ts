@@ -132,12 +132,34 @@ function montarTabela12Meses(c: ContratoLite) {
 
 function montarTermoChaves(
   c: ContratoLite & { data_inicio?: string | null },
-  dados: { imovel?: { endereco_completo?: string | null; endereco_resumido?: string | null; bairro_nome?: string | null } | null }
+  dados: {
+    imovel?: {
+      endereco_completo?: string | null
+      endereco_resumido?: string | null
+      endereco_numero?: string | null
+      endereco_complemento?: string | null
+      endereco_bairro?: string | null
+      bairro_nome?: string | null
+    } | null
+  }
 ): { endereco_imovel: string; data_entrega: string; qtd_chaves: number; qtd_controles: number; qtd_tags: number } {
   const im = dados.imovel
-  const endereco = im?.endereco_completo ?? im?.endereco_resumido ?? '[ENDEREÇO DO IMÓVEL]'
+  // Mesma lógica do IMOVEL_ENDERECO em montar.ts: monta endereço completo
+  // com logradouro + número + complemento + bairro.
+  let endereco = '[ENDEREÇO DO IMÓVEL]'
+  if (im?.endereco_completo) {
+    const partes = [
+      im.endereco_completo,
+      im.endereco_numero ? `nº ${im.endereco_numero}` : null,
+      im.endereco_complemento,
+      im.endereco_bairro ?? im.bairro_nome,
+    ].filter(Boolean)
+    endereco = partes.join(', ')
+  } else if (im?.endereco_resumido) {
+    endereco = `${im.endereco_resumido}${im.bairro_nome ? `, ${im.bairro_nome}` : ''}`
+  }
   return {
-    endereco_imovel: endereco + (im?.bairro_nome ? `, ${im.bairro_nome}` : ''),
+    endereco_imovel: endereco,
     data_entrega: fmtData(c.data_inicio ?? null),
     qtd_chaves: c.qtd_chaves ?? 0,
     qtd_controles: c.qtd_controles ?? 0,
