@@ -457,15 +457,44 @@ export async function excluirContrato(id: string) {
 export async function restaurarContrato(id: string) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+
+  // Pega o código do contrato que será restaurado
+  const { data: alvo } = await supabase
+    .from('contratos_locacao')
+    .select('codigo')
+    .eq('id', id)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!alvo) return { error: 'Contrato não encontrado.' }
+
+  // Se o código já está em uso por um contrato ATIVO, gera um novo número
+  // (evita conflito do unique parcial e não bloqueia o restore)
+  let novoCodigo: string | null = null
+  const { data: emUso } = await supabase
+    .from('contratos_locacao')
+    .select('id')
+    .eq('user_id', acesso.userId)
+    .eq('codigo', alvo.codigo)
+    .is('deleted_at', null)
+    .neq('id', id)
+    .maybeSingle()
+  if (emUso) {
+    novoCodigo = await proximoCodigo(acesso.userId, supabase)
+  }
+
+  const update: { deleted_at: null; codigo?: string } = { deleted_at: null }
+  if (novoCodigo) update.codigo = novoCodigo
+
   const { error } = await supabase
     .from('contratos_locacao')
-    .update({ deleted_at: null })
+    .update(update)
     .eq('id', id)
     .eq('user_id', acesso.userId)
   if (error) return { error: error.message }
+
   revalidatePath('/painel/contratos')
   revalidatePath('/painel/lixeira')
-  return { ok: true }
+  return { ok: true, renumerado: novoCodigo }
 }
 
 export async function excluirDefinitivoContrato(id: string) {
