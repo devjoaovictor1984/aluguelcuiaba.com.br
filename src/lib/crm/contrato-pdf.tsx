@@ -99,6 +99,10 @@ export interface ContratoPDFData {
   locatario_cpf: string | null
   conjuge_nome: string | null
   conjuge_cpf: string | null
+  /** Papel do cônjuge: solidario (locatária solidária) | anuente | nao_participa */
+  conjuge_papel?: 'solidario' | 'anuente' | 'nao_participa'
+  /** Qualificação completa do cônjuge pro corpo (gerada em montar.ts) */
+  conjuge_qualificacao?: string | null
 
   // Moradores adicionais (co-locatários solidários, moradores, responsáveis financeiros)
   moradores_adicionais: Array<{
@@ -903,10 +907,14 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </View>
           )}
 
-          {/* Cônjuge */}
-          {data.conjuge_nome && (
+          {/* Cônjuge — label conforme papel; 'nao_participa' não assina */}
+          {data.conjuge_nome && (data.conjuge_papel ?? 'solidario') !== 'nao_participa' && (
             <View style={{ marginBottom: 22 }}>
-              <Text style={blocoPapel}>CÔNJUGE DO LOCATÁRIO</Text>
+              <Text style={blocoPapel}>
+                {(data.conjuge_papel ?? 'solidario') === 'solidario'
+                  ? 'LOCATÁRIA(O) SOLIDÁRIA(O) / CÔNJUGE DO LOCATÁRIO'
+                  : 'CÔNJUGE ANUENTE / OCUPANTE AUTORIZADA'}
+              </Text>
               <Text style={blocoNome}>{data.conjuge_nome}</Text>
               {data.conjuge_cpf && <Text style={blocoSecundario}>CPF {data.conjuge_cpf}</Text>}
               <View style={linhaAssinatura} />
@@ -1214,8 +1222,12 @@ function PartesCapa({
   linhas.push({ papel: 'Locador', nome: data.locador_nome, cpf: data.locador_cpf })
   linhas.push({ papel: 'Locatário', nome: data.locatario_nome, cpf: data.locatario_cpf })
 
-  if (data.conjuge_nome) {
-    linhas.push({ papel: 'Cônjuge', nome: data.conjuge_nome, cpf: data.conjuge_cpf })
+  if (data.conjuge_nome && (data.conjuge_papel ?? 'solidario') !== 'nao_participa') {
+    linhas.push({
+      papel: (data.conjuge_papel ?? 'solidario') === 'solidario' ? 'Locatária solidária' : 'Cônjuge anuente',
+      nome: data.conjuge_nome,
+      cpf: data.conjuge_cpf,
+    })
   }
   for (const m of data.moradores_adicionais) {
     linhas.push({ papel: m.papel, nome: m.nome, cpf: m.cpf })

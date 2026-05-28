@@ -668,3 +668,20 @@ export async function atualizarIncluirCapa(geracaoId: string, incluir: boolean) 
   revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
   return { ok: true }
 }
+
+/** Define o papel do cônjuge do locatário no contrato (solidário/anuente/não participa). */
+export async function atualizarConjugePapel(
+  contratoId: string,
+  papel: 'solidario' | 'anuente' | 'nao_participa',
+) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({ conjuge_inquilino_papel: papel })
+    .eq('id', contratoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${contratoId}/gerar`)
+  return { ok: true }
+}

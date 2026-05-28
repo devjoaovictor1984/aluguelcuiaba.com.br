@@ -21,7 +21,7 @@ import {
   atualizarTestemunhas, atualizarClausulasSeguradora,
   uploadContratoAssinado, removerContratoAssinado,
   atualizarAnexosDocumentos, marcarComoGerado, atualizarItensEntrega,
-  atualizarIncluirCapa,
+  atualizarIncluirCapa, atualizarConjugePapel,
 } from '../actions'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
@@ -51,6 +51,8 @@ interface Props {
   qtdChavesInicial?: number
   qtdControlesInicial?: number
   qtdTagsInicial?: number
+  conjugeInquilinoNome?: string | null
+  conjugePapelInicial?: 'solidario' | 'anuente' | 'nao_participa'
   geracao: {
     id: string
     tipo_seguro_incendio: 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
@@ -76,7 +78,7 @@ interface Props {
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 text-sm transition"
 
-export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
   const router = useRouter()
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
@@ -90,6 +92,16 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
     setIncluirCapa(novo)
     startTransition(async () => {
       const r = await atualizarIncluirCapa(geracao.id, novo)
+      if (r.error) setErro(r.error)
+    })
+  }
+
+  // Papel do cônjuge do locatário
+  const [conjugePapel, setConjugePapel] = useState(conjugePapelInicial ?? 'solidario')
+  const onMudarConjugePapel = (papel: 'solidario' | 'anuente' | 'nao_participa') => {
+    setConjugePapel(papel)
+    startTransition(async () => {
+      const r = await atualizarConjugePapel(contratoId, papel)
       if (r.error) setErro(r.error)
     })
   }
@@ -629,6 +641,36 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
             </p>
           )}
         </section>
+
+        {/* Papel do cônjuge do locatário — só aparece se o locatário tem cônjuge cadastrado */}
+        {conjugeInquilinoNome && (
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Cônjuge do locatário</h2>
+            <p className="text-[11px] text-gray-500 -mt-1">
+              <strong>{conjugeInquilinoNome}</strong> — qual o papel no contrato?
+            </p>
+            <div className="space-y-1.5">
+              {([
+                { v: 'solidario', l: 'Locatária(o) solidária(o)', d: 'Mora, assume o contrato e recebe as chaves' },
+                { v: 'anuente', l: 'Cônjuge anuente / ocupante', d: 'Mora e assina, mas não responde solidariamente' },
+                { v: 'nao_participa', l: 'Não participa', d: 'Só consta o estado civil — não entra no contrato' },
+              ] as const).map(o => (
+                <button
+                  key={o.v}
+                  type="button"
+                  onClick={() => onMudarConjugePapel(o.v)}
+                  disabled={isPending}
+                  className={`w-full text-left px-3 py-2 rounded-lg border-2 transition-colors ${
+                    conjugePapel === o.v ? 'border-violet-700 bg-violet-50' : 'border-gray-100 hover:border-violet-300'
+                  }`}
+                >
+                  <p className={`text-xs font-medium ${conjugePapel === o.v ? 'text-violet-700' : 'text-gray-800'}`}>{o.l}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{o.d}</p>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {/* Capa executiva (página 1 do PDF) */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-1">

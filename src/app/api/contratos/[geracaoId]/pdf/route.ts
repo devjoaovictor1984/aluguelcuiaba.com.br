@@ -362,7 +362,7 @@ export async function GET(
       seguro_fianca_seguradora, seguro_fianca_apolice,
       valor_seguro_fianca_mensal, valor_seguro_incendio_anual,
       taxa_admin_tipo, taxa_admin_valor,
-      tipo_atuacao, intermediador_assina, tipo_mobilia, tem_inventario_bens, aceita_pet, finalidade,
+      tipo_atuacao, intermediador_assina, tipo_mobilia, tem_inventario_bens, aceita_pet, finalidade, conjuge_inquilino_papel,
       aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua,
       aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet,
       qtd_chaves, qtd_controles, qtd_tags,
@@ -548,6 +548,39 @@ export async function GET(
     }
   }
 
+  // 6c. Qualificação do cônjuge do locatário no CORPO (após "Das partes"),
+  //     quando ele participa (solidário ou anuente). Resolve a inconsistência
+  //     de aparecer na capa/assinatura mas não no corpo.
+  {
+    const conjugePapel = (contrato.conjuge_inquilino_papel ?? 'solidario') as 'solidario' | 'anuente' | 'nao_participa'
+    if (inq?.conjuge_nome && conjugePapel !== 'nao_participa') {
+      const c = inq
+      const quali = [
+        c.conjuge_nacionalidade,
+        c.conjuge_profissao,
+        c.conjuge_rg ? `portador(a) do RG ${c.conjuge_rg}` : null,
+        c.conjuge_cpf ? `CPF nº ${fmtCpf(c.conjuge_cpf)}` : null,
+      ].filter(Boolean).join(', ')
+
+      const corpoConjuge = conjugePapel === 'solidario'
+        ? `${c.conjuge_nome}${quali ? `, ${quali}` : ''}, cônjuge do LOCATÁRIO, participa do presente contrato na qualidade de LOCATÁRIA(O) SOLIDÁRIA(O), passando a integrar o polo locatário para todos os fins. A LOCATÁRIA(O) SOLIDÁRIA(O) também ocupará o imóvel e responderá solidariamente por todas as obrigações locatícias previstas neste contrato — aluguel, encargos, conservação, multas, danos e devolução —, podendo receber as chaves em conjunto com o LOCATÁRIO.`
+        : `${c.conjuge_nome}${quali ? `, ${quali}` : ''}, cônjuge do LOCATÁRIO, participa do presente contrato na qualidade de CÔNJUGE ANUENTE / OCUPANTE AUTORIZADA, residindo no imóvel e assinando para ciência e anuência das condições pactuadas, sem assumir responsabilidade solidária pelas obrigações locatícias, salvo disposição expressa em contrário.`
+
+      const novaClausulaConjuge: ContratoPDFClausula = {
+        numero: 0,
+        titulo: conjugePapel === 'solidario'
+          ? 'Da locatária(o) solidária(o) / cônjuge do locatário'
+          : 'Do cônjuge anuente / ocupante autorizada',
+        corpo: corpoConjuge,
+      }
+      // Insere logo após "Das partes"
+      const idxPartes = clausulas.findIndex(c2 => /das partes/i.test(c2.titulo))
+      if (idxPartes >= 0) clausulas.splice(idxPartes + 1, 0, novaClausulaConjuge)
+      else clausulas.unshift(novaClausulaConjuge)
+      clausulas.forEach((c2, i) => { c2.numero = i + 1 })
+    }
+  }
+
   // 7. Endereço da admin
   const cepFmt = perfil?.endereco_cep
     ? perfil.endereco_cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')
@@ -604,6 +637,10 @@ export async function GET(
   // seguro / caucionante / cônjuge do responsável NÃO recebem chaves.
   const recebedoresChaves: Array<{ nome: string; cpf: string | null }> = []
   if (inq?.nome) recebedoresChaves.push({ nome: inq.nome, cpf: fmtCpf(inq.cpf_cnpj) })
+  // Cônjuge solidário também recebe as chaves (mora + assume)
+  if (inq?.conjuge_nome && (contrato.conjuge_inquilino_papel ?? 'solidario') === 'solidario') {
+    recebedoresChaves.push({ nome: inq.conjuge_nome, cpf: fmtCpf(inq.conjuge_cpf) })
+  }
   for (const m of (moradoresRaw ?? []) as MoradorRel[]) {
     const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
     if (!p?.nome) continue
@@ -641,6 +678,7 @@ export async function GET(
     locatario_cpf: fmtCpf(inq?.cpf_cnpj ?? null),
     conjuge_nome: inq?.conjuge_nome ?? null,
     conjuge_cpf: fmtCpf(inq?.conjuge_cpf ?? null),
+    conjuge_papel: (contrato.conjuge_inquilino_papel ?? 'solidario') as 'solidario' | 'anuente' | 'nao_participa',
     moradores_adicionais: moradoresAdicionais,
     fiador_nome: fia?.nome ?? null,
     fiador_cpf: fmtCpf(fia?.cpf_cnpj ?? null),
