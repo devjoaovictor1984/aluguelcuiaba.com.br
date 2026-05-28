@@ -396,7 +396,7 @@ export async function GET(
   const { data: moradoresRaw } = await admin
     .from('contratos_moradores')
     .select(`
-      papel, mora_no_imovel,
+      papel, mora_no_imovel, assina_contrato,
       pessoa:pessoas(nome, cpf_cnpj)
     `)
     .eq('contrato_id', geracao.contrato_id)
@@ -522,18 +522,27 @@ export async function GET(
     inquilino_solidario: 'Co-locatário solidário',
     morador: 'Morador',
     socio_signatario: 'Sócio signatário',
+    responsavel_seguro: 'Responsável pelo seguro fiança / interveniente anuente',
+    conjuge_responsavel_seguro: 'Cônjuge do responsável pelo seguro',
+    ocupante_autorizado: 'Ocupante autorizado',
+    caucionante: 'Caucionante / interveniente anuente',
   }
   type MoradorRel = {
     papel: string
     mora_no_imovel: boolean
+    assina_contrato?: boolean | null
     pessoa: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null
   }
   const moradoresAdicionais = (moradoresRaw ?? [])
     .map((m: MoradorRel) => {
       const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
       if (!p?.nome) return null
-      // Solidário sempre aparece; morador comum só se mora no imóvel
+      // Quem aparece no bloco de assinatura: quem assina o contrato.
+      // Ocupante autorizado e morador comum que NÃO mora ficam de fora.
+      const assina = m.assina_contrato ?? (m.papel !== 'ocupante_autorizado')
       if (m.papel === 'morador' && !m.mora_no_imovel) return null
+      if (m.papel === 'ocupante_autorizado') return null  // ocupante não assina
+      if (!assina) return null
       return {
         nome: p.nome,
         cpf: fmtCpf(p.cpf_cnpj),

@@ -744,9 +744,13 @@ export type ParentescoMorador =
   | 'conjuge' | 'filho' | 'pai_mae' | 'irmao' | 'socio' | 'dependente' | 'outro'
 
 export type PapelVinculo =
-  | 'morador'              // família/dependente que mora junto, sem responsabilidade financeira
-  | 'inquilino_solidario'  // co-inquilino que assina e responde solidariamente pelo aluguel
-  | 'socio_signatario'     // sócio da empresa locatária (PJ), assina pela empresa
+  | 'morador'                      // família/dependente que mora junto, sem responsabilidade financeira
+  | 'inquilino_solidario'          // co-inquilino que assina e responde solidariamente pelo aluguel
+  | 'socio_signatario'             // sócio da empresa locatária (PJ), assina pela empresa
+  | 'responsavel_seguro'           // passou o seguro fiança, pode não morar (interveniente anuente)
+  | 'conjuge_responsavel_seguro'   // cônjuge do responsável pelo seguro, assina só se exigido
+  | 'ocupante_autorizado'          // mora mas não assume obrigação principal (não assina)
+  | 'caucionante'                  // terceiro que paga a caução (interveniente anuente)
 
 export interface AdicionarMoradorInput {
   contrato_id: string
@@ -754,6 +758,7 @@ export interface AdicionarMoradorInput {
   papel: PapelVinculo
   parentesco?: ParentescoMorador | null
   mora_no_imovel?: boolean
+  assina_contrato?: boolean
   observacao?: string
 }
 
@@ -769,7 +774,13 @@ export async function adicionarMorador(input: AdicionarMoradorInput) {
     .maybeSingle()
   if (!contrato) return { error: 'Contrato não encontrado.' }
 
-  const moraDefault = input.papel === 'morador'
+  // Defaults por papel: quem mora e quem assina
+  const moraDefault =
+    input.papel === 'morador' ||
+    input.papel === 'inquilino_solidario' ||
+    input.papel === 'ocupante_autorizado'
+  // Responsável pelo seguro, cônjuge dele e caucionante geralmente NÃO moram
+  const assinaDefault = input.papel !== 'ocupante_autorizado'  // ocupante não assina; demais sim
 
   const { error } = await supabase.from('contratos_moradores').insert({
     contrato_id: input.contrato_id,
@@ -777,6 +788,7 @@ export async function adicionarMorador(input: AdicionarMoradorInput) {
     papel: input.papel,
     parentesco: input.parentesco ?? null,
     mora_no_imovel: input.mora_no_imovel ?? moraDefault,
+    assina_contrato: input.assina_contrato ?? assinaDefault,
     observacao: input.observacao ?? null,
   })
   if (error) {

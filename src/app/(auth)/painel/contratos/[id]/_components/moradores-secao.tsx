@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Users, UserPlus, X, Trash2, Loader2, ExternalLink, Building2, Handshake, Home } from 'lucide-react'
+import { Users, UserPlus, X, Trash2, Loader2, ExternalLink, Building2, Handshake, Home, ShieldCheck, UserCheck, Coins } from 'lucide-react'
 import {
   adicionarMorador, removerMorador,
   type ParentescoMorador, type PapelVinculo, type AdicionarMoradorInput,
@@ -40,6 +40,30 @@ const PAPEIS: { valor: PapelVinculo; label: string; descricao: string; icone: Re
     label: 'Morador adicional',
     descricao: 'Mora junto · família ou dependente sem responsabilidade financeira',
     icone: Home, cor: 'text-violet-700', bg: 'bg-violet-100',
+  },
+  {
+    valor: 'responsavel_seguro',
+    label: 'Responsável pelo seguro fiança',
+    descricao: 'Passou o seguro mas pode não morar (ex: pai do inquilino) · assina como interveniente anuente, não recebe chaves',
+    icone: ShieldCheck, cor: 'text-emerald-700', bg: 'bg-emerald-100',
+  },
+  {
+    valor: 'conjuge_responsavel_seguro',
+    label: 'Cônjuge do responsável pelo seguro',
+    descricao: 'Assina só se a seguradora exigir · não mora nem recebe chaves',
+    icone: UserCheck, cor: 'text-teal-700', bg: 'bg-teal-100',
+  },
+  {
+    valor: 'ocupante_autorizado',
+    label: 'Ocupante autorizado',
+    descricao: 'Mora no imóvel mas não assume obrigação principal · não assina como responsável',
+    icone: UserCheck, cor: 'text-sky-700', bg: 'bg-sky-100',
+  },
+  {
+    valor: 'caucionante',
+    label: 'Caucionante',
+    descricao: 'Terceiro que paga a caução · assina como interveniente anuente, não recebe chaves',
+    icone: Coins, cor: 'text-orange-700', bg: 'bg-orange-100',
   },
 ]
 const PAPEL_INFO: Record<PapelVinculo, typeof PAPEIS[number]> =
@@ -91,9 +115,10 @@ export function MoradoresSecao({ contratoId, moradores, pessoasDisponiveis, inqu
     })
   }
 
-  const solidarios = moradores.filter(m => m.papel === 'inquilino_solidario')
-  const socios = moradores.filter(m => m.papel === 'socio_signatario')
-  const moradoresLista = moradores.filter(m => m.papel === 'morador')
+  // Agrupa por papel, na ordem definida em PAPEIS
+  const gruposPorPapel = PAPEIS
+    .map(p => ({ papel: p.valor, itens: moradores.filter(m => m.papel === p.valor) }))
+    .filter(g => g.itens.length > 0)
 
   return (
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
@@ -128,33 +153,16 @@ export function MoradoresSecao({ contratoId, moradores, pessoasDisponiveis, inqu
         </p>
       ) : (
         <div className="space-y-4">
-          {solidarios.length > 0 && (
+          {gruposPorPapel.map(g => (
             <GrupoVinculados
-              papel="inquilino_solidario"
-              itens={solidarios}
+              key={g.papel}
+              papel={g.papel}
+              itens={g.itens}
               onRemover={remover}
               removendo={removendo}
               isPending={isPending}
             />
-          )}
-          {socios.length > 0 && (
-            <GrupoVinculados
-              papel="socio_signatario"
-              itens={socios}
-              onRemover={remover}
-              removendo={removendo}
-              isPending={isPending}
-            />
-          )}
-          {moradoresLista.length > 0 && (
-            <GrupoVinculados
-              papel="morador"
-              itens={moradoresLista}
-              onRemover={remover}
-              removendo={removendo}
-              isPending={isPending}
-            />
-          )}
+          ))}
         </div>
       )}
 
