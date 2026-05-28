@@ -65,6 +65,7 @@ export interface ContratoPDFData {
     inicio_str: string          // ex: "01/06/2026"
     termino_str: string         // ex: "30/11/2028"
     garantia_str: string        // ex: "Seguro fiança (TOO Seguros · apólice 186977)"
+    seguro_fianca_str?: string  // ex: "R$ 111,11 / mês" — só quando garantia=seguro_fianca
     imovel_endereco: string     // ex: "Rua Tal, 123, apto 502, Araés, Cuiabá-MT"
     imovel_descricao: string    // ex: "Apto 3 quartos, 1 suíte, 1 vaga"
   }
@@ -91,6 +92,8 @@ export interface ContratoPDFData {
   tipo_atuacao?: 'administracao' | 'intermediacao' | 'direto'
   /** Se for intermediação, o corretor assina como testemunha/parte. */
   intermediador_assina?: boolean
+  /** Finalidade da locação — adapta título do PDF e algumas cláusulas. */
+  finalidade?: 'residencial' | 'comercial' | 'misto'
 
   locatario_nome: string
   locatario_cpf: string | null
@@ -404,13 +407,20 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
     atuacao === 'intermediacao' ? `Intermediada por ${nomeInst}` :
     'Direta entre Locador e Locatário'
 
+  // Título principal adapta pela finalidade do contrato
+  const finalidade = data.finalidade ?? 'residencial'
+  const tituloFinalidade =
+    finalidade === 'comercial' ? 'Contrato de Locação Comercial' :
+    finalidade === 'misto'     ? 'Contrato de Locação Residencial e Comercial' :
+                                 'Contrato de Locação Residencial'
+
   // Visual elegante mas sem usar position:absolute + border (que quebrava
   // o render). Cabeçalho aparece só na primeira página; layout linear.
   return (
     <Document
       title={`Contrato ${data.codigo}`}
       author={nomeInst}
-      subject={`Contrato de Locação Residencial — ${data.locatario_nome}`}
+      subject={`${tituloFinalidade} — ${data.locatario_nome}`}
     >
       {/* ════════ Capa executiva (página 1, opcional) ════════ */}
       {data.incluir_capa !== false && (
@@ -460,7 +470,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               fontSize: 20, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
               textAlign: 'center', lineHeight: 1.2, marginBottom: 6,
             }}>
-              Contrato de Locação Residencial{'\n'}{subtituloContrato}
+              {tituloFinalidade}{'\n'}{subtituloContrato}
             </Text>
             <Text style={{
               fontSize: 10, fontFamily: FAMILIA, fontWeight: 'bold', color: CINZA_CLARO,
@@ -521,6 +531,9 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               <ResumoCapaLinha label="Início"   valor={data.resumo_capa.inicio_str} />
               <ResumoCapaLinha label="Término"  valor={data.resumo_capa.termino_str} />
               <ResumoCapaLinha label="Garantia" valor={data.resumo_capa.garantia_str} />
+              {data.resumo_capa.seguro_fianca_str && (
+                <ResumoCapaLinha label="Seguro fiança" valor={data.resumo_capa.seguro_fianca_str} />
+              )}
             </View>
           )}
 
@@ -609,7 +622,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             lineHeight: 1.25,
             marginBottom: 8,
           }}>
-            Contrato de Locação Residencial{'\n'}{subtituloContrato}
+            {tituloFinalidade}{'\n'}{subtituloContrato}
           </Text>
           <Text style={{ fontSize: 10, color: CINZA, textAlign: 'center' }}>
             {data.locatario_nome}

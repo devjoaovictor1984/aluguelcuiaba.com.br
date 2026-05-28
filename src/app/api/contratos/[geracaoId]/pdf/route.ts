@@ -137,6 +137,7 @@ function montarResumoCapa(
     duracao_meses?: number | null
     seguro_fianca_seguradora?: string | null
     seguro_fianca_apolice?: string | null
+    valor_seguro_fianca_mensal?: number | null
   },
   dados: {
     imovel?: {
@@ -158,6 +159,7 @@ function montarResumoCapa(
   inicio_str: string
   termino_str: string
   garantia_str: string
+  seguro_fianca_str?: string
   imovel_endereco: string
   imovel_descricao: string
 } {
@@ -195,12 +197,18 @@ function montarResumoCapa(
     termino = fim.toLocaleDateString('pt-BR')
   }
 
+  const sfMensal = c.valor_seguro_fianca_mensal ?? 0
+  const seguroFiancaStr = (c.garantia_tipo === 'seguro_fianca' && sfMensal > 0)
+    ? `${fmtBRL(sfMensal)} / mês`
+    : undefined
+
   return {
     aluguel_str: `${fmtBRL(c.valor_aluguel ?? 0)} / mês`,
     prazo_str: c.duracao_meses ? `${c.duracao_meses} meses` : '—',
     inicio_str: inicio,
     termino_str: termino,
     garantia_str: garantia,
+    seguro_fianca_str: seguroFiancaStr,
     imovel_endereco: endereco,
     imovel_descricao: descricao,
   }
@@ -340,7 +348,7 @@ export async function GET(
       seguro_fianca_seguradora, seguro_fianca_apolice,
       valor_seguro_fianca_mensal, valor_seguro_incendio_anual,
       taxa_admin_tipo, taxa_admin_valor,
-      tipo_atuacao, intermediador_assina, tipo_mobilia, aceita_pet,
+      tipo_atuacao, intermediador_assina, tipo_mobilia, aceita_pet, finalidade,
       aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua,
       aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet,
       qtd_chaves, qtd_controles, qtd_tags,
@@ -553,6 +561,7 @@ export async function GET(
     resumo_capa: montarResumoCapa(contrato, dadosContrato),
     tipo_atuacao: (contrato.tipo_atuacao ?? 'administracao') as 'administracao' | 'intermediacao' | 'direto',
     intermediador_assina: contrato.intermediador_assina ?? false,
+    finalidade: (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto',
     locatario_nome: inq?.nome ?? '[PREENCHER]',
     locatario_cpf: fmtCpf(inq?.cpf_cnpj ?? null),
     conjuge_nome: inq?.conjuge_nome ?? null,

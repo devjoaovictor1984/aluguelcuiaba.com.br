@@ -43,7 +43,8 @@ export interface ContratoInput {
   indice_reajuste: string | null
   data_proximo_reajuste: string | null
 
-  // Perfil do contrato (v37): controla cláusulas auto-injetadas
+  // Perfil do contrato (v37+): controla cláusulas auto-injetadas
+  finalidade: 'residencial' | 'comercial' | 'misto'
   tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
   intermediador_assina: boolean
   tipo_mobilia: 'sem' | 'semi' | 'parcial' | 'total'
@@ -160,6 +161,7 @@ export async function criarContrato(input: ContratoInput) {
       clausulas_extras: input.clausulas_extras,
       indice_reajuste: input.indice_reajuste,
       data_proximo_reajuste: input.data_proximo_reajuste,
+      finalidade: input.finalidade,
       tipo_atuacao: input.tipo_atuacao,
       intermediador_assina: input.intermediador_assina,
       tipo_mobilia: input.tipo_mobilia,

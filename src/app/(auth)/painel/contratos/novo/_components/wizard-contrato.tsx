@@ -204,6 +204,7 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
       clausulas_extras: s.clausulas_extras || null,
       indice_reajuste: s.indice_reajuste || null,
       data_proximo_reajuste: s.data_proximo_reajuste || null,
+      finalidade: s.finalidade,
       tipo_atuacao: s.tipo_atuacao,
       intermediador_assina: s.intermediador_assina,
       tipo_mobilia: s.tipo_mobilia,
@@ -372,6 +373,32 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
       {etapa === 3 && (
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-6">
           <h2 className="text-base font-semibold text-gray-900">Perfil do contrato</h2>
+
+          {/* Finalidade do contrato */}
+          <div>
+            <p className="text-xs font-semibold text-gray-700 mb-2">Finalidade da locação</p>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { v: 'residencial', l: 'Residencial', d: 'Moradia' },
+                { v: 'comercial',   l: 'Comercial',   d: 'Loja, sala, escritório' },
+                { v: 'misto',       l: 'Misto',       d: 'Residencial + comercial' },
+              ] as const).map(o => (
+                <button key={o.v} type="button" onClick={() => setField('finalidade', o.v)}
+                  className={`text-left px-3 py-2.5 rounded-xl border-2 transition-colors ${
+                    s.finalidade === o.v ? 'border-violet-700 bg-violet-50' : 'border-gray-100 hover:border-violet-300'
+                  }`}>
+                  <p className={`text-sm font-medium ${s.finalidade === o.v ? 'text-violet-700' : 'text-gray-800'}`}>{o.l}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">{o.d}</p>
+                </button>
+              ))}
+            </div>
+            {s.finalidade !== 'residencial' && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 mt-2">
+                ⚠ As cláusulas atuais de objeto e destinação mencionam &ldquo;exclusivamente residencial&rdquo;.
+                Ajuste-as no editor do contrato pra refletir o uso {s.finalidade === 'comercial' ? 'comercial' : 'misto'}.
+              </p>
+            )}
+          </div>
 
           {/* Tipo de atuação */}
           <div>

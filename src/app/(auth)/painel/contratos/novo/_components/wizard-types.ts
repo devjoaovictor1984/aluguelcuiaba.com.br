@@ -27,6 +27,7 @@ export interface WizardState {
   proprietario_id: string
 
   // Etapa 2b — perfil do contrato
+  finalidade: 'residencial' | 'comercial' | 'misto'
   tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
   intermediador_assina: boolean
   tipo_mobilia: 'sem' | 'semi' | 'parcial' | 'total'
@@ -75,6 +76,7 @@ export const ESTADO_INICIAL: WizardState = {
   imovel_id: '',
   inquilino_id: '',
   proprietario_id: '',
+  finalidade: 'residencial',
   tipo_atuacao: 'administracao',
   intermediador_assina: false,
   tipo_mobilia: 'sem',
