@@ -43,15 +43,25 @@ function fmtData(iso: string | null | undefined): string {
   return `${d}/${m}/${y}`
 }
 
-function montarQuadroEntrada(c: ContratoLite) {
+function montarQuadroEntrada(c: ContratoLite & { data_inicio?: string | null; data_primeiro_aluguel?: string | null }) {
   const aluguel = c.valor_aluguel ?? 0
-  // IPTU/condomínio só entram como linha separada se NÃO estiverem inclusos no aluguel
   const iptu = c.aluguel_inclui_iptu ? 0 : (c.iptu_mensal ?? 0)
   const condominio = c.aluguel_inclui_condominio ? 0 : (c.condominio_mensal ?? 0)
   const seguroFianca = c.valor_seguro_fianca_mensal ?? 0
   const caucao = c.caucao_valor ?? 0
   const itens: Array<{ descricao: string; base: string; valor: string; obs?: string }> = []
 
+  // O primeiro aluguel é pago NO ATO (entrada) só se o 1º vencimento cai no
+  // mesmo mês da entrada. Quando vence depois (ex: seguro fiança, 1 mês após),
+  // ele NÃO entra na entrada — senão duplica a linha 1 da tabela dos 12 meses.
+  const primeiroAluguelNoAto = (() => {
+    if (!c.data_inicio || !c.data_primeiro_aluguel) return true
+    const ini = new Date(c.data_inicio + 'T00:00:00')
+    const pa = new Date(c.data_primeiro_aluguel + 'T00:00:00')
+    return ini.getFullYear() === pa.getFullYear() && ini.getMonth() === pa.getMonth()
+  })()
+
+  // Caução é sempre da entrada (paga no ato)
   if (c.garantia_tipo === 'caucao' && caucao > 0) {
     const meses = aluguel > 0 ? Math.round(caucao / aluguel) : 3
     itens.push({
@@ -60,24 +70,22 @@ function montarQuadroEntrada(c: ContratoLite) {
       valor: fmtBRL(caucao),
     })
   }
-  if (aluguel > 0) {
-    itens.push({ descricao: 'Primeiro aluguel', base: 'Período inicial', valor: fmtBRL(aluguel) })
+
+  // Aluguel/IPTU/condomínio/seguro fiança só na entrada se pagos no ato
+  if (primeiroAluguelNoAto) {
+    if (aluguel > 0) itens.push({ descricao: 'Primeiro aluguel', base: 'Período inicial', valor: fmtBRL(aluguel) })
+    if (iptu > 0) itens.push({ descricao: 'IPTU mensal', base: 'Período inicial', valor: fmtBRL(iptu) })
+    if (condominio > 0) itens.push({ descricao: 'Condomínio mensal', base: 'Período inicial', valor: fmtBRL(condominio) })
+    if (seguroFianca > 0 && c.garantia_tipo === 'seguro_fianca') {
+      itens.push({ descricao: 'Seguro fiança mensal', base: 'Período inicial', valor: fmtBRL(seguroFianca) })
+    }
   }
-  if (iptu > 0) {
-    itens.push({ descricao: 'IPTU mensal', base: 'Período inicial', valor: fmtBRL(iptu) })
-  }
-  if (condominio > 0) {
-    itens.push({ descricao: 'Condomínio mensal', base: 'Período inicial', valor: fmtBRL(condominio) })
-  }
-  if (seguroFianca > 0 && c.garantia_tipo === 'seguro_fianca') {
-    itens.push({ descricao: 'Seguro fiança mensal', base: 'Período inicial', valor: fmtBRL(seguroFianca) })
-  }
+
   if (itens.length === 0) return []
 
   const total =
     (c.garantia_tipo === 'caucao' ? caucao : 0) +
-    aluguel + iptu + condominio +
-    (c.garantia_tipo === 'seguro_fianca' ? seguroFianca : 0)
+    (primeiroAluguelNoAto ? aluguel + iptu + condominio + (c.garantia_tipo === 'seguro_fianca' ? seguroFianca : 0) : 0)
   itens.push({ descricao: 'Total da entrada', base: '—', valor: fmtBRL(total) })
   return itens
 }
