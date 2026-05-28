@@ -472,10 +472,10 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           }}
         >
           {/* Cabeçalho institucional */}
-          <View style={{ marginBottom: 24 }}>
+          <View style={{ marginBottom: 14 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               {data.anunciante_logo_url && (
-                <Image src={data.anunciante_logo_url} style={{ width: 56, height: 56, objectFit: 'contain' }} />
+                <Image src={data.anunciante_logo_url} style={{ width: 48, height: 48, objectFit: 'contain' }} />
               )}
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
@@ -499,37 +499,37 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           </View>
 
           {/* Título grande */}
-          <View style={{ marginBottom: 32 }}>
+          <View style={{ marginBottom: 18 }}>
             <Text style={{
               fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO_CLARO,
-              textAlign: 'center', letterSpacing: 1.6, marginBottom: 10,
+              textAlign: 'center', letterSpacing: 1.6, marginBottom: 6,
             }}>
               INSTRUMENTO PARTICULAR
             </Text>
             <Text style={{
-              fontSize: 20, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
-              textAlign: 'center', lineHeight: 1.2, marginBottom: 6,
+              fontSize: 18, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
+              textAlign: 'center', lineHeight: 1.2, marginBottom: 4,
             }}>
               {tituloFinalidade}{'\n'}{subtituloContrato}
             </Text>
             {data.resumo_capa?.garantia_str && (
               <Text style={{
-                fontSize: 10, fontFamily: FAMILIA, color: CINZA,
-                textAlign: 'center', marginTop: 4,
+                fontSize: 9.5, fontFamily: FAMILIA, color: CINZA,
+                textAlign: 'center', marginTop: 3,
               }}>
                 Garantia: {data.resumo_capa.garantia_str}
               </Text>
             )}
             <Text style={{
               fontSize: 10, fontFamily: FAMILIA, fontWeight: 'bold', color: CINZA_CLARO,
-              textAlign: 'center', letterSpacing: 1.2, marginTop: 12,
+              textAlign: 'center', letterSpacing: 1.2, marginTop: 8,
             }}>
               Nº {data.codigo}
             </Text>
           </View>
 
           {/* Partes */}
-          <View style={{ marginBottom: 18 }}>
+          <View style={{ marginBottom: 12 }}>
             <Text style={{
               fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
               letterSpacing: 1, marginBottom: 8,
@@ -545,7 +545,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Imóvel */}
           {data.resumo_capa?.imovel_endereco && (
-            <View style={{ marginBottom: 18 }}>
+            <View style={{ marginBottom: 12 }}>
               <Text style={{
                 fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
                 letterSpacing: 1, marginBottom: 8,
@@ -566,7 +566,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Resumo */}
           {data.resumo_capa && (
-            <View style={{ marginBottom: 18 }}>
+            <View style={{ marginBottom: 12 }}>
               <Text style={{
                 fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
                 letterSpacing: 1, marginBottom: 8,
@@ -587,7 +587,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           <Text style={{
             fontSize: 10, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
-            textAlign: 'center', marginTop: 28,
+            textAlign: 'center', marginTop: 16,
           }}>
             {cidadeUf}, {dataExtenso}.
           </Text>
@@ -648,48 +648,50 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
            causando bug "unsupported number" em algumas combinações de
            conteúdo. Rodapé só no final do documento (no bloco final). */}
 
-        {/* ── Capa / Título ── */}
-        <View style={{ marginBottom: 22 }}>
-          <Text style={{
-            fontSize: 8,
-            fontFamily: FAMILIA,
-            fontWeight: 'bold',
-            color: ROXO_CLARO,
-            textAlign: 'center',
-            letterSpacing: 1.4,
-            marginBottom: 8,
-          }}>
-            INSTRUMENTO PARTICULAR
-          </Text>
-          <Text style={{
-            fontSize: 17,
-            fontFamily: FAMILIA,
-            fontWeight: 'bold',
-            color: TEXTO_FORTE,
-            textAlign: 'center',
-            lineHeight: 1.25,
-            marginBottom: 8,
-          }}>
-            {tituloFinalidade}{'\n'}{subtituloContrato}
-          </Text>
-          <Text style={{ fontSize: 10, color: CINZA, textAlign: 'center' }}>
-            {data.locatario_nome}
-          </Text>
-          <Text style={{
-            fontSize: 8,
-            fontFamily: FAMILIA,
-            fontWeight: 'bold',
-            color: CINZA_CLARO,
-            textAlign: 'center',
-            letterSpacing: 0.6,
-            marginTop: 6,
-          }}>
-            Nº {data.codigo}
-          </Text>
-        </View>
-
-        {/* Linha separadora */}
-        <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 22 }} />
+        {/* ── Título — só quando NÃO há capa (senão é redundante com a capa) ── */}
+        {data.incluir_capa === false && (
+          <>
+            <View style={{ marginBottom: 22 }}>
+              <Text style={{
+                fontSize: 8,
+                fontFamily: FAMILIA,
+                fontWeight: 'bold',
+                color: ROXO_CLARO,
+                textAlign: 'center',
+                letterSpacing: 1.4,
+                marginBottom: 8,
+              }}>
+                INSTRUMENTO PARTICULAR
+              </Text>
+              <Text style={{
+                fontSize: 17,
+                fontFamily: FAMILIA,
+                fontWeight: 'bold',
+                color: TEXTO_FORTE,
+                textAlign: 'center',
+                lineHeight: 1.25,
+                marginBottom: 8,
+              }}>
+                {tituloFinalidade}{'\n'}{subtituloContrato}
+              </Text>
+              <Text style={{ fontSize: 10, color: CINZA, textAlign: 'center' }}>
+                {data.locatario_nome}
+              </Text>
+              <Text style={{
+                fontSize: 8,
+                fontFamily: FAMILIA,
+                fontWeight: 'bold',
+                color: CINZA_CLARO,
+                textAlign: 'center',
+                letterSpacing: 0.6,
+                marginTop: 6,
+              }}>
+                Nº {data.codigo}
+              </Text>
+            </View>
+            <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 22 }} />
+          </>
+        )}
 
         {/* ── Sumário (índice das cláusulas) ── */}
         {data.clausulas.length > 0 && (
