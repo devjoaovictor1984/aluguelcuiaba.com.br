@@ -66,6 +66,20 @@ export async function removerItemInventario(id: string, contratoId: string) {
     .eq('id', id)
     .eq('user_id', acesso.userId)
   if (error) return { error: error.message }
+
+  // Se não sobrou nenhum item, desmarca tem_inventario_bens (checklist volta a alertar)
+  const { count } = await supabase
+    .from('contrato_inventario_itens')
+    .select('id', { count: 'exact', head: true })
+    .eq('contrato_id', contratoId)
+  if ((count ?? 0) === 0) {
+    await supabase
+      .from('contratos_locacao')
+      .update({ tem_inventario_bens: false })
+      .eq('id', contratoId)
+      .eq('user_id', acesso.userId)
+  }
+
   revalidatePath(`/painel/contratos/${contratoId}`)
   return { ok: true }
 }

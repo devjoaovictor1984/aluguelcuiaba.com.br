@@ -446,15 +446,10 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
               ))}
             </div>
             {s.tipo_mobilia !== 'sem' && (
-              <label className="flex items-center gap-2 mt-3 text-xs text-gray-700">
-                <input type="checkbox" checked={s.tem_inventario_bens}
-                  onChange={e => setField('tem_inventario_bens', e.target.checked)} />
-                Tenho inventário de bens anexado (recomendado)
-              </label>
-            )}
-            {s.tipo_mobilia !== 'sem' && !s.tem_inventario_bens && (
-              <p className="text-[11px] text-amber-600 mt-1">
-                ⚠ Imóvel mobiliado sem inventário — recomenda-se anexar lista com fotos antes de assinar.
+              <p className="text-[11px] text-violet-700 bg-violet-50 border border-violet-200 rounded-lg p-2 mt-2">
+                💡 Imóvel mobiliado: depois de criar o contrato, cadastre os bens em
+                <strong> Inventário de bens</strong> (item a item). A lista entra automaticamente
+                no PDF e fica conferível na devolução.
               </p>
             )}
           </div>
@@ -773,9 +768,10 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
                 {s.tipo_mobilia === 'semi' && 'Semi-mobiliado'}
                 {s.tipo_mobilia === 'parcial' && 'Parcialmente mobiliado'}
                 {s.tipo_mobilia === 'total' && '100% mobiliado'}
-                {s.tipo_mobilia !== 'sem' && s.tem_inventario_bens && ' · com inventário'}
-                {s.tipo_mobilia !== 'sem' && !s.tem_inventario_bens && ' · sem inventário ⚠'}
               </p>
+              {s.tipo_mobilia !== 'sem' && (
+                <p className="text-[10px] text-violet-600 mt-0.5">Cadastre os bens em &ldquo;Inventário&rdquo; após criar</p>
+              )}
             </div>
             <div className="bg-gray-50 rounded-xl p-3">
               <p className="text-xs text-gray-400 mb-1">Pet</p>
