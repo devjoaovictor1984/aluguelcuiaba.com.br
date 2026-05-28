@@ -5,9 +5,31 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { PLANOS } from '@/lib/constants'
 import { WizardContrato } from './_components/wizard-contrato'
 
-export default async function NovoContratoPage() {
+interface TemplateDefaults {
+  tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
+  garantia_tipo: 'fiador' | 'caucao' | 'seguro_fianca' | 'sem_garantia'
+}
+
+const TEMPLATES: Record<string, TemplateDefaults> = {
+  'admin-seguro':    { tipo_atuacao: 'administracao', garantia_tipo: 'seguro_fianca' },
+  'admin-caucao':    { tipo_atuacao: 'administracao', garantia_tipo: 'caucao' },
+  'admin-fiador':    { tipo_atuacao: 'administracao', garantia_tipo: 'fiador' },
+  'inter-seguro':    { tipo_atuacao: 'intermediacao', garantia_tipo: 'seguro_fianca' },
+  'inter-fiador':    { tipo_atuacao: 'intermediacao', garantia_tipo: 'fiador' },
+  'direto-caucao':   { tipo_atuacao: 'direto',        garantia_tipo: 'caucao' },
+  'direto-fiador':   { tipo_atuacao: 'direto',        garantia_tipo: 'fiador' },
+  'direto-sem':      { tipo_atuacao: 'direto',        garantia_tipo: 'sem_garantia' },
+}
+
+export default async function NovoContratoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ template?: string }>
+}) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+  const { template } = await searchParams
+  const templateDefaults = template ? TEMPLATES[template] : null
 
   // Limite de contratos por plano (mesma cota dos imóveis). Admin/profissional liberados.
   const plano = (acesso.plano ?? 'free') as keyof typeof PLANOS
@@ -94,7 +116,62 @@ export default async function NovoContratoPage() {
           <span className="ml-1 text-gray-400">· {totalContratos}/{limite} no plano {PLANOS[plano]?.nome}</span>
         )}
       </p>
-      <WizardContrato imoveis={imoveisMarcados} pessoas={pessoas ?? []} />
+
+      {/* Atalhos de templates — pré-preenchem atuação + garantia */}
+      {!templateDefaults && (
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Começar rapidamente</h2>
+          <p className="text-[11px] text-gray-400 mb-3">Atalhos pra combinações comuns — pré-preenchem atuação e garantia. Você ainda escolhe imóvel, pessoas e valores.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+            {([
+              { id: 'admin-seguro',  label: 'Admin + Seguro fiança',  desc: 'Você administra, inquilino paga seguro',  cor: 'violet' },
+              { id: 'admin-fiador',  label: 'Admin + Fiador',          desc: 'Você administra, terceiro avalista',     cor: 'violet' },
+              { id: 'admin-caucao',  label: 'Admin + Caução',          desc: 'Você administra, depósito em dinheiro',   cor: 'violet' },
+              { id: 'inter-seguro',  label: 'Intermediação + Seguro',  desc: 'Só intermediou, com seguro fiança',       cor: 'sky' },
+              { id: 'inter-fiador',  label: 'Intermediação + Fiador',  desc: 'Só intermediou, com fiador',              cor: 'sky' },
+              { id: 'direto-caucao', label: 'Direto + Caução',         desc: 'Sem corretor, com caução',                cor: 'emerald' },
+              { id: 'direto-fiador', label: 'Direto + Fiador',         desc: 'Sem corretor, com fiador',                cor: 'emerald' },
+              { id: 'direto-sem',    label: 'Direto + Sem garantia',   desc: 'Sem corretor, sem garantia',              cor: 'emerald' },
+            ] as const).map(t => (
+              <Link
+                key={t.id}
+                href={`/painel/contratos/novo?template=${t.id}`}
+                className={`block text-left p-3 rounded-xl border-2 transition-colors group ${
+                  t.cor === 'violet' ? 'border-violet-100 hover:border-violet-400 hover:bg-violet-50' :
+                  t.cor === 'sky' ? 'border-sky-100 hover:border-sky-400 hover:bg-sky-50' :
+                  'border-emerald-100 hover:border-emerald-400 hover:bg-emerald-50'
+                }`}
+              >
+                <p className={`text-xs font-bold ${
+                  t.cor === 'violet' ? 'text-violet-700' :
+                  t.cor === 'sky' ? 'text-sky-700' : 'text-emerald-700'
+                }`}>
+                  {t.label}
+                </p>
+                <p className="text-[10px] text-gray-500 mt-1 leading-tight">{t.desc}</p>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {templateDefaults && (
+        <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 mb-4 flex items-start justify-between gap-3 flex-wrap">
+          <p className="text-xs text-violet-800">
+            <strong>Template aplicado:</strong> atuação <strong>{templateDefaults.tipo_atuacao}</strong> + garantia <strong>{templateDefaults.garantia_tipo.replace('_', ' ')}</strong>.
+            Você pode alterar nas etapas do wizard.
+          </p>
+          <Link href="/painel/contratos/novo" className="text-[11px] text-violet-700 hover:underline">
+            Limpar template
+          </Link>
+        </div>
+      )}
+
+      <WizardContrato
+        imoveis={imoveisMarcados}
+        pessoas={pessoas ?? []}
+        templateDefaults={templateDefaults}
+      />
     </div>
   )
 }

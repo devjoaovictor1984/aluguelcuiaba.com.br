@@ -17,6 +17,10 @@ import { ESTADO_INICIAL } from './wizard-types'
 interface Props {
   imoveis: ImovelLite[]
   pessoas: PessoaLite[]
+  templateDefaults?: {
+    tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
+    garantia_tipo: 'fiador' | 'caucao' | 'seguro_fianca' | 'sem_garantia'
+  } | null
 }
 
 const ETAPAS = [
@@ -43,10 +47,13 @@ function formatarValorInicial(n: number | null | undefined): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export function WizardContrato({ imoveis, pessoas }: Props) {
+export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
   const router = useRouter()
   const [etapa, setEtapa] = useState(1)
-  const [s, set] = useState<WizardState>(ESTADO_INICIAL)
+  const [s, set] = useState<WizardState>(() => ({
+    ...ESTADO_INICIAL,
+    ...(templateDefaults ?? {}),
+  }))
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
 
