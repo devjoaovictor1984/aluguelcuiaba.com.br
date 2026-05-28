@@ -400,6 +400,30 @@ function fmtDataExtenso(iso: string): string {
   return `${d.toString().padStart(2, '0')} de ${meses[m - 1]} de ${y}`
 }
 
+/**
+ * Formata a cláusula com numeração jurídica:
+ *  - Título: "CLÁUSULA Nª — TÍTULO EM MAIÚSCULA"
+ *  - Parágrafos (que começam com "Parágrafo primeiro/segundo/único.") viram
+ *    "N.1.", "N.2.", … mantendo o caput sem número.
+ *  Incisos (I., II., …) dentro dos parágrafos não são alterados.
+ */
+function formatarClausulaNumerada(num: number, titulo: string, corpo: string): { titulo: string; corpo: string } {
+  const tituloFmt = `CLÁUSULA ${num}ª — ${titulo.toUpperCase()}`
+  const blocos = corpo.split(/\n\n+/)
+  let p = 0
+  const corpoFmt = blocos.map(bloco => {
+    const t = bloco.trim()
+    // "Parágrafo primeiro." / "Parágrafo único." / "Parágrafo décimo segundo." etc
+    const m = t.match(/^Par[áa]grafo\s+[^.]+\.\s*/i)
+    if (m) {
+      p++
+      return `${num}.${p}. ${t.slice(m[0].length)}`
+    }
+    return t
+  }).join('\n\n')
+  return { titulo: tituloFmt, corpo: corpoFmt }
+}
+
 // Cores do tema (Poppins + violeta IMOBILIATTO)
 const ROXO = '#581c87'
 const ROXO_CLARO = '#7c3aed'
@@ -667,35 +691,66 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
         {/* Linha separadora */}
         <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 22 }} />
 
-        {/* ── Cláusulas ──
-           Sem wrap={false} no wrapper: cláusulas longas (10+ parágrafos)
-           sobrepunham o conteúdo seguinte quando não cabiam na página.
-           O título fica num inner View wrap={false} pra evitar "viúva"
-           (título sozinho no rodapé). */}
-        {data.clausulas.map((c, idx) => (
-          <View key={idx} style={{ marginBottom: 14 }}>
-            <View wrap={false} minPresenceAhead={30}>
-              <Text style={{
-                fontSize: 10.5,
-                fontFamily: FAMILIA,
-                fontWeight: 'bold',
-                color: TEXTO_FORTE,
-                marginBottom: 5,
-              }}>
-                {idx + 1}. {c.titulo}
-              </Text>
-            </View>
+        {/* ── Sumário (índice das cláusulas) ── */}
+        {data.clausulas.length > 0 && (
+          <View style={{ marginBottom: 22 }} wrap={false}>
             <Text style={{
-              fontSize: 10,
-              fontFamily: FAMILIA,
-              color: TEXTO,
-              textAlign: 'justify',
-              lineHeight: 1.6,
+              fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
+              marginBottom: 8, letterSpacing: 0.3,
             }}>
-              {c.corpo}
+              SUMÁRIO
+            </Text>
+            {data.clausulas.map((c, idx) => (
+              <View key={idx} style={{ flexDirection: 'row', paddingVertical: 1.5 }}>
+                <Text style={{ width: 60, fontSize: 9, color: COR.acento, fontFamily: FAMILIA, fontWeight: 'bold' }}>
+                  Cláusula {idx + 1}ª
+                </Text>
+                <Text style={{ flex: 1, fontSize: 9, color: TEXTO, fontFamily: FAMILIA }}>
+                  {c.titulo}
+                </Text>
+              </View>
+            ))}
+            <Text style={{ fontSize: 7.5, color: CINZA_CLARO, marginTop: 6 }}>
+              Use o painel de marcadores do leitor de PDF pra navegar direto a cada cláusula.
             </Text>
           </View>
-        ))}
+        )}
+
+        {/* ── Cláusulas ──
+           Título "CLÁUSULA Nª — TÍTULO" + parágrafos numerados N.1, N.2…
+           bookmark = entrada navegável no painel de marcadores do PDF.
+           Sem wrap={false} no wrapper: cláusulas longas não sobrepõem. */}
+        {data.clausulas.map((c, idx) => {
+          const num = idx + 1
+          const fmt = formatarClausulaNumerada(num, c.titulo, c.corpo)
+          // bookmark existe no runtime do react-pdf v4 mas o @types não expõe
+          const bookmarkProp = { bookmark: { title: `${num}. ${c.titulo}`, fit: true } } as Record<string, unknown>
+          return (
+            <View key={idx} style={{ marginBottom: 14 }} {...bookmarkProp}>
+              <View wrap={false} minPresenceAhead={30}>
+                <Text style={{
+                  fontSize: 10.5,
+                  fontFamily: FAMILIA,
+                  fontWeight: 'bold',
+                  color: TEXTO_FORTE,
+                  marginBottom: 5,
+                  letterSpacing: 0.2,
+                }}>
+                  {fmt.titulo}
+                </Text>
+              </View>
+              <Text style={{
+                fontSize: 10,
+                fontFamily: FAMILIA,
+                color: TEXTO,
+                textAlign: 'justify',
+                lineHeight: 1.6,
+              }}>
+                {fmt.corpo}
+              </Text>
+            </View>
+          )
+        })}
 
         {/* ── Inventário de bens (imóvel mobiliado) ── */}
         {data.inventario && data.inventario.length > 0 && (
