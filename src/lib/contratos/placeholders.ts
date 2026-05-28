@@ -139,6 +139,7 @@ export const TIPOS_CLAUSULA = [
   { valor: 'mobilia',          label: 'Mobília',          descricao: 'Cláusulas de mobília (sem/semi/parcial/total) e inventário de bens' },
   { valor: 'pet',              label: 'Pet',              descricao: 'Política de pet (aceita / não aceita / com autorização / conforme condomínio) e limpeza' },
   { valor: 'aluguel_pacote',   label: 'Aluguel pacote',   descricao: 'Variantes das cláusulas de aluguel/obrigações quando o aluguel já inclui condomínio, IPTU, água, etc.' },
+  { valor: 'finalidade',       label: 'Finalidade',       descricao: 'Variantes de objeto/destinação para contrato comercial ou misto (residencial usa as genéricas)' },
   { valor: 'adicional',        label: 'Adicionais',       descricao: 'Opcionais, escolhidas caso a caso' },
   { valor: 'administracao',    label: 'Administração',    descricao: 'Cláusulas do contrato de administração imobiliária (entre proprietário e admin)' },
 ] as const

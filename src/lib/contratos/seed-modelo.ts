@@ -951,4 +951,49 @@ VIII. manter contas individualizadas de água, energia, gás e internet em dia e
 IX. permitir vistorias e visitas conforme previsto neste contrato;
 X. devolver o IMÓVEL livre de pessoas e bens, limpo, com chaves, controles, acessos e encargos quitados, observando que o pacote mensal não dispensa a quitação de débitos individualizados eventualmente existentes.`,
   },
+
+  // ════════════════════════════════════════════════════════════════
+  //  FINALIDADE — variantes de objeto/destinação (comercial / misto)
+  //  (auto-inject usa em vez das genéricas quando finalidade != residencial)
+  // ════════════════════════════════════════════════════════════════
+
+  {
+    tipo: 'finalidade', categoria: 'objeto', titulo: 'Do objeto da locação (comercial)', numero: 1,
+    corpo: `O presente contrato tem por objeto a locação não residencial (comercial) do imóvel situado em {{IMOVEL_ENDERECO}}, CEP {{IMOVEL_CEP}}, doravante denominado simplesmente IMÓVEL.
+
+Parágrafo primeiro. {{IMOVEL_DESCRICAO}}
+
+Parágrafo segundo. O IMÓVEL é locado para finalidade exclusivamente comercial/empresarial, destinado ao exercício de atividade lícita pelo LOCATÁRIO, sendo vedado o uso residencial, a sublocação, cessão, comodato ou uso por terceiros sem autorização prévia e expressa do LOCADOR e da ADMINISTRADORA.
+
+Parágrafo terceiro. O LOCATÁRIO declara conhecer e responsabilizar-se pelas exigências de zoneamento, alvará de funcionamento, vigilância sanitária, corpo de bombeiros, acessibilidade e demais normas municipais e legais aplicáveis à atividade, obtendo e mantendo às suas expensas todas as licenças e autorizações necessárias. A não obtenção de licença não desobriga o LOCATÁRIO do contrato.
+
+Parágrafo quarto. O LOCADOR declara ser legítimo proprietário, possuidor ou titular apto a dar o IMÓVEL em locação, respondendo por vícios, defeitos e obrigações anteriores à entrega das chaves, nos limites da legislação aplicável.`,
+  },
+
+  {
+    tipo: 'finalidade', categoria: 'objeto', titulo: 'Do objeto da locação (misto)', numero: 2,
+    corpo: `O presente contrato tem por objeto a locação de finalidade mista (residencial e comercial) do imóvel situado em {{IMOVEL_ENDERECO}}, CEP {{IMOVEL_CEP}}, doravante denominado simplesmente IMÓVEL.
+
+Parágrafo primeiro. {{IMOVEL_DESCRICAO}}
+
+Parágrafo segundo. O IMÓVEL poderá ser utilizado para moradia do LOCATÁRIO e, simultaneamente, para o exercício de atividade comercial/profissional compatível com o local, desde que lícita, não cause incômodo à vizinhança e respeite as normas condominiais, de zoneamento e legais aplicáveis. Ficam vedados sublocação, cessão, comodato ou uso por terceiros sem autorização prévia e expressa.
+
+Parágrafo terceiro. O LOCATÁRIO responsabiliza-se pela obtenção e manutenção de licenças, alvarás e autorizações necessárias à atividade comercial exercida no imóvel, às suas expensas.
+
+Parágrafo quarto. O LOCADOR declara ser legítimo proprietário, possuidor ou titular apto a dar o IMÓVEL em locação, respondendo por vícios, defeitos e obrigações anteriores à entrega das chaves, nos limites da legislação aplicável.`,
+  },
+
+  {
+    tipo: 'finalidade', categoria: 'destinacao', titulo: 'Da destinação comercial e ocupação', numero: 3,
+    corpo: `O IMÓVEL deverá ser utilizado exclusivamente para fins comerciais/empresariais, no exercício da atividade declarada pelo LOCATÁRIO, sendo vedado o uso residencial, hospedagem, moradia, repasse de posse, sublocação, cessão, comodato ou uso por terceiros sem autorização expressa do LOCADOR/ADMINISTRADORA.
+
+Parágrafo único. O LOCATÁRIO responderá integralmente por atos de seus sócios, prepostos, empregados, clientes, visitantes, prestadores de serviço e quaisquer terceiros que ingressem no IMÓVEL por sua autorização, inclusive por danos, perturbação de vizinhança, infrações legais, multas, acidentes e prejuízos decorrentes da atividade exercida.`,
+  },
+
+  {
+    tipo: 'finalidade', categoria: 'destinacao', titulo: 'Da destinação mista e ocupação', numero: 4,
+    corpo: `O IMÓVEL poderá ser utilizado como residência do LOCATÁRIO e, simultaneamente, para o exercício de atividade comercial/profissional compatível, observadas as normas legais, condominiais e de vizinhança, sendo vedada a permanência habitual de terceiros não informados, hospedagem comercial, repasse de posse, sublocação, cessão ou comodato sem autorização expressa do LOCADOR/ADMINISTRADORA.
+
+Parágrafo único. O LOCATÁRIO responderá integralmente por atos de seus familiares, sócios, prepostos, empregados, clientes, visitantes, prestadores de serviço, animais e quaisquer terceiros que ingressem no IMÓVEL por sua autorização, inclusive por danos, perturbação de vizinhança, infrações legais, multas, acidentes e prejuízos.`,
+  },
 ]

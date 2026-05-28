@@ -9,6 +9,7 @@ type TipoSeguroIncendio = 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
 type TipoAtuacao = 'administracao' | 'intermediacao' | 'direto'
 type TipoMobilia = 'sem' | 'semi' | 'parcial' | 'total'
 type AceitaPet = 'sim' | 'nao' | 'autorizacao' | 'condominio'
+type Finalidade = 'residencial' | 'comercial' | 'misto'
 
 export interface OpcoesGeracao {
   tipo_seguro_incendio: TipoSeguroIncendio
@@ -25,6 +26,8 @@ interface ContratoContext {
   aluguelPacote: boolean
   /** true SOMENTE quando IPTU+Condomínio inclusos (e mais nada) → variante específica e mais natural */
   pacoteIptuCondominio: boolean
+  /** residencial usa objeto/destinação genéricos; comercial/misto usam variantes 'finalidade' */
+  finalidade: Finalidade
 }
 
 /**
@@ -84,7 +87,17 @@ async function selecionarClausulasIniciais(
     if (c.tipo === 'generica') {
       if (c.categoria === 'partes' && !usarPartesGenerica) return false
       if (ctx.aluguelPacote && (c.categoria === 'aluguel' || c.categoria === 'obrigacoes_loc')) return false
+      // objeto/destinação genéricos (residenciais) saem quando finalidade != residencial
+      if (ctx.finalidade !== 'residencial' && (c.categoria === 'objeto' || c.categoria === 'destinacao')) return false
       return true
+    }
+
+    // Finalidade: variantes de objeto/destinação pra comercial/misto
+    if (c.tipo === 'finalidade') {
+      if (ctx.finalidade === 'residencial') return false
+      if (ctx.finalidade === 'comercial') return /comercial/i.test(c.titulo)
+      if (ctx.finalidade === 'misto') return /misto/i.test(c.titulo)
+      return false
     }
 
     // Aluguel pacote: variantes que substituem cláusula 7/16.
@@ -177,7 +190,7 @@ export async function obterOuCriarGeracao(contratoId: string) {
   // Confirma posse do contrato
   const { data: contrato } = await supabase
     .from('contratos_locacao')
-    .select('id, user_id, garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet, valor_seguro_incendio_anual, aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua, aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet')
+    .select('id, user_id, garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet, finalidade, valor_seguro_incendio_anual, aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua, aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet')
     .eq('id', contratoId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
@@ -220,6 +233,7 @@ export async function obterOuCriarGeracao(contratoId: string) {
     aceitaPet: (contrato.aceita_pet ?? 'nao') as AceitaPet,
     aluguelPacote,
     pacoteIptuCondominio,
+    finalidade: (contrato.finalidade ?? 'residencial') as Finalidade,
   })
 
   const { data: nova, error } = await supabase
@@ -252,7 +266,7 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
 
   const { data: atual } = await supabase
     .from('contrato_geracoes')
-    .select('id, contrato_id, tipo_seguro_incendio, clausula_ids, contratos_locacao:contratos_locacao!inner(garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet, aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua, aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet)')
+    .select('id, contrato_id, tipo_seguro_incendio, clausula_ids, contratos_locacao:contratos_locacao!inner(garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet, finalidade, aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua, aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet)')
     .eq('id', geracaoId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
@@ -281,6 +295,7 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
       aceitaPet: (contratoRel.aceita_pet ?? 'nao') as AceitaPet,
       aluguelPacote: aluguelPacoteRel,
       pacoteIptuCondominio: pacoteIptuCondominioRel,
+      finalidade: (contratoRel.finalidade ?? 'residencial') as Finalidade,
     })
   }
 
