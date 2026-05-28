@@ -152,6 +152,9 @@ export interface ContratoPDFData {
     qtd_chaves: number
     qtd_controles: number
     qtd_tags: number
+    /** Quem recebe a posse: locatário(s) + co-locatários + ocupantes que moram.
+     *  Responsável pelo seguro que não mora NÃO entra aqui. */
+    recebedores: Array<{ nome: string; cpf: string | null }>
   } | null
 }
 
@@ -1114,12 +1117,21 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </View>
           )}
 
-          <View style={{ marginBottom: 22 }}>
-            <Text style={blocoPapel}>LOCATÁRIO (RECEBI AS CHAVES)</Text>
-            <Text style={blocoNome}>{data.locatario_nome}</Text>
-            {data.locatario_cpf && <Text style={blocoSecundario}>CPF {data.locatario_cpf}</Text>}
-            <View style={linhaAssinatura} />
-          </View>
+          {/* Recebedores das chaves: todos os locatários/moradores que tomam posse.
+             Fallback pro locatário principal se a lista vier vazia. */}
+          {(data.termo_chaves.recebedores.length > 0
+            ? data.termo_chaves.recebedores
+            : [{ nome: data.locatario_nome, cpf: data.locatario_cpf }]
+          ).map((r, idx, arr) => (
+            <View key={idx} style={{ marginBottom: 22 }}>
+              <Text style={blocoPapel}>
+                {arr.length > 1 ? `LOCATÁRIO ${idx + 1} (RECEBI AS CHAVES)` : 'LOCATÁRIO (RECEBI AS CHAVES)'}
+              </Text>
+              <Text style={blocoNome}>{r.nome}</Text>
+              {r.cpf && <Text style={blocoSecundario}>CPF {r.cpf}</Text>}
+              <View style={linhaAssinatura} />
+            </View>
+          ))}
 
           {/* Rodapé estático */}
           <Text style={{

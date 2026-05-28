@@ -233,8 +233,9 @@ function montarTermoChaves(
       endereco_bairro?: string | null
       bairro_nome?: string | null
     } | null
-  }
-): { endereco_imovel: string; data_entrega: string; qtd_chaves: number; qtd_controles: number; qtd_tags: number } {
+  },
+  recebedores: Array<{ nome: string; cpf: string | null }>,
+): { endereco_imovel: string; data_entrega: string; qtd_chaves: number; qtd_controles: number; qtd_tags: number; recebedores: Array<{ nome: string; cpf: string | null }> } {
   const im = dados.imovel
   // Mesma lógica do IMOVEL_ENDERECO em montar.ts: monta endereço completo
   // com logradouro + número + complemento + bairro.
@@ -256,6 +257,7 @@ function montarTermoChaves(
     qtd_chaves: c.qtd_chaves ?? 0,
     qtd_controles: c.qtd_controles ?? 0,
     qtd_tags: c.qtd_tags ?? 0,
+    recebedores,
   }
 }
 
@@ -559,6 +561,20 @@ export async function GET(
     })
     .filter((x): x is NonNullable<typeof x> => x !== null)
 
+  // Recebedores das chaves: locatário principal + quem MORA no imóvel
+  // (co-locatário solidário, ocupante autorizado, morador). Responsável pelo
+  // seguro / caucionante / cônjuge do responsável NÃO recebem chaves.
+  const recebedoresChaves: Array<{ nome: string; cpf: string | null }> = []
+  if (inq?.nome) recebedoresChaves.push({ nome: inq.nome, cpf: fmtCpf(inq.cpf_cnpj) })
+  for (const m of (moradoresRaw ?? []) as MoradorRel[]) {
+    const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
+    if (!p?.nome) continue
+    const recebeChaves =
+      (m.papel === 'inquilino_solidario' || m.papel === 'ocupante_autorizado' || m.papel === 'morador')
+      && m.mora_no_imovel
+    if (recebeChaves) recebedoresChaves.push({ nome: p.nome, cpf: fmtCpf(p.cpf_cnpj) })
+  }
+
   // 8. Monta o data final do PDF
   const pdfData: ContratoPDFData = {
     codigo: contrato.codigo,
@@ -603,7 +619,7 @@ export async function GET(
     clausulas,
     quadro_entrada: montarQuadroEntrada(contrato),
     tabela_12_meses: montarTabela12Meses(contrato),
-    termo_chaves: montarTermoChaves(contrato, dadosContrato),
+    termo_chaves: montarTermoChaves(contrato, dadosContrato, recebedoresChaves),
   }
 
   // 9. Renderiza o contrato principal
