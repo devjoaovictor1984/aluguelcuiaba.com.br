@@ -13,7 +13,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Save, FileDown, Loader2, AlertCircle, X, Plus,
-  Settings, Eye, Upload, FileCheck, CheckCircle2,
+  Settings, Eye, Upload, FileCheck, CheckCircle2, Star,
 } from 'lucide-react'
 import { atualizarClausula, criarClausula } from '../../../clausulas/actions'
 import {
@@ -25,6 +25,7 @@ import {
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
 import { ProgressoContrato } from './progresso-contrato'
+import { SECOES_ESSENCIAIS, isCategoriaEssencial } from '@/lib/contratos/secoes-essenciais'
 
 interface ClausulaLista {
   id: string
@@ -172,6 +173,10 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
     })
   }
 
+  // Seção essencial a vincular à nova cláusula. 'nao' = adicional (não conta no progresso).
+  // Os outros valores são ids de SECOES_ESSENCIAIS — a primeira categoria daquela seção é usada.
+  const [novaClausulaSecao, setNovaClausulaSecao] = useState<string>('nao')
+
   // Modal: criar cláusula adicional inline
   const onCriarClausulaInline = () => {
     setErroNovaClausula('')
@@ -183,11 +188,23 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
       setErroNovaClausula('Corpo precisa de pelo menos 10 caracteres.')
       return
     }
+    // Resolve categoria/tipo conforme escolha de seção essencial
+    let tipoEscolhido: TipoClausula = 'adicional'
+    let categoriaEscolhida = 'custom'
+    if (novaClausulaSecao !== 'nao') {
+      const sec = SECOES_ESSENCIAIS.find(s => s.id === novaClausulaSecao)
+      if (sec) {
+        categoriaEscolhida = sec.categorias[0]
+        // tipo da cláusula = 'generica' por padrão, mas algumas seções têm tipos próprios
+        if (sec.id === 'fundamentacao') tipoEscolhido = 'fundamentacao'
+        else if (sec.id === 'garantia') tipoEscolhido = 'adicional' // user escolhe garantia depois
+        else tipoEscolhido = 'generica'
+      }
+    }
     startTransition(async () => {
-      // Cria cláusula no banco (tipo='adicional')
       const r = await criarClausula({
-        tipo: 'adicional',
-        categoria: 'custom',
+        tipo: tipoEscolhido,
+        categoria: categoriaEscolhida,
         titulo: novaClausulaTitulo.trim(),
         numero: 100 + clausulaIds.length,
         corpo: novaClausulaCorpo.trim(),
@@ -196,18 +213,17 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
         setErroNovaClausula(r.error ?? 'Falha ao criar.')
         return
       }
-      // Inclui na geração
       const r2 = await alternarClausulaNaGeracao(geracao.id, r.id, true)
       if (r2.error) {
         setErroNovaClausula(r2.error)
         return
       }
       setClausulaIds(prev => [...prev, r.id!])
-      // Recarrega pra puxar a nova cláusula em todasClausulas
       router.refresh()
       setModalNovaClausula(false)
       setNovaClausulaTitulo('')
       setNovaClausulaCorpo('')
+      setNovaClausulaSecao('nao')
     })
   }
 
@@ -663,6 +679,21 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
               />
 
               <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Esta cláusula cobre uma seção essencial?
+                <span className="text-gray-400 font-normal ml-1">(conta no progresso do contrato)</span>
+              </label>
+              <select
+                value={novaClausulaSecao}
+                onChange={e => setNovaClausulaSecao(e.target.value)}
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm mb-3"
+              >
+                <option value="nao">Não — é adicional (não conta no progresso)</option>
+                {SECOES_ESSENCIAIS.map(s => (
+                  <option key={s.id} value={s.id}>⭐ {s.label}</option>
+                ))}
+              </select>
+
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
                 Corpo da cláusula <span className="text-gray-400 font-normal">(pode usar placeholders {'{{X}}'})</span>
               </label>
               <textarea
@@ -734,9 +765,15 @@ function ClausulaCardEditor({
       <div
         ref={setNodeRef}
         style={style}
-        className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:border-violet-300 transition-colors"
+        className={`bg-white rounded-xl border overflow-hidden transition-colors ${
+          isCategoriaEssencial(clausula.categoria)
+            ? 'border-amber-200 hover:border-amber-300'
+            : 'border-gray-200 hover:border-violet-300'
+        }`}
       >
-        <div className="flex items-start gap-1 px-3 py-2 bg-gray-50 border-b border-gray-100">
+        <div className={`flex items-start gap-1 px-3 py-2 border-b border-gray-100 ${
+          isCategoriaEssencial(clausula.categoria) ? 'bg-amber-50' : 'bg-gray-50'
+        }`}>
           <button
             type="button"
             {...attributes}
@@ -749,6 +786,11 @@ function ClausulaCardEditor({
           <span className="text-xs font-mono font-bold text-violet-700 px-1.5">
             {numero}.
           </span>
+          {isCategoriaEssencial(clausula.categoria) && (
+            <span title="Cláusula essencial">
+              <Star size={11} className="text-amber-600 fill-amber-400 mt-1" />
+            </span>
+          )}
           <h3 className="flex-1 text-sm font-bold text-gray-900 py-0.5">
             {clausula.titulo}
           </h3>
@@ -1059,24 +1101,40 @@ function CatalogoDisponiveis({
               : 'Nenhuma encontrada com este filtro.'}
           </p>
         ) : (
-          filtradas.map(c => (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => onIncluir(c.id)}
-              disabled={isPending}
-              className="w-full text-left bg-gray-50 hover:bg-violet-50 hover:shadow-sm border border-gray-100 hover:border-violet-300 rounded-lg p-2.5 transition-all disabled:opacity-50 group"
-            >
-              <div className="flex items-start justify-between gap-1.5 mb-1">
-                <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 bg-white border border-gray-200 px-1.5 py-0.5 rounded">
-                  {labelTipo(c.tipo)}
-                </span>
-                <Plus size={12} className="text-gray-300 group-hover:text-violet-700 shrink-0 mt-0.5" />
-              </div>
-              <p className="text-xs font-semibold text-gray-900 line-clamp-2">{c.titulo}</p>
-              <p className="text-[10px] text-gray-500 line-clamp-2 mt-1">{c.corpo.slice(0, 120)}…</p>
-            </button>
-          ))
+          filtradas.map(c => {
+            const essencial = isCategoriaEssencial(c.categoria)
+            return (
+              <button
+                key={c.id}
+                type="button"
+                onClick={() => onIncluir(c.id)}
+                disabled={isPending}
+                className={`w-full text-left hover:shadow-sm rounded-lg p-2.5 transition-all disabled:opacity-50 group border ${
+                  essencial
+                    ? 'bg-amber-50 border-amber-200 hover:bg-amber-100 hover:border-amber-300'
+                    : 'bg-gray-50 border-gray-100 hover:bg-violet-50 hover:border-violet-300'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-1.5 mb-1">
+                  <div className="flex items-center gap-1">
+                    {essencial && (
+                      <span title="Cláusula essencial — conta no progresso do contrato">
+                        <Star size={11} className="text-amber-600 fill-amber-400" />
+                      </span>
+                    )}
+                    <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                      essencial ? 'text-amber-700 bg-white border-amber-200' : 'text-gray-400 bg-white border-gray-200'
+                    }`}>
+                      {labelTipo(c.tipo)}
+                    </span>
+                  </div>
+                  <Plus size={12} className={`shrink-0 mt-0.5 ${essencial ? 'text-amber-400 group-hover:text-amber-700' : 'text-gray-300 group-hover:text-violet-700'}`} />
+                </div>
+                <p className="text-xs font-semibold text-gray-900 line-clamp-2">{c.titulo}</p>
+                <p className="text-[10px] text-gray-500 line-clamp-2 mt-1">{c.corpo.slice(0, 120)}…</p>
+              </button>
+            )
+          })
         )}
       </div>
     </aside>

@@ -1,32 +1,7 @@
 'use client'
 
 import { Check, AlertCircle } from 'lucide-react'
-
-/**
- * Lista de seções "mínimas" que um contrato de locação deveria ter pra
- * ser considerado completo. A barra mostra quantas dessas seções já
- * estão presentes (matching pela `categoria` das cláusulas selecionadas).
- *
- * "Garantia" é especial: aceita qualquer uma de 4 categorias (caucao,
- * fiador, seguro_fianca, sem_garantia).
- */
-const SECOES_MINIMAS: Array<{ label: string; match: (cat: string) => boolean }> = [
-  { label: 'Fundamentação legal',  match: c => c === 'fundamentacao' },
-  { label: 'Das partes',           match: c => c === 'partes' },
-  { label: 'Objeto da locação',    match: c => c === 'objeto' },
-  { label: 'Prazo',                match: c => c === 'prazo' },
-  { label: 'Aluguel e encargos',   match: c => c === 'aluguel' },
-  { label: 'Reajuste',             match: c => c === 'reajuste' },
-  { label: 'Mora e cobrança',      match: c => c === 'mora' },
-  { label: 'Garantia',             match: c => c === 'caucao' || c === 'fiador' || c === 'seguro' || c === 'sem_garantia' },
-  { label: 'Vistoria',             match: c => c === 'vistoria' || c === 'chaves' },
-  { label: 'Obrigações',           match: c => c === 'obrigacoes_loc' || c === 'obrigacoes_adm' },
-  { label: 'Rescisão e multa',     match: c => c === 'rescisao' },
-  { label: 'Manutenção',           match: c => c === 'conservacao' || c === 'modificacoes' },
-  { label: 'Direito de preferência', match: c => c === 'preferencia' },
-  { label: 'Comunicações',         match: c => c === 'comunicacoes' },
-  { label: 'Foro',                 match: c => c === 'foro' },
-]
+import { SECOES_ESSENCIAIS } from '@/lib/contratos/secoes-essenciais'
 
 interface Props {
   categoriasIncluidas: string[]
@@ -35,13 +10,10 @@ interface Props {
 }
 
 export function ProgressoContrato({ categoriasIncluidas, totalClausulas, status }: Props) {
-  const categoriasSet = new Set(categoriasIncluidas)
-  const secoes = SECOES_MINIMAS.map(s => ({
-    ...s,
-    ok: categoriasIncluidas.some(c => s.match(c)),
+  const secoes = SECOES_ESSENCIAIS.map(s => ({
+    label: s.label,
+    ok: categoriasIncluidas.some(c => s.categorias.includes(c)),
   }))
-  const _ = categoriasSet // marca uso (categoriasIncluidas já é o iterado)
-  void _
 
   const completas = secoes.filter(s => s.ok).length
   const totalMin = secoes.length
