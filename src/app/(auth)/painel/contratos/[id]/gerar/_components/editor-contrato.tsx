@@ -852,7 +852,9 @@ function ModalEdicaoClausula({
           <div>
             <h2 className="text-base font-bold text-gray-900">Editar cláusula</h2>
             <p className="text-[11px] text-amber-700 mt-0.5">
-              ⚠️ Esta edição altera a cláusula no seu banco e refletirá em <strong>todos os contratos futuros</strong>.
+              ⚠️ Altera a cláusula no <strong>seu</strong> banco (privado, não afeta outros usuários).
+              Reflete neste contrato e em todos os <strong>futuros</strong> que usarem essa cláusula.
+              Contratos já assinados (com PDF anexado) não mudam.
             </p>
           </div>
           <button
