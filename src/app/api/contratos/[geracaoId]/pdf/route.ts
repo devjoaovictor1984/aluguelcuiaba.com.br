@@ -613,6 +613,13 @@ export async function GET(
     }
   }
 
+  // 6d. Inventário de bens (imóvel mobiliado)
+  const { data: inventarioRaw } = await admin
+    .from('contrato_inventario_itens')
+    .select('descricao, quantidade, marca_modelo, estado, observacao')
+    .eq('contrato_id', geracao.contrato_id)
+    .order('ordem', { ascending: true })
+
   // 7. Endereço da admin
   const cepFmt = perfil?.endereco_cep
     ? perfil.endereco_cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')
@@ -725,6 +732,13 @@ export async function GET(
       })),
     clausulas_seguradora_texto: geracao.clausulas_seguradora_texto ?? null,
     clausulas,
+    inventario: (inventarioRaw ?? []).map(it => ({
+      descricao: it.descricao,
+      quantidade: it.quantidade,
+      marca_modelo: it.marca_modelo,
+      estado: it.estado,
+      observacao: it.observacao,
+    })),
     quadro_entrada: montarQuadroEntrada(contrato),
     tabela_12_meses: montarTabela12Meses(contrato),
     termo_chaves: montarTermoChaves(contrato, dadosContrato, recebedoresChaves),

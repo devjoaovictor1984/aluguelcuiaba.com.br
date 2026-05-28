@@ -127,6 +127,15 @@ export interface ContratoPDFData {
   // Cláusulas montadas
   clausulas: ContratoPDFClausula[]
 
+  // Inventário de bens (imóvel mobiliado) — tabela item a item
+  inventario?: Array<{
+    descricao: string
+    quantidade: number
+    marca_modelo: string | null
+    estado: string | null
+    observacao: string | null
+  }>
+
   // Quadro financeiro de entrada (caução + 1º aluguel + IPTU)
   quadro_entrada: Array<{ descricao: string; base: string; valor: string; obs?: string }>
 
@@ -687,6 +696,41 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </Text>
           </View>
         ))}
+
+        {/* ── Inventário de bens (imóvel mobiliado) ── */}
+        {data.inventario && data.inventario.length > 0 && (
+          <View break style={{ marginTop: 0 }}>
+            <Text style={{ fontSize: 11.5, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE, marginBottom: 4 }}>
+              Inventário de bens do imóvel
+            </Text>
+            <Text style={{ fontSize: 8, color: CINZA_CLARO, marginBottom: 8 }}>
+              Os bens abaixo integram a locação e serão conferidos item a item na vistoria final.
+            </Text>
+            <View>
+              <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
+                <Text style={{ width: 24, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>#</Text>
+                <Text style={{ flex: 4, fontSize: 8, fontWeight: 'bold', color: CINZA }}>ITEM</Text>
+                <Text style={{ width: 30, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>QTD</Text>
+                <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>MARCA/MODELO</Text>
+                <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA }}>ESTADO</Text>
+              </View>
+              {data.inventario.map((it, i) => (
+                <View key={i} style={{ flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 6, backgroundColor: i % 2 === 1 ? '#fafafa' : undefined }}>
+                  <Text style={{ width: 24, fontSize: 9, color: CINZA, textAlign: 'center' }}>{i + 1}</Text>
+                  <Text style={{ flex: 4, fontSize: 9, color: TEXTO }}>
+                    {it.descricao}{it.observacao ? ` (${it.observacao})` : ''}
+                  </Text>
+                  <Text style={{ width: 30, fontSize: 9, color: TEXTO, textAlign: 'center' }}>{it.quantidade}</Text>
+                  <Text style={{ flex: 3, fontSize: 9, color: CINZA }}>{it.marca_modelo ?? '—'}</Text>
+                  <Text style={{ flex: 2, fontSize: 9, color: CINZA }}>{it.estado ?? '—'}</Text>
+                </View>
+              ))}
+            </View>
+            <Text style={{ fontSize: 8, color: CINZA_CLARO, marginTop: 5 }}>
+              Os LOCATÁRIOS declaram receber os bens no estado descrito e obrigam-se a devolvê-los nas mesmas condições, ressalvado o desgaste natural.
+            </Text>
+          </View>
+        )}
 
         {/* ── Quadro financeiro de entrada ──
            `break` força nova página antes deste bloco. Resolve o bug em que

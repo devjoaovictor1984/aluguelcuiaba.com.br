@@ -8,6 +8,7 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { ParcelaRow, type Parcela } from './_components/parcela-row'
 import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
+import { InventarioSecao, type ItemInventario } from './_components/inventario-secao'
 import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
 import { RegerarParcelasBotao } from './_components/regerar-parcelas'
 import { TimelineEventos, type EventoRow } from './_components/timeline-eventos'
@@ -115,6 +116,13 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   }))
 
   const pessoasDisponiveis: PessoaOpcao[] = (pessoasUser ?? []) as PessoaOpcao[]
+
+  // Inventário de bens (mobília item a item)
+  const { data: inventarioRaw } = await supabase
+    .from('contrato_inventario_itens')
+    .select('id, descricao, quantidade, marca_modelo, estado, observacao')
+    .eq('contrato_id', id)
+    .order('ordem', { ascending: true })
   const reajustes: ReajusteRow[] = ((reajustesRaw ?? []) as ReajusteRow[]).map(r => ({
     ...r,
     percentual: Number(r.percentual),
@@ -271,6 +279,8 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         inquilinoId={inquilino?.id ?? ''}
         inquilinoEhPJ={(inquilino?.cpf_cnpj?.replace(/\D/g, '').length ?? 0) === 14}
       />
+
+      <InventarioSecao contratoId={id} itens={(inventarioRaw ?? []) as ItemInventario[]} />
 
       <TimelineEventos eventos={eventos} />
 
