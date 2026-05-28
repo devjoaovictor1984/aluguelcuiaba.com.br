@@ -453,28 +453,22 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       return numeroPorExtenso(Math.floor(v)) + ' reais'
     }
 
-    // Seguro incêndio: SÓ entra no boleto mensal se for cobrado à parte pela admin.
-    // Caso contrário (dispensado / embutido no pacote), retorna vazio — a regra
-    // de mercado é: seguro incêndio é anual, pago à parte, contratado pelo
-    // locatário ou pela imobiliária; não entra no boleto recorrente.
-    case 'SEGURO_INCENDIO_VALOR': {
-      const c = dados.contrato
-      if (c?.tipo_seguro_incendio !== 'cobrado_parte') return ''
-      const anual = c?.valor_seguro_incendio_anual ?? 0
-      if (!anual) return ''
-      return fmtBRL(anual / 12)
-    }
+    // Seguro incêndio: SEMPRE retorna vazio no contexto de "boleto mensal".
+    // Regra de mercado: seguro incêndio é obrigatório por lei (Lei 8.245/91),
+    // mas é pago em parcela única anual à parte — o valor não entra no
+    // boleto recorrente. A cláusula de obrigatoriedade continua no contrato.
+    // Se o corretor quiser ratear no boleto, edita a cláusula manualmente.
+    case 'SEGURO_INCENDIO_VALOR': return ''
 
-    // Total do boleto = pacote + seguro fiança. Seguro incêndio só soma se
-    // for 'cobrado_parte' (rateado mensal pela admin).
+    // Total do boleto = pacote + seguro fiança. Seguro incêndio NÃO entra
+    // (é anual, pago à parte).
     case 'TOTAL_BOLETO_VALOR': {
       const c = dados.contrato
       const a = c?.valor_aluguel ?? 0
       const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
       const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
       const sf = c?.valor_seguro_fianca_mensal ?? 0
-      const si = c?.tipo_seguro_incendio === 'cobrado_parte' ? (c?.valor_seguro_incendio_anual ?? 0) / 12 : 0
-      return fmtBRL(a + i + co + sf + si)
+      return fmtBRL(a + i + co + sf)
     }
     case 'TOTAL_BOLETO_EXTENSO': {
       const c = dados.contrato
@@ -482,8 +476,7 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
       const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
       const sf = c?.valor_seguro_fianca_mensal ?? 0
-      const si = c?.tipo_seguro_incendio === 'cobrado_parte' ? (c?.valor_seguro_incendio_anual ?? 0) / 12 : 0
-      return numeroPorExtenso(Math.floor(a + i + co + sf + si)) + ' reais'
+      return numeroPorExtenso(Math.floor(a + i + co + sf)) + ' reais'
     }
 
     case 'OUTROS_ENCARGOS_FIXOS': return ''  // texto livre — corretor edita depois se quiser
