@@ -1,5 +1,8 @@
 import Link from 'next/link'
-import { ArrowLeft, Lock } from 'lucide-react'
+import {
+  ArrowLeft, Lock, Building2, Users, Coins, ScrollText, ShieldOff,
+  Handshake, Home, FilePlus,
+} from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { PLANOS } from '@/lib/constants'
@@ -8,17 +11,41 @@ import { WizardContrato } from './_components/wizard-contrato'
 interface TemplateDefaults {
   tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
   garantia_tipo: 'fiador' | 'caucao' | 'seguro_fianca' | 'sem_garantia'
+  /** Orienta o usuário a adicionar um Responsável pelo seguro (terceiro que não mora). */
+  terceiro_seguro?: boolean
 }
 
 const TEMPLATES: Record<string, TemplateDefaults> = {
-  'admin-seguro':    { tipo_atuacao: 'administracao', garantia_tipo: 'seguro_fianca' },
-  'admin-caucao':    { tipo_atuacao: 'administracao', garantia_tipo: 'caucao' },
-  'admin-fiador':    { tipo_atuacao: 'administracao', garantia_tipo: 'fiador' },
-  'inter-seguro':    { tipo_atuacao: 'intermediacao', garantia_tipo: 'seguro_fianca' },
-  'inter-fiador':    { tipo_atuacao: 'intermediacao', garantia_tipo: 'fiador' },
-  'direto-caucao':   { tipo_atuacao: 'direto',        garantia_tipo: 'caucao' },
-  'direto-fiador':   { tipo_atuacao: 'direto',        garantia_tipo: 'fiador' },
-  'direto-sem':      { tipo_atuacao: 'direto',        garantia_tipo: 'sem_garantia' },
+  'admin-seguro':          { tipo_atuacao: 'administracao', garantia_tipo: 'seguro_fianca' },
+  'admin-seguro-terceiro': { tipo_atuacao: 'administracao', garantia_tipo: 'seguro_fianca', terceiro_seguro: true },
+  'admin-caucao':          { tipo_atuacao: 'administracao', garantia_tipo: 'caucao' },
+  'admin-fiador':          { tipo_atuacao: 'administracao', garantia_tipo: 'fiador' },
+  'admin-sem':             { tipo_atuacao: 'administracao', garantia_tipo: 'sem_garantia' },
+  'inter-seguro':          { tipo_atuacao: 'intermediacao', garantia_tipo: 'seguro_fianca' },
+  'inter-caucao':          { tipo_atuacao: 'intermediacao', garantia_tipo: 'caucao' },
+  'inter-fiador':          { tipo_atuacao: 'intermediacao', garantia_tipo: 'fiador' },
+  'direto':                { tipo_atuacao: 'direto',        garantia_tipo: 'sem_garantia' },
+}
+
+// Cards visuais (ícones lucide, mantendo a identidade do sistema)
+const TEMPLATE_CARDS = [
+  { id: 'admin-seguro',          label: 'Administração + Seguro Fiança',           desc: 'Você administra · inquilino passa o seguro',     icone: Building2,  cor: 'violet' },
+  { id: 'admin-seguro-terceiro', label: 'Administração + Seguro c/ Terceiro',      desc: 'Seguro passado por 3º (ex: pai), filho mora',    icone: Users,      cor: 'violet' },
+  { id: 'admin-caucao',          label: 'Administração + Caução',                  desc: 'Você administra · garantia em dinheiro',         icone: Coins,      cor: 'violet' },
+  { id: 'admin-fiador',          label: 'Administração + Fiador',                  desc: 'Você administra · fiador pessoa física',         icone: ScrollText, cor: 'violet' },
+  { id: 'admin-sem',             label: 'Administração sem Garantia',              desc: 'Você administra · sem garantia locatícia',       icone: ShieldOff,  cor: 'violet' },
+  { id: 'inter-seguro',          label: 'Intermediação + Seguro Fiança',          desc: 'Só intermediou · com seguro fiança',             icone: Handshake,  cor: 'sky' },
+  { id: 'inter-caucao',          label: 'Intermediação + Caução',                 desc: 'Só intermediou · com caução',                    icone: Handshake,  cor: 'sky' },
+  { id: 'inter-fiador',          label: 'Intermediação + Fiador',                 desc: 'Só intermediou · com fiador',                    icone: Handshake,  cor: 'sky' },
+  { id: 'direto',                label: 'Direto Proprietário × Locatário',        desc: 'Sem corretor · contrato direto',                 icone: Home,       cor: 'emerald' },
+  { id: 'personalizado',         label: 'Contrato Personalizado',                 desc: 'Começa em branco · você escolhe tudo',           icone: FilePlus,   cor: 'gray' },
+] as const
+
+const CARD_CLASSES: Record<string, string> = {
+  violet:  'border-violet-100 hover:border-violet-400 hover:bg-violet-50 text-violet-700',
+  sky:     'border-sky-100 hover:border-sky-400 hover:bg-sky-50 text-sky-700',
+  emerald: 'border-emerald-100 hover:border-emerald-400 hover:bg-emerald-50 text-emerald-700',
+  gray:    'border-gray-200 hover:border-gray-400 hover:bg-gray-50 text-gray-700',
 }
 
 export default async function NovoContratoPage({
@@ -30,6 +57,8 @@ export default async function NovoContratoPage({
   const supabase = await createClient()
   const { template } = await searchParams
   const templateDefaults = template ? TEMPLATES[template] : null
+  // 'personalizado' = começa em branco (sem menu, sem defaults)
+  const ehPersonalizado = template === 'personalizado'
 
   // Limite de contratos por plano (mesma cota dos imóveis). Admin/profissional liberados.
   const plano = (acesso.plano ?? 'free') as keyof typeof PLANOS
@@ -117,53 +146,48 @@ export default async function NovoContratoPage({
         )}
       </p>
 
-      {/* Atalhos de templates — pré-preenchem atuação + garantia */}
-      {!templateDefaults && (
+      {/* Menu visual de tipos de contrato — pré-preenche atuação + garantia */}
+      {!templateDefaults && !ehPersonalizado && (
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-4">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Começar rapidamente</h2>
-          <p className="text-[11px] text-gray-400 mb-3">Atalhos pra combinações comuns — pré-preenchem atuação e garantia. Você ainda escolhe imóvel, pessoas e valores.</p>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {([
-              { id: 'admin-seguro',  label: 'Admin + Seguro fiança',  desc: 'Você administra, inquilino paga seguro',  cor: 'violet' },
-              { id: 'admin-fiador',  label: 'Admin + Fiador',          desc: 'Você administra, terceiro avalista',     cor: 'violet' },
-              { id: 'admin-caucao',  label: 'Admin + Caução',          desc: 'Você administra, depósito em dinheiro',   cor: 'violet' },
-              { id: 'inter-seguro',  label: 'Intermediação + Seguro',  desc: 'Só intermediou, com seguro fiança',       cor: 'sky' },
-              { id: 'inter-fiador',  label: 'Intermediação + Fiador',  desc: 'Só intermediou, com fiador',              cor: 'sky' },
-              { id: 'direto-caucao', label: 'Direto + Caução',         desc: 'Sem corretor, com caução',                cor: 'emerald' },
-              { id: 'direto-fiador', label: 'Direto + Fiador',         desc: 'Sem corretor, com fiador',                cor: 'emerald' },
-              { id: 'direto-sem',    label: 'Direto + Sem garantia',   desc: 'Sem corretor, sem garantia',              cor: 'emerald' },
-            ] as const).map(t => (
-              <Link
-                key={t.id}
-                href={`/painel/contratos/novo?template=${t.id}`}
-                className={`block text-left p-3 rounded-xl border-2 transition-colors group ${
-                  t.cor === 'violet' ? 'border-violet-100 hover:border-violet-400 hover:bg-violet-50' :
-                  t.cor === 'sky' ? 'border-sky-100 hover:border-sky-400 hover:bg-sky-50' :
-                  'border-emerald-100 hover:border-emerald-400 hover:bg-emerald-50'
-                }`}
-              >
-                <p className={`text-xs font-bold ${
-                  t.cor === 'violet' ? 'text-violet-700' :
-                  t.cor === 'sky' ? 'text-sky-700' : 'text-emerald-700'
-                }`}>
-                  {t.label}
-                </p>
-                <p className="text-[10px] text-gray-500 mt-1 leading-tight">{t.desc}</p>
-              </Link>
-            ))}
+          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1">Escolha o tipo de contrato</h2>
+          <p className="text-[11px] text-gray-400 mb-3">Pré-preenche atuação e garantia conforme o tipo. Você ainda escolhe imóvel, pessoas e valores nas etapas seguintes.</p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
+            {TEMPLATE_CARDS.map(t => {
+              const Icone = t.icone
+              return (
+                <Link
+                  key={t.id}
+                  href={`/painel/contratos/novo?template=${t.id}`}
+                  className={`flex flex-col gap-1.5 text-left p-3 rounded-xl border-2 transition-colors ${CARD_CLASSES[t.cor]}`}
+                >
+                  <Icone size={18} />
+                  <p className="text-xs font-bold leading-tight">{t.label}</p>
+                  <p className="text-[10px] text-gray-500 leading-tight">{t.desc}</p>
+                </Link>
+              )
+            })}
           </div>
         </section>
       )}
 
       {templateDefaults && (
-        <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 mb-4 flex items-start justify-between gap-3 flex-wrap">
-          <p className="text-xs text-violet-800">
-            <strong>Template aplicado:</strong> atuação <strong>{templateDefaults.tipo_atuacao}</strong> + garantia <strong>{templateDefaults.garantia_tipo.replace('_', ' ')}</strong>.
-            Você pode alterar nas etapas do wizard.
-          </p>
-          <Link href="/painel/contratos/novo" className="text-[11px] text-violet-700 hover:underline">
-            Limpar template
-          </Link>
+        <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 mb-4 space-y-2">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <p className="text-xs text-violet-800">
+              <strong>Tipo escolhido:</strong> atuação <strong>{templateDefaults.tipo_atuacao}</strong> + garantia <strong>{templateDefaults.garantia_tipo.replace('_', ' ')}</strong>.
+              Você pode alterar nas etapas do wizard.
+            </p>
+            <Link href="/painel/contratos/novo" className="text-[11px] text-violet-700 hover:underline shrink-0">
+              Trocar tipo
+            </Link>
+          </div>
+          {templateDefaults.terceiro_seguro && (
+            <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded-lg p-2">
+              ⚠ <strong>Seguro com terceiro responsável:</strong> coloque como <strong>inquilino</strong> quem vai
+              <strong> morar</strong>. Depois de criar, vá em <strong>Pessoas vinculadas</strong> e adicione quem passou o
+              seguro com o papel <strong>&ldquo;Responsável pelo seguro fiança&rdquo;</strong> (ele assina mas não recebe chaves).
+            </p>
+          )}
         </div>
       )}
 
