@@ -300,22 +300,28 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
     })
   }
 
-  const onAtualizarClausula = (id: string, novoTitulo: string, novoCorpo: string) => {
+  const onAtualizarClausula = (
+    id: string,
+    novoTitulo: string,
+    novoCorpo: string,
+    novaCategoria?: string,
+    novoTipo?: TipoClausula,
+  ) => {
     const c = mapaClausulas.get(id)
     if (!c) return
+    const tipoFinal = novoTipo ?? c.tipo
+    const categoriaFinal = novaCategoria ?? c.categoria
     startTransition(async () => {
       const r = await atualizarClausula(id, {
-        tipo: c.tipo,
-        categoria: c.categoria,
+        tipo: tipoFinal,
+        categoria: categoriaFinal,
         titulo: novoTitulo,
         numero: c.numero,
         corpo: novoCorpo,
       })
       if (r.error) { setErro(r.error); return }
-      // Atualiza o estado local
-      const novaCl = { ...c, titulo: novoTitulo, corpo: novoCorpo }
+      const novaCl = { ...c, titulo: novoTitulo, corpo: novoCorpo, tipo: tipoFinal, categoria: categoriaFinal }
       mapaClausulas.set(id, novaCl)
-      // Forçar re-render: recriando a referência do array
       setClausulaIds([...clausulaIds])
     })
   }
@@ -703,7 +709,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
                   numero={idx + 1}
                   clausula={c}
                   isPending={isPending}
-                  onSalvar={(t, b) => onAtualizarClausula(c.id, t, b)}
+                  onSalvar={(t, b, cat, tp) => onAtualizarClausula(c.id, t, b, cat, tp)}
                   onRemover={() => onRemover(c.id)}
                 />
               ))}
@@ -820,7 +826,7 @@ function ClausulaCardEditor({
   numero: number
   clausula: ClausulaLista
   isPending: boolean
-  onSalvar: (titulo: string, corpo: string) => void
+  onSalvar: (titulo: string, corpo: string, categoria?: string, tipo?: TipoClausula) => void
   onRemover: () => void
 }) {
   const [modalAberto, setModalAberto] = useState(false)
@@ -904,7 +910,7 @@ function ClausulaCardEditor({
           clausula={clausula}
           isPending={isPending}
           onFechar={() => setModalAberto(false)}
-          onSalvar={(t, b) => { onSalvar(t, b); setModalAberto(false) }}
+          onSalvar={(t, b, cat, tp) => { onSalvar(t, b, cat, tp); setModalAberto(false) }}
         />
       )}
     </>
@@ -917,12 +923,15 @@ function ModalEdicaoClausula({
 }: {
   clausula: ClausulaLista
   isPending: boolean
-  onSalvar: (titulo: string, corpo: string) => void
+  onSalvar: (titulo: string, corpo: string, categoria?: string, tipo?: TipoClausula) => void
   onFechar: () => void
 }) {
   const [titulo, setTitulo] = useState(clausula.titulo)
   const [corpo, setCorpo] = useState(clausula.corpo)
   const [copiado, setCopiado] = useState<string | null>(null)
+  // Pré-seleciona seção essencial atual (ou 'nao' = não conta no progresso)
+  const secaoAtualId = SECOES_ESSENCIAIS.find(s => s.categorias.includes(clausula.categoria))?.id ?? 'nao'
+  const [secaoEscolhida, setSecaoEscolhida] = useState<string>(secaoAtualId)
 
   const copiarPlaceholder = async (chave: string) => {
     const txt = `{{${chave}}}`
@@ -998,6 +1007,27 @@ function ModalEdicaoClausula({
               />
             </div>
             <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">
+                Esta cláusula cobre uma seção essencial?
+                <span className="text-gray-400 font-normal ml-1">(conta no progresso do contrato)</span>
+              </label>
+              <select
+                value={secaoEscolhida}
+                onChange={e => setSecaoEscolhida(e.target.value)}
+                className="w-full text-sm text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              >
+                <option value="nao">Não — é adicional (não conta no progresso)</option>
+                {SECOES_ESSENCIAIS.map(s => (
+                  <option key={s.id} value={s.id}>⭐ {s.label}</option>
+                ))}
+              </select>
+              {secaoEscolhida !== 'nao' && secaoEscolhida !== secaoAtualId && (
+                <p className="text-[10px] text-amber-700 mt-1">
+                  ⚠ Vai mudar a categoria dessa cláusula no seu banco — ela passará a contar como essa seção no progresso de futuros contratos.
+                </p>
+              )}
+            </div>
+            <div>
               <label className="text-xs font-semibold text-gray-600 block mb-1">Corpo</label>
               <textarea
                 value={corpo}
@@ -1060,7 +1090,24 @@ function ModalEdicaoClausula({
           </button>
           <button
             type="button"
-            onClick={() => onSalvar(titulo, corpo)}
+            onClick={() => {
+              // Se trocou seção essencial, deriva nova categoria/tipo
+              let cat: string | undefined = undefined
+              let tp: TipoClausula | undefined = undefined
+              if (secaoEscolhida !== secaoAtualId) {
+                if (secaoEscolhida === 'nao') {
+                  cat = 'custom'
+                  tp = 'adicional'
+                } else {
+                  const sec = SECOES_ESSENCIAIS.find(s => s.id === secaoEscolhida)
+                  if (sec) {
+                    cat = sec.categorias[0]
+                    tp = sec.id === 'fundamentacao' ? 'fundamentacao' : 'generica'
+                  }
+                }
+              }
+              onSalvar(titulo, corpo, cat, tp)
+            }}
             disabled={isPending || !titulo.trim() || !corpo.trim()}
             className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 disabled:cursor-not-allowed text-white text-sm font-semibold px-4 py-2 rounded-lg"
           >
