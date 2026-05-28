@@ -140,6 +140,9 @@ export interface DadosContrato {
     aluguel_inclui_energia?: boolean | null
     aluguel_inclui_gas?: boolean | null
     aluguel_inclui_internet?: boolean | null
+    /** Da geração (não do contrato): se 'cobrado_parte', cobra mensal no boleto;
+     *  se 'embutido_pacote' ou 'dispensado', NÃO entra no boleto mensal. */
+    tipo_seguro_incendio?: 'dispensado' | 'cobrado_parte' | 'embutido_pacote' | null
   } | null
 
   // Contrato de administração (quando aplicável)
@@ -450,21 +453,27 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       return numeroPorExtenso(Math.floor(v)) + ' reais'
     }
 
-    // Seguro incêndio mensal (rateado do anual, se houver)
+    // Seguro incêndio: SÓ entra no boleto mensal se for cobrado à parte pela admin.
+    // Caso contrário (dispensado / embutido no pacote), retorna vazio — a regra
+    // de mercado é: seguro incêndio é anual, pago à parte, contratado pelo
+    // locatário ou pela imobiliária; não entra no boleto recorrente.
     case 'SEGURO_INCENDIO_VALOR': {
-      const anual = dados.contrato?.valor_seguro_incendio_anual ?? 0
+      const c = dados.contrato
+      if (c?.tipo_seguro_incendio !== 'cobrado_parte') return ''
+      const anual = c?.valor_seguro_incendio_anual ?? 0
       if (!anual) return ''
       return fmtBRL(anual / 12)
     }
 
-    // Total do boleto = pacote + seguro fiança + seguro incêndio mensal
+    // Total do boleto = pacote + seguro fiança. Seguro incêndio só soma se
+    // for 'cobrado_parte' (rateado mensal pela admin).
     case 'TOTAL_BOLETO_VALOR': {
       const c = dados.contrato
       const a = c?.valor_aluguel ?? 0
       const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
       const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
       const sf = c?.valor_seguro_fianca_mensal ?? 0
-      const si = (c?.valor_seguro_incendio_anual ?? 0) / 12
+      const si = c?.tipo_seguro_incendio === 'cobrado_parte' ? (c?.valor_seguro_incendio_anual ?? 0) / 12 : 0
       return fmtBRL(a + i + co + sf + si)
     }
     case 'TOTAL_BOLETO_EXTENSO': {
@@ -473,7 +482,7 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
       const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
       const sf = c?.valor_seguro_fianca_mensal ?? 0
-      const si = (c?.valor_seguro_incendio_anual ?? 0) / 12
+      const si = c?.tipo_seguro_incendio === 'cobrado_parte' ? (c?.valor_seguro_incendio_anual ?? 0) / 12 : 0
       return numeroPorExtenso(Math.floor(a + i + co + sf + si)) + ' reais'
     }
 

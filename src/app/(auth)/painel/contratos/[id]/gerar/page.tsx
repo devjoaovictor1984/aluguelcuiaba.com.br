@@ -132,10 +132,30 @@ async function renderizarEditor(contratoId: string) {
     .eq('user_id', acesso.userId)
     .order('nome', { ascending: true })
 
-  // IDs das partes do contrato (locador, locatário) — pra filtrar docs
+  // IDs das partes do contrato (locador, locatário, fiador, co-locatários, moradores adicionais)
   const propTmp = unwrap(contrato.proprietario)
   const inqTmp = unwrap(contrato.inquilino)
-  const partesIds = [propTmp?.id, inqTmp?.id].filter((x): x is string => !!x)
+
+  // Busca fiador_id + pessoa_id dos co-locatários solidários e moradores adicionais
+  const [{ data: contratoExtra }, { data: moradores }] = await Promise.all([
+    supabase
+      .from('contratos_locacao')
+      .select('fiador_id')
+      .eq('id', contratoId)
+      .eq('user_id', acesso.userId)
+      .maybeSingle(),
+    supabase
+      .from('contratos_moradores')
+      .select('pessoa_id')
+      .eq('contrato_id', contratoId),
+  ])
+
+  const partesIds = [
+    propTmp?.id,
+    inqTmp?.id,
+    contratoExtra?.fiador_id,
+    ...((moradores ?? []).map(m => m.pessoa_id)),
+  ].filter((x): x is string => !!x)
 
   // Carrega documentos das partes (pra escolher anexos)
   const { data: documentosPartes } = partesIds.length > 0

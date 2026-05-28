@@ -486,6 +486,9 @@ export async function GET(
       aluguel_inclui_energia: contrato.aluguel_inclui_energia ?? false,
       aluguel_inclui_gas: contrato.aluguel_inclui_gas ?? false,
       aluguel_inclui_internet: contrato.aluguel_inclui_internet ?? false,
+      // Tipo do seguro incêndio vem da GERAÇÃO (não do contrato),
+      // mas afeta cálculo de TOTAL_BOLETO / SEGURO_INCENDIO_VALOR.
+      tipo_seguro_incendio: geracao.tipo_seguro_incendio ?? 'dispensado',
     },
   }
 
