@@ -413,14 +413,16 @@ function formatarClausulaNumerada(num: number, titulo: string, corpo: string): {
   let p = 0
   const corpoFmt = blocos.map(bloco => {
     const t = bloco.trim()
-    // "Parágrafo primeiro." / "Parágrafo único." / "Parágrafo décimo segundo." etc
-    const m = t.match(/^Par[áa]grafo\s+[^.]+\.\s*/i)
-    if (m) {
-      p++
-      return `${num}.${p}. ${t.slice(m[0].length)}`
-    }
-    return t
-  }).join('\n\n')
+    if (!t) return ''
+    // Incisos / itens de lista NÃO recebem numeração de parágrafo:
+    //   romanos (I. II. III.), letras (a) b)), números (1. 2)) no início
+    if (/^([IVXLCDM]{1,5}\.|[a-zA-Z]\)|\d+[.)])\s/.test(t)) return t
+    // Remove prefixo redundante "Parágrafo primeiro/segundo/único." se houver
+    const semPrefixo = t.replace(/^Par[áa]grafo\s+[^.]+\.\s*/i, '')
+    // Numera todos os parágrafos sequencialmente, incluindo o caput (N.1)
+    p++
+    return `${num}.${p}. ${semPrefixo}`
+  }).filter(Boolean).join('\n\n')
   return { titulo: tituloFmt, corpo: corpoFmt }
 }
 
@@ -717,6 +719,9 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </Text>
           </View>
         )}
+
+        {/* Cláusulas começam em página própria (após capa + sumário) */}
+        {data.clausulas.length > 0 && <View break />}
 
         {/* ── Cláusulas ──
            Título "CLÁUSULA Nª — TÍTULO" + parágrafos numerados N.1, N.2…
