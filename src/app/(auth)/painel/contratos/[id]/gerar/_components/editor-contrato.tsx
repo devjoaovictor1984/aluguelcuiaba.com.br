@@ -21,6 +21,7 @@ import {
   atualizarTestemunhas, atualizarClausulasSeguradora,
   uploadContratoAssinado, removerContratoAssinado,
   atualizarAnexosDocumentos, marcarComoGerado, atualizarItensEntrega,
+  atualizarIncluirCapa,
 } from '../actions'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
@@ -57,6 +58,7 @@ interface Props {
     clausula_ids: string[]
     testemunha_ids: string[]
     clausulas_seguradora_texto: string
+    incluir_capa: boolean
     pdf_assinado_url: string | null
     assinado_em: string | null
     status: string
@@ -81,6 +83,16 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
   const [clausulaIds, setClausulaIds] = useState(geracao.clausula_ids)
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
   const [textoSeguradora, setTextoSeguradora] = useState(geracao.clausulas_seguradora_texto)
+  const [incluirCapa, setIncluirCapa] = useState(geracao.incluir_capa ?? true)
+
+  const onToggleCapa = () => {
+    const novo = !incluirCapa
+    setIncluirCapa(novo)
+    startTransition(async () => {
+      const r = await atualizarIncluirCapa(geracao.id, novo)
+      if (r.error) setErro(r.error)
+    })
+  }
 
 
 
@@ -595,6 +607,25 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
               <AlertCircle size={11} className="mt-0.5 shrink-0" /> {erroUpload}
             </p>
           )}
+        </section>
+
+        {/* Capa executiva (página 1 do PDF) */}
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-1">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={incluirCapa}
+              onChange={onToggleCapa}
+              disabled={isPending}
+              className="accent-violet-600 mt-0.5 shrink-0"
+            />
+            <span>
+              <p className="text-sm font-semibold text-gray-900">Incluir capa executiva</p>
+              <p className="text-[10px] text-gray-500 leading-tight">
+                Página 1 com partes, imóvel e resumo financeiro antes das cláusulas.
+              </p>
+            </span>
+          </label>
         </section>
 
         {/* Itens entregues — vão no Termo de Entrega de Chaves */}

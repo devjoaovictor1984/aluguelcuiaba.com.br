@@ -615,3 +615,24 @@ export async function atualizarItensEntrega(contratoId: string, input: {
   revalidatePath(`/painel/contratos/${contratoId}/gerar`)
   return { ok: true }
 }
+
+/** Liga/desliga a página de capa executiva no PDF dessa geração. */
+export async function atualizarIncluirCapa(geracaoId: string, incluir: boolean) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({ incluir_capa: incluir })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true }
+}

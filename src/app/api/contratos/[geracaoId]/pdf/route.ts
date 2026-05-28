@@ -130,6 +130,82 @@ function montarTabela12Meses(c: ContratoLite) {
   return { colunas, linhas }
 }
 
+function montarResumoCapa(
+  c: ContratoLite & {
+    data_inicio?: string | null
+    data_termino?: string | null
+    duracao_meses?: number | null
+    seguro_fianca_seguradora?: string | null
+    seguro_fianca_apolice?: string | null
+  },
+  dados: {
+    imovel?: {
+      endereco_completo?: string | null
+      endereco_resumido?: string | null
+      endereco_numero?: string | null
+      endereco_complemento?: string | null
+      endereco_bairro?: string | null
+      bairro_nome?: string | null
+      tipo?: string | null
+      descricao_real?: string | null
+      descricao?: string | null
+      area_construida_m2?: number | null
+    } | null
+  },
+): {
+  aluguel_str: string
+  prazo_str: string
+  inicio_str: string
+  termino_str: string
+  garantia_str: string
+  imovel_endereco: string
+  imovel_descricao: string
+} {
+  const im = dados.imovel
+  let endereco = ''
+  if (im?.endereco_completo) {
+    endereco = [im.endereco_completo, im.endereco_numero ? `nº ${im.endereco_numero}` : null,
+      im.endereco_complemento, im.endereco_bairro ?? im.bairro_nome].filter(Boolean).join(', ')
+  } else if (im?.endereco_resumido) {
+    endereco = `${im.endereco_resumido}${im.bairro_nome ? `, ${im.bairro_nome}` : ''}`
+  }
+
+  // Descrição curta: prioriza descricao_real, fallback descricao do anúncio (sem HTML)
+  let descricao = im?.descricao_real ?? im?.descricao ?? ''
+  descricao = descricao.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+  if (im?.area_construida_m2 && !descricao.includes('m²')) {
+    descricao = descricao ? `${descricao} · ${im.area_construida_m2} m²` : `${im.area_construida_m2} m²`
+  }
+
+  // Garantia: label legível
+  let garantia = '—'
+  if (c.garantia_tipo === 'seguro_fianca') {
+    garantia = `Seguro fiança${c.seguro_fianca_seguradora ? ` — ${c.seguro_fianca_seguradora}` : ''}${c.seguro_fianca_apolice ? ` · apólice ${c.seguro_fianca_apolice}` : ''}`
+  } else if (c.garantia_tipo === 'fiador') garantia = 'Fiador'
+  else if (c.garantia_tipo === 'caucao') garantia = c.caucao_valor ? `Caução · ${fmtBRL(c.caucao_valor)}` : 'Caução'
+  else if (c.garantia_tipo === 'sem_garantia') garantia = 'Sem garantia'
+
+  // Datas e prazo
+  const inicio = fmtData(c.data_inicio ?? null)
+  let termino = '—'
+  if (c.data_termino) termino = fmtData(c.data_termino)
+  else if (c.data_inicio && c.duracao_meses) {
+    const ini = new Date(c.data_inicio + 'T00:00:00')
+    const fim = new Date(ini.getFullYear(), ini.getMonth() + c.duracao_meses, ini.getDate() - 1)
+    termino = fim.toLocaleDateString('pt-BR')
+  }
+
+  return {
+    aluguel_str: `${fmtBRL(c.valor_aluguel ?? 0)} / mês`,
+    prazo_str: c.duracao_meses ? `${c.duracao_meses} meses` : '—',
+    inicio_str: inicio,
+    termino_str: termino,
+    garantia_str: garantia,
+    imovel_endereco: endereco,
+    imovel_descricao: descricao,
+  }
+}
+
 function montarTermoChaves(
   c: ContratoLite & { data_inicio?: string | null },
   dados: {
@@ -246,7 +322,7 @@ export async function GET(
   // 1. Carrega a geração
   const { data: geracao } = await admin
     .from('contrato_geracoes')
-    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids')
+    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids, incluir_capa')
     .eq('id', geracaoId)
     .maybeSingle()
 
@@ -473,6 +549,8 @@ export async function GET(
     tem_administracao: temAdministracao,
     admin_responsavel_nome: perfil?.nome ?? null,
     admin_responsavel_creci: perfil?.creci ?? null,
+    incluir_capa: geracao.incluir_capa ?? true,
+    resumo_capa: montarResumoCapa(contrato, dadosContrato),
     tipo_atuacao: (contrato.tipo_atuacao ?? 'administracao') as 'administracao' | 'intermediacao' | 'direto',
     intermediador_assina: contrato.intermediador_assina ?? false,
     locatario_nome: inq?.nome ?? '[PREENCHER]',

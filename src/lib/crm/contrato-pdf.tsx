@@ -55,6 +55,20 @@ export interface ContratoPDFData {
   codigo: string
   data_assinatura: string  // YYYY-MM-DD
 
+  /** Quando true, inclui a capa executiva como página 1 do PDF. */
+  incluir_capa?: boolean
+
+  /** Resumo financeiro pra capa: aluguel, prazo, datas, garantia. */
+  resumo_capa?: {
+    aluguel_str: string         // ex: "R$ 2.800,00 / mês"
+    prazo_str: string           // ex: "30 meses"
+    inicio_str: string          // ex: "01/06/2026"
+    termino_str: string         // ex: "30/11/2028"
+    garantia_str: string        // ex: "Seguro fiança (TOO Seguros · apólice 186977)"
+    imovel_endereco: string     // ex: "Rua Tal, 123, apto 502, Araés, Cuiabá-MT"
+    imovel_descricao: string    // ex: "Apto 3 quartos, 1 suíte, 1 vaga"
+  }
+
   // Emitente (administradora)
   anunciante_nome: string
   anunciante_razao_social: string | null
@@ -398,6 +412,127 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
       author={nomeInst}
       subject={`Contrato de Locação Residencial — ${data.locatario_nome}`}
     >
+      {/* ════════ Capa executiva (página 1, opcional) ════════ */}
+      {data.incluir_capa !== false && (
+        <Page
+          size="A4"
+          style={{
+            paddingTop: 56, paddingBottom: 56, paddingLeft: 56, paddingRight: 56,
+            fontSize: 10, fontFamily: FAMILIA, color: TEXTO, lineHeight: 1.5,
+          }}
+        >
+          {/* Cabeçalho institucional */}
+          <View style={{ marginBottom: 24 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {data.anunciante_logo_url && (
+                <Image src={data.anunciante_logo_url} style={{ width: 56, height: 56, objectFit: 'contain' }} />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
+                  {nomeInst}
+                  {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
+                </Text>
+                {data.anunciante_creci && (
+                  <Text style={{ fontSize: 8, color: CINZA }}>
+                    {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
+                  </Text>
+                )}
+                {data.anunciante_endereco && (
+                  <Text style={{ fontSize: 8, color: CINZA }}>{data.anunciante_endereco}</Text>
+                )}
+                {data.anunciante_cnpj && (
+                  <Text style={{ fontSize: 8, color: CINZA }}>CNPJ {data.anunciante_cnpj}</Text>
+                )}
+              </View>
+            </View>
+            <View style={{ height: 1.5, backgroundColor: ROXO_CLARO, marginTop: 8 }} />
+          </View>
+
+          {/* Título grande */}
+          <View style={{ marginBottom: 32 }}>
+            <Text style={{
+              fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO_CLARO,
+              textAlign: 'center', letterSpacing: 1.6, marginBottom: 10,
+            }}>
+              INSTRUMENTO PARTICULAR
+            </Text>
+            <Text style={{
+              fontSize: 20, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
+              textAlign: 'center', lineHeight: 1.2, marginBottom: 6,
+            }}>
+              Contrato de Locação Residencial{'\n'}{subtituloContrato}
+            </Text>
+            <Text style={{
+              fontSize: 10, fontFamily: FAMILIA, fontWeight: 'bold', color: CINZA_CLARO,
+              textAlign: 'center', letterSpacing: 1.2, marginTop: 12,
+            }}>
+              Nº {data.codigo}
+            </Text>
+          </View>
+
+          {/* Partes */}
+          <View style={{ marginBottom: 18 }}>
+            <Text style={{
+              fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
+              letterSpacing: 1, marginBottom: 8,
+            }}>
+              PARTES
+            </Text>
+            <View style={{ height: 0.6, backgroundColor: '#e5e7eb', marginBottom: 8 }} />
+            <PartesCapa
+              tipoAtuacao={atuacao}
+              data={data}
+            />
+          </View>
+
+          {/* Imóvel */}
+          {data.resumo_capa?.imovel_endereco && (
+            <View style={{ marginBottom: 18 }}>
+              <Text style={{
+                fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
+                letterSpacing: 1, marginBottom: 8,
+              }}>
+                IMÓVEL
+              </Text>
+              <View style={{ height: 0.6, backgroundColor: '#e5e7eb', marginBottom: 8 }} />
+              <Text style={{ fontSize: 10, color: TEXTO, lineHeight: 1.55 }}>
+                {data.resumo_capa.imovel_endereco}
+              </Text>
+              {data.resumo_capa.imovel_descricao && (
+                <Text style={{ fontSize: 9, color: CINZA, marginTop: 3 }}>
+                  {data.resumo_capa.imovel_descricao}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Resumo */}
+          {data.resumo_capa && (
+            <View style={{ marginBottom: 18 }}>
+              <Text style={{
+                fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
+                letterSpacing: 1, marginBottom: 8,
+              }}>
+                RESUMO
+              </Text>
+              <View style={{ height: 0.6, backgroundColor: '#e5e7eb', marginBottom: 8 }} />
+              <ResumoCapaLinha label="Aluguel"  valor={data.resumo_capa.aluguel_str} />
+              <ResumoCapaLinha label="Prazo"    valor={data.resumo_capa.prazo_str} />
+              <ResumoCapaLinha label="Início"   valor={data.resumo_capa.inicio_str} />
+              <ResumoCapaLinha label="Término"  valor={data.resumo_capa.termino_str} />
+              <ResumoCapaLinha label="Garantia" valor={data.resumo_capa.garantia_str} />
+            </View>
+          )}
+
+          <Text style={{
+            fontSize: 10, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
+            textAlign: 'center', marginTop: 28,
+          }}>
+            {cidadeUf}, {dataExtenso}.
+          </Text>
+        </Page>
+      )}
+
       <Page
         size="A4"
         style={{
@@ -999,4 +1134,74 @@ const linhaAssinatura = {
   height: 0.6,
   backgroundColor: '#d1d5db',
   marginTop: 14,
+}
+
+// ── Helpers da capa executiva ──
+
+function ResumoCapaLinha({ label, valor }: { label: string; valor: string }) {
+  return (
+    <View style={{ flexDirection: 'row', paddingVertical: 3 }}>
+      <Text style={{ width: 90, fontSize: 9, color: '#6b7280', fontFamily: FAMILIA }}>{label}</Text>
+      <Text style={{ flex: 1, fontSize: 10, color: '#111827', fontFamily: FAMILIA, fontWeight: 'bold' }}>
+        {valor || '—'}
+      </Text>
+    </View>
+  )
+}
+
+function PartesCapa({
+  tipoAtuacao, data,
+}: {
+  tipoAtuacao: 'administracao' | 'intermediacao' | 'direto'
+  data: ContratoPDFData
+}) {
+  const linhas: Array<{ papel: string; nome: string; cpf: string | null }> = []
+
+  // Administradora / Intermediador (só se aplicável)
+  if (tipoAtuacao === 'administracao' && data.tem_administracao && data.admin_responsavel_nome) {
+    linhas.push({
+      papel: 'Administradora',
+      nome: `${data.anunciante_razao_social ?? data.anunciante_nome} — rep. ${data.admin_responsavel_nome}`,
+      cpf: data.anunciante_cnpj,
+    })
+  } else if (tipoAtuacao === 'intermediacao' && data.intermediador_assina && data.admin_responsavel_nome) {
+    linhas.push({
+      papel: 'Intermediador(a)',
+      nome: `${data.anunciante_razao_social ?? data.anunciante_nome} — rep. ${data.admin_responsavel_nome}`,
+      cpf: data.anunciante_cnpj,
+    })
+  }
+
+  linhas.push({ papel: 'Locador', nome: data.locador_nome, cpf: data.locador_cpf })
+  linhas.push({ papel: 'Locatário', nome: data.locatario_nome, cpf: data.locatario_cpf })
+
+  if (data.conjuge_nome) {
+    linhas.push({ papel: 'Cônjuge', nome: data.conjuge_nome, cpf: data.conjuge_cpf })
+  }
+  for (const m of data.moradores_adicionais) {
+    linhas.push({ papel: m.papel, nome: m.nome, cpf: m.cpf })
+  }
+  if (data.fiador_nome) {
+    linhas.push({ papel: 'Fiador', nome: data.fiador_nome, cpf: data.fiador_cpf })
+  }
+
+  return (
+    <View>
+      {linhas.map((l, i) => (
+        <View key={i} style={{ flexDirection: 'row', paddingVertical: 3 }}>
+          <Text style={{ width: 100, fontSize: 9, color: '#6b7280', fontFamily: FAMILIA }}>
+            {l.papel}
+          </Text>
+          <Text style={{ flex: 1, fontSize: 10, color: '#111827', fontFamily: FAMILIA, fontWeight: 'bold' }}>
+            {l.nome}
+          </Text>
+          {l.cpf && (
+            <Text style={{ width: 110, fontSize: 9, color: '#6b7280', fontFamily: FAMILIA, textAlign: 'right' }}>
+              {l.cpf}
+            </Text>
+          )}
+        </View>
+      ))}
+    </View>
+  )
 }
