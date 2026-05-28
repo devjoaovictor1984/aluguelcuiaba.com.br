@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useTransition, useMemo } from 'react'
+import { useState, useTransition, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -356,6 +356,27 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
 
   const pdfUrl = `/api/contratos/${geracao.id}/pdf`
 
+  // Checklist de validação — carrega do servidor e bloqueia "Gerar" se houver pendência
+  const [checklistBloqueios, setChecklistBloqueios] = useState<Array<{ rotulo: string; mensagem: string }>>([])
+  const [checklistCarregado, setChecklistCarregado] = useState(false)
+  useEffect(() => {
+    let ativo = true
+    fetch(`/api/contratos/${geracao.id}/checklist`)
+      .then(r => r.json())
+      .then(d => {
+        if (!ativo) return
+        const bloqueios = (d.itens ?? []).filter((i: { severidade: string }) => i.severidade === 'block')
+          .map((i: { rotulo: string; mensagem?: string }) => ({ rotulo: i.rotulo, mensagem: i.mensagem ?? i.rotulo }))
+        setChecklistBloqueios(bloqueios)
+        setChecklistCarregado(true)
+      })
+      .catch(() => setChecklistCarregado(true))
+    return () => { ativo = false }
+    // Recarrega quando muda cláusula (pode afetar dados); geracao.id é estável
+  }, [geracao.id, clausulaIds.length])
+
+  const temBloqueio = checklistBloqueios.length > 0
+
   const categoriasIncluidas = clausulasSelecionadas.map(c => c.categoria)
 
   return (
@@ -687,17 +708,47 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
           </ul>
         </section>
 
+        {/* Checklist de validação */}
+        {checklistCarregado && temBloqueio && (
+          <section className="bg-rose-50 border border-rose-200 rounded-2xl p-4 space-y-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-rose-700 flex items-center gap-1.5">
+              <AlertCircle size={12} /> Pendências antes de gerar ({checklistBloqueios.length})
+            </h2>
+            <ul className="text-[11px] text-rose-700 space-y-1">
+              {checklistBloqueios.map((b, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="mt-0.5 shrink-0">•</span>
+                  <span><strong>{b.rotulo}:</strong> {b.mensagem}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[10px] text-rose-600">Corrija no cadastro do contrato/pessoas ou gere mesmo assim por sua conta.</p>
+          </section>
+        )}
+
         <div className="grid gap-2">
+          {temBloqueio ? (
+            <a
+              href={`${pdfUrl}?force=1`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold px-4 py-3 rounded-xl"
+              title="Há pendências — você está gerando mesmo assim"
+            >
+              <Eye size={14} /> Gerar mesmo assim
+            </a>
+          ) : (
+            <a
+              href={pdfUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold px-4 py-3 rounded-xl"
+            >
+              <Eye size={14} /> Visualizar PDF
+            </a>
+          )}
           <a
-            href={pdfUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center justify-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold px-4 py-3 rounded-xl"
-          >
-            <Eye size={14} /> Visualizar PDF
-          </a>
-          <a
-            href={pdfUrl}
+            href={temBloqueio ? `${pdfUrl}?force=1` : pdfUrl}
             download={`contrato-${codigo}.pdf`}
             className="flex items-center justify-center gap-1.5 bg-white hover:bg-violet-50 text-violet-700 text-sm font-semibold px-4 py-2.5 rounded-xl border border-violet-200"
           >

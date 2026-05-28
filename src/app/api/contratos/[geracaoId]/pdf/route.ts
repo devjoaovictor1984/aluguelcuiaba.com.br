@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
 import { aplicarPlaceholders, limparTituloDuplicado, type DadosContrato } from '@/lib/contratos/montar'
+import { rodarChecklist, bloqueiaGeracao, type DadosChecklist } from '@/lib/contratos/checklist'
 import React from 'react'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
@@ -326,13 +327,16 @@ function fmtCnpj(s: string | null): string | null {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ geracaoId: string }> }
 ) {
   try {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
+
+  // ?force=1 ignora os bloqueios do checklist (corretor decidiu gerar mesmo assim)
+  const forcar = new URL(request.url).searchParams.get('force') === '1'
 
   const { geracaoId } = await params
   const admin = createAdminClient()
@@ -358,7 +362,7 @@ export async function GET(
       seguro_fianca_seguradora, seguro_fianca_apolice,
       valor_seguro_fianca_mensal, valor_seguro_incendio_anual,
       taxa_admin_tipo, taxa_admin_valor,
-      tipo_atuacao, intermediador_assina, tipo_mobilia, aceita_pet, finalidade,
+      tipo_atuacao, intermediador_assina, tipo_mobilia, tem_inventario_bens, aceita_pet, finalidade,
       aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua,
       aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet,
       qtd_chaves, qtd_controles, qtd_tags,
@@ -620,6 +624,41 @@ export async function GET(
     quadro_entrada: montarQuadroEntrada(contrato),
     tabela_12_meses: montarTabela12Meses(contrato),
     termo_chaves: montarTermoChaves(contrato, dadosContrato, recebedoresChaves),
+  }
+
+  // 8b. Validação pré-PDF: bloqueia geração se houver inconsistência crítica
+  //     (a menos que ?force=1). Reusa o mesmo checklist do editor.
+  if (!forcar) {
+    const dadosCheck: DadosChecklist = {
+      tipo_atuacao: (contrato.tipo_atuacao ?? 'administracao') as DadosChecklist['tipo_atuacao'],
+      admin_cnpj: perfil?.cnpj ?? null,
+      admin_creci_juridico: perfil?.creci_juridico ?? null,
+      tipo_mobilia: (contrato.tipo_mobilia ?? 'sem') as DadosChecklist['tipo_mobilia'],
+      tem_inventario_bens: contrato.tem_inventario_bens ?? false,
+      locador_nome: prop?.nome ?? null,
+      locador_cpf: prop?.cpf_cnpj ?? null,
+      locatario_nome: inq?.nome ?? null,
+      locatario_cpf: inq?.cpf_cnpj ?? null,
+      imovel_endereco: pdfData.resumo_capa?.imovel_endereco || null,
+      garantia_tipo: contrato.garantia_tipo ?? null,
+      fiador_nome: fia?.nome ?? null,
+      seguro_fianca_seguradora: contrato.seguro_fianca_seguradora ?? null,
+      seguro_fianca_apolice: contrato.seguro_fianca_apolice ?? null,
+      caucao_valor: contrato.caucao_valor ?? null,
+      data_inicio: contrato.data_inicio ?? null,
+      data_termino: contrato.data_termino ?? null,
+      duracao_meses: contrato.duracao_meses ?? null,
+      valor_aluguel: contrato.valor_aluguel ?? null,
+      dia_vencimento: contrato.dia_vencimento ?? null,
+    }
+    const itens = rodarChecklist(dadosCheck)
+    if (bloqueiaGeracao(itens)) {
+      const bloqueios = itens.filter(i => i.severidade === 'block')
+      return NextResponse.json({
+        error: 'CONTRATO NÃO GERADO: há inconsistências que precisam ser corrigidas antes de emitir.',
+        bloqueios: bloqueios.map(b => ({ rotulo: b.rotulo, mensagem: b.mensagem ?? b.rotulo })),
+      }, { status: 422 })
+    }
   }
 
   // 9. Renderiza o contrato principal
