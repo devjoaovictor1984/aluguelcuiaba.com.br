@@ -13,14 +13,14 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Save, FileDown, Loader2, AlertCircle, X, Plus,
-  Settings, Eye, Upload, FileCheck, CheckCircle2, Star,
+  Settings, Eye, Upload, FileCheck, CheckCircle2, Star, Key,
 } from 'lucide-react'
 import { atualizarClausula, criarClausula } from '../../../clausulas/actions'
 import {
   atualizarOpcoesGeracao, atualizarOrdemClausulas, alternarClausulaNaGeracao,
   atualizarTestemunhas, atualizarClausulasSeguradora,
   uploadContratoAssinado, removerContratoAssinado,
-  atualizarAnexosDocumentos, marcarComoGerado,
+  atualizarAnexosDocumentos, marcarComoGerado, atualizarItensEntrega,
 } from '../actions'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
@@ -47,6 +47,9 @@ interface Props {
   contratoId: string
   codigo: string
   garantiaTipo: string
+  qtdChavesInicial?: number
+  qtdControlesInicial?: number
+  qtdTagsInicial?: number
   geracao: {
     id: string
     tipo_seguro_incendio: 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
@@ -71,7 +74,7 @@ interface Props {
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 text-sm transition"
 
-export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
   const router = useRouter()
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
@@ -170,6 +173,29 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
       setPdfAssinadoUrl(null)
       setAssinadoEm(null)
       setStatusGeracao('rascunho')
+    })
+  }
+
+  // Itens entregues (vão pro Termo de Entrega de Chaves no PDF)
+  const [qtdChaves, setQtdChaves] = useState(String(qtdChavesInicial ?? 0))
+  const [qtdControles, setQtdControles] = useState(String(qtdControlesInicial ?? 0))
+  const [qtdTags, setQtdTags] = useState(String(qtdTagsInicial ?? 0))
+
+  const onChangeItensEntrega = (campo: 'chaves' | 'controles' | 'tags', valor: string) => {
+    if (campo === 'chaves') setQtdChaves(valor)
+    if (campo === 'controles') setQtdControles(valor)
+    if (campo === 'tags') setQtdTags(valor)
+  }
+
+  const persistirItensEntrega = () => {
+    const qc = parseInt(qtdChaves) || 0
+    const qr = parseInt(qtdControles) || 0
+    const qt = parseInt(qtdTags) || 0
+    // Salva apenas se mudou de fato (evita request desnecessário)
+    if (qc === (qtdChavesInicial ?? 0) && qr === (qtdControlesInicial ?? 0) && qt === (qtdTagsInicial ?? 0)) return
+    startTransition(async () => {
+      const r = await atualizarItensEntrega(contratoId, { qtd_chaves: qc, qtd_controles: qr, qtd_tags: qt })
+      if (r.error) setErro(r.error)
     })
   }
 
@@ -548,6 +574,55 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, geracao, toda
               <AlertCircle size={11} className="mt-0.5 shrink-0" /> {erroUpload}
             </p>
           )}
+        </section>
+
+        {/* Itens entregues — vão no Termo de Entrega de Chaves */}
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+            <Key size={12} /> Itens entregues
+          </h2>
+          <p className="text-[10px] text-gray-400 -mt-1">Vão no Termo de Entrega de Chaves do PDF.</p>
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">Chaves</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={qtdChaves}
+                onChange={e => onChangeItensEntrega('chaves', e.target.value)}
+                onBlur={persistirItensEntrega}
+                disabled={isPending}
+                className="w-full px-2 py-1.5 text-sm text-center rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">Controles</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={qtdControles}
+                onChange={e => onChangeItensEntrega('controles', e.target.value)}
+                onBlur={persistirItensEntrega}
+                disabled={isPending}
+                className="w-full px-2 py-1.5 text-sm text-center rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-gray-600 block mb-0.5">Tags</label>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={qtdTags}
+                onChange={e => onChangeItensEntrega('tags', e.target.value)}
+                onBlur={persistirItensEntrega}
+                disabled={isPending}
+                className="w-full px-2 py-1.5 text-sm text-center rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+            </div>
+          </div>
         </section>
 
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">

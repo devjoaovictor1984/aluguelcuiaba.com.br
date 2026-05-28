@@ -564,3 +564,31 @@ export async function alternarClausulaNaGeracao(geracaoId: string, clausulaId: s
   revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
   return { ok: true }
 }
+
+/**
+ * Atualiza qtd de chaves, controles e tags entregues — vão pro Termo de
+ * Entrega de Chaves no PDF. Vinculadas ao CONTRATO (não à geração) porque
+ * são parte do acordo, não do rascunho de geração.
+ */
+export async function atualizarItensEntrega(contratoId: string, input: {
+  qtd_chaves: number
+  qtd_controles: number
+  qtd_tags: number
+}) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const qc = Math.max(0, Math.floor(Number(input.qtd_chaves) || 0))
+  const qr = Math.max(0, Math.floor(Number(input.qtd_controles) || 0))
+  const qt = Math.max(0, Math.floor(Number(input.qtd_tags) || 0))
+
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({ qtd_chaves: qc, qtd_controles: qr, qtd_tags: qt })
+    .eq('id', contratoId)
+    .eq('user_id', acesso.userId)
+
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${contratoId}/gerar`)
+  return { ok: true }
+}

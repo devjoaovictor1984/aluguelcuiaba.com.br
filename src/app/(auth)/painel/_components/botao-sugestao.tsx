@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { Lightbulb, X, Bug, MessageSquare, HelpCircle, Loader2, Check } from 'lucide-react'
+import { Lightbulb, X, Bug, MessageSquare, MessageCircle, HelpCircle, Loader2, Check, UserCircle } from 'lucide-react'
 import { criarSugestao, type CategoriaSugestao } from '../_actions/sugestoes'
 
 const categorias: Array<{
@@ -55,17 +55,24 @@ export function BotaoSugestao() {
 
   return (
     <>
-      {/* FAB — botão flutuante */}
+      {/* FAB — botão flutuante (corretor com balão de fala) */}
       <button
         type="button"
         onClick={() => setAberto(true)}
         className="fixed bottom-5 right-5 z-40 bg-violet-700 hover:bg-violet-800 text-white rounded-full shadow-lg p-3.5 transition-all hover:scale-105 group"
-        title="Sugerir melhoria ou reportar um problema"
+        title="Deixe sua sugestão de melhoria aqui"
         aria-label="Abrir formulário de sugestão"
       >
-        <Lightbulb size={20} />
+        <div className="relative">
+          {/* Corretor */}
+          <UserCircle size={22} strokeWidth={2} />
+          {/* Balão de fala sobre a cabeça */}
+          <span className="absolute -top-2.5 -right-2.5 bg-white text-violet-700 rounded-full p-0.5 shadow-md border border-violet-200 animate-pulse">
+            <MessageCircle size={11} strokeWidth={2.5} fill="currentColor" />
+          </span>
+        </div>
         <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          Sugerir melhoria
+          Deixe sua sugestão de melhoria aqui
         </span>
       </button>
 

@@ -81,6 +81,7 @@ async function renderizarEditor(contratoId: string) {
     .from('contratos_locacao')
     .select(`
       id, codigo, garantia_tipo, valor_aluguel, data_inicio, data_termino,
+      qtd_chaves, qtd_controles, qtd_tags,
       imovel_id,
       inquilino:pessoas!inquilino_id(id, nome),
       proprietario:pessoas!proprietario_id(id, nome),
@@ -205,6 +206,9 @@ async function renderizarEditor(contratoId: string) {
         contratoId={contratoId}
         codigo={contrato.codigo}
         garantiaTipo={contrato.garantia_tipo}
+        qtdChavesInicial={contrato.qtd_chaves ?? 0}
+        qtdControlesInicial={contrato.qtd_controles ?? 0}
+        qtdTagsInicial={contrato.qtd_tags ?? 0}
         geracao={{
           id: r.geracao.id,
           tipo_seguro_incendio: r.geracao.tipo_seguro_incendio,

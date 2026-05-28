@@ -26,6 +26,9 @@ type ContratoLite = {
   aluguel_inclui_energia?: boolean | null
   aluguel_inclui_gas?: boolean | null
   aluguel_inclui_internet?: boolean | null
+  qtd_chaves?: number | null
+  qtd_controles?: number | null
+  qtd_tags?: number | null
 }
 
 function fmtBRL(v: number | null | undefined): string {
@@ -136,9 +139,9 @@ function montarTermoChaves(
   return {
     endereco_imovel: endereco + (im?.bairro_nome ? `, ${im.bairro_nome}` : ''),
     data_entrega: fmtData(c.data_inicio ?? null),
-    qtd_chaves: 0,
-    qtd_controles: 0,
-    qtd_tags: 0,
+    qtd_chaves: c.qtd_chaves ?? 0,
+    qtd_controles: c.qtd_controles ?? 0,
+    qtd_tags: c.qtd_tags ?? 0,
   }
 }
 
@@ -242,6 +245,7 @@ export async function GET(
       tipo_atuacao, intermediador_assina, tipo_mobilia, aceita_pet,
       aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua,
       aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet,
+      qtd_chaves, qtd_controles, qtd_tags,
       imovel:imoveis(
         tipo, endereco_resumido, endereco_completo, endereco_numero, endereco_complemento,
         endereco_cep, descricao, descricao_real,
