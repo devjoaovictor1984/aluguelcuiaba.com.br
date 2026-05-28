@@ -2,7 +2,8 @@
 
 import { useState, useTransition, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
-import { Lightbulb, X, Bug, MessageSquare, MessageCircle, HelpCircle, Loader2, Check, UserCircle } from 'lucide-react'
+import Image from 'next/image'
+import { Lightbulb, X, Bug, MessageSquare, HelpCircle, Loader2, Check } from 'lucide-react'
 import { criarSugestao, type CategoriaSugestao } from '../_actions/sugestoes'
 
 const categorias: Array<{
@@ -55,24 +56,27 @@ export function BotaoSugestao() {
 
   return (
     <>
-      {/* FAB — botão flutuante (corretor com balão de fala) */}
+      {/* FAB — botão flutuante (operador de atendimento com balãozinho) */}
       <button
         type="button"
         onClick={() => setAberto(true)}
-        className="fixed bottom-5 right-5 z-40 bg-violet-700 hover:bg-violet-800 text-white rounded-full shadow-lg p-3.5 transition-all hover:scale-105 group"
-        title="Deixe sua sugestão de melhoria aqui"
+        className="fixed bottom-5 right-5 z-40 group"
         aria-label="Abrir formulário de sugestão"
       >
-        <div className="relative">
-          {/* Corretor */}
-          <UserCircle size={22} strokeWidth={2} />
-          {/* Balão de fala sobre a cabeça */}
-          <span className="absolute -top-2.5 -right-2.5 bg-white text-violet-700 rounded-full p-0.5 shadow-md border border-violet-200 animate-pulse">
-            <MessageCircle size={11} strokeWidth={2.5} fill="currentColor" />
-          </span>
-        </div>
-        <span className="absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs px-2 py-1 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-          Deixe sua sugestão de melhoria aqui
+        {/* Balão flutuante "Sua sugestão?" — sempre visível */}
+        <span className="absolute -top-2 right-full mr-2 bg-white text-violet-700 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md border border-violet-200 whitespace-nowrap before:content-[''] before:absolute before:top-1/2 before:-translate-y-1/2 before:-right-1 before:w-2 before:h-2 before:bg-white before:border-r before:border-b before:border-violet-200 before:rotate-[-45deg] group-hover:scale-105 transition-transform">
+          Sua sugestão?
+        </span>
+        {/* Avatar circular do operador */}
+        <span className="block w-14 h-14 rounded-full overflow-hidden bg-white shadow-lg border-2 border-violet-200 group-hover:border-violet-500 group-hover:scale-105 transition-all">
+          <Image
+            src="/helpline.png"
+            alt="Atendimento — sugestões e melhorias"
+            width={56}
+            height={56}
+            className="w-full h-full object-cover"
+            unoptimized
+          />
         </span>
       </button>
 
