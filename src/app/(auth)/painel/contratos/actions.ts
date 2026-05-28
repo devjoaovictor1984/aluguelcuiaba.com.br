@@ -82,20 +82,23 @@ function valida(input: ContratoInput): string | null {
 async function proximoCodigo(userId: string, supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {
   const ano = new Date().getFullYear()
   const prefixo = `${ano}CT`
+  // Considera só contratos ATIVOS (não apagados) — testes na lixeira não
+  // ocupam número. O unique parcial (v47) permite reusar códigos de apagados.
   const { data } = await supabase
     .from('contratos_locacao')
     .select('codigo')
     .eq('user_id', userId)
     .like('codigo', `${prefixo}%`)
-    .order('codigo', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+    .is('deleted_at', null)
 
-  let proximo = 1
-  if (data?.codigo) {
-    const n = parseInt(data.codigo.slice(prefixo.length), 10)
-    if (Number.isFinite(n)) proximo = n + 1
+  // Monta o conjunto de números já usados e acha o primeiro livre (preenche buracos)
+  const usados = new Set<number>()
+  for (const row of data ?? []) {
+    const n = parseInt(row.codigo.slice(prefixo.length), 10)
+    if (Number.isFinite(n)) usados.add(n)
   }
+  let proximo = 1
+  while (usados.has(proximo)) proximo++
   return montarCodigo(ano, proximo)
 }
 
