@@ -88,11 +88,13 @@ async function selecionarClausulasIniciais(
     }
 
     // Aluguel pacote: variantes que substituem cláusula 7/16.
-    // Se for o caso comum "IPTU + condomínio inclusos (e mais nada)", usa
-    // a variante específica (texto mais natural). Senão, usa a genérica
-    // que enumera dinâmicamente os encargos via placeholders.
+    //  - "pacote completo": só manual (nunca auto-injeta — evita duplicar)
+    //  - "IPTU e condomínio inclusos": quando SÓ IPTU+cond inclusos
+    //  - genérica ("valor e encargos"): demais combinações de pacote
     if (c.tipo === 'aluguel_pacote') {
       if (!ctx.aluguelPacote) return false
+      const isCompleta = /pacote completo/i.test(c.titulo)
+      if (isCompleta) return false  // opção manual — nunca auto-injeta
       const isEspecifica = /IPTU e condom/i.test(c.titulo) || /pacote IPTU \+ condom/i.test(c.titulo)
       if (ctx.pacoteIptuCondominio) return isEspecifica
       return !isEspecifica
@@ -133,13 +135,28 @@ async function selecionarClausulasIniciais(
     return false
   })
 
+  // Dedup: categorias essenciais devem ser ÚNICAS na seleção inicial.
+  // Evita 2 cláusulas de aluguel, 2 de objeto, etc. (categorias livres como
+  // 'adicional'/'custom' podem repetir).
+  const CATEGORIAS_UNICAS = new Set([
+    'fundamentacao', 'partes', 'objeto', 'prazo', 'aluguel', 'garantia',
+    'reajuste', 'mora', 'obrigacoes_loc', 'obrigacoes_adm', 'rescisao', 'foro',
+  ])
+  const vistas = new Set<string>()
+  const semDuplicatas = selecionadas.filter(c => {
+    if (!CATEGORIAS_UNICAS.has(c.categoria)) return true
+    if (vistas.has(c.categoria)) return false
+    vistas.add(c.categoria)
+    return true
+  })
+
   // Ordena por CATEGORIAS_ORDEM e, dentro da mesma categoria, por número.
   // Garante que "Das partes" (categoria 'partes') vem antes de "objeto", etc.
   const idx = (cat: string) => {
     const i = (CATEGORIAS_ORDEM as readonly string[]).indexOf(cat)
     return i === -1 ? 999 : i
   }
-  return selecionadas
+  return semDuplicatas
     .sort((a, b) => {
       const ca = idx(a.categoria)
       const cb = idx(b.categoria)
