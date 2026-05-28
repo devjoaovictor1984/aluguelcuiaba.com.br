@@ -960,16 +960,6 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               <View style={linhaAssinatura} />
             </View>
           ))}
-
-          {/* Rodapé estático no final */}
-          <Text style={{
-            fontSize: 7.5,
-            color: CINZA_CLARO,
-            textAlign: 'center',
-            marginTop: 24,
-          }}>
-            Contrato {data.codigo} · AluguelCuiaba.com.br · Gerado em {fmtDataExtenso(data.data_assinatura)}
-          </Text>
         </View>
       </Page>
 
@@ -1140,16 +1130,6 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               <View style={linhaAssinatura} />
             </View>
           ))}
-
-          {/* Rodapé estático */}
-          <Text style={{
-            fontSize: 7.5,
-            color: CINZA_CLARO,
-            textAlign: 'center',
-            marginTop: 24,
-          }}>
-            Termo de Entrega de Chaves · Anexo ao Contrato {data.codigo} · AluguelCuiaba.com.br
-          </Text>
         </Page>
       )}
     </Document>

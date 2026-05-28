@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
@@ -306,6 +306,38 @@ async function mergeAnexos(
   }
 
   return pdfFinal.save()
+}
+
+/**
+ * Carimba paginação no rodapé de cada página do PDF final, via pdf-lib
+ * (depois do render — evita o bug "unsupported number" do react-pdf com
+ * Text fixed). Texto centralizado: "Contrato XYZ · AluguelCuiaba.com.br · Página i/n".
+ */
+async function carimbarPaginacao(pdfBytes: Uint8Array, codigo: string): Promise<Uint8Array> {
+  try {
+    const pdf = await PDFDocument.load(pdfBytes)
+    const font = await pdf.embedFont(StandardFonts.Helvetica)
+    const paginas = pdf.getPages()
+    const total = paginas.length
+    paginas.forEach((page, i) => {
+      const { width } = page.getSize()
+      const texto = `Contrato ${codigo}  ·  AluguelCuiaba.com.br  ·  Página ${i + 1} de ${total}`
+      const size = 7
+      const larguraTexto = font.widthOfTextAtSize(texto, size)
+      page.drawText(texto, {
+        x: (width - larguraTexto) / 2,
+        y: 22,
+        size,
+        font,
+        color: rgb(0.6, 0.6, 0.64),
+      })
+    })
+    return await pdf.save()
+  } catch (e) {
+    // Se algo falhar, retorna o PDF sem paginação (não bloqueia a geração)
+    console.error('[contrato-pdf] falha ao carimbar paginação:', e)
+    return pdfBytes
+  }
 }
 
 export const runtime = 'nodejs'
@@ -765,6 +797,9 @@ export async function GET(
       finalBytes = await mergeAnexos(finalBytes, anexosBuffers)
     }
   }
+
+  // 11. Carimba paginação no rodapé de todas as páginas
+  finalBytes = await carimbarPaginacao(finalBytes, contrato.codigo)
 
   const filename = `contrato-${contrato.codigo}.pdf`
   return new Response(finalBytes as unknown as BodyInit, {
