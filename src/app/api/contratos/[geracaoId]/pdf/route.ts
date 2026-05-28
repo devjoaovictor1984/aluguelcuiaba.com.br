@@ -514,6 +514,40 @@ export async function GET(
     corpo: aplicarPlaceholders(limparTituloDuplicado(c.titulo, c.corpo), dadosContrato),
   }))
 
+  // 6b. Cláusula sintética de interveniente anuente — quando há responsável
+  //     pelo seguro fiança (terceiro). Explica no CORPO que ele não tem posse
+  //     nem é morador. Inserida logo após a cláusula de garantia.
+  {
+    const respSeguro = (moradoresRaw ?? [])
+      .filter((m: { papel: string }) => m.papel === 'responsavel_seguro')
+      .map((m: { pessoa: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null }) => {
+        const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
+        return p?.nome ? { nome: p.nome, cpf: fmtCpf(p.cpf_cnpj) } : null
+      })
+      .filter((x): x is { nome: string; cpf: string | null } => x !== null)
+
+    if (respSeguro.length > 0) {
+      const nomes = respSeguro.map(r => `${r.nome}${r.cpf ? `, CPF nº ${r.cpf}` : ''}`).join('; ')
+      const plural = respSeguro.length > 1
+      const corpoInterveniente =
+        `${nomes}, participa${plural ? 'm' : ''} do presente contrato na qualidade de RESPONSÁVEL PELO SEGURO FIANÇA / INTERVENIENTE ANUENTE, para fins de composição cadastral, aprovação, contratação, manutenção, anuência e/ou pagamento do prêmio do seguro fiança locatício, conforme proposta, apólice e condições da seguradora.\n\n` +
+        `Parágrafo primeiro. O comparecimento neste instrumento não lhe confere posse direta do imóvel, não o caracteriza como morador e não altera a ocupação residencial indicada neste contrato, salvo se expressamente cadastrado também como LOCATÁRIO.\n\n` +
+        `Parágrafo segundo. O prêmio do seguro fiança poderá ser pago pelo responsável aqui qualificado, pelo LOCATÁRIO ou por terceiro indicado, conforme a proposta/apólice e a forma de cobrança adotada pela seguradora ou administradora, permanecendo os LOCATÁRIOS responsáveis pelas obrigações locatícias principais.\n\n` +
+        `Parágrafo terceiro. Caso a seguradora exija a assinatura do cônjuge do responsável pelo seguro fiança, este assinará como CÔNJUGE DO RESPONSÁVEL PELO SEGURO FIANÇA / INTERVENIENTE ANUENTE, sem figurar como locatário ou morador, salvo indicação expressa em contrário.`
+
+      const novaClausula: ContratoPDFClausula = {
+        numero: 0,
+        titulo: 'Do responsável pelo seguro fiança / interveniente anuente',
+        corpo: corpoInterveniente,
+      }
+      // Insere após a cláusula de garantia (título com "garantia" ou "seguro-fiança")
+      const idxGarantia = clausulas.findIndex(c => /garantia|seguro[\s-]*fian/i.test(c.titulo))
+      if (idxGarantia >= 0) clausulas.splice(idxGarantia + 1, 0, novaClausula)
+      else clausulas.push(novaClausula)
+      clausulas.forEach((c, i) => { c.numero = i + 1 })
+    }
+  }
+
   // 7. Endereço da admin
   const cepFmt = perfil?.endereco_cep
     ? perfil.endereco_cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')
