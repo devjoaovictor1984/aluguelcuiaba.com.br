@@ -23,6 +23,8 @@ interface ContratoContext {
   aceitaPet: AceitaPet
   /** true se alguma flag aluguel_inclui_* estiver marcada → usa variantes "pacote" das cláusulas 7/16 */
   aluguelPacote: boolean
+  /** true SOMENTE quando IPTU+Condomínio inclusos (e mais nada) → variante específica e mais natural */
+  pacoteIptuCondominio: boolean
 }
 
 /**
@@ -85,8 +87,16 @@ async function selecionarClausulasIniciais(
       return true
     }
 
-    // Aluguel pacote: variantes que substituem cláusula 7/16
-    if (c.tipo === 'aluguel_pacote') return ctx.aluguelPacote
+    // Aluguel pacote: variantes que substituem cláusula 7/16.
+    // Se for o caso comum "IPTU + condomínio inclusos (e mais nada)", usa
+    // a variante específica (texto mais natural). Senão, usa a genérica
+    // que enumera dinâmicamente os encargos via placeholders.
+    if (c.tipo === 'aluguel_pacote') {
+      if (!ctx.aluguelPacote) return false
+      const isEspecifica = /IPTU e condom/i.test(c.titulo) || /pacote IPTU \+ condom/i.test(c.titulo)
+      if (ctx.pacoteIptuCondominio) return isEspecifica
+      return !isEspecifica
+    }
 
     // Fundamentação legal: sempre
     if (c.tipo === 'fundamentacao') return true
@@ -166,6 +176,12 @@ export async function obterOuCriarGeracao(contratoId: string) {
     contrato.aluguel_inclui_agua || contrato.aluguel_inclui_energia ||
     contrato.aluguel_inclui_gas || contrato.aluguel_inclui_internet
   )
+  // Caso comum: SOMENTE IPTU + Condomínio inclusos. Usa variante específica.
+  const pacoteIptuCondominio = !!(
+    contrato.aluguel_inclui_iptu && contrato.aluguel_inclui_condominio &&
+    !contrato.aluguel_inclui_agua && !contrato.aluguel_inclui_energia &&
+    !contrato.aluguel_inclui_gas && !contrato.aluguel_inclui_internet
+  )
 
   // Já existe geração?
   const { data: existente } = await supabase
@@ -186,6 +202,7 @@ export async function obterOuCriarGeracao(contratoId: string) {
     tipoMobilia: (contrato.tipo_mobilia ?? 'sem') as TipoMobilia,
     aceitaPet: (contrato.aceita_pet ?? 'nao') as AceitaPet,
     aluguelPacote,
+    pacoteIptuCondominio,
   })
 
   const { data: nova, error } = await supabase
@@ -234,6 +251,11 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
       contratoRel.aluguel_inclui_agua || contratoRel.aluguel_inclui_energia ||
       contratoRel.aluguel_inclui_gas || contratoRel.aluguel_inclui_internet
     )
+    const pacoteIptuCondominioRel = !!(
+      contratoRel.aluguel_inclui_iptu && contratoRel.aluguel_inclui_condominio &&
+      !contratoRel.aluguel_inclui_agua && !contratoRel.aluguel_inclui_energia &&
+      !contratoRel.aluguel_inclui_gas && !contratoRel.aluguel_inclui_internet
+    )
     clausulaIds = await selecionarClausulasIniciais(supabase, acesso.userId, {
       garantiaTipo: contratoRel.garantia_tipo,
       tipoSeguroIncendio: opcoes.tipo_seguro_incendio,
@@ -241,6 +263,7 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
       tipoMobilia: (contratoRel.tipo_mobilia ?? 'sem') as TipoMobilia,
       aceitaPet: (contratoRel.aceita_pet ?? 'nao') as AceitaPet,
       aluguelPacote: aluguelPacoteRel,
+      pacoteIptuCondominio: pacoteIptuCondominioRel,
     })
   }
 

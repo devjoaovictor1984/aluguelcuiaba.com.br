@@ -847,4 +847,50 @@ VIII. manter contas dos consumos individuais ({{ENCARGOS_SEPARADOS}}) em dia e a
 IX. permitir vistorias e visitas conforme previsto neste contrato;
 X. devolver o IMÓVEL livre de pessoas e bens, limpo, com chaves, controles, acessos e encargos quitados, observando que o pacote mensal não dispensa a quitação de débitos individualizados eventualmente existentes.`,
   },
+
+  // ════════════════════════════════════════════════════════════════
+  //  ALUGUEL PACOTE — variante específica: IPTU e condomínio inclusos
+  //  (texto mais natural pro caso mais comum no mercado de Cuiabá)
+  // ════════════════════════════════════════════════════════════════
+
+  {
+    tipo: 'aluguel_pacote', categoria: 'aluguel', titulo: 'Aluguel pacote — IPTU e condomínio inclusos', numero: 3,
+    corpo: `O aluguel mensal ajustado é de {{ALUGUEL_VALOR}} ({{ALUGUEL_EXTENSO}}), com vencimento todo dia {{VENCIMENTO_DIA}} de cada mês. O valor mensal já contempla o IPTU e o condomínio ordinário, que ficam embutidos no pacote, sem cobrança em separado.
+
+Parágrafo primeiro. Como o valor mensal já inclui IPTU e condomínio ordinário, ficam de responsabilidade do LOCATÁRIO os seguintes encargos, quando aplicáveis, cobrados separadamente:
+I. água;
+II. energia elétrica;
+III. gás;
+IV. internet;
+V. seguro incêndio;
+VI. seguro-fiança, quando essa for a modalidade de garantia;
+VII. multas condominiais causadas pelo LOCATÁRIO, ocupantes, visitantes ou terceiros sob sua responsabilidade;
+VIII. despesas extraordinárias do condomínio, quando devidas conforme legislação;
+IX. demais despesas vinculadas ao uso do imóvel não compreendidas no pacote.
+
+Parágrafo segundo. O valor mensal total a ser pago pelo LOCATÁRIO é de {{ALUGUEL_VALOR}}, já considerando aluguel, IPTU e condomínio ordinário em pacote único.
+
+Parágrafo terceiro. O pagamento deverá ser realizado por PIX, transferência, boleto ou outro meio informado por escrito pela ADMINISTRADORA ou pelo LOCADOR.
+
+Parágrafo quarto. O não recebimento de boleto, mensagem, aviso ou cobrança não isenta o LOCATÁRIO do pagamento pontual, cabendo-lhe solicitar a segunda via ou os dados de pagamento antes do vencimento.
+
+Parágrafo quinto. Eventual reajuste relevante do IPTU ou da taxa condominial ordinária, contribuições especiais, despesas extraordinárias ou consumos individualizados poderá ensejar revisão do pacote, mediante aviso prévio mínimo de 30 (trinta) dias, sem prejuízo da cláusula anual de reajuste.
+
+Parágrafo sexto. Pagamentos parciais, tolerâncias, atrasos aceitos, acordos pontuais ou recebimentos fora do prazo não caracterizam novação, renúncia de direito, perdão de dívida ou alteração definitiva das condições deste contrato.`,
+  },
+
+  {
+    tipo: 'aluguel_pacote', categoria: 'obrigacoes_loc', titulo: 'Obrigações do locatário (pacote IPTU + condomínio)', numero: 4,
+    corpo: `Além das demais obrigações previstas neste contrato e na lei, o LOCATÁRIO obriga-se a:
+I. pagar pontualmente o valor mensal do pacote ({{ALUGUEL_VALOR}}), que já contempla aluguel, IPTU e condomínio ordinário, bem como os encargos cobrados à parte (água, energia elétrica, gás, internet, seguros), multas e demais despesas sob sua responsabilidade;
+II. usar o IMÓVEL exclusivamente para moradia residencial, preservando vizinhança, sossego, segurança e normas locais;
+III. conservar o IMÓVEL como se seu fosse, evitando deterioração, sujeira excessiva, danos e uso incompatível;
+IV. não transferir, emprestar, sublocar, ceder ou permitir uso por terceiros sem autorização expressa;
+V. não realizar obras, alterações, pinturas ou instalações fixas sem autorização escrita;
+VI. comunicar imediatamente danos, defeitos, infiltrações, vazamentos, notificações, multas, cobranças e intimações;
+VII. pagar multas decorrentes de sua conduta, de seus ocupantes, visitantes, animais ou prestadores de serviço;
+VIII. manter contas individualizadas de água, energia, gás e internet em dia e apresentar comprovantes quando solicitados;
+IX. permitir vistorias e visitas conforme previsto neste contrato;
+X. devolver o IMÓVEL livre de pessoas e bens, limpo, com chaves, controles, acessos e encargos quitados, observando que o pacote mensal não dispensa a quitação de débitos individualizados eventualmente existentes.`,
+  },
 ]
