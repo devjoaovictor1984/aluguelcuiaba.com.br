@@ -895,8 +895,8 @@ function ClausulaCardEditor({
           </span>
         </div>
 
-        <div className="p-3">
-          <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-4">
+        <div className="p-3 overflow-hidden">
+          <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-4 break-words">
             {clausula.corpo}
           </p>
           <div className="flex justify-end gap-2 mt-2">
@@ -1267,8 +1267,8 @@ function CatalogoDisponiveis({
                   </div>
                   <Plus size={12} className={`shrink-0 mt-0.5 ${essencial ? 'text-amber-400 group-hover:text-amber-700' : 'text-gray-300 group-hover:text-violet-700'}`} />
                 </div>
-                <p className="text-xs font-semibold text-gray-900 line-clamp-2">{c.titulo}</p>
-                <p className="text-[10px] text-gray-500 line-clamp-2 mt-1">{c.corpo.slice(0, 120)}…</p>
+                <p className="text-xs font-semibold text-gray-900 line-clamp-2 break-words">{c.titulo}</p>
+                <p className="text-[10px] text-gray-500 line-clamp-2 mt-1 break-words">{c.corpo.slice(0, 120)}…</p>
               </button>
             )
           })

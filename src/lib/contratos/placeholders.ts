@@ -75,6 +75,14 @@ export const PLACEHOLDERS: Placeholder[] = [
   // ── Cobertura do aluguel (pacote) ──
   { chave: 'ENCARGOS_INCLUSOS', label: 'Lista de encargos inclusos no aluguel (gerado)', exemplo: 'IPTU, condomínio e água', origem: 'valores' },
   { chave: 'ENCARGOS_SEPARADOS', label: 'Lista de encargos cobrados à parte (gerado)', exemplo: 'energia elétrica, gás e internet', origem: 'valores' },
+  { chave: 'PACOTE_LOCATICIO_VALOR', label: 'Valor do pacote (aluguel + IPTU + condomínio inclusos)', exemplo: 'R$ 3.500,00', origem: 'valores' },
+  { chave: 'PACOTE_LOCATICIO_EXTENSO', label: 'Pacote locatício por extenso', exemplo: 'três mil e quinhentos reais', origem: 'valores' },
+  { chave: 'SEGURO_FIANCA_VALOR', label: 'Valor mensal do seguro fiança', exemplo: 'R$ 150,00', origem: 'seguro' },
+  { chave: 'SEGURO_FIANCA_EXTENSO', label: 'Seguro fiança por extenso', exemplo: 'cento e cinquenta reais', origem: 'seguro' },
+  { chave: 'SEGURO_INCENDIO_VALOR', label: 'Valor mensal do seguro incêndio (rateado do anual)', exemplo: 'R$ 20,00', origem: 'seguro' },
+  { chave: 'TOTAL_BOLETO_VALOR', label: 'Total do boleto (pacote + seguros + extras)', exemplo: 'R$ 3.670,00', origem: 'valores' },
+  { chave: 'TOTAL_BOLETO_EXTENSO', label: 'Total do boleto por extenso', exemplo: 'três mil seiscentos e setenta reais', origem: 'valores' },
+  { chave: 'OUTROS_ENCARGOS_FIXOS', label: 'Outros encargos fixos (texto livre, vazio se nenhum)', exemplo: 'taxa de limpeza condominial extra', origem: 'valores' },
 
   // ── Valores ──
   { chave: 'ALUGUEL_VALOR', label: 'Valor do aluguel', exemplo: 'R$ 3.500,00', origem: 'valores' },

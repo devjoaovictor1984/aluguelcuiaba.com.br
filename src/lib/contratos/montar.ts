@@ -427,6 +427,58 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       return listarPt(itens)
     }
 
+    // Pacote locatício (aluguel + IPTU se incluso + condomínio se incluso)
+    case 'PACOTE_LOCATICIO_VALOR': {
+      const c = dados.contrato
+      const a = c?.valor_aluguel ?? 0
+      const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
+      const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
+      return fmtBRL(a + i + co)
+    }
+    case 'PACOTE_LOCATICIO_EXTENSO': {
+      const c = dados.contrato
+      const a = c?.valor_aluguel ?? 0
+      const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
+      const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
+      return numeroPorExtenso(Math.floor(a + i + co)) + ' reais'
+    }
+
+    // Seguro fiança mensal
+    case 'SEGURO_FIANCA_VALOR': return fmtBRL(dados.contrato?.valor_seguro_fianca_mensal ?? 0)
+    case 'SEGURO_FIANCA_EXTENSO': {
+      const v = dados.contrato?.valor_seguro_fianca_mensal ?? 0
+      return numeroPorExtenso(Math.floor(v)) + ' reais'
+    }
+
+    // Seguro incêndio mensal (rateado do anual, se houver)
+    case 'SEGURO_INCENDIO_VALOR': {
+      const anual = dados.contrato?.valor_seguro_incendio_anual ?? 0
+      if (!anual) return ''
+      return fmtBRL(anual / 12)
+    }
+
+    // Total do boleto = pacote + seguro fiança + seguro incêndio mensal
+    case 'TOTAL_BOLETO_VALOR': {
+      const c = dados.contrato
+      const a = c?.valor_aluguel ?? 0
+      const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
+      const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
+      const sf = c?.valor_seguro_fianca_mensal ?? 0
+      const si = (c?.valor_seguro_incendio_anual ?? 0) / 12
+      return fmtBRL(a + i + co + sf + si)
+    }
+    case 'TOTAL_BOLETO_EXTENSO': {
+      const c = dados.contrato
+      const a = c?.valor_aluguel ?? 0
+      const i = c?.aluguel_inclui_iptu ? (c?.iptu_mensal ?? 0) : 0
+      const co = c?.aluguel_inclui_condominio ? (c?.condominio_mensal ?? 0) : 0
+      const sf = c?.valor_seguro_fianca_mensal ?? 0
+      const si = (c?.valor_seguro_incendio_anual ?? 0) / 12
+      return numeroPorExtenso(Math.floor(a + i + co + sf + si)) + ' reais'
+    }
+
+    case 'OUTROS_ENCARGOS_FIXOS': return ''  // texto livre — corretor edita depois se quiser
+
     // ── Prazo ──
     case 'PRAZO_MESES': return dados.contrato?.duracao_meses != null ? String(dados.contrato.duracao_meses) : '30'
     case 'PRAZO_EXTENSO': return numeroPorExtenso(dados.contrato?.duracao_meses ?? 30)

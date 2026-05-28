@@ -894,6 +894,50 @@ Parágrafo sexto. Pagamentos parciais, tolerâncias, atrasos aceitos, acordos po
   },
 
   {
+    tipo: 'aluguel_pacote', categoria: 'aluguel', titulo: 'Do aluguel, encargos e forma de pagamento (pacote completo)', numero: 5,
+    corpo: `O valor mensal do pacote locatício ajustado é de {{PACOTE_LOCATICIO_VALOR}} ({{PACOTE_LOCATICIO_EXTENSO}}), com vencimento todo dia {{VENCIMENTO_DIA}} de cada mês.
+
+Parágrafo primeiro. O pacote locatício acima mencionado compreende, de forma conjunta, o aluguel mensal do imóvel, o condomínio ordinário e o IPTU mensal ou proporcional, não havendo cobrança separada desses itens enquanto mantidas as condições aqui pactuadas.
+
+Parágrafo segundo. O valor do seguro fiança locatício será cobrado juntamente com o pacote locatício, no mesmo boleto ou meio de pagamento indicado pela ADMINISTRADORA ou pelo LOCADOR, no valor mensal estimado de {{SEGURO_FIANCA_VALOR}} ({{SEGURO_FIANCA_EXTENSO}}), ou conforme valor efetivamente definido na proposta, apólice, renovação ou endosso emitido pela seguradora.
+
+Parágrafo terceiro. Para fins de previsão financeira, o valor mensal total estimado do boleto será de {{TOTAL_BOLETO_VALOR}} ({{TOTAL_BOLETO_EXTENSO}}), composto por:
+I. pacote locatício, incluindo aluguel, condomínio ordinário e IPTU: {{PACOTE_LOCATICIO_VALOR}};
+II. seguro fiança locatício: {{SEGURO_FIANCA_VALOR}};
+III. seguro incêndio obrigatório, se cobrado no mesmo boleto: {{SEGURO_INCENDIO_VALOR}};
+IV. outros encargos fixos expressamente contratados, se houver: {{OUTROS_ENCARGOS_FIXOS}}.
+
+Parágrafo quarto. O seguro incêndio obrigatório não integra o pacote locatício. Caso seu valor ainda não esteja definido no momento da assinatura, será cobrado à parte ou acrescido ao boleto mensal após a emissão da respectiva apólice, conforme valor, vigência e condições contratadas.
+
+Parágrafo quinto. Considerando que o condomínio ordinário está incluído no pacote locatício, ficam também compreendidos os consumos de água e gás vinculados à unidade, desde que tais consumos estejam incluídos na taxa condominial ordinária e sejam utilizados de forma normal, razoável e compatível com a média ordinária de consumo residencial do imóvel.
+
+Parágrafo sexto. Caso haja consumo excessivo, anormal, multa, taxa individualizada, rateio específico, cobrança extraordinária, vazamento causado por mau uso, desperdício, alteração relevante no padrão de consumo ou qualquer lançamento adicional de água, gás ou outro serviço decorrente da conduta, uso ou responsabilidade do LOCATÁRIO, tal valor será cobrado separadamente e deverá ser pago integralmente pelo LOCATÁRIO.
+
+Parágrafo sétimo. Não estão incluídos no pacote locatício e serão de responsabilidade exclusiva do LOCATÁRIO, quando aplicáveis:
+I. energia elétrica;
+II. internet;
+III. telefonia;
+IV. TV por assinatura;
+V. seguro fiança locatício, ainda que cobrado no mesmo boleto;
+VI. seguro incêndio obrigatório, quando cobrado à parte ou acrescido ao boleto;
+VII. multas condominiais causadas pelo LOCATÁRIO, ocupantes, visitantes, prestadores de serviço, animais ou terceiros sob sua responsabilidade;
+VIII. taxas de mudança, segunda via de boleto, emissão de documentos, perda de chaves, controles, tags ou cartões de acesso;
+IX. danos causados ao imóvel, à mobília, aos equipamentos, às áreas comuns ou a terceiros;
+X. consumos excedentes ou individualizados de água, gás ou outros serviços não compreendidos no uso normal;
+XI. demais despesas pessoais, individualizadas ou decorrentes do uso do imóvel.
+
+Parágrafo oitavo. As despesas extraordinárias de condomínio, assim entendidas aquelas que não se refiram à manutenção ordinária do edifício ou ao uso regular da unidade, serão de responsabilidade do LOCADOR, salvo quando decorrerem de ato, culpa, dano, infração, solicitação, uso indevido ou responsabilidade do LOCATÁRIO, de seus ocupantes, visitantes, prestadores de serviço, animais ou terceiros sob sua responsabilidade.
+
+Parágrafo nono. O pagamento deverá ser realizado por PIX, transferência, boleto bancário ou outro meio informado por escrito pela ADMINISTRADORA ou pelo LOCADOR.
+
+Parágrafo décimo. O não recebimento de boleto, mensagem, aviso ou cobrança não isenta o LOCATÁRIO do pagamento pontual, cabendo-lhe solicitar a segunda via ou os dados de pagamento antes do vencimento.
+
+Parágrafo décimo primeiro. Pagamentos parciais, tolerâncias, atrasos aceitos, acordos pontuais ou recebimentos fora do prazo não caracterizam novação, renúncia de direito, perdão de dívida ou alteração definitiva das condições deste contrato.
+
+Parágrafo décimo segundo. Havendo alteração do valor do seguro fiança, seguro incêndio, encargos individualizados, multas, taxas, consumos excedentes ou demais despesas de responsabilidade do LOCATÁRIO, tais valores poderão ser acrescidos ao boleto mensal ou cobrados separadamente, conforme orientação da ADMINISTRADORA, do LOCADOR, da seguradora ou do condomínio.`,
+  },
+
+  {
     tipo: 'aluguel_pacote', categoria: 'obrigacoes_loc', titulo: 'Obrigações do locatário (pacote IPTU + condomínio)', numero: 4,
     corpo: `Além das demais obrigações previstas neste contrato e na lei, o LOCATÁRIO obriga-se a:
 I. pagar pontualmente o valor mensal do pacote ({{ALUGUEL_VALOR}}), que já contempla aluguel, IPTU e condomínio ordinário, bem como os encargos cobrados à parte (água, energia elétrica, gás, internet, seguros), multas e demais despesas sob sua responsabilidade;
