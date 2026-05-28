@@ -643,18 +643,24 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
         {/* Linha separadora */}
         <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 22 }} />
 
-        {/* ── Cláusulas ── */}
+        {/* ── Cláusulas ──
+           Sem wrap={false} no wrapper: cláusulas longas (10+ parágrafos)
+           sobrepunham o conteúdo seguinte quando não cabiam na página.
+           O título fica num inner View wrap={false} pra evitar "viúva"
+           (título sozinho no rodapé). */}
         {data.clausulas.map((c, idx) => (
-          <View key={idx} style={{ marginBottom: 14 }} wrap={false}>
-            <Text style={{
-              fontSize: 10.5,
-              fontFamily: FAMILIA,
-              fontWeight: 'bold',
-              color: TEXTO_FORTE,
-              marginBottom: 5,
-            }}>
-              {idx + 1}. {c.titulo}
-            </Text>
+          <View key={idx} style={{ marginBottom: 14 }}>
+            <View wrap={false} minPresenceAhead={30}>
+              <Text style={{
+                fontSize: 10.5,
+                fontFamily: FAMILIA,
+                fontWeight: 'bold',
+                color: TEXTO_FORTE,
+                marginBottom: 5,
+              }}>
+                {idx + 1}. {c.titulo}
+              </Text>
+            </View>
             <Text style={{
               fontSize: 10,
               fontFamily: FAMILIA,
