@@ -75,14 +75,14 @@ export async function GET(
     }
 
     // 2. Carrega contrato + partes + imóvel
-    const { data: contrato } = await admin
+    const { data: contrato, error: contratoErr } = await admin
       .from('contratos_locacao')
       .select(`
         id, codigo, garantia_tipo, finalidade, conjuge_inquilino_papel,
         taxa_admin_valor, created_at,
         imovel:imoveis(
           endereco_resumido, endereco_completo, endereco_numero, endereco_complemento,
-          endereco_bairro, bairro:bairros(nome)
+          bairro:bairros(nome)
         ),
         proprietario:pessoas!proprietario_id(nome, cpf_cnpj),
         inquilino:pessoas!inquilino_id(nome, cpf_cnpj, conjuge_nome, conjuge_cpf),
@@ -91,7 +91,12 @@ export async function GET(
       .eq('id', aditivo.contrato_id)
       .single()
 
-    if (!contrato) return NextResponse.json({ error: 'Contrato não encontrado' }, { status: 404 })
+    if (contratoErr || !contrato) {
+      return NextResponse.json(
+        { error: 'Contrato não encontrado', detail: contratoErr?.message ?? null },
+        { status: 404 }
+      )
+    }
 
     // 3. Perfil (administradora)
     const { data: perfil } = await admin
@@ -117,7 +122,7 @@ export async function GET(
         im.endereco_completo,
         im.endereco_numero ? `nº ${im.endereco_numero}` : null,
         im.endereco_complemento,
-        im.endereco_bairro ?? bairro?.nome,
+        bairro?.nome,
       ].filter(Boolean).join(', ')
     } else if (im?.endereco_resumido) {
       endereco = `${im.endereco_resumido}${bairro?.nome ? `, ${bairro.nome}` : ''}`
