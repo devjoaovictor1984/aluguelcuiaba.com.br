@@ -213,11 +213,9 @@ Prêmio anual = fiança (R$ 3.510) + incêndio (R$ 200) = **R$ 3.710 por imóvel
 | Realista | 4.000 | R$ 14,04 mi | R$ 0,80 mi | **R$ 14,8 mi** |
 | Otimista | 8.000 | R$ 28,08 mi | R$ 1,60 mi | **R$ 29,7 mi** |
 
-> **Comissão da plataforma:** a negociar com a seguradora. Como referência de sensibilidade, **cada 1% de comissão** sobre o volume acima representa **R$ 74 mil a R$ 297 mil/ano** — ou seja, uma comissão de 10% no cenário realista ≈ R$ 1,48 mi/ano. (Definir a % real é parte da parceria.)
-
 > Tudo isso é **só em Cuiabá**. A expansão por cidade (franquia) multiplica o volume — cada nova praça adiciona seu próprio funil de apólices.
 
-**Como ler:** a receita própria e garantida da plataforma são as assinaturas. A comissão de seguro entra por cima e depende do acordo com a seguradora — por isso mostramos o **volume de prêmios** (o que a plataforma entrega) e a sensibilidade por ponto de comissão, em vez de cravar um número.
+**Como ler:** a receita própria e garantida da plataforma são as assinaturas. O seguro mostra o **volume de prêmios** (fiança + incêndio) que a plataforma canaliza — o que a seguradora fatura. A forma de remuneração da parceria fica em aberto, para a seguradora propor.
 
 ---
 
