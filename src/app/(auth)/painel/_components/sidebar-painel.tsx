@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FileSignature, Briefcase, Users, MessageCircle, Wallet,
-  FileText, Cake, Receipt, Trash2, Home, Plus, LogOut, Menu, X,
+  FileText, Cake, Receipt, Trash2, Home, Plus, LogOut, Menu, X, List,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -15,6 +15,7 @@ interface ItemNav {
   label: string
   icon: React.ComponentType<{ size?: number }>
   match: string[]  // arrays de prefixos pra detectar ativo
+  notMatch?: string[]  // prefixos que NÃO devem ativar (ex: subrota com item próprio)
 }
 
 const GRUPO_CRM: ItemNav[] = [
@@ -29,8 +30,9 @@ const GRUPO_CRM: ItemNav[] = [
 ]
 
 const GRUPO_ANUNCIOS: ItemNav[] = [
-  { href: '/painel',                  label: 'Meus anúncios', icon: Home, match: ['/painel'] },
-  { href: '/painel/anuncios/novo',    label: 'Novo anúncio',  icon: Plus, match: ['/painel/anuncios/novo'] },
+  { href: '/painel',               label: 'Meus anúncios',  icon: Home, match: ['/painel'] },
+  { href: '/painel/anuncios',      label: 'Listar anúncios', icon: List, match: ['/painel/anuncios'], notMatch: ['/painel/anuncios/novo'] },
+  { href: '/painel/anuncios/novo', label: 'Novo anúncio',   icon: Plus, match: ['/painel/anuncios/novo'] },
 ]
 
 const GRUPO_CONTA: ItemNav[] = [
@@ -55,6 +57,9 @@ export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, lo
     // `/painel` matches "/painel" exato OR "/painel?...". "/painel/inicio" etc não.
     if (item.href === '/painel') {
       return pathname === '/painel'
+    }
+    if (item.notMatch?.some(p => pathname === p || pathname.startsWith(p + '/'))) {
+      return false
     }
     return item.match.some(prefix => pathname === prefix || pathname.startsWith(prefix + '/'))
   }

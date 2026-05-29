@@ -14,12 +14,20 @@ interface CardImovel {
   status: string
   expira_em: string
   visualizacoes: number
+  data_alugado?: string | null
   fotos?: Array<{ url: string }>
   bairro?: { nome: string } | null
 }
 
 function diasParaExpirar(expira_em: string) {
   return Math.ceil((new Date(expira_em).getTime() - Date.now()) / 86_400_000)
+}
+
+// Quantos dias o imóvel já está alugado e quantos faltam pra sair do site (janela de 30d)
+function infoAlugado(data_alugado?: string | null): { ha: number; saiEm: number } | null {
+  if (!data_alugado) return null
+  const ha = Math.floor((Date.now() - new Date(data_alugado).getTime()) / 86_400_000)
+  return { ha: Math.max(0, ha), saiEm: Math.max(0, 30 - ha) }
 }
 
 const STATUS_LABEL: Record<string, { label: string; cls: string }> = {
@@ -84,9 +92,21 @@ export function PainelImovelCard({ imovel }: { imovel: CardImovel }) {
       </div>
 
       {/* ── Stats ── */}
-      <div className="px-4 py-2 border-t border-gray-50 flex items-center gap-1 text-xs text-gray-400">
-        <Eye size={11} />
-        <span>{imovel.visualizacoes.toLocaleString('pt-BR')} visualização{imovel.visualizacoes !== 1 ? 'ões' : ''}</span>
+      <div className="px-4 py-2 border-t border-gray-50 flex items-center gap-3 text-xs text-gray-400 flex-wrap">
+        <span className="flex items-center gap-1">
+          <Eye size={11} />
+          {imovel.visualizacoes.toLocaleString('pt-BR')} visualização{imovel.visualizacoes !== 1 ? 'ões' : ''}
+        </span>
+        {status === 'alugado' && (() => {
+          const info = infoAlugado(imovel.data_alugado)
+          if (!info) return null
+          return (
+            <span className="flex items-center gap-1 text-teal-600">
+              <CheckCircle2 size={11} />
+              Alugado há {info.ha}d · {info.saiEm > 0 ? `sai do site em ${info.saiEm}d` : 'fora do site'}
+            </span>
+          )
+        })()}
       </div>
 
       {/* ── Ações ── */}

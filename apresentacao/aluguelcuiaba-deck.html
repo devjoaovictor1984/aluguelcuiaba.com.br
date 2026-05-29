@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<link rel="icon" type="image/png" href="data:image/png;base64,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vLDwG/eE8/s3BCkeAAAACXBIWXMAAC4jAAAuIwF4pT92AAADa2lUWHRYTUw6Y29tLmFkb2JlLnhtcAAAAAAAPD94cGFja2V0IGJlZ2luPSfvu78nIGlkPSdXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQnPz4NCjx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iPjxyZGY6UkRGIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+PHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9InV1aWQ6ZmFmNWJkZDUtYmEzZC0xMWRhLWFkMzEtZDMzZDc1MTgyZjFiIiB4bWxuczpkYz0iaHR0cDovL3B1cmwub3JnL2RjL2VsZW1lbnRzLzEuMS8iPjxkYzpjcmVhdG9yPjxyZGY6U2VxIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyI+PHJkZjpsaT5pbW9iaWxpYXR0bzwvcmRmOmxpPjwvcmRmOlNlcT4NCgkJCTwvZGM6Y3JlYXRvcj48L3JkZjpEZXNjcmlwdGlvbj48cmRmOkRlc2NyaXB0aW9uIHJkZjphYm91dD0idXVpZDpmYWY1YmRkNS1iYTNkLTExZGEtYWQzMS1kMzNkNzUxODJmMWIiIHhtbG5zOmV4aWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20vZXhpZi8xLjAvIj48ZXhpZjpEYXRlVGltZU9yaWdpbmFsPjIwMjYtMDEtMzFUMTY6NTU6MDcuODU1PC9leGlmOkRhdGVUaW1lT3JpZ2luYWw+PC9yZGY6RGVzY3JpcHRpb24+PHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9InV1aWQ6ZmFmNWJkZDUtYmEzZC0xMWRhLWFkMzEtZDMzZDc1MTgyZjFiIiB4bWxuczp4bXA9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC8iPjx4bXA6Q3JlYXRlRGF0ZT4yMDI2LTAxLTMxVDE2OjU1OjA3Ljg1NTwveG1wOkNyZWF0ZURhdGU+PC9yZGY6RGVzY3JpcHRpb24+PC9yZGY6UkRGPjwveDp4bXBtZXRhPg0KPD94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bWC1Z5/4zz69Wcsf8f/+sc//cKfmXLNd0ciBz9sBSIysDqz23NrwN1fVa77Ht+h78puN+uN3udYVSLasD+xez93ZrAcurffqER/Rfunhq7brhXt3uksAkoDA7uONJ3bp3jM3a1fD0C/STrWWjX36xYwtWvYIF4kDqUJgHZtf69Zdx+7echjLwPeCIn3SgrtbdOe0DVrzUmJ2CwGID4H9AJ3N/Zp7Q4PuOWGj1i3MnKsM1i3q1t3HbdC8W5sU7s7AVwfAMwT2Q2xb0aN7P7VJsy+r187N8V3gnQxdLRE9cm2D7j1zEzdDBtJI1m40GKy8wqBO/XKVTr+pWvklAXc5JXY19OuVB9v14s92qqsl888bAz7J6p1c8SqpztFR/1yuo88r06EnFCuQ5NZGI9KqZzu15IF2rXq2k+tagTRFYIeoYmSujjq3XFPOK9e4aYXuckI1r+vTskfb9crsdp48AGQAAptA1ePydfR5ZZpwbLEqa3ffVKOoYvCnuKMRqXF1WFve6NHWN3u0bUWPtq3oVXc7pwCATEJgjRWUBlU5ZvfdiyprczVsVJ5iMSkciqq3M6rert2/hvf82tMRVdO6PvX3cgUAkOkILAAYyeq7aQGANQILAEYILAAYIbAAYITAAoARAgsARggsABghsABghMACgBECCwBGCCwAGCGwAGCEwAKAEQILAEYILAAYIbAAYITAAoARAgsARggsABghsABghMACgBECCwBGCCwAGCGwAGCEwAKAEQILAEYILAAYIbAAYITAAoARAgsARggsABghsABghMACgBECCwBGCCwAGCGwAGCEwAKAEQILAEYILAAYIbAAYITAAoARAgsARggsABghsABghMACgBECCwBGCCwAGCGwAGCEwAKAEQILAEYILAAYIbAAYITAAoARAgsARggsABghsABghMACgBECCwBGCCwAGCGwAGCEwAKAEQILAEYILAAYIbAAYITAAoARAgsARggsABghsABghMACgBECCwBGCCwAGCGwAGCEwAKAEQILAEYILAAYIbAAYITAAoARAgsARggsABghsABghMACgBECCwBGCCwAGCGwAGCEwAKAEQILAEYILAAYIbAAYITAAoARAgsARggsABghsABghMACgBECCwBGCCwAGCGwAGCEwAKAEQILAEYILAAYIbAAYITAAoARAgsARggsABghsABghMACgBECCwBGCCwAGCGwAGCEwAKAEQILAEYILAAYCdxQ9PaZCgSGuwsAgPiFuluf/D9P7aM5BX8I2QAAAABJRU5ErkJggg==" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>AluguelCuiabá — Apresentação da Plataforma</title>
+<style>
+  :root{
+    --roxo:#581c87; --roxo2:#7c3aed; --roxo-claro:#a855f7;
+    --tinta:#111827; --cinza:#6b7280; --cinza2:#9ca3af;
+    --bg:#0f0a1e; --card:#1b1230; --linha:#2c1f47;
+    --ok:#34d399; --amarelo:#fbbf24;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:#f3f0fa; overflow:hidden;
+  }
+  #deck{height:100vh;width:100vw;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth}
+  .slide{
+    min-width:100vw;height:100vh;scroll-snap-align:start;
+    padding:6vh 8vw;display:flex;flex-direction:column;justify-content:center;
+    position:relative;
+  }
+  .slide.capa{
+    background:radial-gradient(1200px 600px at 20% 10%, #3b1d6e 0%, transparent 60%),
+               radial-gradient(900px 500px at 90% 90%, #4c1d95 0%, transparent 55%),
+               var(--bg);
+  }
+  h1{font-size:clamp(2.4rem,5vw,4.2rem);line-height:1.05;letter-spacing:-.02em;margin-bottom:1rem}
+  h2{font-size:clamp(1.6rem,3.2vw,2.6rem);margin-bottom:1.6rem;letter-spacing:-.01em}
+  h2 .num{color:var(--roxo-claro);font-weight:700;margin-right:.5rem}
+  .eyebrow{text-transform:uppercase;letter-spacing:.22em;font-size:.78rem;font-weight:700;color:var(--roxo-claro);margin-bottom:1rem}
+  p,li{font-size:clamp(1rem,1.5vw,1.3rem);line-height:1.6;color:#d9d2ea}
+  .lead{font-size:clamp(1.1rem,2vw,1.6rem);color:#efeaff;max-width:62ch}
+  ul{list-style:none;margin-top:.6rem}
+  ul li{padding-left:1.6rem;position:relative;margin:.55rem 0}
+  ul li::before{content:"";position:absolute;left:0;top:.65em;width:.6rem;height:.6rem;border-radius:50%;background:var(--roxo2)}
+  .grid{display:grid;gap:1.1rem;margin-top:1rem}
+  .g2{grid-template-columns:1fr 1fr}
+  .g3{grid-template-columns:1fr 1fr 1fr}
+  .g4{grid-template-columns:1fr 1fr 1fr 1fr}
+  .card{background:var(--card);border:1px solid var(--linha);border-radius:18px;padding:1.4rem 1.5rem}
+  .card h3{font-size:1.15rem;margin-bottom:.5rem;color:#fff}
+  .card p{font-size:.98rem;color:#c7bedf}
+  .card .step{font-size:.75rem;font-weight:700;color:var(--roxo-claro);letter-spacing:.1em;margin-bottom:.4rem;display:block}
+  .tag{display:inline-block;background:#2a1b47;color:var(--roxo-claro);border:1px solid var(--linha);
+       padding:.3rem .7rem;border-radius:999px;font-size:.8rem;font-weight:600;margin:.2rem .25rem 0 0}
+  .big{font-size:clamp(2rem,4vw,3.4rem);font-weight:800;color:#fff;letter-spacing:-.02em}
+  .muted{color:var(--cinza2);font-size:.95rem}
+  .pill{display:inline-flex;align-items:center;gap:.5rem;background:#2a1b47;border:1px solid var(--linha);
+        border-radius:999px;padding:.4rem .9rem;font-size:.85rem;color:#cdbff0;margin-bottom:1.4rem;width:fit-content}
+  .footer{position:absolute;bottom:3vh;left:8vw;right:8vw;display:flex;justify-content:space-between;
+          align-items:center;font-size:.8rem;color:var(--cinza2);border-top:1px solid var(--linha);padding-top:.8rem}
+  .kpi{display:flex;gap:2.5rem;flex-wrap:wrap;margin-top:1.4rem}
+  .kpi div .n{font-size:clamp(1.8rem,3.5vw,2.8rem);font-weight:800;color:#fff;line-height:1}
+  .kpi div .l{font-size:.85rem;color:var(--cinza2);margin-top:.3rem}
+  .hl{color:#fff;font-weight:700}
+  .hl-ok{color:var(--ok);font-weight:700}
+  table{width:100%;border-collapse:collapse;margin-top:1rem;font-size:.95rem}
+  th,td{text-align:left;padding:.6rem .8rem;border-bottom:1px solid var(--linha)}
+  th{color:var(--roxo-claro);font-size:.8rem;text-transform:uppercase;letter-spacing:.08em}
+  td{color:#d9d2ea}
+  .nav{position:fixed;bottom:18px;right:22px;display:flex;gap:8px;z-index:50}
+  .nav button{background:var(--roxo2);color:#fff;border:0;width:44px;height:44px;border-radius:12px;
+       font-size:1.2rem;cursor:pointer;opacity:.9}
+  .nav button:hover{opacity:1}
+  .count{position:fixed;bottom:24px;left:22px;font-size:.8rem;color:var(--cinza2);z-index:50}
+  .bar{position:fixed;top:0;left:0;height:4px;background:var(--roxo2);z-index:60;transition:width .25s}
+  @media print{
+    body{overflow:visible}
+    #deck{display:block;overflow:visible;height:auto}
+    .slide{min-width:100%;height:100vh;page-break-after:always;border-bottom:1px solid #ddd}
+    .nav,.count,.bar{display:none}
+    body{background:#fff;color:#111}
+    h1,h2,.card h3,.big,.kpi .n,.hl{color:#111}
+    p,li,td,.lead{color:#333}
+    .card{background:#faf7ff;border-color:#e6dcff}
+  }
+</style>
+</head>
+<body>
+<div class="bar" id="bar"></div>
+<div id="deck">
+
+  <!-- CAPA -->
+  <section class="slide capa">
+    <div class="pill">● Plataforma imobiliária + CRM de locação · SaaS</div>
+    <h1>AluguelCuiabá</h1>
+    <p class="lead">Site, captação, CRM e geração de contratos de locação e administração — numa única plataforma na nuvem, pronta para escalar por cidade no modelo de franquia.</p>
+    <div class="kpi">
+      <div><div class="n">1</div><div class="l">plataforma ponta a ponta</div></div>
+      <div><div class="n">2</div><div class="l">tipos de contrato (locação + administração)</div></div>
+      <div><div class="n">49</div><div class="l">versões de banco de dados</div></div>
+    </div>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>Apresentação institucional</span></div>
+  </section>
+
+  <!-- RESUMO -->
+  <section class="slide">
+    <div class="eyebrow">Resumo executivo</div>
+    <h2>O que é a plataforma</h2>
+    <p class="lead">Um produto web completo que cobre todo o ciclo da locação: do anúncio que atrai o inquilino até o contrato assinado e a gestão financeira mensal.</p>
+    <div class="grid g3">
+      <div class="card"><h3>Site público + blog</h3><p>Vitrine de imóveis com SEO, blog e captação de leads. Otimizado para ranquear por cidade.</p></div>
+      <div class="card"><h3>CRM de locação</h3><p>Clientes, imóveis, contratos, parcelas, cobranças, reajustes, vistorias e agenda.</p></div>
+      <div class="card"><h3>Contratos automáticos</h3><p>Locação, administração e aditivos em PDF, com cláusulas jurídicas e assinatura.</p></div>
+    </div>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- PROBLEMA -->
+  <section class="slide">
+    <div class="eyebrow">O problema</div>
+    <h2>Por que isso importa</h2>
+    <ul>
+      <li>Corretores montam contratos no Word, copiando e colando — <span class="hl">erro humano e risco jurídico</span>.</li>
+      <li>Dados do imóvel, do inquilino e do proprietário vivem espalhados em planilhas e WhatsApp.</li>
+      <li>Falta controle de <span class="hl">vencimentos, reajustes e renovações</span> — dinheiro e prazos perdidos.</li>
+      <li>Seguro fiança e incêndio entram tarde no processo, muitas vezes <span class="hl">depois</span> do contrato fechado.</li>
+    </ul>
+    <p class="lead" style="margin-top:1.4rem">A plataforma resolve isso de ponta a ponta — e coloca o seguro <span class="hl-ok">dentro</span> do fluxo, no momento certo.</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- MÓDULOS -->
+  <section class="slide">
+    <div class="eyebrow">A solução</div>
+    <h2>Módulos já em produção</h2>
+    <div class="grid g3">
+      <div class="card"><h3>Anúncios</h3><p>Cadastro de imóveis, fotos, mapa, página pública com SEO.</p></div>
+      <div class="card"><h3>Clientes</h3><p>Proprietários, inquilinos, fiadores, documentos e cônjuges.</p></div>
+      <div class="card"><h3>Contratos de locação</h3><p>Editor de cláusulas, PDF jurídico, capa, sumário, inventário, vistorias.</p></div>
+      <div class="card"><h3>Administração</h3><p>Contrato proprietário × imobiliária, com exclusividade e comissões.</p></div>
+      <div class="card"><h3>Financeiro</h3><p>Parcelas, boletos, repasses, comissões, recibos e reajustes.</p></div>
+      <div class="card"><h3>Cobranças & Agenda</h3><p>Vencimentos, lembretes, notificações push e por e-mail.</p></div>
+      <div class="card"><h3>Vistorias</h3><p>Entrada/saída com fotos e assinatura — laudo do estado do imóvel.</p></div>
+      <div class="card"><h3>Relatórios</h3><p>Visão da carteira, inadimplência e desempenho.</p></div>
+      <div class="card"><h3>Admin master</h3><p>Gestão de usuários, site, blog, seguros e comunicação central.</p></div>
+    </div>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- STACK -->
+  <section class="slide">
+    <div class="eyebrow">Tecnologia</div>
+    <h2>Com o que foi construído</h2>
+    <p class="lead">Stack moderna, usada por empresas como Netflix, TikTok e Notion — não é "site comum", é aplicação na nuvem.</p>
+    <div class="grid g2" style="margin-top:1.2rem">
+      <div class="card"><h3>Next.js 16 + React 19</h3><p>Framework do site e do app. Renderização no servidor (rápido + bom pra Google) e interface reativa.</p></div>
+      <div class="card"><h3>TypeScript</h3><p>JavaScript com tipos — menos bugs, código mais seguro de manter e evoluir.</p></div>
+      <div class="card"><h3>Tailwind CSS</h3><p>Design system consistente e responsivo (funciona no celular, tablet e desktop).</p></div>
+      <div class="card"><h3>PWA</h3><p>Instalável como app no celular, com notificações push.</p></div>
+    </div>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- VERCEL -->
+  <section class="slide">
+    <div class="eyebrow">Infraestrutura · 1 de 3</div>
+    <h2><span class="num">▲</span>Vercel — onde o sistema roda</h2>
+    <p class="lead">É a empresa (criadora do Next.js) que hospeda a aplicação. Pense nela como o "prédio" onde o sistema mora, com porteiro, energia e elevador automáticos.</p>
+    <ul>
+      <li><span class="hl">Deploy automático:</span> cada alteração no código entra no ar sozinha, em segundos.</li>
+      <li><span class="hl">CDN global:</span> o site é servido de servidores no mundo todo — carrega rápido em qualquer lugar.</li>
+      <li><span class="hl">Escala automática:</span> se 10 ou 100 mil pessoas acessarem, ele se ajusta sem intervenção.</li>
+      <li><span class="hl">Serverless:</span> só paga pelo que usa; não há servidor ocioso para manter.</li>
+    </ul>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- SUPABASE -->
+  <section class="slide">
+    <div class="eyebrow">Infraestrutura · 2 de 3</div>
+    <h2><span class="num">⚡</span>Supabase — o cofre dos dados</h2>
+    <p class="lead">É o banco de dados e o sistema de login, na nuvem. Guarda tudo: imóveis, clientes, contratos, parcelas, documentos. Construído sobre PostgreSQL, o banco mais robusto do mercado.</p>
+    <ul>
+      <li><span class="hl">Banco de dados (PostgreSQL):</span> 49 versões de estrutura já evoluídas com segurança.</li>
+      <li><span class="hl">Autenticação:</span> login seguro dos corretores e do administrador.</li>
+      <li><span class="hl">Isolamento por usuário (RLS):</span> cada imobiliária só enxerga os próprios dados — garantido no banco.</li>
+      <li><span class="hl">Storage:</span> guarda fotos, documentos e PDFs dos contratos.</li>
+    </ul>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- RESEND -->
+  <section class="slide">
+    <div class="eyebrow">Infraestrutura · 3 de 3</div>
+    <h2><span class="num">✉</span>Resend — o carteiro</h2>
+    <p class="lead">É o serviço que envia os e-mails da plataforma de forma confiável, sem cair em spam. Boas-vindas, avisos de vencimento, recibos, comunicação com clientes.</p>
+    <ul>
+      <li><span class="hl">Entregabilidade:</span> e-mails saem do domínio da empresa, com reputação cuidada.</li>
+      <li><span class="hl">Transacional:</span> cada e-mail é disparado por uma ação (novo contrato, cobrança, lembrete).</li>
+      <li>Complementado por <span class="hl">notificações push</span> (web/app) para avisos instantâneos.</li>
+    </ul>
+    <p class="muted" style="margin-top:1rem">Resumo: <b>Vercel</b> hospeda · <b>Supabase</b> guarda os dados · <b>Resend</b> envia os e-mails.</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- OUTRAS FERRAMENTAS -->
+  <section class="slide">
+    <div class="eyebrow">Ferramentas de apoio</div>
+    <h2>O que mais está embarcado</h2>
+    <div class="grid g3">
+      <div class="card"><h3>Stripe</h3><p>Pagamentos e assinaturas — pronto para cobrar as imobiliárias por mês.</p></div>
+      <div class="card"><h3>Sentry</h3><p>Monitora erros em tempo real — sabemos de qualquer falha antes do cliente.</p></div>
+      <div class="card"><h3>react-pdf + pdf-lib</h3><p>Gera os contratos em PDF com identidade visual, paginação e anexos.</p></div>
+      <div class="card"><h3>TipTap</h3><p>Editor de texto rico para cláusulas e conteúdo do blog.</p></div>
+      <div class="card"><h3>Leaflet</h3><p>Mapas dos imóveis com agrupamento de marcadores.</p></div>
+      <div class="card"><h3>Web Push</h3><p>Notificações no navegador e no celular, mesmo com o app fechado.</p></div>
+    </div>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- ARQUITETURA / SEGURANÇA -->
+  <section class="slide">
+    <div class="eyebrow">Arquitetura & segurança</div>
+    <h2>Multi-tenant e LGPD por padrão</h2>
+    <div class="grid g2">
+      <div class="card"><h3>Multi-tenant nativo</h3><p>Cada imobiliária/corretor é um "inquilino" isolado. Um único sistema serve a todos, mas ninguém vê os dados do outro.</p></div>
+      <div class="card"><h3>Segurança no banco (RLS)</h3><p>O isolamento não depende do código da tela — é imposto pelo próprio banco de dados. Camada extra de proteção.</p></div>
+      <div class="card"><h3>LGPD</h3><p>Dados pessoais tratados conforme finalidade, com cláusula de proteção de dados nos próprios contratos.</p></div>
+      <div class="card"><h3>Soft delete + lixeira</h3><p>Nada some por acidente: exclusões vão para a lixeira e podem ser restauradas.</p></div>
+    </div>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- SAAS MULTI-CIDADE -->
+  <section class="slide">
+    <div class="eyebrow">Modelo de expansão</div>
+    <h2>Um SaaS, várias cidades</h2>
+    <p class="lead">A arquitetura <span class="hl-ok">já é multi-tenant</span>: o mesmo sistema atende Cuiabá e qualquer outra cidade ao mesmo tempo. Uma melhoria entra no ar <span class="hl">para todos de uma vez</span> — sem refazer nada.</p>
+    <div class="grid g3">
+      <div class="card"><h3>Deploy único</h3><p>Um código, uma base. Atualizou aqui, atualizou em todas as cidades simultaneamente.</p></div>
+      <div class="card"><h3>SEO por cidade</h3><p>Cada cidade tem suas páginas, anúncios e blog — ranqueia localmente no Google.</p></div>
+      <div class="card"><h3>Cobrança por praça</h3><p>Cada imobiliária/cidade é uma assinatura (Stripe). Receita recorrente nacional.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.1rem">Cuiabá é a praça-piloto: blog + tráfego pago para validar. O mesmo motor replica para outras cidades sem reescrever o produto.</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- FRANQUIA WHITE-LABEL -->
+  <section class="slide">
+    <div class="eyebrow">Modelo de negócio</div>
+    <h2>Franquia digital (white-label)</h2>
+    <p class="lead">Cada cidade vira uma franquia, com <span class="hl">domínio próprio</span> e um responsável local. A matriz desenvolve uma vez; <span class="hl-ok">toda melhoria chega a todas as cidades na hora</span>.</p>
+    <div class="grid g3">
+      <div class="card"><span class="step">MATRIZ</span><h3>Código, produto e infra</h3><p>Um só sistema, um só deploy. Centraliza desenvolvimento, qualidade e evolução.</p></div>
+      <div class="card"><span class="step">FRANQUEADO</span><h3>Opera a praça dele</h3><p>Capta imóveis, escreve o blog local e atende leads pelo painel — sem nunca tocar no código.</p></div>
+      <div class="card"><span class="step">CADA CIDADE</span><h3>Domínio e marca local</h3><p>aluguelcampogrande.com.br, aluguel(cidade).com.br… mesmo motor, cara local.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.1rem">Dados de cada cidade isolados por segurança no banco (RLS). Atualização única = padrão e qualidade iguais em toda a rede.</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- ESCALABILIDADE -->
+  <section class="slide">
+    <div class="eyebrow">Escalabilidade</div>
+    <h2>Até onde aguenta hoje</h2>
+    <table>
+      <tr><th>Dimensão</th><th>Capacidade atual</th><th>Quando expandir</th></tr>
+      <tr><td>Visitas no site público</td><td class="hl-ok">Praticamente ilimitado (CDN/cache)</td><td>Não é gargalo — escala sozinho</td></tr>
+      <tr><td>Imobiliárias/corretores logados</td><td>Milhares de usuários ativos/mês</td><td>Acima disso: subir o plano de banco</td></tr>
+      <tr><td>Banco de dados</td><td>Milhões de registros (Postgres)</td><td>&gt; 8 GB de dados → add-on de armazenamento</td></tr>
+      <tr><td>E-mails</td><td>Por volume contratado</td><td>Sobe a faixa conforme disparos/mês</td></tr>
+    </table>
+    <p class="muted" style="margin-top:1rem">O site (que atrai tráfego) escala de forma quase ilimitada. O custo só sobe de verdade quando há <span class="hl">muitas imobiliárias pagantes</span> usando o CRM — ou seja, o custo cresce junto com a receita.</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- CUSTOS -->
+  <section class="slide">
+    <div class="eyebrow">Custos de infraestrutura</div>
+    <h2>Quanto custa rodar</h2>
+    <table>
+      <tr><th>Serviço</th><th>Plano inicial</th><th>Faixa de referência*</th></tr>
+      <tr><td>Vercel (hospedagem)</td><td>Pro</td><td>~US$ 20/mês</td></tr>
+      <tr><td>Supabase (banco + auth + storage)</td><td>Pro</td><td>~US$ 25/mês</td></tr>
+      <tr><td>Resend (e-mails)</td><td>Free → Pro</td><td>US$ 0 a ~20/mês</td></tr>
+      <tr><td>Sentry (monitoramento)</td><td>Free</td><td>US$ 0 no início</td></tr>
+      <tr><td>Stripe (pagamentos)</td><td>Sob demanda</td><td>% por transação</td></tr>
+    </table>
+    <p class="lead" style="margin-top:1rem">Operação inicial: <span class="hl-ok">~US$ 45–65/mês</span> para começar — escala conforme o número de cidades e clientes pagantes.</p>
+    <p class="muted" style="margin-top:.6rem">*Valores de referência (base jan/2026). Confirmar no site de cada fornecedor; planos mudam.</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- ONDE A SEGURADORA ENTRA -->
+  <section class="slide">
+    <div class="eyebrow">Oportunidade da parceria</div>
+    <h2>Onde o seguro entra</h2>
+    <p class="lead">Todo contrato de locação gerado aqui <span class="hl">exige seguro fiança e/ou incêndio</span> — as cláusulas já estão no sistema, com base na Lei do Inquilinato. Cada contrato é um <span class="hl-ok">lead qualificado de seguro</span>.</p>
+    <div class="grid g2">
+      <div class="card"><h3>Gancho já existe</h3><p>Há um módulo "Seguros" no admin, preparado para plugar a seguradora no fluxo do imóvel e do contrato.</p></div>
+      <div class="card"><h3>No momento certo</h3><p>O seguro é oferecido durante a montagem do contrato — não depois, quando o cliente já fechou.</p></div>
+      <div class="card"><h3>Volume escalável</h3><p>SaaS multi-cidade + franquias = funil nacional de seguros fiança/incêndio, alimentado por contratos reais.</p></div>
+      <div class="card"><h3>Dados estruturados</h3><p>Imóvel, valor do aluguel, partes e datas já cadastrados — cotação com poucos cliques.</p></div>
+    </div>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- FORMAS DE PARCERIA (externo) -->
+  <section class="slide">
+    <div class="eyebrow">Formas de parceria</div>
+    <h2>Como podemos andar juntos</h2>
+    <p class="lead">Modelos possíveis — a desenhar em conjunto, conforme o apetite de cada lado:</p>
+    <div class="grid g2">
+      <div class="card"><h3>1 · Integração de seguros</h3><p>Cotação e contratação de fiança/incêndio dentro da plataforma — via API ou link para o painel da seguradora — com comissão por apólice originada.</p></div>
+      <div class="card"><h3>2 · Canal de distribuição</h3><p>A carteira de clientes da seguradora (várias cidades) entra no sistema; a plataforma vira a casa digital dessas imobiliárias.</p></div>
+      <div class="card"><h3>3 · Co-marketing</h3><p>Seguradora como parceira oficial no site e no blog, em Cuiabá e nas novas praças.</p></div>
+      <div class="card"><h3>4 · Expansão por cidade</h3><p>Crescimento conjunto via franquias, levando produto + seguro para cada nova cidade.</p></div>
+    </div>
+    <p class="muted" style="margin-top:1rem">Responsabilidades sugeridas: <span class="hl">plataforma</span> = sistema, produto e marketing digital · <span class="hl">seguradora</span> = captação e comercial.</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- PRÓXIMOS PASSOS -->
+  <section class="slide">
+    <div class="eyebrow">Próximos passos</div>
+    <h2>Por onde começar</h2>
+    <ul>
+      <li><span class="hl">Piloto em Cuiabá:</span> integrar o seguro no fluxo do contrato e medir os primeiros resultados.</li>
+      <li><span class="hl">Trazer a carteira</span> da seguradora para dentro do sistema, cidade a cidade.</li>
+      <li><span class="hl">Definir o modelo comercial</span> (comissão por apólice, co-marketing) e formalizar.</li>
+      <li><span class="hl">Plano de expansão</span> das franquias conforme a validação do piloto.</li>
+    </ul>
+    <p class="lead" style="margin-top:1.2rem">A plataforma traz os contratos; a seguradora traz o produto. Cada locação vira uma oportunidade de seguro — para os dois lados.</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- FECHO -->
+  <section class="slide capa">
+    <div class="eyebrow">Vamos conversar</div>
+    <h1>Obrigado.</h1>
+    <p class="lead">AluguelCuiabá — plataforma imobiliária e CRM de locação. Pronta para integrar seguros e escalar por cidade no modelo de franquia.</p>
+    <div class="kpi" style="margin-top:1.8rem">
+      <div><div class="n">João Victor Vieira</div><div class="l">IMOBILIATTO · CRECI 12130-F</div></div>
+    </div>
+    <p class="muted" style="margin-top:1.4rem">aluguelcuiaba.com.br</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+</div>
+
+<div class="count" id="count">1 / 18</div>
+<div class="nav">
+  <button onclick="go(-1)" aria-label="anterior">‹</button>
+  <button onclick="go(1)" aria-label="próximo">›</button>
+</div>
+
+<script>
+  const deck = document.getElementById('deck');
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  let i = 0;
+  function render(){
+    document.getElementById('count').textContent = (i+1)+' / '+total;
+    document.getElementById('bar').style.width = ((i+1)/total*100)+'%';
+  }
+  function go(d){
+    i = Math.max(0, Math.min(total-1, i+d));
+    slides[i].scrollIntoView({behavior:'smooth', inline:'start'});
+    render();
+  }
+  document.addEventListener('keydown', e=>{
+    if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();go(1)}
+    if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();go(-1)}
+    if(e.key==='Home'){i=0;slides[0].scrollIntoView();render()}
+    if(e.key==='End'){i=total-1;slides[i].scrollIntoView();render()}
+  });
+  deck.addEventListener('scroll', ()=>{
+    const idx = Math.round(deck.scrollLeft / window.innerWidth);
+    if(idx!==i){i=idx;render()}
+  });
+  render();
+</script>
+</body>
+</html>

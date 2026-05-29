@@ -2,9 +2,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getMeusImoveis, getPerfil } from '@/lib/supabase/queries'
-import { Plus, Home, LogOut, CheckCircle2, ShieldCheck, AlertCircle, Camera, UserCircle2, ExternalLink } from 'lucide-react'
+import { Plus, Home, LogOut, CheckCircle2, ShieldCheck, AlertCircle, Camera, UserCircle2, ExternalLink, Eye, List } from 'lucide-react'
 import { PLANOS } from '@/lib/constants'
-import { PainelImovelCard } from './imovel-card'
 import { PlanoActions } from './_components/plano-actions'
 
 async function logout() {
@@ -30,9 +29,9 @@ export default async function PainelPage({
 
   const lista = imoveis ?? []
   const ativos = lista.filter(i => i.status === 'ativo').length
-  const inativos = lista.filter(i => i.status !== 'ativo').length
 
   // Imóveis ativos parados — banner de aviso
+  // eslint-disable-next-line react-hooks/purity -- server component dinâmico; data do request
   const agora = Date.now()
   const D30 = 30 * 86400000
   const D60 = 60 * 86400000
@@ -46,6 +45,16 @@ export default async function PainelPage({
     return diff >= D30 && diff < D60
   })
   const parados60 = ativosComUpdate.filter(i => agora - new Date(i.updated_at).getTime() >= D60)
+
+  // Indicadores do dashboard
+  type ImovelDash = { id: string; status: string; expira_em: string; visualizacoes?: number | null }
+  const listaDash = lista as unknown as ImovelDash[]
+  const D7 = 7 * 86400000
+  const visitasTotais = listaDash.reduce((s, i) => s + (i.visualizacoes ?? 0), 0)
+  const aRenovar = listaDash.filter(i => i.status === 'ativo' && (new Date(i.expira_em).getTime() - agora) <= D7).length
+  const alugados = listaDash.filter(i => i.status === 'alugado').length
+  const totalParados = parados30.length + parados60.length
+
   const { publicado, atualizado } = await searchParams
 
   const isAdmin = perfil?.role === 'admin'
@@ -221,19 +230,51 @@ export default async function PainelPage({
         )}
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
-        {[
-          { label: 'Total', valor: lista.length, cor: 'text-gray-900' },
-          { label: 'Ativos', valor: ativos, cor: 'text-green-600' },
-          { label: 'Inativos', valor: inativos, cor: 'text-red-500' },
-        ].map(stat => (
-          <div key={stat.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
-            <p className={`text-2xl font-bold ${stat.cor}`}>{stat.valor}</p>
-            <p className="text-xs text-gray-400 mt-0.5">{stat.label}</p>
-          </div>
-        ))}
+      {/* Indicadores */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+        <Link href="/painel/anuncios" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:border-violet-200 transition-colors">
+          <p className="text-2xl font-bold text-gray-900">{lista.length}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Total</p>
+        </Link>
+        <Link href="/painel/anuncios?status=ativo" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:border-green-200 transition-colors">
+          <p className="text-2xl font-bold text-green-600">{ativos}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Ativos</p>
+        </Link>
+        <Link href="/painel/anuncios?status=alugado" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center hover:border-teal-200 transition-colors">
+          <p className="text-2xl font-bold text-teal-600">{alugados}</p>
+          <p className="text-xs text-gray-400 mt-0.5">Alugados</p>
+        </Link>
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
+          <p className="text-2xl font-bold text-violet-700 flex items-center justify-center gap-1">
+            <Eye size={16} className="text-violet-400" />{visitasTotais.toLocaleString('pt-BR')}
+          </p>
+          <p className="text-xs text-gray-400 mt-0.5">Visitas totais</p>
+        </div>
       </div>
+
+      {/* Ações necessárias */}
+      {(aRenovar > 0 || totalParados > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          {aRenovar > 0 && (
+            <Link href="/painel/anuncios?status=expirado" className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 hover:bg-amber-100 transition-colors">
+              <div>
+                <p className="text-sm font-semibold text-amber-900">A renovar</p>
+                <p className="text-xs text-amber-700">expirando em 7 dias ou já expirados</p>
+              </div>
+              <span className="text-lg font-bold text-amber-800 bg-amber-200 w-9 h-9 rounded-full flex items-center justify-center shrink-0">{aRenovar}</span>
+            </Link>
+          )}
+          {totalParados > 0 && (
+            <Link href="/painel/anuncios?status=ativo" className="bg-orange-50 border border-orange-200 rounded-2xl px-4 py-3 flex items-center justify-between gap-3 hover:bg-orange-100 transition-colors">
+              <div>
+                <p className="text-sm font-semibold text-orange-900">Parados 30+ dias</p>
+                <p className="text-xs text-orange-700">revise preço/fotos pra subir na busca</p>
+              </div>
+              <span className="text-lg font-bold text-orange-800 bg-orange-200 w-9 h-9 rounded-full flex items-center justify-center shrink-0">{totalParados}</span>
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Plano / Admin banner */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-3 mb-6 flex items-center justify-between gap-3">
@@ -308,7 +349,7 @@ export default async function PainelPage({
         </Link>
       )}
 
-      {/* Lista */}
+      {/* Atalho pra lista completa */}
       {lista.length === 0 ? (
         <div className="text-center py-16 text-gray-400">
           <Home size={40} className="mx-auto mb-3 opacity-30" />
@@ -316,12 +357,21 @@ export default async function PainelPage({
           <p className="text-sm">Publique seu primeiro imóvel e comece a receber contatos.</p>
         </div>
       ) : (
-        <div className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-4">Seus anúncios</h2>
-          {lista.map(imovel => (
-            <PainelImovelCard key={imovel.id} imovel={imovel as any} />
-          ))}
-        </div>
+        <Link
+          href="/painel/anuncios"
+          className="flex items-center justify-between gap-3 bg-white rounded-2xl border border-gray-100 shadow-sm px-5 py-4 hover:border-violet-200 transition-colors"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center shrink-0">
+              <List size={18} className="text-violet-600" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Ver todos os anúncios</p>
+              <p className="text-xs text-gray-400">Editar, marcar alugado, pausar e renovar</p>
+            </div>
+          </div>
+          <ExternalLink size={16} className="text-gray-300" />
+        </Link>
       )}
     </main>
   )
