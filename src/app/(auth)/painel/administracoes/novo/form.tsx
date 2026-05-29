@@ -17,7 +17,9 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
   const [proprietarioId, setProprietarioId] = useState('')
   const [imovelId, setImovelId] = useState('')
   const [dataInicio, setDataInicio] = useState(new Date().toISOString().slice(0, 10))
-  const [prazoMeses, setPrazoMeses] = useState<string>('12')
+  // prazoSel: '1'..'5' anos | 'indeterminado' | 'outro' (revela input de meses)
+  const [prazoSel, setPrazoSel] = useState<string>('1')
+  const [prazoMesesCustom, setPrazoMesesCustom] = useState<string>('')
   const [renovacaoAuto, setRenovacaoAuto] = useState(true)
   const [taxaTipo, setTaxaTipo] = useState<'percentual' | 'fixo'>('percentual')
   const [taxaValor, setTaxaValor] = useState('10')
@@ -38,7 +40,9 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
     if (!proprietarioId) { setErro('Selecione o proprietário.'); return }
     const taxa = parseFloat(taxaValor.replace(',', '.'))
     if (!taxa || taxa <= 0) { setErro('Informe a taxa de administração.'); return }
-    const prazoNum = parseInt(prazoMeses, 10)
+    const prazoNum = prazoSel === 'indeterminado' ? 0
+      : prazoSel === 'outro' ? (parseInt(prazoMesesCustom, 10) || 0)
+      : parseInt(prazoSel, 10) * 12
     const dataTermino = prazoNum > 0
       ? new Date(new Date(dataInicio + 'T00:00:00').setMonth(new Date(dataInicio + 'T00:00:00').getMonth() + prazoNum) - 24 * 3600 * 1000).toISOString().slice(0, 10)
       : null
@@ -101,9 +105,24 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
             <input type="date" value={dataInicio} onChange={e => setDataInicio(e.target.value)} required className={inputCls} />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-gray-600 block mb-1">Prazo (meses)</span>
-            <input type="number" min={0} value={prazoMeses} onChange={e => setPrazoMeses(e.target.value)} placeholder="12" className={inputCls} />
-            <span className="text-[10px] text-gray-400">0 = indeterminado</span>
+            <span className="text-xs font-medium text-gray-600 block mb-1">Prazo</span>
+            <select value={prazoSel} onChange={e => setPrazoSel(e.target.value)} className={inputCls}>
+              <option value="1">1 ano</option>
+              <option value="2">2 anos</option>
+              <option value="3">3 anos</option>
+              <option value="4">4 anos</option>
+              <option value="5">5 anos</option>
+              <option value="indeterminado">Indeterminado</option>
+              <option value="outro">Outro (meses)</option>
+            </select>
+            {prazoSel === 'outro' && (
+              <input
+                type="number" min={1} value={prazoMesesCustom}
+                onChange={e => setPrazoMesesCustom(e.target.value)}
+                placeholder="meses (ex: 30)"
+                className={`${inputCls} mt-2`}
+              />
+            )}
           </label>
           <label className="flex items-center gap-2 cursor-pointer sm:mt-6">
             <input type="checkbox" checked={renovacaoAuto} onChange={e => setRenovacaoAuto(e.target.checked)} className="accent-violet-600" />

@@ -37,7 +37,16 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
   const [imovelId, setImovelId] = useState(inicial.imovel_id ?? '')
   const [dataInicio, setDataInicio] = useState(inicial.data_inicio)
   const [dataTermino, setDataTermino] = useState(inicial.data_termino ?? '')
-  const [prazoMeses, setPrazoMeses] = useState<string>(String(inicial.prazo_meses ?? ''))
+  const [prazoSel, setPrazoSel] = useState<string>(() => {
+    const m = inicial.prazo_meses
+    if (!m || m <= 0) return 'indeterminado'
+    if (m % 12 === 0 && m / 12 <= 5) return String(m / 12)
+    return 'outro'
+  })
+  const [prazoMesesCustom, setPrazoMesesCustom] = useState<string>(() => {
+    const m = inicial.prazo_meses
+    return (m && (m % 12 !== 0 || m / 12 > 5)) ? String(m) : ''
+  })
   const [renovacaoAuto, setRenovacaoAuto] = useState(inicial.renovacao_automatica)
   const [taxaTipo, setTaxaTipo] = useState<'percentual' | 'fixo'>(inicial.taxa_tipo)
   const [taxaValor, setTaxaValor] = useState(String(inicial.taxa_valor))
@@ -62,7 +71,9 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
         imovel_id: imovelId || null,
         data_inicio: dataInicio,
         data_termino: dataTermino || null,
-        prazo_meses: parseInt(prazoMeses, 10) || null,
+        prazo_meses: prazoSel === 'indeterminado' ? null
+          : prazoSel === 'outro' ? (parseInt(prazoMesesCustom, 10) || null)
+          : parseInt(prazoSel, 10) * 12,
         renovacao_automatica: renovacaoAuto,
         taxa_tipo: taxaTipo,
         taxa_valor: taxa,
@@ -116,8 +127,24 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
             <input type="date" value={dataTermino} onChange={e => setDataTermino(e.target.value)} className={inputCls} />
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-gray-600 block mb-1">Prazo (meses)</span>
-            <input type="number" min={0} value={prazoMeses} onChange={e => setPrazoMeses(e.target.value)} className={inputCls} />
+            <span className="text-xs font-medium text-gray-600 block mb-1">Prazo</span>
+            <select value={prazoSel} onChange={e => setPrazoSel(e.target.value)} className={inputCls}>
+              <option value="1">1 ano</option>
+              <option value="2">2 anos</option>
+              <option value="3">3 anos</option>
+              <option value="4">4 anos</option>
+              <option value="5">5 anos</option>
+              <option value="indeterminado">Indeterminado</option>
+              <option value="outro">Outro (meses)</option>
+            </select>
+            {prazoSel === 'outro' && (
+              <input
+                type="number" min={1} value={prazoMesesCustom}
+                onChange={e => setPrazoMesesCustom(e.target.value)}
+                placeholder="meses (ex: 30)"
+                className={`${inputCls} mt-2`}
+              />
+            )}
           </label>
         </div>
         <label className="flex items-center gap-2 cursor-pointer">
