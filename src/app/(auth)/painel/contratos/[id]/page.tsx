@@ -9,6 +9,7 @@ import { ParcelaRow, type Parcela } from './_components/parcela-row'
 import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
 import { InventarioSecao, type ItemInventario } from './_components/inventario-secao'
+import { AditivosSecao, type AditivoRow } from './_components/aditivos-secao'
 import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
 import { RegerarParcelasBotao } from './_components/regerar-parcelas'
 import { TimelineEventos, type EventoRow } from './_components/timeline-eventos'
@@ -123,6 +124,13 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     .select('id, descricao, quantidade, marca_modelo, estado, observacao')
     .eq('contrato_id', id)
     .order('ordem', { ascending: true })
+
+  // Termos aditivos do contrato
+  const { data: aditivosRaw } = await supabase
+    .from('contratos_aditivos')
+    .select('id, numero, data_aditivo, tipo, titulo, objeto')
+    .eq('contrato_id', id)
+    .order('numero', { ascending: true })
   const reajustes: ReajusteRow[] = ((reajustesRaw ?? []) as ReajusteRow[]).map(r => ({
     ...r,
     percentual: Number(r.percentual),
@@ -281,6 +289,8 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
       />
 
       <InventarioSecao contratoId={id} itens={(inventarioRaw ?? []) as ItemInventario[]} />
+
+      <AditivosSecao contratoId={id} aditivos={(aditivosRaw ?? []) as AditivoRow[]} />
 
       <TimelineEventos eventos={eventos} />
 

@@ -28,7 +28,7 @@ const fontMedium = tryReadFontAsDataUrl('Poppins-Medium.ttf')
 const fontBold = tryReadFontAsDataUrl('Poppins-Bold.ttf')
 
 const POPPINS_LOADED = !!(fontRegular && fontBold)
-const FAMILIA = POPPINS_LOADED ? 'Poppins' : 'Helvetica'
+export const FAMILIA = POPPINS_LOADED ? 'Poppins' : 'Helvetica'
 
 if (POPPINS_LOADED) {
   Font.register({
