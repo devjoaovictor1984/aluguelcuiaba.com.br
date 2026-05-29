@@ -154,6 +154,42 @@ export async function importarContratoModelo(sobrescrever = false) {
 }
 
 /**
+ * Reimporta SOMENTE as cláusulas de administração (tipo='administracao'):
+ * apaga as atuais desse tipo e reinsere as do seed. Não toca nas cláusulas
+ * de locação que o usuário possa ter editado. Útil quando o modelo de
+ * administração é atualizado e o user quer pegar a versão nova.
+ */
+export async function reimportarClausulasAdministracao() {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { error: delErr } = await supabase
+    .from('contrato_clausulas')
+    .delete()
+    .eq('user_id', acesso.userId)
+    .eq('tipo', 'administracao')
+  if (delErr) return { error: `Falha ao limpar cláusulas de administração: ${delErr.message}` }
+
+  const rows = SEED_CLAUSULAS
+    .filter(c => c.tipo === 'administracao')
+    .map(c => ({
+      user_id: acesso.userId,
+      tipo: c.tipo,
+      categoria: c.categoria,
+      titulo: c.titulo,
+      numero: c.numero,
+      corpo: c.corpo,
+      ativa: true,
+    }))
+
+  const { error } = await supabase.from('contrato_clausulas').insert(rows)
+  if (error) return { error: error.message }
+
+  revalidatePath('/painel/contratos/clausulas')
+  return { ok: true, importadas: rows.length, mensagem: `${rows.length} cláusula(s) de administração reimportada(s).` }
+}
+
+/**
  * Adiciona apenas as cláusulas do seed que AINDA NÃO existem no banco do user
  * (matching por titulo+tipo). Útil pra puxar cláusulas novas que entraram no
  * seed sem apagar nada que o usuário já editou.

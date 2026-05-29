@@ -611,103 +611,168 @@ Parágrafo terceiro. A dispensa da multa rescisória não exonera o LOCATÁRIO d
 
   {
     tipo: 'administracao', categoria: 'partes', titulo: 'Das partes', numero: 1,
-    corpo: `CONTRATANTE / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_NACIONALIDADE}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, portador(a) do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, residente e domiciliado(a) em {{LOCADOR_ENDERECO}}, doravante denominado(a) simplesmente CONTRATANTE.
+    corpo: `ADMINISTRADORA: {{ADMIN_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com sede em {{ADMIN_ENDERECO}}, neste ato representada por seu Corretor Responsável {{ADMIN_RESPONSAVEL}}, corretor(a) de imóveis inscrito(a) no CRECI sob nº {{ADMIN_RESPONSAVEL_CRECI}}, doravante denominada simplesmente ADMINISTRADORA.
 
-CONTRATADA / ADMINISTRADORA: {{ADMIN_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com sede em {{ADMIN_ENDERECO}}, neste ato representada por {{ADMIN_RESPONSAVEL}}, corretor(a) de imóveis, CRECI {{ADMIN_RESPONSAVEL_CRECI}}, doravante denominada simplesmente ADMINISTRADORA.
+PROPRIETÁRIA(O) / CONTRATANTE: {{LOCADOR_NOME}}, {{LOCADOR_NACIONALIDADE}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, portador(a) do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, residente e domiciliado(a) em {{LOCADOR_ENDERECO}}, doravante denominado(a) simplesmente PROPRIETÁRIA(O) ou CONTRATANTE.
 
-As partes ajustam o presente CONTRATO DE ADMINISTRAÇÃO IMOBILIÁRIA, regido pela Lei nº 8.245/1991, pelo Código Civil, pelo Código de Defesa do Consumidor quando aplicável e pelas cláusulas seguintes.`,
+As partes acima identificadas têm, entre si, justo e contratado o presente CONTRATO DE ADMINISTRAÇÃO DE IMÓVEL COM EXCLUSIVIDADE, regido pela Lei nº 8.245/1991 (Lei do Inquilinato), pelo Código Civil e demais normas aplicáveis, mediante as cláusulas e condições seguintes.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'objeto', titulo: 'Do objeto', numero: 2,
-    corpo: `O presente contrato tem por objeto a prestação de serviços de administração imobiliária pela ADMINISTRADORA sobre o imóvel de propriedade do CONTRATANTE situado em {{IMOVEL_ENDERECO}}, CEP {{IMOVEL_CEP}}, doravante denominado simplesmente IMÓVEL.
+    tipo: 'administracao', categoria: 'objeto', titulo: 'Do objeto (mandato de administração)', numero: 2,
+    corpo: `A PROPRIETÁRIA confere à ADMINISTRADORA mandato com poderes específicos para administrar o imóvel descrito na cláusula "Do imóvel administrado", incluindo, sem se limitar a: divulgação, seleção de locatário, análise cadastral, formalização e gestão do contrato de locação, vistorias, cobrança, recebimento e repasse de valores, gestão de garantias, contratação e administração de seguros relacionados à locação, notificações extrajudiciais e acompanhamento de medidas administrativas e judiciais correlatas (inclusive despejo e cobrança), conforme contrato e lei.
 
-Parágrafo primeiro. A administração compreende, sem se limitar a: divulgação, captação de inquilinos, análise cadastral, intermediação de locação, elaboração de contratos, vistorias inicial e final, entrega/recebimento de chaves, cobrança mensal de aluguel e encargos, repasse ao CONTRATANTE, gestão de inadimplência, comunicações com inquilinos, condomínios, prestadores e órgãos públicos.
-
-Parágrafo segundo. {{ADM_EXCLUSIVIDADE}}, sendo vedada ao CONTRATANTE a captação direta ou através de terceiros enquanto vigente este contrato.`,
+Parágrafo único. A ADMINISTRADORA poderá praticar os atos necessários à execução do objeto, sempre observando as instruções contratuais da PROPRIETÁRIA e os limites aqui definidos.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'prazo', titulo: 'Do prazo e renovação', numero: 3,
-    corpo: `O presente contrato tem prazo de {{ADM_PRAZO_MESES}} (doze) meses, com início em {{ADM_DATA_INICIO}} e término em {{ADM_DATA_TERMINO}}.
+    tipo: 'administracao', categoria: 'imovel', titulo: 'Do imóvel administrado', numero: 3,
+    corpo: `IMÓVEL: {{IMOVEL_DESCRICAO}}, situado em {{IMOVEL_ENDERECO}}, CEP {{IMOVEL_CEP}}, com área construída de {{IMOVEL_AREA_CONSTRUIDA}}, registrado sob a matrícula nº {{IMOVEL_MATRICULA}}, {{IMOVEL_LIVRO_FOLHA}}, do {{IMOVEL_CARTORIO}}, inscrição municipal nº {{IMOVEL_INSC_MUNICIPAL}}.
 
-Parágrafo primeiro. Findo o prazo, o contrato será renovado automaticamente por iguais períodos sucessivos, salvo manifestação contrária por escrito de qualquer das partes com antecedência mínima de {{ADM_AVISO_PREVIO_DIAS}} (trinta) dias do término.
-
-Parágrafo segundo. A vigência da administração subsiste mesmo após o término do contrato de locação atualmente vigente, podendo a ADMINISTRADORA buscar novo inquilino para o IMÓVEL.`,
+Parágrafo único. O IMÓVEL é administrado nas condições em que se encontra, devendo a PROPRIETÁRIA entregá-lo apto à locação e à habitação, conforme cláusula "Das obrigações da proprietária".`,
   },
 
   {
-    tipo: 'administracao', categoria: 'taxa', titulo: 'Da taxa de administração', numero: 4,
-    corpo: `O CONTRATANTE remunerará a ADMINISTRADORA com taxa equivalente a {{ADM_TAXA_DESCRICAO}}, devida mensalmente sobre o aluguel efetivamente recebido.
+    tipo: 'administracao', categoria: 'atribuicoes', titulo: 'Das atribuições da administradora', numero: 4,
+    corpo: `Compete à ADMINISTRADORA:
 
-Parágrafo primeiro. A primeira parcela do aluguel poderá ser destinada integralmente à ADMINISTRADORA como comissão de intermediação locatícia, conforme uso e costume do mercado imobiliário, se assim ajustado em parágrafo específico.
+I. Locação e gestão contratual: divulgar o imóvel, agendar visitas e apresentar o bem a interessados; realizar triagem, análise cadastral e aprovação do locatário e garantidores; elaborar e firmar contrato de locação (residencial e/ou não residencial) e aditivos, definindo prazos, reajustes e condições; executar vistorias de entrada, periódicas e de saída, com laudos e registros; administrar renovações, rescisões, notificações e tratativas com o locatário.
 
-Parágrafo segundo. A taxa será descontada automaticamente do valor recebido antes do repasse ao CONTRATANTE, sendo demonstrada em extrato mensal disponível ao CONTRATANTE.
+II. Cobrança e recebimentos: emitir e cobrar aluguéis e encargos; realizar cobrança administrativa (avisos, notificações, negociação) e, se necessário, encaminhar para cobrança extrajudicial/judicial; controlar inadimplência e adotar medidas conforme contrato e lei (Lei 8.245/91, especialmente arts. 9º, 23, 27 e correlatos).
 
-Parágrafo terceiro. A taxa não incide sobre IPTU, condomínio, seguros, multas, indenizações por danos, reembolsos e demais valores que não constituam aluguel propriamente dito.`,
+III. Representação: representar a PROPRIETÁRIA perante o condomínio (quando aplicável) para fins operacionais; solicitar e receber documentos e informações necessárias à administração; encaminhar e acompanhar medidas judiciais por meio de advogado, quando necessário, mediante ciência da PROPRIETÁRIA, salvo urgência.
+
+Parágrafo único. A ADMINISTRADORA adotará preferencialmente o prazo de 30 (trinta) meses para locações residenciais (Lei 8.245/91, art. 46), podendo, por estratégia comercial e acordo com a PROPRIETÁRIA, firmar prazo diverso, respeitando a legislação aplicável.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'repasse', titulo: 'Do repasse ao proprietário', numero: 5,
-    corpo: `O repasse mensal do aluguel recebido, deduzidas a taxa de administração e demais encargos legítimos, será efetuado ao CONTRATANTE até o dia {{ADM_DIA_REPASSE}} de cada mês, mediante crédito em conta bancária ou chave PIX informada pelo CONTRATANTE.
+    tipo: 'administracao', categoria: 'exclusividade', titulo: 'Da exclusividade', numero: 5,
+    corpo: `A administração do imóvel objeto deste contrato será exercida em regime de EXCLUSIVIDADE pela ADMINISTRADORA durante toda a vigência.
 
-Parágrafo primeiro. Caso o aluguel não seja recebido até a data de repasse, a ADMINISTRADORA fica desobrigada de efetuá-lo até o efetivo pagamento pelo inquilino, sem que isso configure inadimplemento de sua parte.
+Parágrafo primeiro. Durante a vigência, a PROPRIETÁRIA não poderá locar o imóvel diretamente nem por intermédio de terceiros, devendo todas as tratativas de locação e renovação ocorrer por meio da ADMINISTRADORA.
 
-Parágrafo segundo. Eventuais despesas necessárias e autorizadas pelo CONTRATANTE (pequenos reparos, taxas administrativas, despesas de cobrança) serão deduzidas do repasse, com apresentação de comprovantes.
-
-Parágrafo terceiro. O CONTRATANTE compromete-se a manter atualizados seus dados bancários junto à ADMINISTRADORA. Eventual atraso no repasse por desatualização cadastral ou erro nos dados fornecidos não configura mora da ADMINISTRADORA.`,
+Parágrafo segundo. O descumprimento da exclusividade sujeitará a PROPRIETÁRIA ao pagamento de multa equivalente a 03 (três) aluguéis vigentes à época da infração, sem prejuízo das comissões de intermediação eventualmente devidas, especialmente se o negócio tiver origem em interessados atendidos ou encaminhados pela ADMINISTRADORA.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'obrigacoes_adm', titulo: 'Das obrigações da administradora', numero: 6,
-    corpo: `Compete à ADMINISTRADORA, no exercício de seu mandato:
-I. anunciar o IMÓVEL nos canais adequados;
-II. analisar candidatos a inquilino, verificar referências e idoneidade financeira;
-III. elaborar contrato de locação, vistorias e termos correlatos;
-IV. promover entrega e recebimento de chaves;
-V. emitir cobranças mensais, recibos e comunicações ao inquilino;
-VI. realizar gestão de inadimplência: cobrança extrajudicial, acordo, protesto, negativação e ação judicial quando autorizada;
-VII. prestar contas ao CONTRATANTE mediante demonstrativo mensal;
-VIII. comunicar ao CONTRATANTE fatos relevantes (sinistros, ações judiciais, propostas, ofertas de compra, vistorias);
-IX. zelar pela conservação do IMÓVEL nas vistorias periódicas e finais;
-X. manter sigilo de dados do CONTRATANTE e do inquilino, observando a Lei Geral de Proteção de Dados.`,
+    tipo: 'administracao', categoria: 'seguros', titulo: 'Do seguro fiança e seguro incêndio', numero: 6,
+    corpo: `Para as locações administradas sob este contrato, serão exigidos do LOCATÁRIO, como regra geral: (a) Seguro Fiança, como garantia locatícia; e (b) Seguro Incêndio, para cobertura de riscos do imóvel, conforme exigência contratual.
+
+Parágrafo primeiro. Em caso de contrato de locação por 12 (doze) meses com pagamento integral antecipado, poderá ser dispensado o seguro fiança, mantendo-se obrigatoriamente o seguro incêndio, desde que a ADMINISTRADORA e a PROPRIETÁRIA concordem formalmente com a dispensa, por escrito.
+
+Parágrafo segundo. Na hipótese de sinistro ou inadimplência com pagamento de indenização pela seguradora, as partes reconhecem que poderá haver sub-rogação da seguradora nos direitos de cobrança, nos termos do art. 786 do Código Civil e das condições da apólice.
+
+Parágrafo terceiro. Os custos dos seguros, quando exigidos, serão atribuídos ao LOCATÁRIO no contrato de locação, salvo disposição diversa ajustada por escrito entre PROPRIETÁRIA e ADMINISTRADORA.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'obrigacoes_contratante', titulo: 'Das obrigações do contratante', numero: 7,
-    corpo: `Compete ao CONTRATANTE:
-I. entregar o IMÓVEL apto à locação, com documentação regularizada (matrícula, IPTU, ligações de água/luz);
-II. autorizar expressamente a ADMINISTRADORA a representá-lo em todos os atos da locação;
-III. comunicar imediatamente à ADMINISTRADORA: venda, oneração, decisão judicial, mudança de estado civil, falecimento ou outro fato que afete a administração;
-IV. manter atualizados seus dados pessoais, bancários e de contato;
-V. responder por vícios estruturais, defeitos ocultos e reparos extraordinários do IMÓVEL;
-VI. arcar com IPTU, taxas, contribuições, despesas extraordinárias do condomínio e demais obrigações inerentes à propriedade;
-VII. respeitar o regime de exclusividade pactuado, abstendo-se de captar inquilino diretamente.`,
+    tipo: 'administracao', categoria: 'encargos', titulo: 'Dos encargos locatícios e do boleto único', numero: 7,
+    corpo: `Serão de responsabilidade do LOCATÁRIO, conforme o contrato de locação e o art. 23 da Lei 8.245/91, os valores de aluguel, condomínio (se houver), IPTU (se houver rateio mensal), água, energia e demais consumos, seguros exigidos e demais encargos previstos.
+
+Parágrafo primeiro. A ADMINISTRADORA poderá realizar a cobrança por meio de boleto único ("boleto cheio"), contendo o total de valores devidos pelo LOCATÁRIO no mês, inclusive seguros e encargos.
+
+Parágrafo segundo. O não pagamento integral do boleto configurará inadimplemento, autorizando a adoção das medidas administrativas e legais cabíveis, conforme contrato e lei.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'rescisao', titulo: 'Da rescisão', numero: 8,
-    corpo: `O presente contrato poderá ser rescindido por qualquer das partes, mediante aviso prévio de {{ADM_AVISO_PREVIO_DIAS}} (trinta) dias, sem incidência de multa, desde que respeitadas as obrigações pendentes e a continuidade do contrato de locação vigente até o seu termo natural.
+    tipo: 'administracao', categoria: 'remuneracao', titulo: 'Da remuneração da administradora', numero: 8,
+    corpo: `A ADMINISTRADORA fará jus à taxa de administração de {{ADM_TAXA_VALOR}} ao mês sobre o valor bruto cobrado do LOCATÁRIO, compreendendo aluguel, condomínio (se houver), IPTU (se houver) e demais encargos faturados no boleto, quando estes compuserem o valor total da cobrança mensal.
 
-Parágrafo primeiro. Em caso de rescisão por iniciativa do CONTRATANTE durante o prazo contratual e sem motivo justificado, será devida multa equivalente a {{ADM_MULTA_MESES}} (três) meses de taxa de administração calculada sobre o aluguel vigente.
+Parágrafo primeiro. Além da taxa mensal, a ADMINISTRADORA terá direito à comissão de intermediação: (a) novo contrato — primeira locação ou novo locatário: 100% (cem por cento) do primeiro aluguel; (b) renovação com o mesmo locatário: 50% (cinquenta por cento) do primeiro aluguel do período renovado.
 
-Parágrafo segundo. A rescisão imotivada não afasta a obrigação do CONTRATANTE de respeitar o contrato de locação vigente firmado pela ADMINISTRADORA com o inquilino, sob pena de responder por perdas e danos.
+Parágrafo segundo. A comissão de intermediação será devida no ato da formalização do contrato ou do aditivo de renovação, podendo ser retida pela ADMINISTRADORA do primeiro recebimento.
 
-Parágrafo terceiro. Configurarão justa causa pra rescisão sem multa: descumprimento reiterado de obrigações; falência ou insolvência da ADMINISTRADORA; perda do CRECI; conduta lesiva aos interesses do CONTRATANTE.`,
+Parágrafo terceiro. A taxa de administração não incide sobre indenizações por danos, reembolsos e valores que não constituam aluguel ou encargos faturados.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'comunicacoes', titulo: 'Das comunicações e LGPD', numero: 9,
-    corpo: `As comunicações entre as partes ocorrerão preferencialmente por escrito, inclusive WhatsApp, e-mail, plataforma digital ou notificação extrajudicial, ficando válidas quando comprovado envio ou recebimento.
+    tipo: 'administracao', categoria: 'repasse', titulo: 'Da prestação de contas e do repasse', numero: 9,
+    corpo: `A ADMINISTRADORA prestará contas mensalmente, informando os valores recebidos, os abatimentos (taxa de administração, comissões, encargos autorizados, taxas bancárias) e o valor líquido a repassar.
 
-Parágrafo único. As partes consentem com o tratamento de dados pessoais necessários à execução deste contrato, nos termos da Lei nº 13.709/2018, comprometendo-se com a guarda, sigilo e uso adequado das informações, observadas as finalidades pactuadas.`,
+Parágrafo primeiro. O repasse à PROPRIETÁRIA ocorrerá até o dia {{ADM_DIA_REPASSE}} de cada mês, ou conforme a data de pagamento pelo LOCATÁRIO estabelecida no contrato de locação, mediante crédito em conta bancária ou chave PIX por ela informada.
+
+Parágrafo segundo. Caso o aluguel não seja recebido até a data de repasse, a ADMINISTRADORA fica desobrigada de efetuá-lo até o efetivo pagamento pelo LOCATÁRIO, sem que isso configure inadimplemento de sua parte.
+
+Parágrafo terceiro. A PROPRIETÁRIA compromete-se a manter atualizados seus dados bancários. Eventual atraso por desatualização cadastral ou erro nos dados fornecidos não configura mora da ADMINISTRADORA.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'foro', titulo: 'Do foro', numero: 10,
-    corpo: `Fica eleito o foro da Comarca de Cuiabá-MT para dirimir quaisquer dúvidas ou controvérsias decorrentes deste contrato, com renúncia expressa a qualquer outro, por mais privilegiado que seja.
+    tipo: 'administracao', categoria: 'manutencao', titulo: 'Da manutenção, reparos e despesas', numero: 10,
+    corpo: `Reparos urgentes que preservem o imóvel, a segurança e a habitabilidade poderão ser providenciados pela ADMINISTRADORA, comunicando a PROPRIETÁRIA no menor prazo possível.
 
-E, por estarem justos e contratados, plenamente cientes da seriedade das obrigações assumidas, assinam o presente instrumento digitalmente, em vias de igual teor, juntamente com 02 (duas) testemunhas.`,
+Parágrafo primeiro. A PROPRIETÁRIA autoriza a ADMINISTRADORA a realizar despesas ordinárias de manutenção até o limite ajustado entre as partes por evento, deduzindo-as do repasse. Despesas de valor superior dependerão de autorização prévia, salvo urgência.
+
+Parágrafo segundo. Benfeitorias e melhorias não urgentes dependerão de aprovação prévia e expressa da PROPRIETÁRIA.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'obrigacoes_contratante', titulo: 'Das obrigações da proprietária', numero: 11,
+    corpo: `Compete à PROPRIETÁRIA:
+I. entregar o IMÓVEL em condições de uso e habitação, apto à locação — limpo, com instalações elétricas e hidráulicas funcionando e, se houver pintura, esta deverá ser nova;
+II. entregar o IMÓVEL com documentação regularizada (matrícula, IPTU, ligações de água e energia);
+III. autorizar expressamente a ADMINISTRADORA a representá-la em todos os atos da locação;
+IV. comunicar imediatamente à ADMINISTRADORA: venda, oneração, decisão judicial, mudança de estado civil, falecimento ou outro fato que afete a administração;
+V. manter atualizados seus dados pessoais, bancários e de contato;
+VI. responder por vícios estruturais, defeitos ocultos e reparos extraordinários do IMÓVEL;
+VII. arcar com IPTU, taxas, contribuições, despesas extraordinárias do condomínio e demais obrigações inerentes à propriedade;
+VIII. respeitar o regime de exclusividade pactuado, abstendo-se de captar locatário diretamente.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'inadimplencia', titulo: 'Da inadimplência e das medidas', numero: 12,
+    corpo: `Em caso de inadimplência, a ADMINISTRADORA poderá:
+I. aplicar e operar multas, juros e correções conforme o contrato de locação;
+II. emitir notificações e realizar cobrança administrativa e extrajudicial;
+III. acionar o seguro fiança, quando aplicável, conforme a apólice;
+IV. promover as medidas judiciais cabíveis, inclusive a ação de despejo (Lei 8.245/91, art. 9º, III).
+
+Parágrafo único. As custas e honorários de cobrança judicial ou extrajudicial serão disciplinados no contrato de locação e/ou conforme contratação específica.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'vigencia', titulo: 'Da vigência e prorrogação', numero: 13,
+    corpo: `O presente contrato terá vigência de {{ADM_PRAZO_MESES}} meses, com início em {{ADM_DATA_INICIO}} e término em {{ADM_DATA_TERMINO}}, prorrogando-se automaticamente por igual período, salvo manifestação expressa, por escrito, com antecedência mínima de {{ADM_AVISO_PREVIO_DIAS}} dias por qualquer das partes.
+
+Parágrafo único. A vigência da administração subsiste ainda que encerrado o contrato de locação então vigente, podendo a ADMINISTRADORA buscar novo locatário para o IMÓVEL.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'rescisao', titulo: 'Da rescisão e multa', numero: 14,
+    corpo: `A rescisão imotivada antes do término da vigência, por qualquer das partes, sujeitará o infrator ao pagamento de multa equivalente a {{ADM_MULTA_MESES}} (três) vezes o valor da remuneração mensal da ADMINISTRADORA, considerando a média dos últimos 3 (três) meses ou, na ausência destes, o valor contratual estimado, salvo acordo escrito diverso.
+
+Parágrafo primeiro. O término ou encerramento do contrato de locação com o locatário não implica automaticamente o encerramento do presente contrato de administração, salvo rescisão formal.
+
+Parágrafo segundo. Configurarão justa causa para rescisão sem multa: descumprimento reiterado de obrigações; falência ou insolvência da ADMINISTRADORA; perda do CRECI; conduta lesiva aos interesses da PROPRIETÁRIA.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'venda', titulo: 'Da venda do imóvel (preferência e visitas)', numero: 15,
+    corpo: `Caso a PROPRIETÁRIA deseje vender o imóvel durante a vigência da locação, deverá ser observado o direito de preferência do locatário (Lei 8.245/91, art. 27), com o prazo legal para manifestação.
+
+Parágrafo único. Após o prazo legal, a ADMINISTRADORA poderá agendar visitas para venda mediante aviso prévio ao LOCATÁRIO, preferencialmente com 48 (quarenta e oito) horas de antecedência, respeitando as regras de convivência e o contrato de locação.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'comissao_venda', titulo: 'Da comissão de venda', numero: 16,
+    corpo: `Se a venda for intermediada pela ADMINISTRADORA, será devida comissão de 5% (cinco por cento) sobre o valor total da venda.
+
+Parágrafo primeiro. A comissão será igualmente devida se a venda ocorrer diretamente pela PROPRIETÁRIA a comprador apresentado ou atendido pela ADMINISTRADORA, ou decorrente de leads, anúncios ou visitas por ela geridos.
+
+Parágrafo segundo. Não haverá comissão de venda se esta ocorrer de forma direta pela PROPRIETÁRIA a comprador totalmente alheio à atuação da ADMINISTRADORA, sem qualquer participação ou indicação desta, desde que a PROPRIETÁRIA comprove a origem do comprador e comunique por escrito.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'comunicacoes', titulo: 'Das comunicações e dados (LGPD)', numero: 17,
+    corpo: `As comunicações oficiais poderão ocorrer por e-mail e/ou WhatsApp informados pelas partes, valendo como ciência, salvo quando a lei exigir outra forma.
+
+Parágrafo único. As partes autorizam o tratamento dos dados pessoais estritamente necessários à execução deste contrato, observando a Lei Geral de Proteção de Dados — Lei nº 13.709/2018 —, comprometendo-se com a guarda, o sigilo e o uso adequado das informações.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'foro', titulo: 'Do foro e disposições finais', numero: 18,
+    corpo: `Fica eleito o foro da Comarca de Cuiabá-MT, com renúncia a qualquer outro por mais privilegiado que seja, para dirimir as controvérsias oriundas deste contrato.
+
+Parágrafo único. E por estarem de pleno acordo, as partes assinam o presente instrumento, inclusive por meio eletrônico, conferindo-lhe validade jurídica conforme a Medida Provisória nº 2.200-2/2001 (ICP-Brasil) e demais normas aplicáveis, em vias de igual teor, na presença de 02 (duas) testemunhas.`,
   },
 
   // ════════════════════════════════════════════════════════════════

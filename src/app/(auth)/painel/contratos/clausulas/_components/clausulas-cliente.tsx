@@ -9,7 +9,7 @@ import {
 import { TIPOS_CLAUSULA, PLACEHOLDERS, type TipoClausula } from '@/lib/contratos/placeholders'
 import {
   criarClausula, atualizarClausula, alternarAtiva, excluirClausula,
-  importarContratoModelo, importarClausulasFaltantes,
+  importarContratoModelo, importarClausulasFaltantes, reimportarClausulasAdministracao,
 } from '../actions'
 
 export interface ClausulaRow {
@@ -73,6 +73,20 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
     })
   }
 
+  const onReimportarAdmin = () => {
+    if (!confirm(
+      'Vai apagar e reimportar SOMENTE as cláusulas de administração (modelo atualizado).\n\n' +
+      'Edições que você fez nas cláusulas de administração serão perdidas. As cláusulas de locação NÃO são afetadas.\n\nConfirmar?'
+    )) return
+    setErro('')
+    startTransition(async () => {
+      const r = await reimportarClausulasAdministracao()
+      if (r.error) { setErro(r.error); return }
+      if (r.mensagem) alert(r.mensagem)
+      recarregar()
+    })
+  }
+
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
       {/* Cabeçalho */}
@@ -111,6 +125,18 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
                 {isPending ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
                 Reimportar modelo
               </button>
+              {tipoAtivo === 'administracao' && (
+                <button
+                  type="button"
+                  onClick={onReimportarAdmin}
+                  disabled={isPending}
+                  className="text-xs font-medium text-violet-700 hover:bg-violet-50 px-3 py-1.5 rounded-lg border border-violet-200 flex items-center gap-1.5 disabled:opacity-50"
+                  title="Apaga e reimporta só as cláusulas de administração (não toca nas de locação)"
+                >
+                  {isPending ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
+                  Atualizar administração
+                </button>
+              )}
             </>
           )}
           <button

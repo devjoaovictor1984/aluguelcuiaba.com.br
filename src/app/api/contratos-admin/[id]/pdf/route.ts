@@ -56,6 +56,23 @@ function fmtCnpj(s: string | null): string | null {
   return s
 }
 
+function fmtData(iso: string | null | undefined): string {
+  if (!iso) return '—'
+  const s = iso.slice(0, 10)
+  const [y, m, d] = s.split('-')
+  return `${d}/${m}/${y}`
+}
+
+function fmtBRLNum(v: number | null | undefined): string {
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v ?? 0)
+}
+
+function formatPct(v: number | null | undefined): string {
+  const n = Number(v ?? 0)
+  const s = Number.isInteger(n) ? String(n) : n.toFixed(2).replace('.', ',')
+  return `${s}%`
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -159,9 +176,23 @@ export async function GET(
 
     // Reordena seguindo clausulaIdsOrdem
     const mapaCl = new Map((clausulasRawUnordered ?? []).map(cl => [cl.id, cl]))
-    const clausulasRaw = clausulaIdsOrdem
+    let clausulasRaw = clausulaIdsOrdem
       .map(id => mapaCl.get(id))
       .filter((x): x is NonNullable<typeof x> => !!x)
+
+    // Fallback: se a geração referencia cláusulas que não existem mais
+    // (ex: após reimportar o modelo de administração), usa todas as
+    // cláusulas tipo='administracao' ativas do user.
+    if (clausulasRaw.length === 0) {
+      const { data: todas } = await admin
+        .from('contrato_clausulas')
+        .select('id, titulo, corpo, numero')
+        .eq('user_id', user.id)
+        .eq('tipo', 'administracao')
+        .eq('ativa', true)
+        .order('numero', { ascending: true })
+      clausulasRaw = todas ?? []
+    }
 
     // 4. Monta dados pros placeholders
     const prop = Array.isArray(c.proprietario) ? c.proprietario[0] : c.proprietario
@@ -220,10 +251,59 @@ export async function GET(
           .eq('user_id', user.id)
       : { data: [] }
 
+    // 4b. Monta resumo da capa (taxa, prazo, datas, exclusividade) + endereço do imóvel
+    const taxaStr = c.taxa_tipo === 'fixo'
+      ? `${fmtBRLNum(c.taxa_valor)} / mês`
+      : `${formatPct(c.taxa_valor)} ao mês`
+    const prazoStr = c.prazo_meses ? `${c.prazo_meses} meses` : (c.data_termino ? '—' : 'Indeterminado')
+    const terminoStr = c.data_termino
+      ? fmtData(c.data_termino)
+      : (c.data_inicio && c.prazo_meses
+          ? (() => {
+              const ini = new Date(c.data_inicio + 'T00:00:00')
+              const fim = new Date(ini.getFullYear(), ini.getMonth() + c.prazo_meses, ini.getDate() - 1)
+              return fim.toLocaleDateString('pt-BR')
+            })()
+          : 'Indeterminado')
+
+    let imovelEndereco = ''
+    if (im?.endereco_completo) {
+      imovelEndereco = [
+        im.endereco_completo,
+        im.endereco_numero ? `nº ${im.endereco_numero}` : null,
+        im.endereco_complemento,
+        bairro?.nome,
+      ].filter(Boolean).join(', ')
+    } else if (im?.endereco_resumido) {
+      imovelEndereco = `${im.endereco_resumido}${bairro?.nome ? `, ${bairro.nome}` : ''}`
+    }
+    let imovelDescricao = (im?.descricao_real ?? im?.descricao ?? '')
+      .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+    if (im?.area_construida_m2 && !imovelDescricao.includes('m²')) {
+      imovelDescricao = imovelDescricao ? `${imovelDescricao} · ${im.area_construida_m2} m²` : `${im.area_construida_m2} m²`
+    }
+
+    const resumoLinhas = [
+      { label: 'Taxa', valor: taxaStr },
+      { label: 'Prazo', valor: prazoStr },
+      { label: 'Início', valor: fmtData(c.data_inicio) },
+      { label: 'Término', valor: terminoStr },
+      { label: 'Repasse', valor: c.dia_repasse ? `Até o dia ${c.dia_repasse}` : '—' },
+      { label: 'Exclusividade', valor: c.exclusividade ? 'Sim' : 'Não' },
+    ]
+
     // 5. Monta data pro PDF
     const pdfData: ContratoPDFData = {
       codigo: c.codigo,
       data_assinatura: new Date().toISOString().slice(0, 10),
+      tipo_documento: 'administracao',
+      incluir_capa: true,
+      resumo_linhas: resumoLinhas,
+      resumo_capa: {
+        aluguel_str: '', prazo_str: prazoStr, inicio_str: fmtData(c.data_inicio),
+        termino_str: terminoStr, garantia_str: '',
+        imovel_endereco: imovelEndereco, imovel_descricao: imovelDescricao,
+      },
       anunciante_nome: perfil?.nome ?? 'AluguelCuiabá',
       anunciante_razao_social: perfil?.razao_social ?? null,
       anunciante_cnpj: fmtCnpj(perfil?.cnpj ?? null),

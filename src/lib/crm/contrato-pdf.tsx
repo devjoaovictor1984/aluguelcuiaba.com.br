@@ -55,6 +55,14 @@ export interface ContratoPDFData {
   codigo: string
   data_assinatura: string  // YYYY-MM-DD
 
+  /** Tipo de documento — adapta título, partes da capa e resumo.
+   *  'locacao' (default) ou 'administracao' (proprietária × administradora). */
+  tipo_documento?: 'locacao' | 'administracao'
+
+  /** Linhas customizadas pro bloco RESUMO da capa. Quando presente,
+   *  substitui o resumo fixo de aluguel/garantia (usado no de administração). */
+  resumo_linhas?: Array<{ label: string; valor: string }>
+
   /** Quando true, inclui a capa executiva como página 1 do PDF. */
   incluir_capa?: boolean
 
@@ -443,18 +451,21 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
   // - administracao: "com Administração Imobiliária" (default)
   // - intermediacao: "(intermediado por X)"
   // - direto:        "Direta entre Locador e Locatário"
+  const isAdmin = data.tipo_documento === 'administracao'
   const atuacao = data.tipo_atuacao ?? (data.tem_administracao ? 'administracao' : 'administracao')
-  const subtituloContrato =
-    atuacao === 'administracao' ? 'com Administração Imobiliária' :
-    atuacao === 'intermediacao' ? `Intermediada por ${nomeInst}` :
-    'Direta entre Locador e Locatário'
+  const subtituloContrato = isAdmin
+    ? 'com Exclusividade'
+    : atuacao === 'administracao' ? 'com Administração Imobiliária' :
+      atuacao === 'intermediacao' ? `Intermediada por ${nomeInst}` :
+      'Direta entre Locador e Locatário'
 
   // Título principal adapta pela finalidade do contrato
   const finalidade = data.finalidade ?? 'residencial'
-  const tituloFinalidade =
-    finalidade === 'comercial' ? 'Contrato de Locação Comercial' :
-    finalidade === 'misto'     ? 'Contrato de Locação Residencial e Comercial' :
-                                 'Contrato de Locação Residencial'
+  const tituloFinalidade = isAdmin
+    ? 'Contrato de Administração de Imóvel'
+    : finalidade === 'comercial' ? 'Contrato de Locação Comercial' :
+      finalidade === 'misto'     ? 'Contrato de Locação Residencial e Comercial' :
+                                   'Contrato de Locação Residencial'
 
   // Visual elegante mas sem usar position:absolute + border (que quebrava
   // o render). Cabeçalho aparece só na primeira página; layout linear.
@@ -576,13 +587,21 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 RESUMO
               </Text>
               <View style={{ height: 0.6, backgroundColor: '#e5e7eb', marginBottom: 8 }} />
-              <ResumoCapaLinha label="Aluguel"  valor={data.resumo_capa.aluguel_str} />
-              <ResumoCapaLinha label="Prazo"    valor={data.resumo_capa.prazo_str} />
-              <ResumoCapaLinha label="Início"   valor={data.resumo_capa.inicio_str} />
-              <ResumoCapaLinha label="Término"  valor={data.resumo_capa.termino_str} />
-              <ResumoCapaLinha label="Garantia" valor={data.resumo_capa.garantia_str} />
-              {data.resumo_capa.seguro_fianca_str && (
-                <ResumoCapaLinha label="Seguro fiança" valor={data.resumo_capa.seguro_fianca_str} />
+              {data.resumo_linhas && data.resumo_linhas.length > 0 ? (
+                data.resumo_linhas.map((l, i) => (
+                  <ResumoCapaLinha key={i} label={l.label} valor={l.valor} />
+                ))
+              ) : (
+                <>
+                  <ResumoCapaLinha label="Aluguel"  valor={data.resumo_capa.aluguel_str} />
+                  <ResumoCapaLinha label="Prazo"    valor={data.resumo_capa.prazo_str} />
+                  <ResumoCapaLinha label="Início"   valor={data.resumo_capa.inicio_str} />
+                  <ResumoCapaLinha label="Término"  valor={data.resumo_capa.termino_str} />
+                  <ResumoCapaLinha label="Garantia" valor={data.resumo_capa.garantia_str} />
+                  {data.resumo_capa.seguro_fianca_str && (
+                    <ResumoCapaLinha label="Seguro fiança" valor={data.resumo_capa.seguro_fianca_str} />
+                  )}
+                </>
               )}
             </View>
           )}
@@ -969,6 +988,29 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             {cidadeUf}, {dataExtenso}.
           </Text>
 
+          {/* ═══ Contrato de administração: ADMINISTRADORA × PROPRIETÁRIA ═══ */}
+          {isAdmin ? (
+            <>
+              <View style={{ marginBottom: 22 }}>
+                <Text style={blocoPapel}>ADMINISTRADORA</Text>
+                <Text style={blocoNome}>{data.admin_responsavel_nome ?? nomeInst}</Text>
+                {data.admin_responsavel_creci && (
+                  <Text style={blocoSecundario}>Corretor(a) responsável — CRECI {data.admin_responsavel_creci}</Text>
+                )}
+                <Text style={blocoSecundario}>
+                  {nomeInst}{data.anunciante_cnpj ? ` — CNPJ ${data.anunciante_cnpj}` : ''}
+                </Text>
+                <View style={linhaAssinatura} />
+              </View>
+              <View style={{ marginBottom: 22 }}>
+                <Text style={blocoPapel}>PROPRIETÁRIA(O)</Text>
+                <Text style={blocoNome}>{data.locador_nome}</Text>
+                {data.locador_cpf && <Text style={blocoSecundario}>CPF/CNPJ {data.locador_cpf}</Text>}
+                <View style={linhaAssinatura} />
+              </View>
+            </>
+          ) : (
+          <>
           {/* Locador / Administradora / Intermediador (conforme tipo de atuação) */}
           {atuacao === 'administracao' && data.tem_administracao ? (
             <View style={{ marginBottom: 22 }}>
@@ -1045,6 +1087,8 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               {data.fiador_cpf && <Text style={blocoSecundario}>CPF {data.fiador_cpf}</Text>}
               <View style={linhaAssinatura} />
             </View>
+          )}
+          </>
           )}
 
           {/* Testemunhas */}
@@ -1289,6 +1333,29 @@ function PartesCapa({
   data: ContratoPDFData
 }) {
   const linhas: Array<{ papel: string; nome: string; cpf: string | null }> = []
+
+  // Contrato de administração: ADMINISTRADORA × PROPRIETÁRIA (sem locatário/fiador)
+  if (data.tipo_documento === 'administracao') {
+    linhas.push({
+      papel: 'Administradora',
+      nome: `${data.anunciante_razao_social ?? data.anunciante_nome}${data.admin_responsavel_nome ? ` — rep. ${data.admin_responsavel_nome}` : ''}`,
+      cpf: data.anunciante_cnpj,
+    })
+    linhas.push({ papel: 'Proprietária(o)', nome: data.locador_nome, cpf: data.locador_cpf })
+    return (
+      <View>
+        {linhas.map((l, i) => (
+          <View key={i} style={{ flexDirection: 'row', paddingVertical: 3 }}>
+            <Text style={{ width: 100, fontSize: 9, color: '#6b7280', fontFamily: FAMILIA }}>{l.papel}</Text>
+            <Text style={{ flex: 1, fontSize: 10, color: '#111827', fontFamily: FAMILIA, fontWeight: 'bold' }}>{l.nome}</Text>
+            {l.cpf && (
+              <Text style={{ width: 110, fontSize: 9, color: '#6b7280', fontFamily: FAMILIA, textAlign: 'right' }}>{l.cpf}</Text>
+            )}
+          </View>
+        ))}
+      </View>
+    )
+  }
 
   // Administradora / Intermediador (só se aplicável)
   if (tipoAtuacao === 'administracao' && data.tem_administracao && data.admin_responsavel_nome) {

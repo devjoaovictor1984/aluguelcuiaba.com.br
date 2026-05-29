@@ -29,7 +29,42 @@ export async function obterOuCriarGeracaoAdm(contratoAdmId: string) {
     .limit(1)
     .maybeSingle()
 
-  if (existente) return { ok: true, geracao: existente }
+  if (existente) {
+    // Reconcilia: se os clausula_ids salvos não existem mais (ex: após
+    // reimportar o modelo de administração), recompõe com as cláusulas atuais.
+    const ids = (existente.clausula_ids ?? []) as string[]
+    if (ids.length > 0) {
+      const { data: validas } = await supabase
+        .from('contrato_clausulas')
+        .select('id')
+        .in('id', ids)
+        .eq('user_id', acesso.userId)
+      const validSet = new Set((validas ?? []).map(c => c.id))
+      const idsValidos = ids.filter(id => validSet.has(id))
+      if (idsValidos.length === 0) {
+        // todos órfãos → recarrega todas tipo='administracao'
+        const { data: atuais } = await supabase
+          .from('contrato_clausulas')
+          .select('id')
+          .eq('user_id', acesso.userId)
+          .eq('tipo', 'administracao')
+          .eq('ativa', true)
+          .order('numero', { ascending: true })
+        const novos = (atuais ?? []).map(c => c.id)
+        await supabase.from('contrato_admin_geracoes')
+          .update({ clausula_ids: novos })
+          .eq('id', existente.id).eq('user_id', acesso.userId)
+        return { ok: true, geracao: { ...existente, clausula_ids: novos } }
+      }
+      if (idsValidos.length !== ids.length) {
+        await supabase.from('contrato_admin_geracoes')
+          .update({ clausula_ids: idsValidos })
+          .eq('id', existente.id).eq('user_id', acesso.userId)
+        return { ok: true, geracao: { ...existente, clausula_ids: idsValidos } }
+      }
+    }
+    return { ok: true, geracao: existente }
+  }
 
   // Pega TODAS cláusulas tipo='administracao' do user (em ordem)
   const { data: clausulas } = await supabase
