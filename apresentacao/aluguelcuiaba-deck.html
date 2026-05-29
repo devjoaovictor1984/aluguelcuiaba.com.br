@@ -69,6 +69,14 @@
   .nav button:hover{opacity:1}
   .count{position:fixed;bottom:24px;left:22px;font-size:.8rem;color:var(--cinza2);z-index:50}
   .bar{position:fixed;top:0;left:0;height:4px;background:var(--roxo2);z-index:60;transition:width .25s}
+  /* Gráfico de barras (CSS puro, sem libs) */
+  .cht{display:flex;align-items:flex-end;gap:2.2rem;height:40vh;margin-top:2.2rem;padding:0 1rem}
+  .cht-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%}
+  .cht-bar{width:72%;max-width:140px;border-radius:12px 12px 0 0;background:linear-gradient(180deg,var(--roxo-claro),var(--roxo2));position:relative;min-height:10px}
+  .cht-bar.alt{background:linear-gradient(180deg,#34d399,#0ea371)}
+  .cht-val{position:absolute;top:-2.1rem;left:50%;transform:translateX(-50%);font-size:1.05rem;font-weight:800;color:#fff;white-space:nowrap}
+  .cht-lab{font-size:.98rem;font-weight:700;color:#efeaff;margin-top:.9rem;text-align:center}
+  .cht-lab small{display:block;font-weight:500;color:var(--cinza2);font-size:.78rem;margin-top:.2rem}
   @media print{
     body{overflow:visible}
     #deck{display:block;overflow:visible;height:auto}
@@ -301,6 +309,48 @@
     <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
   </section>
 
+  <!-- CENÁRIOS · PREMISSAS -->
+  <section class="slide">
+    <div class="eyebrow">Cenários · Cuiabá (piloto)</div>
+    <h2>Premissas do modelo</h2>
+    <div class="grid g3">
+      <div class="card"><h3>4.000</h3><p>corretores e imobiliárias ativos em Cuiabá (≈ 650 mil hab.)</p></div>
+      <div class="card"><h3>10 imóveis</h3><p>administrados por assinante (faixa 5–15)</p></div>
+      <div class="card"><h3>R$ 2.250</h3><p>aluguel médio (faixa R$ 1.500–3.000)</p></div>
+      <div class="card"><h3>R$ 64,90/mês</h3><p>mensalidade média (básico R$ 49,90 · ilimitado R$ 99,90)</p></div>
+      <div class="card"><h3>13% do aluguel</h3><p>seguro fiança mensal → ≈ R$ 3.510/ano de prêmio por imóvel</p></div>
+      <div class="card"><h3>R$ 200/ano</h3><p>comissão estimada da plataforma por apólice (por imóvel)</p></div>
+    </div>
+    <p class="muted" style="margin-top:1.1rem">Adesão modelada sobre os 4.000 corretores: <span class="hl">pessimista 5%</span> · <span class="hl">realista 10%</span> · <span class="hl">otimista 20%</span>. Projeções ilustrativas — não constituem garantia de resultado.</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- CENÁRIOS · RECEITA DA PLATAFORMA -->
+  <section class="slide">
+    <div class="eyebrow">Cenários · Receita da plataforma</div>
+    <h2>Faturamento anual estimado</h2>
+    <div class="cht">
+      <div class="cht-col"><div class="cht-bar" style="height:25%"><span class="cht-val">R$ 556 mil</span></div><div class="cht-lab">Pessimista<small>5% · 200 assinantes</small></div></div>
+      <div class="cht-col"><div class="cht-bar" style="height:50%"><span class="cht-val">R$ 1,11 mi</span></div><div class="cht-lab">Realista<small>10% · 400 assinantes</small></div></div>
+      <div class="cht-col"><div class="cht-bar" style="height:100%"><span class="cht-val">R$ 2,22 mi</span></div><div class="cht-lab">Otimista<small>20% · 800 assinantes</small></div></div>
+    </div>
+    <p class="muted" style="margin-top:1.4rem">Assinaturas + comissão de seguro. Ex. realista: R$ 312 mil (assinaturas) + R$ 800 mil (seguro) = <span class="hl">R$ 1,11 mi/ano</span> (≈ R$ 93 mil/mês).</p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
+  <!-- CENÁRIOS · MERCADO DE SEGURO (foco seguradora) -->
+  <section class="slide">
+    <div class="eyebrow">Cenários · Para a seguradora</div>
+    <h2>Seguro fiança canalizado / ano</h2>
+    <div class="cht">
+      <div class="cht-col"><div class="cht-bar alt" style="height:25%"><span class="cht-val">R$ 7,0 mi</span></div><div class="cht-lab">Pessimista<small>2.000 apólices/ano</small></div></div>
+      <div class="cht-col"><div class="cht-bar alt" style="height:50%"><span class="cht-val">R$ 14,0 mi</span></div><div class="cht-lab">Realista<small>4.000 apólices/ano</small></div></div>
+      <div class="cht-col"><div class="cht-bar alt" style="height:100%"><span class="cht-val">R$ 28,1 mi</span></div><div class="cht-lab">Otimista<small>8.000 apólices/ano</small></div></div>
+    </div>
+    <p class="muted" style="margin-top:1.4rem">Prêmio anual em seguro fiança gerado pela plataforma <span class="hl">só em Cuiabá</span>. Cada imóvel administrado = 1 apólice/ano, renovável. <span class="hl-ok">A expansão por cidade multiplica esse volume.</span></p>
+    <div class="footer"><span>AluguelCuiabá · IMOBILIATTO</span><span>aluguelcuiaba.com.br</span></div>
+  </section>
+
   <!-- FORMAS DE PARCERIA (externo) -->
   <section class="slide">
     <div class="eyebrow">Formas de parceria</div>
@@ -344,7 +394,7 @@
 
 </div>
 
-<div class="count" id="count">1 / 18</div>
+<div class="count" id="count">1 / 21</div>
 <div class="nav">
   <button onclick="go(-1)" aria-label="anterior">‹</button>
   <button onclick="go(1)" aria-label="próximo">›</button>

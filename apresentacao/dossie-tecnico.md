@@ -170,6 +170,41 @@ Todo contrato de locação gerado na plataforma **exige seguro fiança e/ou inc�
 
 ---
 
+## 9.1 Projeções de receita — Cuiabá (piloto)
+
+> Projeções **ilustrativas**, baseadas nas premissas abaixo. Não constituem garantia de resultado.
+
+**Premissas:**
+- 4.000 corretores/imobiliárias ativos em Cuiabá (≈ 650 mil hab.)
+- 10 imóveis administrados por assinante (faixa 5–15)
+- Aluguel médio R$ 2.250 (faixa R$ 1.500–3.000)
+- Mensalidade média da plataforma R$ 64,90 (básico R$ 49,90 · ilimitado R$ 99,90)
+- Seguro fiança = 13% do aluguel/mês → ≈ R$ 3.510/ano de prêmio por imóvel
+- Comissão estimada da plataforma: R$ 200/ano por apólice (por imóvel)
+- Cada imóvel administrado = 1 apólice de seguro fiança/ano (renovável)
+
+**Cenários por taxa de adesão sobre os 4.000 corretores:**
+
+| Cenário | Adesão | Assinantes | Imóveis | Assinaturas/ano | Comissão seguro/ano | **Total plataforma/ano** |
+|---|---|---|---|---|---|---|
+| Pessimista | 5% | 200 | 2.000 | R$ 155,8 mil | R$ 400 mil | **R$ 555,8 mil** (~R$ 46 mil/mês) |
+| Realista | 10% | 400 | 4.000 | R$ 311,5 mil | R$ 800 mil | **R$ 1,11 mi** (~R$ 93 mil/mês) |
+| Otimista | 20% | 800 | 8.000 | R$ 623,0 mil | R$ 1,6 mi | **R$ 2,22 mi** (~R$ 185 mil/mês) |
+
+**Mercado de seguro canalizado (relevante para a seguradora):**
+
+| Cenário | Apólices/ano | Prêmio anual de seguro fiança gerado |
+|---|---|---|
+| Pessimista | 2.000 | R$ 7,0 milhões |
+| Realista | 4.000 | R$ 14,0 milhões |
+| Otimista | 8.000 | R$ 28,1 milhões |
+
+> Isso é **só em Cuiabá**. A expansão por cidade (modelo de franquia) multiplica o volume — cada nova praça adiciona seu próprio funil de apólices.
+
+**Como ler:** a receita da plataforma vem de duas fontes — assinaturas (SaaS) e comissão de seguro. Para a seguradora, o número-chave é o **volume de prêmios e o nº de apólices/ano** que a plataforma entrega de forma recorrente e qualificada (contratos reais, no momento da locação).
+
+---
+
 ## 10. Roteiro sugerido da demo ao vivo
 
 1. **Site público** — abrir um anúncio, mostrar SEO/visual e o blog.
