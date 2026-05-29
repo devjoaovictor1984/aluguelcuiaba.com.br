@@ -7,6 +7,20 @@
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
 <meta http-equiv="Pragma" content="no-cache" />
 <meta http-equiv="Expires" content="0" />
+<script>
+  /* Garante versão sempre atual: remove service workers e caches que possam
+     estar servindo uma versão antiga deste deck (o site é PWA). */
+  try {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (rs) {
+        rs.forEach(function (r) { r.unregister(); });
+      });
+    }
+    if (window.caches && caches.keys) {
+      caches.keys().then(function (ks) { ks.forEach(function (k) { caches.delete(k); }); });
+    }
+  } catch (e) {}
+</script>
 <title>AluguelCuiabá — Apresentação da Plataforma</title>
 <style>
   :root{
