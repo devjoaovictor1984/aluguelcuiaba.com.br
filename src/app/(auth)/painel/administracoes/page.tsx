@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Briefcase, Plus, Home, User } from 'lucide-react'
+import { Briefcase, Plus, Home, User, CalendarClock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { Breadcrumbs } from '@/components/breadcrumbs'
@@ -16,6 +16,40 @@ function fmtData(d: string | null): string {
   return new Date(d + (d.length === 10 ? 'T00:00:00' : '')).toLocaleDateString('pt-BR')
 }
 
+function addMonths(d: Date, m: number): Date {
+  return new Date(d.getFullYear(), d.getMonth() + m, d.getDate())
+}
+
+interface VencInfo {
+  data: Date | null
+  dias: number | null        // dias até o próximo vencimento (negativo = passou)
+  renovaAuto: boolean
+}
+
+/** Calcula o próximo vencimento. Com renovação automática, rola os ciclos de
+ *  prazo_meses pra frente até cair em data futura (útil pra contratos antigos). */
+function calcularVencimento(c: {
+  data_inicio: string | null
+  data_termino: string | null
+  prazo_meses: number | null
+  renovacao_automatica: boolean | null
+}): VencInfo {
+  let termino: Date | null = null
+  if (c.data_termino) termino = new Date(c.data_termino + 'T00:00:00')
+  else if (c.data_inicio && c.prazo_meses) termino = addMonths(new Date(c.data_inicio + 'T00:00:00'), c.prazo_meses)
+
+  const renovaAuto = !!c.renovacao_automatica && !!c.prazo_meses && (c.prazo_meses ?? 0) > 0
+  if (!termino) return { data: null, dias: null, renovaAuto }
+
+  const hoje = new Date(); hoje.setHours(0, 0, 0, 0)
+  if (renovaAuto && c.prazo_meses) {
+    let guard = 0
+    while (termino < hoje && guard < 240) { termino = addMonths(termino, c.prazo_meses); guard++ }
+  }
+  const dias = Math.ceil((termino.getTime() - hoje.getTime()) / 86400000)
+  return { data: termino, dias, renovaAuto }
+}
+
 export default async function AdministracoesPage() {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
@@ -24,6 +58,7 @@ export default async function AdministracoesPage() {
     .from('contratos_administracao')
     .select(`
       id, codigo, status, data_inicio, data_termino,
+      prazo_meses, renovacao_automatica, aviso_previo_dias,
       taxa_tipo, taxa_valor, exclusividade,
       proprietario:pessoas!proprietario_id(id, nome),
       imovel:imoveis(id, titulo)
@@ -32,8 +67,26 @@ export default async function AdministracoesPage() {
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
-  const lista = contratos ?? []
   type Prop = { nome: string } | { nome: string }[] | null
+
+  // Anexa info de vencimento e ordena os ATIVOS por proximidade do vencimento
+  const lista = (contratos ?? [])
+    .map(c => ({ ...c, venc: calcularVencimento(c) }))
+    .sort((a, b) => {
+      const ativoA = a.status === 'ativo' ? 0 : 1
+      const ativoB = b.status === 'ativo' ? 0 : 1
+      if (ativoA !== ativoB) return ativoA - ativoB
+      const da = a.venc.dias ?? Number.POSITIVE_INFINITY
+      const db = b.venc.dias ?? Number.POSITIVE_INFINITY
+      return da - db
+    })
+
+  // Contratos ativos que precisam de atenção (dentro da janela de aviso prévio ou vencidos)
+  const aRenovar = lista.filter(c => {
+    if (c.status !== 'ativo' || c.venc.dias == null) return false
+    const janela = c.aviso_previo_dias ?? 60
+    return c.venc.dias <= janela
+  })
 
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-6">
@@ -56,6 +109,25 @@ export default async function AdministracoesPage() {
           <span>Novo contrato de admin</span>
         </Link>
       </div>
+
+      {aRenovar.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+          <CalendarClock size={18} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="text-sm text-amber-900">
+            <span className="font-semibold">{aRenovar.length} contrato{aRenovar.length === 1 ? '' : 's'} a renovar em breve.</span>{' '}
+            {aRenovar.slice(0, 4).map((c, i) => {
+              const prop = (Array.isArray(c.proprietario) ? c.proprietario[0] : c.proprietario) as { nome?: string } | null
+              const venceu = (c.venc.dias ?? 0) < 0
+              return (
+                <Link key={c.id} href={`/painel/administracoes/${c.id}`} className="underline hover:no-underline">
+                  {prop?.nome ?? c.codigo} ({venceu ? 'venceu' : `${c.venc.dias}d`}){i < Math.min(aRenovar.length, 4) - 1 ? ', ' : ''}
+                </Link>
+              )
+            })}
+            {aRenovar.length > 4 && <span> e mais {aRenovar.length - 4}.</span>}
+          </div>
+        </div>
+      )}
 
       {lista.length === 0 ? (
         <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-12 text-center">
@@ -98,7 +170,30 @@ export default async function AdministracoesPage() {
                     </p>
                   </div>
                   <div className="text-right shrink-0">
-                    <p className="text-xs text-gray-500">{fmtData(c.data_inicio)} {c.data_termino ? `→ ${fmtData(c.data_termino)}` : '· indeterminado'}</p>
+                    {(() => {
+                      if (c.status !== 'ativo' || c.venc.dias == null) {
+                        return <p className="text-xs text-gray-400">{c.data_termino ? `término ${fmtData(c.data_termino)}` : 'prazo indeterminado'}</p>
+                      }
+                      const dias = c.venc.dias
+                      const janela = c.aviso_previo_dias ?? 60
+                      const dataStr = c.venc.data ? c.venc.data.toLocaleDateString('pt-BR') : '—'
+                      let cls = 'text-gray-500'
+                      let texto: string
+                      if (dias < 0) {
+                        cls = 'text-red-600 font-semibold'
+                        texto = c.venc.renovaAuto ? `renovar — venceu há ${Math.abs(dias)}d` : `venceu há ${Math.abs(dias)}d`
+                      } else if (dias <= janela) {
+                        cls = 'text-amber-700 font-semibold'
+                        texto = c.venc.renovaAuto ? `renova em ${dias}d (auto)` : `vence em ${dias}d`
+                      } else {
+                        texto = c.venc.renovaAuto ? `renova ${dataStr}` : `vence ${dataStr}`
+                      }
+                      return (
+                        <p className={`text-xs flex items-center justify-end gap-1 ${cls}`}>
+                          <CalendarClock size={11} /> {texto}
+                        </p>
+                      )
+                    })()}
                     <p className="text-sm font-bold text-violet-700 mt-0.5">{taxa}</p>
                   </div>
                 </Link>

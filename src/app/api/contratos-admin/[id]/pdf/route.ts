@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
-import { PDFDocument } from 'pdf-lib'
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
@@ -36,6 +36,27 @@ async function mergeAnexos(
     }
   }
   return pdfFinal.save()
+}
+
+/** Carimba paginação no rodapé de cada página (pós-render, via pdf-lib). */
+async function carimbarPaginacao(pdfBytes: Uint8Array, codigo: string): Promise<Uint8Array> {
+  try {
+    const pdf = await PDFDocument.load(pdfBytes)
+    const font = await pdf.embedFont(StandardFonts.Helvetica)
+    const paginas = pdf.getPages()
+    const total = paginas.length
+    paginas.forEach((page, i) => {
+      const { width } = page.getSize()
+      const texto = `Contrato de Administração ${codigo}  ·  AluguelCuiaba.com.br  ·  Página ${i + 1} de ${total}`
+      const size = 7
+      const larguraTexto = font.widthOfTextAtSize(texto, size)
+      page.drawText(texto, { x: (width - larguraTexto) / 2, y: 22, size, font, color: rgb(0.6, 0.6, 0.64) })
+    })
+    return await pdf.save()
+  } catch (e) {
+    console.error('[contrato-admin-pdf] falha ao carimbar paginação:', e)
+    return pdfBytes
+  }
 }
 
 export const runtime = 'nodejs'
@@ -122,9 +143,6 @@ export async function GET(
       .eq('id', user.id)
       .maybeSingle()
 
-    const cnpjFmt = perfil?.cnpj
-      ? perfil.cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
-      : null
     const cepFmt = perfil?.endereco_cep
       ? perfil.endereco_cep.replace(/^(\d{5})(\d{3})$/, '$1-$2')
       : null
@@ -368,6 +386,9 @@ export async function GET(
         finalBytes = await mergeAnexos(finalBytes, anexosBuffers)
       }
     }
+
+    // Carimba paginação no rodapé de todas as páginas
+    finalBytes = await carimbarPaginacao(finalBytes, c.codigo)
 
     const filename = `contrato-administracao-${c.codigo}.pdf`
     return new Response(finalBytes as unknown as BodyInit, {
