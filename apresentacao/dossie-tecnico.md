@@ -188,7 +188,7 @@ As duas primeiras repetem todo mês enquanto durar o contrato; a terceira renova
 - 4.000 corretores/imobiliárias ativos em Cuiabá (≈ 650 mil hab.)
 - 10 imóveis administrados por assinante (faixa 5–15)
 - Aluguel médio R$ 2.250 (faixa R$ 1.500–3.000)
-- Mensalidade média por assinante R$ 64,90 (mix básico/ilimitado)
+- Mensalidade média por assinante R$ 74,90 (média dos dois planos: R$ 49,90 e R$ 99,90)
 - **Prêmio do seguro fiança:** 13% do aluguel/mês → ≈ **R$ 3.510/ano** por imóvel
 - **Prêmio do seguro incêndio:** ≈ **R$ 200/ano** por imóvel
 - Cada imóvel administrado = 1 apólice de fiança + 1 de incêndio por ano (renováveis)
@@ -197,9 +197,9 @@ As duas primeiras repetem todo mês enquanto durar o contrato; a terceira renova
 
 | Cenário | Adesão | Assinantes | **Assinaturas/ano** | Por mês |
 |---|---|---|---|---|
-| Pessimista | 5% | 200 | **R$ 155,8 mil** | ~R$ 13 mil |
-| Realista | 10% | 400 | **R$ 311,5 mil** | ~R$ 26 mil |
-| Otimista | 20% | 800 | **R$ 623,0 mil** | ~R$ 52 mil |
+| Pessimista | 5% | 200 | **R$ 179,8 mil** | ~R$ 15 mil |
+| Realista | 10% | 400 | **R$ 359,5 mil** | ~R$ 30 mil |
+| Otimista | 20% | 800 | **R$ 719,0 mil** | ~R$ 60 mil |
 
 > Só a mensalidade do sistema, sem contar seguro. É a base previsível e recorrente.
 
