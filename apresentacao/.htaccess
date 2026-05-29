@@ -1,0 +1,15 @@
+# Sempre servir a versão atual dos arquivos desta pasta (sem cache do navegador).
+# Resolve o problema do deck "voltar" para uma versão antiga quando servido via Apache/XAMPP.
+<IfModule mod_headers.c>
+  <FilesMatch "\.(html?|css|js)$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
+# Desliga o ETag (outra fonte de cache/revalidação)
+<IfModule mod_headers.c>
+  Header unset ETag
+</IfModule>
+FileETag None

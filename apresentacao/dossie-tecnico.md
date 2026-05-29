@@ -187,9 +187,9 @@ As duas primeiras repetem todo mês enquanto durar o contrato; a terceira renova
 ### Premissas
 - 4.000 corretores/imobiliárias ativos em Cuiabá (≈ 650 mil hab.)
 - 10 imóveis administrados por assinante (faixa 5–15)
-- Aluguel médio R$ 2.250 (faixa R$ 1.500–3.000)
+- Aluguel médio de referência R$ 2.500 (faixa R$ 1.500–3.000)
 - Mensalidade média por assinante R$ 74,90 (média dos dois planos: R$ 49,90 e R$ 99,90)
-- **Prêmio do seguro fiança:** 13% do aluguel/mês → ≈ **R$ 3.510/ano** por imóvel
+- **Prêmio do seguro fiança:** R$ 325/mês (13% de R$ 2.500) → **R$ 3.900/ano** por imóvel
 - **Prêmio do seguro incêndio:** ≈ **R$ 200/ano** por imóvel
 - Cada imóvel administrado = 1 apólice de fiança + 1 de incêndio por ano (renováveis)
 
@@ -205,13 +205,13 @@ As duas primeiras repetem todo mês enquanto durar o contrato; a terceira renova
 
 ### 2) Seguro canalizado (relevante para a seguradora)
 
-Prêmio anual = fiança (R$ 3.510) + incêndio (R$ 200) = **R$ 3.710 por imóvel/ano**.
+Prêmio anual = fiança (R$ 3.900) + incêndio (R$ 200) = **R$ 4.100 por imóvel/ano**.
 
 | Cenário | Imóveis / apólices | Fiança/ano | Incêndio/ano | **Prêmio total/ano** |
 |---|---|---|---|---|
-| Pessimista | 2.000 | R$ 7,02 mi | R$ 0,40 mi | **R$ 7,4 mi** |
-| Realista | 4.000 | R$ 14,04 mi | R$ 0,80 mi | **R$ 14,8 mi** |
-| Otimista | 8.000 | R$ 28,08 mi | R$ 1,60 mi | **R$ 29,7 mi** |
+| Pessimista | 2.000 | R$ 7,80 mi | R$ 0,40 mi | **R$ 8,2 mi** |
+| Realista | 4.000 | R$ 15,60 mi | R$ 0,80 mi | **R$ 16,4 mi** |
+| Otimista | 8.000 | R$ 31,20 mi | R$ 1,60 mi | **R$ 32,8 mi** |
 
 > Tudo isso é **só em Cuiabá**. A expansão por cidade (franquia) multiplica o volume — cada nova praça adiciona seu próprio funil de apólices.
 
