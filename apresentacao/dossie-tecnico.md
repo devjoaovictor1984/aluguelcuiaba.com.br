@@ -174,34 +174,50 @@ Todo contrato de locação gerado na plataforma **exige seguro fiança e/ou inc�
 
 > Projeções **ilustrativas**, baseadas nas premissas abaixo. Não constituem garantia de resultado.
 
-**Premissas:**
+### As três fontes de receita
+
+| Fonte | Periodicidade | O que é | Quem paga |
+|---|---|---|---|
+| **Mensalidade do sistema** | Mensal (recorrente) | Assinatura da plataforma: R$ 49,90/mês (até 10 imóveis) ou R$ 99,90/mês (ilimitado) | A imobiliária / corretor |
+| **Seguro fiança** | Mensal (recorrente) | Garantia que substitui o fiador; cobrada todo mês no boleto (≈ 13% do aluguel). Plataforma ganha comissão | O inquilino |
+| **Seguro incêndio** | Anual | Cobertura do imóvel, obrigatória por lei; paga 1× por ano (≈ R$ 200/ano). Plataforma ganha comissão | O inquilino |
+
+As duas primeiras repetem todo mês enquanto durar o contrato; a terceira renova a cada ano.
+
+### Premissas
 - 4.000 corretores/imobiliárias ativos em Cuiabá (≈ 650 mil hab.)
 - 10 imóveis administrados por assinante (faixa 5–15)
 - Aluguel médio R$ 2.250 (faixa R$ 1.500–3.000)
-- Mensalidade média da plataforma R$ 64,90 (básico R$ 49,90 · ilimitado R$ 99,90)
-- Seguro fiança = 13% do aluguel/mês → ≈ R$ 3.510/ano de prêmio por imóvel
-- Comissão estimada da plataforma: R$ 200/ano por apólice (por imóvel)
-- Cada imóvel administrado = 1 apólice de seguro fiança/ano (renovável)
+- Mensalidade média por assinante R$ 64,90 (mix básico/ilimitado)
+- **Prêmio do seguro fiança:** 13% do aluguel/mês → ≈ **R$ 3.510/ano** por imóvel
+- **Prêmio do seguro incêndio:** ≈ **R$ 200/ano** por imóvel
+- Cada imóvel administrado = 1 apólice de fiança + 1 de incêndio por ano (renováveis)
 
-**Cenários por taxa de adesão sobre os 4.000 corretores:**
+### 1) Receita recorrente da plataforma (assinaturas)
 
-| Cenário | Adesão | Assinantes | Imóveis | Assinaturas/ano | Comissão seguro/ano | **Total plataforma/ano** |
-|---|---|---|---|---|---|---|
-| Pessimista | 5% | 200 | 2.000 | R$ 155,8 mil | R$ 400 mil | **R$ 555,8 mil** (~R$ 46 mil/mês) |
-| Realista | 10% | 400 | 4.000 | R$ 311,5 mil | R$ 800 mil | **R$ 1,11 mi** (~R$ 93 mil/mês) |
-| Otimista | 20% | 800 | 8.000 | R$ 623,0 mil | R$ 1,6 mi | **R$ 2,22 mi** (~R$ 185 mil/mês) |
+| Cenário | Adesão | Assinantes | **Assinaturas/ano** | Por mês |
+|---|---|---|---|---|
+| Pessimista | 5% | 200 | **R$ 155,8 mil** | ~R$ 13 mil |
+| Realista | 10% | 400 | **R$ 311,5 mil** | ~R$ 26 mil |
+| Otimista | 20% | 800 | **R$ 623,0 mil** | ~R$ 52 mil |
 
-**Mercado de seguro canalizado (relevante para a seguradora):**
+> Só a mensalidade do sistema, sem contar seguro. É a base previsível e recorrente.
 
-| Cenário | Apólices/ano | Prêmio anual de seguro fiança gerado |
-|---|---|---|
-| Pessimista | 2.000 | R$ 7,0 milhões |
-| Realista | 4.000 | R$ 14,0 milhões |
-| Otimista | 8.000 | R$ 28,1 milhões |
+### 2) Seguro canalizado (relevante para a seguradora)
 
-> Isso é **só em Cuiabá**. A expansão por cidade (modelo de franquia) multiplica o volume — cada nova praça adiciona seu próprio funil de apólices.
+Prêmio anual = fiança (R$ 3.510) + incêndio (R$ 200) = **R$ 3.710 por imóvel/ano**.
 
-**Como ler:** a receita da plataforma vem de duas fontes — assinaturas (SaaS) e comissão de seguro. Para a seguradora, o número-chave é o **volume de prêmios e o nº de apólices/ano** que a plataforma entrega de forma recorrente e qualificada (contratos reais, no momento da locação).
+| Cenário | Imóveis / apólices | Fiança/ano | Incêndio/ano | **Prêmio total/ano** |
+|---|---|---|---|---|
+| Pessimista | 2.000 | R$ 7,02 mi | R$ 0,40 mi | **R$ 7,4 mi** |
+| Realista | 4.000 | R$ 14,04 mi | R$ 0,80 mi | **R$ 14,8 mi** |
+| Otimista | 8.000 | R$ 28,08 mi | R$ 1,60 mi | **R$ 29,7 mi** |
+
+> **Comissão da plataforma:** a negociar com a seguradora. Como referência de sensibilidade, **cada 1% de comissão** sobre o volume acima representa **R$ 74 mil a R$ 297 mil/ano** — ou seja, uma comissão de 10% no cenário realista ≈ R$ 1,48 mi/ano. (Definir a % real é parte da parceria.)
+
+> Tudo isso é **só em Cuiabá**. A expansão por cidade (franquia) multiplica o volume — cada nova praça adiciona seu próprio funil de apólices.
+
+**Como ler:** a receita própria e garantida da plataforma são as assinaturas. A comissão de seguro entra por cima e depende do acordo com a seguradora — por isso mostramos o **volume de prêmios** (o que a plataforma entrega) e a sensibilidade por ponto de comissão, em vez de cravar um número.
 
 ---
 
