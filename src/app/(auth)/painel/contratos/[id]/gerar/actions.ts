@@ -685,3 +685,18 @@ export async function atualizarConjugePapel(
   revalidatePath(`/painel/contratos/${contratoId}/gerar`)
   return { ok: true }
 }
+
+/** Salva (ou limpa) as anotações internas do corretor sobre o contrato. */
+export async function atualizarAnotacoesCorretor(contratoId: string, texto: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const limpo = texto.trim()
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({ anotacoes_corretor: limpo.length > 0 ? limpo : null })
+    .eq('id', contratoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${contratoId}/gerar`)
+  return { ok: true }
+}

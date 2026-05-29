@@ -81,7 +81,7 @@ async function renderizarEditor(contratoId: string) {
     .from('contratos_locacao')
     .select(`
       id, codigo, garantia_tipo, valor_aluguel, data_inicio, data_termino,
-      qtd_chaves, qtd_controles, qtd_tags, conjuge_inquilino_papel,
+      qtd_chaves, qtd_controles, qtd_tags, conjuge_inquilino_papel, anotacoes_corretor,
       imovel_id,
       inquilino:pessoas!inquilino_id(id, nome, conjuge_nome),
       proprietario:pessoas!proprietario_id(id, nome),
@@ -231,6 +231,7 @@ async function renderizarEditor(contratoId: string) {
         qtdTagsInicial={contrato.qtd_tags ?? 0}
         conjugeInquilinoNome={inq?.conjuge_nome ?? null}
         conjugePapelInicial={(contrato.conjuge_inquilino_papel ?? 'solidario') as 'solidario' | 'anuente' | 'nao_participa'}
+        anotacoesInicial={contrato.anotacoes_corretor ?? ''}
         geracao={{
           id: r.geracao.id,
           tipo_seguro_incendio: r.geracao.tipo_seguro_incendio,

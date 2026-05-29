@@ -13,7 +13,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Save, FileDown, Loader2, AlertCircle, X, Plus,
-  Settings, Eye, Upload, FileCheck, CheckCircle2, Star, Key,
+  Settings, Eye, Upload, FileCheck, CheckCircle2, Star, Key, StickyNote, Trash2,
 } from 'lucide-react'
 import { atualizarClausula, criarClausula } from '../../../clausulas/actions'
 import {
@@ -21,7 +21,7 @@ import {
   atualizarTestemunhas, atualizarClausulasSeguradora,
   uploadContratoAssinado, removerContratoAssinado,
   atualizarAnexosDocumentos, marcarComoGerado, atualizarItensEntrega,
-  atualizarIncluirCapa, atualizarConjugePapel,
+  atualizarIncluirCapa, atualizarConjugePapel, atualizarAnotacoesCorretor,
 } from '../actions'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
@@ -53,6 +53,7 @@ interface Props {
   qtdTagsInicial?: number
   conjugeInquilinoNome?: string | null
   conjugePapelInicial?: 'solidario' | 'anuente' | 'nao_participa'
+  anotacoesInicial?: string
   geracao: {
     id: string
     tipo_seguro_incendio: 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
@@ -78,7 +79,7 @@ interface Props {
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 text-sm transition"
 
-export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
   const router = useRouter()
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
@@ -93,6 +94,27 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
     startTransition(async () => {
       const r = await atualizarIncluirCapa(geracao.id, novo)
       if (r.error) setErro(r.error)
+    })
+  }
+
+  // Anotações internas do corretor (não vão no PDF)
+  const [modalAnotacoes, setModalAnotacoes] = useState(false)
+  const [anotacoes, setAnotacoes] = useState(anotacoesInicial ?? '')
+  const [anotacoesSalvas, setAnotacoesSalvas] = useState(anotacoesInicial ?? '')
+  const salvarAnotacoes = () => {
+    startTransition(async () => {
+      const r = await atualizarAnotacoesCorretor(contratoId, anotacoes)
+      if (r.error) { setErro(r.error); return }
+      setAnotacoesSalvas(anotacoes.trim())
+      setModalAnotacoes(false)
+    })
+  }
+  const limparAnotacoes = () => {
+    setAnotacoes('')
+    startTransition(async () => {
+      const r = await atualizarAnotacoesCorretor(contratoId, '')
+      if (r.error) { setErro(r.error); return }
+      setAnotacoesSalvas('')
     })
   }
 
@@ -642,6 +664,31 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
           )}
         </section>
 
+        {/* Anotações internas do corretor (não vão no PDF) */}
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <button
+            type="button"
+            onClick={() => { setAnotacoes(anotacoesSalvas); setModalAnotacoes(true) }}
+            className="w-full flex items-center justify-between gap-2 text-left"
+          >
+            <span className="flex items-center gap-2">
+              <StickyNote size={14} className="text-amber-500" />
+              <span className="text-sm font-semibold text-gray-700">Anotações da negociação</span>
+            </span>
+            {anotacoesSalvas
+              ? <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold">há notas</span>
+              : <Plus size={14} className="text-gray-400" />}
+          </button>
+          <p className="text-[10px] text-gray-400 mt-1">
+            Lembretes internos (particularidades, combinados). Não aparecem no PDF.
+          </p>
+          {anotacoesSalvas && (
+            <p className="text-[11px] text-gray-600 mt-2 bg-amber-50 rounded-lg p-2 line-clamp-3 whitespace-pre-wrap">
+              {anotacoesSalvas}
+            </p>
+          )}
+        </section>
+
         {/* Papel do cônjuge do locatário — só aparece se o locatário tem cônjuge cadastrado */}
         {conjugeInquilinoNome && (
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
@@ -863,6 +910,53 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
         )}
 
         {/* Modal: criar cláusula nova inline */}
+        {/* Modal: anotações internas do corretor */}
+        {modalAnotacoes && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !isPending && setModalAnotacoes(false)}>
+            <div className="bg-white rounded-2xl max-w-lg w-full p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
+                  <StickyNote size={16} className="text-amber-500" /> Anotações da negociação
+                </h2>
+                <button type="button" onClick={() => setModalAnotacoes(false)} className="p-1 text-gray-400 hover:text-gray-700">
+                  <X size={16} />
+                </button>
+              </div>
+              <p className="text-[11px] text-gray-500 mb-3">
+                Lembretes internos sobre essa negociação (combinados, particularidades, pontos pra renovação).
+                <strong> Não aparecem no contrato/PDF.</strong>
+              </p>
+              <textarea
+                value={anotacoes}
+                onChange={e => setAnotacoes(e.target.value)}
+                rows={8}
+                autoFocus
+                placeholder="Ex: locador aceitou pintura só na saída; combinado verbal de revisar aluguel em 12 meses; inquilino vai instalar ar-condicionado às próprias custas…"
+                className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm resize-y"
+              />
+              <div className="flex items-center justify-between gap-2 mt-3">
+                {anotacoesSalvas ? (
+                  <button type="button" onClick={limparAnotacoes} disabled={isPending}
+                    className="flex items-center gap-1.5 text-xs text-rose-600 hover:bg-rose-50 px-3 py-2 rounded-lg disabled:opacity-50">
+                    <Trash2 size={13} /> Apagar anotações
+                  </button>
+                ) : <span />}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setModalAnotacoes(false)} disabled={isPending}
+                    className="text-xs text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100">
+                    Cancelar
+                  </button>
+                  <button type="button" onClick={salvarAnotacoes} disabled={isPending}
+                    className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg">
+                    {isPending ? <Loader2 size={13} className="animate-spin" /> : <Save size={13} />}
+                    Salvar
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {modalNovaClausula && (
           <div
             className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4"
