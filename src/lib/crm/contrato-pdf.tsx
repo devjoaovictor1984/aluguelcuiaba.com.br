@@ -485,10 +485,10 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           }}
         >
           {/* Cabeçalho institucional */}
-          <View style={{ marginBottom: 14 }}>
+          <View style={{ marginBottom: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
               {data.anunciante_logo_url && (
-                <Image src={data.anunciante_logo_url} style={{ width: 48, height: 48, objectFit: 'contain' }} />
+                <Image src={data.anunciante_logo_url} style={{ width: 44, height: 44, objectFit: 'contain' }} />
               )}
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
@@ -512,16 +512,16 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           </View>
 
           {/* Título grande */}
-          <View style={{ marginBottom: 18 }}>
+          <View style={{ marginBottom: 12 }}>
             <Text style={{
               fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO_CLARO,
-              textAlign: 'center', letterSpacing: 1.6, marginBottom: 6,
+              textAlign: 'center', letterSpacing: 1.6, marginBottom: 4,
             }}>
               INSTRUMENTO PARTICULAR
             </Text>
             <Text style={{
-              fontSize: 18, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
-              textAlign: 'center', lineHeight: 1.2, marginBottom: 4,
+              fontSize: 16, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
+              textAlign: 'center', lineHeight: 1.2, marginBottom: 2,
             }}>
               {tituloFinalidade}{'\n'}{subtituloContrato}
             </Text>
@@ -542,7 +542,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           </View>
 
           {/* Partes */}
-          <View style={{ marginBottom: 12 }}>
+          <View style={{ marginBottom: 8 }}>
             <Text style={{
               fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
               letterSpacing: 1, marginBottom: 8,
@@ -558,7 +558,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Imóvel */}
           {data.resumo_capa?.imovel_endereco && (
-            <View style={{ marginBottom: 12 }}>
+            <View style={{ marginBottom: 8 }}>
               <Text style={{
                 fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
                 letterSpacing: 1, marginBottom: 8,
@@ -579,7 +579,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Resumo */}
           {data.resumo_capa && (
-            <View style={{ marginBottom: 12 }}>
+            <View style={{ marginBottom: 8 }}>
               <Text style={{
                 fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
                 letterSpacing: 1, marginBottom: 8,
@@ -608,7 +608,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           <Text style={{
             fontSize: 10, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
-            textAlign: 'center', marginTop: 16,
+            textAlign: 'center', marginTop: 10,
           }}>
             {cidadeUf}, {dataExtenso}.
           </Text>
@@ -632,38 +632,40 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
            position absolute reincide no bug "unsupported number" em
            renderText. Mantemos rodapé estático só no final da página. */}
 
-        {/* ── Cabeçalho institucional (só 1ª página) ──
-           Removido `fixed` porque estava gerando coordenadas inválidas
-           em texto (bug "unsupported number" em renderText). Aparece só
-           na primeira página. */}
-        <View style={{ marginBottom: 12 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            {data.anunciante_logo_url && (
-              <Image
-                src={data.anunciante_logo_url}
-                style={{ width: 56, height: 56, objectFit: 'contain' }}
-              />
-            )}
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
-                {nomeInst}
-                {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
-              </Text>
-              {data.anunciante_creci && (
-                <Text style={{ fontSize: 8, color: CINZA }}>
-                  {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
+        {/* ── Cabeçalho institucional (só quando NÃO há capa) ──
+           A capa já tem seu próprio cabeçalho institucional. Repetir aqui
+           dobra o conteúdo e empurra o sumário (causando folha quase em
+           branco entre capa e sumário). Só renderiza quando incluir_capa=false. */}
+        {data.incluir_capa === false && (
+          <View style={{ marginBottom: 12 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              {data.anunciante_logo_url && (
+                <Image
+                  src={data.anunciante_logo_url}
+                  style={{ width: 56, height: 56, objectFit: 'contain' }}
+                />
+              )}
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE }}>
+                  {nomeInst}
+                  {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
                 </Text>
-              )}
-              {data.anunciante_endereco && (
-                <Text style={{ fontSize: 8, color: CINZA }}>{data.anunciante_endereco}</Text>
-              )}
-              {data.anunciante_cnpj && (
-                <Text style={{ fontSize: 8, color: CINZA }}>CNPJ {data.anunciante_cnpj}</Text>
-              )}
+                {data.anunciante_creci && (
+                  <Text style={{ fontSize: 8, color: CINZA }}>
+                    {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
+                  </Text>
+                )}
+                {data.anunciante_endereco && (
+                  <Text style={{ fontSize: 8, color: CINZA }}>{data.anunciante_endereco}</Text>
+                )}
+                {data.anunciante_cnpj && (
+                  <Text style={{ fontSize: 8, color: CINZA }}>CNPJ {data.anunciante_cnpj}</Text>
+                )}
+              </View>
             </View>
+            <View style={{ height: 1.5, backgroundColor: ROXO_CLARO, marginTop: 8 }} />
           </View>
-          <View style={{ height: 1.5, backgroundColor: ROXO_CLARO, marginTop: 8 }} />
-        </View>
+        )}
 
         {/* Paginação removida temporariamente — `fixed` + `render` estava
            causando bug "unsupported number" em algumas combinações de
