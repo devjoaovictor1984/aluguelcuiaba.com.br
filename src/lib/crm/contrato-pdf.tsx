@@ -714,9 +714,14 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           </>
         )}
 
-        {/* ── Sumário (índice das cláusulas) ── */}
+        {/* ── Sumário (índice das cláusulas) ──
+           Sem wrap={false}: o react-pdf, quando decide que o bloco "não cabe",
+           empurra pra próxima página deixando a anterior visualmente em branco
+           (só com o cabeçalho). O sumário é pequeno e cabe naturalmente; se
+           algum dia crescer demais, fica melhor quebrar entre páginas do que
+           gerar uma folha em branco. */}
         {data.clausulas.length > 0 && (
-          <View style={{ marginBottom: 22 }} wrap={false}>
+          <View style={{ marginBottom: 22 }}>
             <Text style={{
               fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE,
               marginBottom: 8, letterSpacing: 0.3,
