@@ -19,6 +19,7 @@ export interface PessoaInput {
   data_nascimento?: string | null
   naturalidade?: string | null
   estado_civil?: string | null
+  genero?: string | null
   regime_bens?: string | null
   profissao?: string | null
   renda_mensal?: number | null
@@ -27,6 +28,7 @@ export interface PessoaInput {
   nome_mae?: string | null
   // Cônjuge (quando estado_civil = casado/união estável)
   conjuge_nome?: string | null
+  conjuge_genero?: string | null
   conjuge_cpf?: string | null
   conjuge_rg?: string | null
   conjuge_rg_orgao?: string | null

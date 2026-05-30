@@ -35,6 +35,7 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
   const [dataNasc, setDataNasc] = useState(inicial.data_nascimento ?? '')
   const [naturalidade, setNaturalidade] = useState((inicial as Record<string, unknown>).naturalidade as string ?? '')
   const [estadoCivil, setEstadoCivil] = useState(inicial.estado_civil ?? '')
+  const [genero, setGenero] = useState((inicial as Record<string, unknown>).genero as string ?? 'N')
   const [regimeBens, setRegimeBens] = useState((inicial as Record<string, unknown>).regime_bens as string ?? '')
   const [profissao, setProfissao] = useState(inicial.profissao ?? '')
   const [rendaMensal, setRendaMensal] = useState(
@@ -48,6 +49,7 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
 
   // Cônjuge
   const [conjugeNome, setConjugeNome] = useState((inicial as Record<string, unknown>).conjuge_nome as string ?? '')
+  const [conjugeGenero, setConjugeGenero] = useState((inicial as Record<string, unknown>).conjuge_genero as string ?? 'N')
   const [conjugeCpf, setConjugeCpf] = useState((inicial as Record<string, unknown>).conjuge_cpf as string ?? '')
   const [conjugeRg, setConjugeRg] = useState((inicial as Record<string, unknown>).conjuge_rg as string ?? '')
   const [conjugeRgOrgao, setConjugeRgOrgao] = useState((inicial as Record<string, unknown>).conjuge_rg_orgao as string ?? '')
@@ -120,6 +122,7 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
       data_nascimento: ehPJ ? null : (dataNasc || null),
       naturalidade: ehPJ ? null : (naturalidade || null),
       estado_civil: ehPJ ? null : estadoCivil,
+      genero: ehPJ ? 'N' : genero,
       regime_bens: ehPJ ? null : (regimeBens || null),
       profissao: ehPJ ? null : profissao,
       renda_mensal: ehPJ ? null : (() => {
@@ -131,6 +134,7 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
       nome_mae: ehPJ ? null : (nomeMae || null),
       // Cônjuge (só quando estado_civil casado/união estável)
       conjuge_nome: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeNome || null) : null,
+      conjuge_genero: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? conjugeGenero : null,
       conjuge_cpf: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeCpf || null) : null,
       conjuge_rg: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeRg || null) : null,
       conjuge_rg_orgao: !ehPJ && (estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') ? (conjugeRgOrgao || null) : null,
@@ -272,6 +276,18 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
                   <option value="viuvo">Viúvo(a)</option>
                 </select>
               </div>
+              {!ehPJ && (
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">
+                    Gênero <span className="text-gray-400 font-normal">(para redação do contrato)</span>
+                  </label>
+                  <select value={genero} onChange={e => setGenero(e.target.value)} className={inputCls}>
+                    <option value="N">Neutro / não informar</option>
+                    <option value="M">Masculino</option>
+                    <option value="F">Feminino</option>
+                  </select>
+                </div>
+              )}
               {(estadoCivil === 'casado' || estadoCivil === 'uniao_estavel') && (
                 <div>
                   <label className="text-xs font-medium text-gray-600 block mb-1">Regime de bens</label>
@@ -345,6 +361,16 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Profissão</label>
               <input value={conjugeProfissao} onChange={e => setConjugeProfissao(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">
+                Gênero <span className="text-gray-400 font-normal">(para o contrato)</span>
+              </label>
+              <select value={conjugeGenero} onChange={e => setConjugeGenero(e.target.value)} className={inputCls}>
+                <option value="N">Neutro / não informar</option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Nacionalidade</label>

@@ -113,7 +113,7 @@ export async function GET(
         *,
         proprietario:pessoas!proprietario_id(
           nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf,
-          nacionalidade, estado_civil, profissao,
+          nacionalidade, estado_civil, profissao, genero,
           endereco_logradouro, endereco_numero, endereco_complemento,
           endereco_bairro, endereco_cidade, endereco_estado, endereco_cep
         ),

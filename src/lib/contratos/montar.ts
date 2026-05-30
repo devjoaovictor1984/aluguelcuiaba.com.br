@@ -19,6 +19,7 @@ export interface DadosContrato {
     nacionalidade?: string | null
     estado_civil?: string | null
     profissao?: string | null
+    genero?: string | null
     endereco_logradouro?: string | null
     endereco_numero?: string | null
     endereco_complemento?: string | null
@@ -39,6 +40,7 @@ export interface DadosContrato {
     estado_civil?: string | null
     regime_bens?: string | null
     profissao?: string | null
+    genero?: string | null
     data_nascimento?: string | null
     naturalidade?: string | null
     nome_pai?: string | null
@@ -52,6 +54,7 @@ export interface DadosContrato {
     endereco_cep?: string | null
     conjuge_nome?: string | null
     conjuge_cpf?: string | null
+    conjuge_genero?: string | null
     conjuge_rg?: string | null
     conjuge_data_nascimento?: string | null
     conjuge_profissao?: string | null
@@ -72,6 +75,7 @@ export interface DadosContrato {
     nome?: string | null
     cpf_cnpj?: string | null
     rg?: string | null
+    genero?: string | null
     endereco_logradouro?: string | null
     endereco_numero?: string | null
     endereco_cidade?: string | null
@@ -323,6 +327,24 @@ const rgCompleto = (p: Record<string, any> | null | undefined): string => {
   return p.rg
 }
 
+// ── Flexão de gênero pra qualificação contratual ────────────────────
+type Genero = 'M' | 'F' | 'N'
+
+/** Determina o gênero efetivo pra redação. PJ (CNPJ 14 dígitos) é sempre
+ *  tratada como feminino ("a empresa", "denominada CONTRATANTE"). */
+const generoEfetivo = (p: { cpf_cnpj?: string | null; genero?: string | null } | null | undefined): Genero => {
+  if (!p) return 'N'
+  const digitos = (p.cpf_cnpj ?? '').replace(/\D/g, '')
+  if (digitos.length === 14) return 'F'  // PJ → feminino por convenção contratual
+  const g = (p.genero ?? 'N') as Genero
+  return g === 'M' || g === 'F' ? g : 'N'
+}
+
+/** Escolhe a forma certa conforme o gênero. Se neutro e não houver forma
+ *  neutra explícita, cai no masculino (forma jurídica aceita). */
+const flex = (g: Genero, m: string, f: string, n?: string): string =>
+  g === 'M' ? m : g === 'F' ? f : (n ?? m)
+
 /**
  * Resolve um placeholder pelo nome (sem as chaves) com base nos dados.
  */
@@ -340,6 +362,15 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'LOCADOR_ESTADO_CIVIL': return dados.locador?.estado_civil ?? FALLBACK
     case 'LOCADOR_PROFISSAO': return dados.locador?.profissao ?? FALLBACK
     case 'LOCADOR_ENDERECO': return enderecoCompleto(dados.locador)
+    case 'LOCADOR_BRASILEIRO': return flex(generoEfetivo(dados.locador), 'brasileiro', 'brasileira')
+    case 'LOCADOR_NASCIDO': return flex(generoEfetivo(dados.locador), 'nascido', 'nascida')
+    case 'LOCADOR_PORTADOR': return flex(generoEfetivo(dados.locador), 'portador', 'portadora')
+    case 'LOCADOR_INSCRITO': return flex(generoEfetivo(dados.locador), 'inscrito', 'inscrita')
+    case 'LOCADOR_DOMICILIADO': return flex(generoEfetivo(dados.locador), 'residente e domiciliado', 'residente e domiciliada')
+    case 'LOCADOR_DENOMINADO': return flex(generoEfetivo(dados.locador), 'denominado', 'denominada', 'doravante identificado como')
+    case 'LOCADOR_PAPEL': return flex(generoEfetivo(dados.locador), 'LOCADOR', 'LOCADORA')
+    case 'LOCADOR_REPRESENTADO': return flex(generoEfetivo(dados.locador), 'representado', 'representada')
+    case 'LOCADOR_PROPRIETARIO': return flex(generoEfetivo(dados.locador), 'PROPRIETÁRIO', 'PROPRIETÁRIA')
 
     // ── Locatário ──
     case 'LOCATARIO_NOME': return dados.locatario?.nome ?? FALLBACK
@@ -354,6 +385,14 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'LOCATARIO_NOME_PAI': return dados.locatario?.nome_pai ?? FALLBACK
     case 'LOCATARIO_NOME_MAE': return dados.locatario?.nome_mae ?? FALLBACK
     case 'LOCATARIO_ENDERECO': return enderecoCompleto(dados.locatario)
+    case 'LOCATARIO_BRASILEIRO': return flex(generoEfetivo(dados.locatario), 'brasileiro', 'brasileira')
+    case 'LOCATARIO_NASCIDO': return flex(generoEfetivo(dados.locatario), 'nascido', 'nascida')
+    case 'LOCATARIO_PORTADOR': return flex(generoEfetivo(dados.locatario), 'portador', 'portadora')
+    case 'LOCATARIO_INSCRITO': return flex(generoEfetivo(dados.locatario), 'inscrito', 'inscrita')
+    case 'LOCATARIO_DOMICILIADO': return flex(generoEfetivo(dados.locatario), 'residente e domiciliado', 'residente e domiciliada')
+    case 'LOCATARIO_DENOMINADO': return flex(generoEfetivo(dados.locatario), 'denominado', 'denominada', 'doravante identificado como')
+    case 'LOCATARIO_PAPEL': return flex(generoEfetivo(dados.locatario), 'LOCATÁRIO', 'LOCATÁRIA')
+    case 'LOCATARIO_FILHO': return flex(generoEfetivo(dados.locatario), 'filho', 'filha')
 
     // ── Cônjuge ──
     case 'CONJUGE_NOME': return dados.locatario?.conjuge_nome ?? FALLBACK
@@ -381,6 +420,11 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       }
       return enderecoCompleto(l)
     }
+    case 'CONJUGE_BRASILEIRO': return flex(generoEfetivo({ cpf_cnpj: dados.locatario?.conjuge_cpf, genero: dados.locatario?.conjuge_genero }), 'brasileiro', 'brasileira')
+    case 'CONJUGE_NASCIDO': return flex(generoEfetivo({ cpf_cnpj: dados.locatario?.conjuge_cpf, genero: dados.locatario?.conjuge_genero }), 'nascido', 'nascida')
+    case 'CONJUGE_PORTADOR': return flex(generoEfetivo({ cpf_cnpj: dados.locatario?.conjuge_cpf, genero: dados.locatario?.conjuge_genero }), 'portador', 'portadora')
+    case 'CONJUGE_INSCRITO': return flex(generoEfetivo({ cpf_cnpj: dados.locatario?.conjuge_cpf, genero: dados.locatario?.conjuge_genero }), 'inscrito', 'inscrita')
+    case 'CONJUGE_DOMICILIADO': return flex(generoEfetivo({ cpf_cnpj: dados.locatario?.conjuge_cpf, genero: dados.locatario?.conjuge_genero }), 'residente e domiciliado', 'residente e domiciliada')
 
     // ── Administradora ──
     case 'ADMIN_RAZAO_SOCIAL': return dados.admin?.razao_social ?? dados.admin?.nome ?? FALLBACK
@@ -565,6 +609,13 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'FIADOR_CPF': return fmtCpf(dados.fiador?.cpf_cnpj)
     case 'FIADOR_RG': return dados.fiador?.rg ?? FALLBACK
     case 'FIADOR_ENDERECO': return enderecoCompleto(dados.fiador)
+    case 'FIADOR_BRASILEIRO': return flex(generoEfetivo(dados.fiador), 'brasileiro', 'brasileira')
+    case 'FIADOR_NASCIDO': return flex(generoEfetivo(dados.fiador), 'nascido', 'nascida')
+    case 'FIADOR_PORTADOR': return flex(generoEfetivo(dados.fiador), 'portador', 'portadora')
+    case 'FIADOR_INSCRITO': return flex(generoEfetivo(dados.fiador), 'inscrito', 'inscrita')
+    case 'FIADOR_DOMICILIADO': return flex(generoEfetivo(dados.fiador), 'residente e domiciliado', 'residente e domiciliada')
+    case 'FIADOR_DENOMINADO': return flex(generoEfetivo(dados.fiador), 'denominado', 'denominada', 'doravante identificado como')
+    case 'FIADOR_PAPEL': return flex(generoEfetivo(dados.fiador), 'FIADOR', 'FIADORA')
 
     // ── Seguro ──
     case 'SEGURO_SEGURADORA': return dados.contrato?.seguro_fianca_seguradora ?? FALLBACK

@@ -24,11 +24,11 @@ export const SEED_CLAUSULAS: ClausulaSeed[] = [
   // 1. PARTES
   {
     tipo: 'generica', categoria: 'partes', titulo: 'Das partes', numero: 1,
-    corpo: `LOCADOR / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_NACIONALIDADE}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, portador(a) do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, residente e domiciliado(a) em {{LOCADOR_ENDERECO}}, doravante denominado(a) simplesmente LOCADOR, neste ato representado(a), para fins de administração, cobrança, recebimento, entrega de chaves, vistoria e demais atos locatícios, pela ADMINISTRADORA abaixo qualificada.
+    corpo: `LOCADOR / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_BRASILEIRO}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, {{LOCADOR_PORTADOR}} do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, {{LOCADOR_DOMICILIADO}} em {{LOCADOR_ENDERECO}}, doravante {{LOCADOR_DENOMINADO}} simplesmente {{LOCADOR_PAPEL}}, neste ato {{LOCADOR_REPRESENTADO}}, para fins de administração, cobrança, recebimento, entrega de chaves, vistoria e demais atos locatícios, pela ADMINISTRADORA abaixo qualificada.
 
-ADMINISTRADORA: {{ADMIN_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com sede em {{ADMIN_ENDERECO}}, neste ato representada por {{ADMIN_RESPONSAVEL}}, corretor(a) de imóveis, CRECI {{ADMIN_RESPONSAVEL_CRECI}}, doravante denominada simplesmente ADMINISTRADORA.
+ADMINISTRADORA: {{ADMIN_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com sede em {{ADMIN_ENDERECO}}, neste ato representada por {{ADMIN_RESPONSAVEL}}, corretor de imóveis, CRECI {{ADMIN_RESPONSAVEL_CRECI}}, doravante denominada simplesmente ADMINISTRADORA.
 
-LOCATÁRIO: {{LOCATARIO_NOME}}, {{LOCATARIO_NACIONALIDADE}}, {{LOCATARIO_ESTADO_CIVIL}}, {{LOCATARIO_PROFISSAO}}, nascido(a) em {{LOCATARIO_DATA_NASC}}, natural de {{LOCATARIO_NATURALIDADE}}, portador(a) do RG {{LOCATARIO_RG}} e CPF nº {{LOCATARIO_CPF}}, filho(a) de {{LOCATARIO_NOME_PAI}} e {{LOCATARIO_NOME_MAE}}, residente e domiciliado(a) em {{LOCATARIO_ENDERECO}}, doravante denominado(a) LOCATÁRIO.
+LOCATÁRIO: {{LOCATARIO_NOME}}, {{LOCATARIO_BRASILEIRO}}, {{LOCATARIO_ESTADO_CIVIL}}, {{LOCATARIO_PROFISSAO}}, {{LOCATARIO_NASCIDO}} em {{LOCATARIO_DATA_NASC}}, natural de {{LOCATARIO_NATURALIDADE}}, {{LOCATARIO_PORTADOR}} do RG {{LOCATARIO_RG}} e CPF nº {{LOCATARIO_CPF}}, {{LOCATARIO_FILHO}} de {{LOCATARIO_NOME_PAI}} e {{LOCATARIO_NOME_MAE}}, {{LOCATARIO_DOMICILIADO}} em {{LOCATARIO_ENDERECO}}, doravante {{LOCATARIO_DENOMINADO}} {{LOCATARIO_PAPEL}}.
 
 As partes ajustam o presente CONTRATO DE LOCAÇÃO RESIDENCIAL COM ADMINISTRAÇÃO IMOBILIÁRIA, regido pela Lei nº 8.245/1991, pelo Código Civil, pelo Código de Processo Civil e pelas cláusulas a seguir.`,
   },
@@ -611,9 +611,9 @@ Parágrafo terceiro. A dispensa da multa rescisória não exonera o LOCATÁRIO d
 
   {
     tipo: 'administracao', categoria: 'partes', titulo: 'Das partes', numero: 1,
-    corpo: `ADMINISTRADORA: {{ADMIN_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com sede em {{ADMIN_ENDERECO}}, neste ato representada por seu Corretor Responsável {{ADMIN_RESPONSAVEL}}, corretor(a) de imóveis inscrito(a) no CRECI sob nº {{ADMIN_RESPONSAVEL_CRECI}}, doravante denominada simplesmente ADMINISTRADORA.
+    corpo: `ADMINISTRADORA: {{ADMIN_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com sede em {{ADMIN_ENDERECO}}, neste ato representada por seu Corretor Responsável {{ADMIN_RESPONSAVEL}}, corretor de imóveis inscrito no CRECI sob nº {{ADMIN_RESPONSAVEL_CRECI}}, doravante denominada simplesmente ADMINISTRADORA.
 
-PROPRIETÁRIA(O) / CONTRATANTE: {{LOCADOR_NOME}}, {{LOCADOR_NACIONALIDADE}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, portador(a) do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, residente e domiciliado(a) em {{LOCADOR_ENDERECO}}, doravante denominado(a) simplesmente PROPRIETÁRIA(O) ou CONTRATANTE.
+{{LOCADOR_PROPRIETARIO}} / CONTRATANTE: {{LOCADOR_NOME}}, {{LOCADOR_BRASILEIRO}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, {{LOCADOR_PORTADOR}} do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, {{LOCADOR_DOMICILIADO}} em {{LOCADOR_ENDERECO}}, doravante {{LOCADOR_DENOMINADO}} simplesmente {{LOCADOR_PROPRIETARIO}} ou CONTRATANTE.
 
 As partes acima identificadas têm, entre si, justo e contratado o presente CONTRATO DE ADMINISTRAÇÃO DE IMÓVEL COM EXCLUSIVIDADE, regido pela Lei nº 8.245/1991 (Lei do Inquilinato), pelo Código Civil e demais normas aplicáveis, mediante as cláusulas e condições seguintes.`,
   },
@@ -791,20 +791,20 @@ Parágrafo único. E por estarem de pleno acordo, as partes assinam o presente i
 
   {
     tipo: 'atuacao', categoria: 'partes', titulo: 'Das partes (intermediação)', numero: 1,
-    corpo: `LOCADOR / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_NACIONALIDADE}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, portador(a) do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, residente e domiciliado(a) em {{LOCADOR_ENDERECO}}, doravante denominado(a) simplesmente LOCADOR.
+    corpo: `LOCADOR / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_BRASILEIRO}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, {{LOCADOR_PORTADOR}} do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, {{LOCADOR_DOMICILIADO}} em {{LOCADOR_ENDERECO}}, doravante {{LOCADOR_DENOMINADO}} simplesmente {{LOCADOR_PAPEL}}.
 
-INTERMEDIADOR(A): {{ADMIN_RAZAO_SOCIAL}}, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com endereço profissional em {{ADMIN_ENDERECO}}, neste ato representada por {{ADMIN_RESPONSAVEL}}, corretor(a) de imóveis, CRECI {{ADMIN_RESPONSAVEL_CRECI}}, participou exclusivamente da intermediação da presente locação, não assumindo a administração do imóvel, a cobrança de aluguéis, a gestão de reparos, a prestação de contas ou a representação do LOCADOR, salvo disposição expressa em contrato próprio.
+INTERMEDIADOR(A): {{ADMIN_RAZAO_SOCIAL}}, inscrita no CNPJ nº {{ADMIN_CNPJ}}, CRECI Jurídico {{ADMIN_CRECI_J}}, com endereço profissional em {{ADMIN_ENDERECO}}, neste ato representada por {{ADMIN_RESPONSAVEL}}, corretor de imóveis, CRECI {{ADMIN_RESPONSAVEL_CRECI}}, participou exclusivamente da intermediação da presente locação, não assumindo a administração do imóvel, a cobrança de aluguéis, a gestão de reparos, a prestação de contas ou a representação do LOCADOR, salvo disposição expressa em contrato próprio.
 
-LOCATÁRIO: {{LOCATARIO_NOME}}, {{LOCATARIO_NACIONALIDADE}}, {{LOCATARIO_ESTADO_CIVIL}}, {{LOCATARIO_PROFISSAO}}, nascido(a) em {{LOCATARIO_DATA_NASC}}, natural de {{LOCATARIO_NATURALIDADE}}, portador(a) do RG {{LOCATARIO_RG}} e CPF nº {{LOCATARIO_CPF}}, filho(a) de {{LOCATARIO_NOME_PAI}} e {{LOCATARIO_NOME_MAE}}, residente e domiciliado(a) em {{LOCATARIO_ENDERECO}}, doravante denominado(a) LOCATÁRIO.
+LOCATÁRIO: {{LOCATARIO_NOME}}, {{LOCATARIO_BRASILEIRO}}, {{LOCATARIO_ESTADO_CIVIL}}, {{LOCATARIO_PROFISSAO}}, {{LOCATARIO_NASCIDO}} em {{LOCATARIO_DATA_NASC}}, natural de {{LOCATARIO_NATURALIDADE}}, {{LOCATARIO_PORTADOR}} do RG {{LOCATARIO_RG}} e CPF nº {{LOCATARIO_CPF}}, {{LOCATARIO_FILHO}} de {{LOCATARIO_NOME_PAI}} e {{LOCATARIO_NOME_MAE}}, {{LOCATARIO_DOMICILIADO}} em {{LOCATARIO_ENDERECO}}, doravante {{LOCATARIO_DENOMINADO}} {{LOCATARIO_PAPEL}}.
 
 As partes ajustam o presente CONTRATO DE LOCAÇÃO RESIDENCIAL, regido pela Lei nº 8.245/1991, pelo Código Civil e pelas cláusulas a seguir. Fica expressamente ajustado que a presente locação foi apenas intermediada por {{ADMIN_RAZAO_SOCIAL}}, não havendo administração imobiliária continuada, salvo contratação específica em instrumento próprio. Após a assinatura deste contrato e entrega das chaves, as obrigações de cobrança, recebimento, manutenção, notificações, reajustes, tratativas e encerramento da locação serão realizadas diretamente entre LOCADOR e LOCATÁRIO, ou por terceiro formalmente autorizado.`,
   },
 
   {
     tipo: 'atuacao', categoria: 'partes', titulo: 'Das partes (locação direta)', numero: 2,
-    corpo: `LOCADOR / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_NACIONALIDADE}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, portador(a) do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, residente e domiciliado(a) em {{LOCADOR_ENDERECO}}, doravante denominado(a) simplesmente LOCADOR.
+    corpo: `LOCADOR / PROPRIETÁRIO: {{LOCADOR_NOME}}, {{LOCADOR_BRASILEIRO}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, {{LOCADOR_PORTADOR}} do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, {{LOCADOR_DOMICILIADO}} em {{LOCADOR_ENDERECO}}, doravante {{LOCADOR_DENOMINADO}} simplesmente {{LOCADOR_PAPEL}}.
 
-LOCATÁRIO: {{LOCATARIO_NOME}}, {{LOCATARIO_NACIONALIDADE}}, {{LOCATARIO_ESTADO_CIVIL}}, {{LOCATARIO_PROFISSAO}}, nascido(a) em {{LOCATARIO_DATA_NASC}}, natural de {{LOCATARIO_NATURALIDADE}}, portador(a) do RG {{LOCATARIO_RG}} e CPF nº {{LOCATARIO_CPF}}, filho(a) de {{LOCATARIO_NOME_PAI}} e {{LOCATARIO_NOME_MAE}}, residente e domiciliado(a) em {{LOCATARIO_ENDERECO}}, doravante denominado(a) LOCATÁRIO.
+LOCATÁRIO: {{LOCATARIO_NOME}}, {{LOCATARIO_BRASILEIRO}}, {{LOCATARIO_ESTADO_CIVIL}}, {{LOCATARIO_PROFISSAO}}, {{LOCATARIO_NASCIDO}} em {{LOCATARIO_DATA_NASC}}, natural de {{LOCATARIO_NATURALIDADE}}, {{LOCATARIO_PORTADOR}} do RG {{LOCATARIO_RG}} e CPF nº {{LOCATARIO_CPF}}, {{LOCATARIO_FILHO}} de {{LOCATARIO_NOME_PAI}} e {{LOCATARIO_NOME_MAE}}, {{LOCATARIO_DOMICILIADO}} em {{LOCATARIO_ENDERECO}}, doravante {{LOCATARIO_DENOMINADO}} {{LOCATARIO_PAPEL}}.
 
 As partes ajustam o presente CONTRATO DE LOCAÇÃO RESIDENCIAL, celebrado diretamente entre LOCADOR e LOCATÁRIO, sem intermediação de corretor ou administradora, regido pela Lei nº 8.245/1991, pelo Código Civil e pelas cláusulas a seguir. As obrigações de cobrança, recebimento, manutenção, notificações, reajustes, tratativas e encerramento da locação serão realizadas diretamente entre as partes, ou por terceiro formalmente autorizado.`,
   },

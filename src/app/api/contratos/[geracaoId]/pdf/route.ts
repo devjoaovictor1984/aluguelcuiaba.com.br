@@ -410,17 +410,17 @@ export async function GET(
       ),
       proprietario:pessoas!proprietario_id(
         nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf,
-        nacionalidade, estado_civil, profissao,
+        nacionalidade, estado_civil, profissao, genero,
         endereco_logradouro, endereco_numero, endereco_complemento,
         endereco_bairro, endereco_cidade, endereco_estado, endereco_cep
       ),
       inquilino:pessoas!inquilino_id(
         nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf,
-        nacionalidade, estado_civil, regime_bens, profissao,
+        nacionalidade, estado_civil, regime_bens, profissao, genero,
         data_nascimento, naturalidade, nome_pai, nome_mae,
         endereco_logradouro, endereco_numero, endereco_complemento,
         endereco_bairro, endereco_cidade, endereco_estado, endereco_cep,
-        conjuge_nome, conjuge_cpf, conjuge_rg, conjuge_data_nascimento,
+        conjuge_nome, conjuge_cpf, conjuge_genero, conjuge_rg, conjuge_data_nascimento,
         conjuge_profissao, conjuge_nacionalidade,
         conjuge_naturalidade, conjuge_nome_pai, conjuge_nome_mae,
         conjuge_endereco_logradouro, conjuge_endereco_numero,
@@ -428,7 +428,7 @@ export async function GET(
         conjuge_endereco_estado, conjuge_endereco_cep
       ),
       fiador:pessoas!fiador_id(
-        nome, cpf_cnpj, rg,
+        nome, cpf_cnpj, rg, genero,
         endereco_logradouro, endereco_numero,
         endereco_cidade, endereco_estado
       )
