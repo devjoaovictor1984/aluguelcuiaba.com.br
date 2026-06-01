@@ -7,6 +7,8 @@ import {
 } from 'lucide-react'
 import { InputMoeda } from '@/components/inputs/input-mascarado'
 import { parseMoney, formatarBRL, formatarData } from '@/lib/formatters'
+import { codigoBoleto } from '@/lib/crm/calculos'
+import { CodigoBoletoCopia } from '@/components/codigo-boleto-copia'
 import {
   marcarPagamento, desfazerPagamento, alternarRepasse, alternarSeguro, alternarBoletoEnviado,
 } from '../../actions'
@@ -34,11 +36,12 @@ export interface Parcela {
 
 interface Props {
   parcela: Parcela
+  codigoContrato: string
 }
 
 const HOJE = (): string => new Date().toISOString().slice(0, 10)
 
-export function ParcelaRow({ parcela }: Props) {
+export function ParcelaRow({ parcela, codigoContrato }: Props) {
   const router = useRouter()
   const [modalAberto, setModalAberto] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -86,6 +89,9 @@ export function ParcelaRow({ parcela }: Props) {
     <>
       <tr className="border-t border-gray-50 hover:bg-gray-50">
         <td className="px-3 py-2 text-gray-500 font-mono text-xs">{parcela.numero}</td>
+        <td className="px-3 py-2">
+          <CodigoBoletoCopia codigo={codigoBoleto(codigoContrato, parcela.numero)} />
+        </td>
         <td className={`px-3 py-2 text-xs ${atrasada ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
           {formatarData(parcela.vencimento)}
         </td>
@@ -231,7 +237,7 @@ function ModalPagamento({
 
   return (
     <tr>
-      <td colSpan={9} className="p-0">
+      <td colSpan={11} className="p-0">
         <div className="fixed inset-0 bg-black/50 z-40 flex items-center justify-center p-4" onClick={onFechar}>
           <div className="bg-white rounded-2xl shadow-xl p-5 max-w-md w-full" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-4">

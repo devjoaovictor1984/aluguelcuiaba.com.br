@@ -332,6 +332,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
             <thead className="bg-gray-50 sticky top-0 z-10">
               <tr className="text-left text-xs font-semibold text-gray-500">
                 <th className="px-3 py-2">#</th>
+                <th className="px-3 py-2">Cód. boleto</th>
                 <th className="px-3 py-2">Vencimento</th>
                 <th className="px-3 py-2 text-right">Boleto</th>
                 <th className="px-3 py-2 text-right">Comissão</th>
@@ -345,7 +346,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
             </thead>
             <tbody>
               {lista.map(p => (
-                <ParcelaRow key={p.id} parcela={p as unknown as Parcela} />
+                <ParcelaRow key={p.id} parcela={p as unknown as Parcela} codigoContrato={contrato.codigo} />
               ))}
             </tbody>
           </table>

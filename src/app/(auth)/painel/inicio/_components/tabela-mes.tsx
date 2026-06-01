@@ -8,6 +8,8 @@ import {
   CheckCircle2, Clock, AlertTriangle, MessageCircle,
 } from 'lucide-react'
 import { formatarBRL } from '@/lib/formatters'
+import { codigoBoleto } from '@/lib/crm/calculos'
+import { CodigoBoletoCopia } from '@/components/codigo-boleto-copia'
 import { ParcelaAcoesInline, type ParcelaInline } from './parcela-acoes-inline'
 import { bulkAcaoParcelas, bulkMarcarPagamento, type BulkInput } from '../../contratos/actions'
 
@@ -116,6 +118,7 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
                 </th>
                 <th className="px-3 py-2">Cliente</th>
                 <th className="px-3 py-2">Imóvel</th>
+                <th className="px-3 py-2">Boleto</th>
                 <th className="px-3 py-2 text-center">Venc.</th>
                 <th className="px-3 py-2 text-right">Valor</th>
                 <th className="px-3 py-2 text-center">Status</th>
@@ -163,6 +166,9 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
                     <td className="px-3 py-2 text-gray-600 text-xs">
                       {p.imovel}
                       {p.bairro && <span className="text-gray-400"> · {p.bairro}</span>}
+                    </td>
+                    <td className="px-3 py-2">
+                      <CodigoBoletoCopia codigo={codigoBoleto(p.contratoCodigo, p.numero)} />
                     </td>
                     <td className="px-3 py-2 text-center text-gray-700 text-xs">
                       dia <strong className="text-gray-900">{diaVenc}</strong>

@@ -97,6 +97,15 @@ export function montarCodigo(ano: number, sequencial: number): string {
   return `${ano}CT${String(sequencial).padStart(3, '0')}`
 }
 
+/**
+ * Código de controle do boleto de uma parcela: código do contrato + nº da
+ * parcela (2 dígitos). Ex: 2026CT001-03. É o "seu número" que o corretor
+ * digita no banco e usa pra rastrear quem pagou. Derivado — não fica no banco.
+ */
+export function codigoBoleto(codigoContrato: string, numero: number): string {
+  return `${codigoContrato}-${String(numero).padStart(2, '0')}`
+}
+
 /** Resumo financeiro do contrato — usado na revisão e dashboards. */
 export interface ResumoFinanceiro {
   total_a_receber: number          // soma de valor_total das parcelas
