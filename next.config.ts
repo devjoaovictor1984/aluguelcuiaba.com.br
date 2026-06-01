@@ -10,6 +10,11 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // Loader custom: imagens do Supabase são redimensionadas pelo próprio
+    // Supabase (render/image), não pelo otimizador da Vercel — que estourou
+    // cota e passou a responder 402. Ver src/lib/supabase-image-loader.ts.
+    loader: 'custom',
+    loaderFile: './src/lib/supabase-image-loader.ts',
     remotePatterns: [
       {
         protocol: 'https',
