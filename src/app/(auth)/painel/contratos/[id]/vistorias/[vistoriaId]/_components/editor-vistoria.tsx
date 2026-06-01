@@ -1,17 +1,27 @@
 'use client'
 
-import { useState, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition, useRef, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   Loader2, Send, X, Trash2, Plus, Camera, Copy, MessageCircle, Check,
-  Save, Clock, CheckCircle2, AlertCircle, Pencil, RotateCcw, FileText, Eye,
+  Save, Clock, CheckCircle2, AlertCircle, Pencil, RotateCcw, FileText, Eye, GripVertical,
 } from 'lucide-react'
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates,
+  useSortable, verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { LABEL_ESTADO, COR_ESTADO, type EstadoItem } from '@/lib/vistorias/modelos'
 import {
   atualizarVistoriaItem, adicionarItemVistoria, removerItemVistoria,
   atualizarVistoriaMeta, uploadFotoVistoria, removerFotoVistoria,
   enviarVistoria, revogarEnvioVistoria, excluirVistoria,
+  renomearComodoVistoria, removerComodoVistoria, reordenarComodosVistoria,
 } from '../../actions'
 
 export interface ItemRow {
@@ -62,12 +72,37 @@ export function EditorVistoria(props: Props) {
   const [isPending, startTransition] = useTransition()
   const editavel = props.status === 'rascunho'
 
-  // Agrupa itens por cômodo
-  const grupos = props.itens.reduce<Record<string, ItemRow[]>>((acc, it) => {
+  // Agrupa itens por cômodo (ordem = primeira aparição, que segue o campo `ordem`)
+  const grupos = useMemo(() => props.itens.reduce<Record<string, ItemRow[]>>((acc, it) => {
     if (!acc[it.comodo]) acc[it.comodo] = []
     acc[it.comodo].push(it)
     return acc
-  }, {})
+  }, {}), [props.itens])
+  const comodosDosProps = useMemo(() => Object.keys(grupos), [grupos])
+
+  // Ordem local dos cards (pra arrastar sem esperar o round-trip). Ressincroniza
+  // quando os itens mudam (após refresh: add/remove/renomear).
+  const [ordemComodos, setOrdemComodos] = useState<string[]>(comodosDosProps)
+  useEffect(() => { setOrdemComodos(comodosDosProps) }, [comodosDosProps])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = ordemComodos.indexOf(active.id as string)
+    const newIndex = ordemComodos.indexOf(over.id as string)
+    if (oldIndex < 0 || newIndex < 0) return
+    const nova = arrayMove(ordemComodos, oldIndex, newIndex)
+    setOrdemComodos(nova)
+    startTransition(async () => {
+      const r = await reordenarComodosVistoria(props.vistoriaId, nova)
+      if (r?.error) { alert(r.error); router.refresh() }
+    })
+  }
   // Fotos: separa em 3 escopos
   const fotosPorItem: Record<string, FotoRow[]> = {}
   const fotosPorComodo: Record<string, FotoRow[]> = {}
@@ -113,21 +148,41 @@ export function EditorVistoria(props: Props) {
         editavel={editavel}
       />
 
-      {/* Itens por cômodo */}
-      {Object.entries(grupos).map(([comodo, itens]) => (
-        <ComodoCard
-          key={comodo}
-          comodo={comodo}
-          itens={itens}
-          fotos={fotosPorItem}
-          fotosComodo={fotosPorComodo[comodo] ?? []}
-          vistoriaId={props.vistoriaId}
-          editavel={editavel}
-        />
-      ))}
+      {/* Itens por cômodo — arrastáveis pra reordenar (só em rascunho) */}
+      {editavel ? (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={ordemComodos} strategy={verticalListSortingStrategy}>
+            <div className="space-y-4">
+              {ordemComodos.map(comodo => grupos[comodo] && (
+                <ComodoCard
+                  key={comodo}
+                  comodo={comodo}
+                  itens={grupos[comodo]}
+                  fotos={fotosPorItem}
+                  fotosComodo={fotosPorComodo[comodo] ?? []}
+                  vistoriaId={props.vistoriaId}
+                  editavel={editavel}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      ) : (
+        ordemComodos.map(comodo => grupos[comodo] && (
+          <ComodoCard
+            key={comodo}
+            comodo={comodo}
+            itens={grupos[comodo]}
+            fotos={fotosPorItem}
+            fotosComodo={fotosPorComodo[comodo] ?? []}
+            vistoriaId={props.vistoriaId}
+            editavel={editavel}
+          />
+        ))
+      )}
 
       {/* Adicionar cômodo/item */}
-      {editavel && <AddItem vistoriaId={props.vistoriaId} comodosExistentes={Object.keys(grupos)} />}
+      {editavel && <AddItem vistoriaId={props.vistoriaId} comodosExistentes={ordemComodos} />}
 
       {/* Excluir vistoria — sempre visível, com confirmação reforçada */}
       <div className="pt-2 flex justify-end">
@@ -496,6 +551,39 @@ function ComodoCard({ comodo, itens, fotos, fotosComodo, vistoriaId, editavel }:
   const fileRef = useRef<HTMLInputElement>(null)
   const [isPendingComodo, startTransitionComodo] = useTransition()
   const [progressoComodo, setProgressoComodo] = useState<{ feitas: number; total: number } | null>(null)
+  const [editandoNome, setEditandoNome] = useState(false)
+  const [nome, setNome] = useState(comodo)
+
+  const {
+    attributes, listeners, setNodeRef, transform, transition, isDragging,
+  } = useSortable({ id: comodo, disabled: !editavel })
+  const dragStyle = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  }
+
+  const salvarNome = () => {
+    const novo = nome.trim()
+    if (!novo || novo === comodo) { setEditandoNome(false); setNome(comodo); return }
+    startTransitionComodo(async () => {
+      const r = await renomearComodoVistoria(vistoriaId, comodo, novo)
+      if (r?.error) { alert(r.error); return }
+      setEditandoNome(false)
+      router.refresh()
+    })
+  }
+
+  const removerComodo = () => {
+    const qtdFotos = fotosComodo.length
+    if (!confirm(`Remover o cômodo "${comodo}" com ${itens.length} item(ns)${qtdFotos ? ` e ${qtdFotos} foto(s) do cômodo` : ''}? As fotos dos itens também vão junto.`)) return
+    startTransitionComodo(async () => {
+      const r = await removerComodoVistoria(vistoriaId, comodo)
+      if (r?.error) { alert(r.error); return }
+      router.refresh()
+    })
+  }
 
   const subirComodoVarias = (files: FileList) => {
     const lista = Array.from(files)
@@ -519,34 +607,82 @@ function ComodoCard({ comodo, itens, fotos, fotosComodo, vistoriaId, editavel }:
   }
 
   return (
-    <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+    <section ref={setNodeRef} style={dragStyle} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <header className="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-gray-900">{comodo}</h3>
-        {editavel && (
-          <>
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp,image/heic"
-              multiple
-              className="hidden"
-              onChange={e => {
-                if (e.target.files && e.target.files.length > 0) subirComodoVarias(e.target.files)
-                e.target.value = ''
-              }}
-            />
+        <div className="flex items-center gap-1.5 min-w-0 flex-1">
+          {editavel && (
             <button
               type="button"
-              onClick={() => fileRef.current?.click()}
-              disabled={isPendingComodo}
-              className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-violet-700 hover:bg-violet-50 px-2 py-1 rounded-md"
-              title="Adicionar fotos deste cômodo (pode selecionar várias)"
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 p-0.5 -ml-1 touch-none shrink-0"
+              aria-label="Arrastar pra reordenar cômodo"
+              title="Arrastar pra reordenar"
             >
-              {isPendingComodo ? <Loader2 size={10} className="animate-spin" /> : <Camera size={10} />}
-              {progressoComodo ? `${progressoComodo.feitas}/${progressoComodo.total}` : 'Fotos do cômodo'}
+              <GripVertical size={15} />
             </button>
-          </>
-        )}
+          )}
+          {editandoNome ? (
+            <input
+              value={nome}
+              onChange={e => setNome(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter') salvarNome()
+                if (e.key === 'Escape') { setEditandoNome(false); setNome(comodo) }
+              }}
+              onBlur={salvarNome}
+              autoFocus
+              className="text-sm font-bold text-gray-900 border border-violet-300 rounded-md px-2 py-0.5 min-w-0 flex-1 focus:outline-none focus:ring-2 focus:ring-violet-500"
+            />
+          ) : (
+            <h3 className="text-sm font-bold text-gray-900 truncate">{comodo}</h3>
+          )}
+        </div>
+        <div className="flex items-center gap-0.5 shrink-0">
+          {editavel && (
+            <>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/heic"
+                multiple
+                className="hidden"
+                onChange={e => {
+                  if (e.target.files && e.target.files.length > 0) subirComodoVarias(e.target.files)
+                  e.target.value = ''
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                disabled={isPendingComodo}
+                className="flex items-center gap-1 text-[11px] text-gray-500 hover:text-violet-700 hover:bg-violet-50 px-2 py-1 rounded-md"
+                title="Adicionar fotos deste cômodo (pode selecionar várias)"
+              >
+                {isPendingComodo ? <Loader2 size={10} className="animate-spin" /> : <Camera size={10} />}
+                {progressoComodo ? `${progressoComodo.feitas}/${progressoComodo.total}` : 'Fotos do cômodo'}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNome(comodo); setEditandoNome(true) }}
+                disabled={isPendingComodo}
+                className="p-1.5 text-gray-400 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors"
+                title="Renomear cômodo"
+              >
+                <Pencil size={13} />
+              </button>
+              <button
+                type="button"
+                onClick={removerComodo}
+                disabled={isPendingComodo}
+                className="p-1.5 text-gray-400 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
+                title="Remover cômodo inteiro"
+              >
+                <Trash2 size={13} />
+              </button>
+            </>
+          )}
+        </div>
       </header>
       {fotosComodo.length > 0 && (
         <div className="px-4 py-2 border-b border-gray-50 flex flex-wrap gap-2 bg-gray-50/30">

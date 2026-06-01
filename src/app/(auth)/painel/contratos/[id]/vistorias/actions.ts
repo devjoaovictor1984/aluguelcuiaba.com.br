@@ -133,6 +133,130 @@ export async function removerItemVistoria(itemId: string) {
   return { ok: true }
 }
 
+/** Renomeia um cômodo inteiro (todos os itens e fotos daquele cômodo). */
+export async function renomearComodoVistoria(vistoriaId: string, comodoAtual: string, comodoNovo: string) {
+  const acesso = await exigirAcessoCRM()
+  const contratoId = await checarPosseVistoria(vistoriaId, acesso.userId)
+  if (!contratoId) return { error: 'Vistoria não encontrada.' }
+
+  const novo = comodoNovo.trim()
+  if (!novo) return { error: 'Informe o nome do cômodo.' }
+  if (novo === comodoAtual) return { ok: true }
+
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('vistoria_itens')
+    .update({ comodo: novo })
+    .eq('vistoria_id', vistoriaId)
+    .eq('comodo', comodoAtual)
+  if (error) return { error: error.message }
+
+  // Fotos do cômodo (nível-cômodo e nível-item carregam a coluna comodo).
+  const admin = createAdminClient()
+  await admin
+    .from('vistoria_fotos')
+    .update({ comodo: novo })
+    .eq('vistoria_id', vistoriaId)
+    .eq('comodo', comodoAtual)
+
+  revalidatePath(`/painel/contratos/${contratoId}/vistorias/${vistoriaId}`)
+  return { ok: true }
+}
+
+/** Remove um cômodo inteiro: itens + fotos (storage e banco). */
+export async function removerComodoVistoria(vistoriaId: string, comodo: string) {
+  const acesso = await exigirAcessoCRM()
+  const contratoId = await checarPosseVistoria(vistoriaId, acesso.userId)
+  if (!contratoId) return { error: 'Vistoria não encontrada.' }
+
+  const supabase = await createClient()
+  const admin = createAdminClient()
+
+  const { data: itens } = await supabase
+    .from('vistoria_itens')
+    .select('id')
+    .eq('vistoria_id', vistoriaId)
+    .eq('comodo', comodo)
+  const itemIds = (itens ?? []).map(i => i.id as string)
+
+  // Junta fotos do cômodo (nível-cômodo) + fotos dos itens (duas queries pra
+  // não montar filtro .or() com nomes de cômodo que podem ter vírgula/parênteses).
+  const fotosMap = new Map<string, string>() // id -> arquivo_path
+  const { data: f1 } = await admin
+    .from('vistoria_fotos')
+    .select('id, arquivo_path')
+    .eq('vistoria_id', vistoriaId)
+    .eq('comodo', comodo)
+  for (const f of f1 ?? []) fotosMap.set(f.id as string, f.arquivo_path as string)
+  if (itemIds.length > 0) {
+    const { data: f2 } = await admin
+      .from('vistoria_fotos')
+      .select('id, arquivo_path')
+      .in('vistoria_item_id', itemIds)
+    for (const f of f2 ?? []) fotosMap.set(f.id as string, f.arquivo_path as string)
+  }
+
+  const paths = [...fotosMap.values()]
+  if (paths.length > 0) await admin.storage.from(BUCKET).remove(paths)
+  if (fotosMap.size > 0) await admin.from('vistoria_fotos').delete().in('id', [...fotosMap.keys()])
+
+  const { error } = await supabase
+    .from('vistoria_itens')
+    .delete()
+    .eq('vistoria_id', vistoriaId)
+    .eq('comodo', comodo)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/contratos/${contratoId}/vistorias/${vistoriaId}`)
+  return { ok: true }
+}
+
+/**
+ * Reordena os cômodos. Reescreve o campo `ordem` dos itens em blocos contíguos
+ * seguindo a sequência de cômodos recebida, preservando a ordem interna de cada
+ * cômodo. Cômodos não citados vão pro fim, na ordem original.
+ */
+export async function reordenarComodosVistoria(vistoriaId: string, comodosNaOrdem: string[]) {
+  const acesso = await exigirAcessoCRM()
+  const contratoId = await checarPosseVistoria(vistoriaId, acesso.userId)
+  if (!contratoId) return { error: 'Vistoria não encontrada.' }
+
+  const supabase = await createClient()
+  const { data: itens } = await supabase
+    .from('vistoria_itens')
+    .select('id, comodo, ordem')
+    .eq('vistoria_id', vistoriaId)
+    .order('ordem', { ascending: true })
+  if (!itens) return { error: 'Falha ao carregar itens.' }
+
+  const porComodo = new Map<string, string[]>()
+  for (const it of itens) {
+    const c = it.comodo as string
+    if (!porComodo.has(c)) porComodo.set(c, [])
+    porComodo.get(c)!.push(it.id as string)
+  }
+
+  const sequencia = [
+    ...comodosNaOrdem.filter(c => porComodo.has(c)),
+    ...[...porComodo.keys()].filter(c => !comodosNaOrdem.includes(c)),
+  ]
+
+  let ordem = 0
+  const updates: PromiseLike<{ error: { message: string } | null }>[] = []
+  for (const comodo of sequencia) {
+    for (const id of porComodo.get(comodo)!) {
+      updates.push(supabase.from('vistoria_itens').update({ ordem }).eq('id', id))
+      ordem += 1
+    }
+  }
+  const resultados = await Promise.all(updates)
+  const falha = resultados.find(r => r.error)
+  if (falha?.error) return { error: falha.error.message }
+
+  revalidatePath(`/painel/contratos/${contratoId}/vistorias/${vistoriaId}`)
+  return { ok: true }
+}
+
 export interface AtualizarVistoriaMetaInput {
   data_vistoria?: string | null
   observacoes_gerais?: string | null
