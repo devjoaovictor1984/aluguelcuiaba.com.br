@@ -23,12 +23,12 @@ export function CodigoBoletoCopia({ codigo, className = '' }: { codigo: string; 
       type="button"
       onClick={copiar}
       title={copiado ? 'Copiado!' : 'Copiar código do boleto'}
-      className={`group inline-flex items-center gap-1 font-mono text-xs text-gray-600 hover:text-violet-700 transition-colors ${className}`}
+      className={`group inline-flex items-center gap-1 font-mono text-[10px] text-gray-500 hover:text-violet-700 transition-colors ${className}`}
     >
       {codigo}
       {copiado
-        ? <Check size={11} className="text-green-600 shrink-0" />
-        : <Copy size={11} className="text-gray-300 group-hover:text-violet-500 shrink-0" />}
+        ? <Check size={10} className="text-green-600 shrink-0" />
+        : <Copy size={10} className="text-gray-300 group-hover:text-violet-500 shrink-0" />}
     </button>
   )
 }
