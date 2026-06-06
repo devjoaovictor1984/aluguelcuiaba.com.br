@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import { Footer } from '@/components/footer'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { faqJsonLd } from '@/lib/seo/jsonld'
+import { Imagem } from '@/components/imagem'
 import {
   ArrowRight, Check, X, MessageCircle,
   FileSpreadsheet, Receipt, Bell, Repeat, Calculator, FileSignature,
@@ -320,13 +321,16 @@ export default async function CorretorPage() {
       <section className="bg-white py-16 lg:py-20">
         <div className="max-w-5xl mx-auto px-4">
           <Reveal className="grid lg:grid-cols-5 gap-8 items-center">
-            {/* Foto do fundador (PLACEHOLDER) */}
+            {/* Foto do fundador */}
             <div className="lg:col-span-2">
-              {/* SUBSTITUIR: foto real do João Victor Vieira (operação/escritório em Cuiabá).
-                  Sugestão: <Imagem src="/equipe/joao-victor.jpg" alt="João Victor Vieira" aspect="3/4" /> */}
-              <div className="relative rounded-3xl overflow-hidden aspect-[3/4] bg-gradient-to-br from-violet-700 to-indigo-800 shadow-xl flex items-center justify-center">
-                <span className="text-7xl font-extrabold text-white/90">JV</span>
-                <div className="absolute bottom-0 inset-x-0 bg-black/30 backdrop-blur-sm px-4 py-3">
+              <div className="relative rounded-3xl overflow-hidden shadow-xl">
+                <Imagem
+                  src="/equipe/joao-victor.webp"
+                  alt="João Victor Vieira, corretor de imóveis e administrador em Cuiabá"
+                  aspect="3/4"
+                  sizes="(max-width: 1024px) 90vw, 400px"
+                />
+                <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/75 via-black/40 to-transparent px-4 pt-10 pb-3">
                   <p className="text-white font-bold text-sm">João Victor Vieira</p>
                   <p className="text-violet-100 text-xs">Corretor · CRECI-MT 12130-F</p>
                 </div>

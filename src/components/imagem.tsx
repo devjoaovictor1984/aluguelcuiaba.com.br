@@ -10,7 +10,7 @@
 
 import NextImage from 'next/image'
 
-type Aspect = '1/1' | '4/3' | '16/9' | '16/7' | '3/2' | '21/9' | 'video'
+type Aspect = '1/1' | '4/3' | '3/4' | '16/9' | '16/7' | '3/2' | '21/9' | 'video'
 
 interface Props {
   src: string | null | undefined
@@ -38,6 +38,7 @@ interface Props {
 const ASPECT_CLASS: Record<Aspect, string> = {
   '1/1': 'aspect-square',
   '4/3': 'aspect-[4/3]',
+  '3/4': 'aspect-[3/4]',
   '16/9': 'aspect-video',
   '16/7': 'aspect-[16/7]',
   '3/2': 'aspect-[3/2]',
