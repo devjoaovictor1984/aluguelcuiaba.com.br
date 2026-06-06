@@ -84,6 +84,16 @@ button, [role="button"], label[for], select { cursor: pointer; }
 .leaflet-popup-content { margin: 12px !important; }
 .leaflet-popup-content-wrapper { border-radius: 12px !important; }
 
+/* ─── Notificação flutuante (hero /corretor) ───────────────────────────── */
+@keyframes floatY {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-7px); }
+}
+.animate-floatY { animation: floatY 3.2s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .animate-floatY { animation: none; }
+}
+
 /* ─── Impressão de relatórios ───────────────────────────────────────────── */
 @media print {
   @page { size: A4; margin: 1.2cm; }

@@ -9,7 +9,7 @@ import {
   FileSpreadsheet, Receipt, Bell, Repeat, Calculator, FileSignature,
   MapPin, Home, Users, Wallet, FilePieChart, Smartphone, Tag,
   Sparkles, CheckCircle2, Clock, Award, MapPinned, Building2,
-  Search, ClipboardList, BadgeCheck, Quote,
+  Search, ClipboardList, BadgeCheck, Quote, Banknote,
 } from 'lucide-react'
 import { HeaderCorretor } from './_components/header-corretor'
 import { CalculadoraCarteira } from './_components/calculadora-carteira'
@@ -43,8 +43,8 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: 'https://aluguelcuiaba.com.br/corretor' },
   openGraph: {
-    title: 'Transforme locação em carteira administrada — AluguelCuiabá',
-    description: 'Contratos, cobranças, recibos, comissão e repasse organizados num painel feito pra corretor autônomo de Cuiabá. Comece grátis.',
+    title: 'E se administrar imóveis te pagasse R$ 5.000 todo mês? — AluguelCuiabá',
+    description: 'A renda da administração cai na conta todo mês enquanto você vive. Contratos, cobranças, recibos, comissão e repasse num CRM feito pra corretor de Cuiabá. Comece grátis.',
     url: 'https://aluguelcuiaba.com.br/corretor',
     siteName: 'AluguelCuiabá',
     locale: 'pt_BR',
@@ -83,37 +83,43 @@ export default async function CorretorPage() {
       <HeaderCorretor ctaHref={SIGNUP} />
 
       {/* ══ 1. HERO ══════════════════════════════════════════════════ */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-violet-950 via-violet-900 to-indigo-950 text-white">
-        {/* Glows decorativos */}
-        <div className="absolute inset-0 opacity-20 pointer-events-none">
+      <section className="relative overflow-hidden bg-violet-950 text-white">
+        {/* Mosaico de estilo de vida ao fundo (placeholders → fotos reais) */}
+        <MosaicoLifestyle />
+
+        {/* Overlay: legibilidade + identidade da marca por cima do mosaico.
+            Mobile: tint uniforme garante contraste. Desktop: escuro atrás da
+            copy (esquerda), limpo à direita pra as fotos aparecerem.          */}
+        <div className="absolute inset-0 bg-gradient-to-b from-violet-950/72 via-violet-950/55 to-violet-950/85 lg:hidden pointer-events-none" />
+        <div className="absolute inset-0 hidden lg:block bg-gradient-to-r from-violet-950/95 via-violet-950/65 to-transparent pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-violet-950/50 via-transparent to-violet-950 pointer-events-none" />
+        <div className="absolute inset-0 opacity-25 pointer-events-none">
           <div className="absolute top-10 left-10 w-72 h-72 bg-amber-400 rounded-full blur-3xl" />
           <div className="absolute bottom-20 right-20 w-96 h-96 bg-violet-400 rounded-full blur-3xl" />
         </div>
-        {/* PLACEHOLDER parallax: troque por foto real de Cuiabá (Sesc Arsenal, ruas históricas).
-            Ex.: bg-[url('/cuiaba/sesc-arsenal.jpg')] bg-cover bg-fixed */}
-        <div className="absolute inset-0 opacity-[0.06] bg-[radial-gradient(circle_at_30%_20%,white,transparent_60%)] bg-fixed pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto px-4 pt-28 pb-16 lg:pt-32 lg:pb-24 grid lg:grid-cols-2 gap-10 items-center">
-          <div>
-            <div className="inline-flex items-center gap-1.5 text-xs font-semibold bg-amber-500/20 text-amber-200 px-3 py-1 rounded-full mb-5">
+          <div className="[text-shadow:0_1px_12px_rgba(0,0,0,0.4)] lg:[text-shadow:none]">
+            <div className="inline-flex items-center gap-1.5 text-xs font-semibold bg-amber-500/20 text-amber-200 px-3 py-1 rounded-full mb-5 ring-1 ring-amber-300/20">
               <MapPinned size={11} /> CRM de locação · feito em Cuiabá
             </div>
 
-            <h1 className="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold leading-[1.1] tracking-tight mb-5">
-              Corretor, você está deixando <span className="text-amber-300">renda mensal</span> na mesa?
+            <h1 className="text-3xl sm:text-4xl lg:text-[3.25rem] font-extrabold leading-[1.08] tracking-tight mb-5 [text-shadow:0_2px_24px_rgba(0,0,0,0.35)]">
+              E se administrar imóveis te pagasse <span className="text-amber-300">R$ 5.000 todo mês</span> — de pijama, na praia, com a família?
             </h1>
 
-            <p className="text-base sm:text-lg text-violet-100 mb-5 leading-relaxed max-w-xl">
-              Você já aluga imóveis. Agora pode <strong className="text-white">administrar essas locações</strong> com contratos, cobranças, recibos, comissões e repasses organizados num CRM feito pra corretores de Cuiabá.
+            <p className="text-base sm:text-lg text-violet-100 mb-4 leading-relaxed max-w-xl">
+              O dinheiro da administração <strong className="text-white">cai na sua conta enquanto você vive</strong>. Você só precisa de uma estrutura pra organizar tudo — contratos, cobranças, recibos, comissão e repasse — num lugar só.
             </p>
 
-            <p className="text-sm sm:text-base text-violet-200 mb-7 leading-relaxed max-w-xl">
-              Pare de depender só da comissão de entrada. Transforme locações numa carteira administrada com mais controle, previsibilidade e profissionalismo.
+            {/* Ancoragem do número: mantém o gancho crível */}
+            <p className="text-sm text-violet-200/90 mb-7 leading-relaxed max-w-xl">
+              <span className="text-amber-200 font-semibold">Faz a conta:</span> 20 imóveis administrados a R$ 2.500, taxa de 10% = <strong className="text-white">R$ 5.000/mês recorrente</strong>. Todo mês. Sem precisar alugar nada de novo.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-3 mb-5">
               <Link href={SIGNUP} className={`${CTA_PRIMARIO} flex items-center justify-center gap-2 px-7 py-4 rounded-2xl text-base transition-all hover:scale-[1.02]`}>
-                Começar grátis agora <ArrowRight size={18} />
+                Quero essa renda <ArrowRight size={18} />
               </Link>
               <Link href="#como-funciona" className="flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm text-white font-bold px-7 py-4 rounded-2xl text-base border border-white/20 transition-colors">
                 Ver como funciona
@@ -125,9 +131,12 @@ export default async function CorretorPage() {
             </p>
           </div>
 
-          {/* Mockup do painel (CSS-only até prints reais) */}
+          {/* Mockup do painel + notificação de depósito ("dinheiro caindo") */}
           <Reveal delay={120}>
-            <MockupPainel />
+            <div className="relative">
+              <MockupPainel />
+              <DepositoFlutuante />
+            </div>
           </Reveal>
         </div>
       </section>
@@ -715,6 +724,67 @@ function FAQ({ pergunta, resposta }: { pergunta: string; resposta: string }) {
       </summary>
       <p className="text-sm text-gray-600 mt-3 leading-relaxed pr-8">{resposta}</p>
     </details>
+  )
+}
+
+/* ════════════════════════════════════════════════════════════════ */
+/* Mosaico de estilo de vida atrás da hero                          */
+/* ════════════════════════════════════════════════════════════════ */
+/* Fotos em /public/corretor/lifestyle/. Pra trocar uma foto, basta substituir
+   o arquivo mantendo o nome (ou ajustar o src abaixo). O gradiente fica como
+   estado de carregamento atrás de cada foto.                                 */
+
+const TILE_TINTS = [
+  'from-violet-700 to-indigo-800',
+  'from-indigo-700 to-violet-900',
+  'from-violet-800 to-fuchsia-900',
+  'from-indigo-800 to-violet-700',
+  'from-violet-900 to-indigo-800',
+  'from-fuchsia-900 to-violet-800',
+]
+
+const LIFESTYLE_TILES = [
+  { label: 'Família na praia',     src: '/corretor/lifestyle/familia-praia.webp',   span: 'col-span-2 lg:col-span-2 lg:row-span-2' },
+  { label: 'Notebook na praia',    src: '/corretor/lifestyle/notebook-praia.webp',  span: 'lg:col-span-2' },
+  { label: 'Viagem de carro',      src: '/corretor/lifestyle/carro-viagem.webp',    span: '' },
+  { label: 'Dia livre ao sol',     src: '/corretor/lifestyle/passeio-familia.webp', span: '' },
+  { label: 'Viajar quando quiser', src: '/corretor/lifestyle/viagem-aviao.webp',    span: 'lg:col-span-2' },
+  { label: 'Liberdade',            src: '/corretor/lifestyle/casal-livre.webp',     span: 'col-span-2 lg:col-span-2' },
+]
+
+function MosaicoLifestyle() {
+  return (
+    <div aria-hidden className="absolute inset-0 grid grid-cols-2 lg:grid-cols-4 auto-rows-fr lg:grid-rows-3 gap-1.5 p-1.5">
+      {LIFESTYLE_TILES.map((t, i) => (
+        <div
+          key={t.label}
+          className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${TILE_TINTS[i % TILE_TINTS.length]} ${t.span}`}
+        >
+          <Imagem
+            src={t.src}
+            alt=""
+            priority={i === 0}
+            sizes="(max-width: 1024px) 50vw, 25vw"
+            className="object-cover"
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* Notificação flutuante de depósito — reforça "o dinheiro caindo na conta". */
+function DepositoFlutuante() {
+  return (
+    <div className="hidden sm:flex absolute -top-4 -right-2 lg:-right-6 items-center gap-2.5 bg-white text-gray-900 rounded-2xl shadow-2xl shadow-black/30 px-3.5 py-2.5 ring-1 ring-black/5 animate-floatY">
+      <div className="w-9 h-9 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0">
+        <Banknote size={18} />
+      </div>
+      <div className="leading-tight">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Comissão de administração</p>
+        <p className="text-sm font-extrabold text-green-600">+ R$ 1.248 recebido</p>
+      </div>
+    </div>
   )
 }
 
