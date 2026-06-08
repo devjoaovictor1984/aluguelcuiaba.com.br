@@ -44,7 +44,7 @@ function diasAte(iso: string): number {
 export function ReajusteSecao(props: Props) {
   const [modalAberto, setModalAberto] = useState(false)
 
-  const dias = props.dataProximoReajuste ? diasAte(props.dataProximoReajuste) : null
+  const dias = (props.jaEncerrado || !props.dataProximoReajuste) ? null : diasAte(props.dataProximoReajuste)
   const corBadge = dias == null ? 'bg-gray-100 text-gray-500'
     : dias < 0 ? 'bg-red-100 text-red-700'
     : dias <= 30 ? 'bg-amber-100 text-amber-700'
@@ -87,9 +87,9 @@ export function ReajusteSecao(props: Props) {
           <p className="text-[11px] text-gray-400 uppercase tracking-wide flex items-center gap-1">
             <Calendar size={9} /> Próximo reajuste
           </p>
-          <p className="text-base font-bold text-gray-900">{formatarData(props.dataProximoReajuste)}</p>
-          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-0.5 ${corBadge}`}>
-            {txtBadge}
+          <p className="text-base font-bold text-gray-900">{props.jaEncerrado ? '—' : formatarData(props.dataProximoReajuste)}</p>
+          <span className={`inline-block text-[10px] px-1.5 py-0.5 rounded-full mt-0.5 ${props.jaEncerrado ? 'bg-gray-100 text-gray-500' : corBadge}`}>
+            {props.jaEncerrado ? 'Contrato encerrado' : txtBadge}
           </span>
         </div>
         <div className="bg-gray-50 rounded-lg px-3 py-2">
