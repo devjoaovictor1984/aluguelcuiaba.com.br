@@ -35,6 +35,11 @@ interface Props {
   selfieLocadorUrl: string | null
   whatsappInquilino: string | null
   nomeInquilino: string | null
+  imobiliariaNome: string | null
+  corretorNome: string | null
+  corretorCreci: string | null
+  creciJuridico: string | null
+  temRazaoSocial: boolean
   baseUrl: string
 }
 
@@ -317,6 +322,19 @@ export function EditorTermo(props: Props) {
             O locatário já assinou. Assine abaixo pra confirmar o recebimento das chaves e fechar o termo.
           </p>
 
+          {props.imobiliariaNome && (
+            <div className="bg-violet-50 border border-violet-100 rounded-lg px-3 py-2 text-xs text-violet-900">
+              <p className="font-semibold">{props.imobiliariaNome}{props.creciJuridico ? ` · CRECI-J ${props.creciJuridico}` : ''}</p>
+              {props.temRazaoSocial && props.corretorNome ? (
+                <p className="text-violet-700">
+                  Corretor(a) responsável: {props.corretorNome}{props.corretorCreci ? ` — CRECI ${props.corretorCreci}` : ''}
+                </p>
+              ) : props.corretorCreci ? (
+                <p className="text-violet-700">CRECI {props.corretorCreci}</p>
+              ) : null}
+            </div>
+          )}
+
           <div>
             <p className="text-xs font-medium text-gray-600 mb-1 flex items-center gap-1">
               <ShieldCheck size={12} className="text-gray-400" /> Selfie (opcional)
@@ -369,7 +387,19 @@ export function EditorTermo(props: Props) {
               <div className="relative w-full h-24 border border-gray-200 rounded-xl bg-white">
                 <Image src={props.assinaturaLocadorUrl} alt="Assinatura da administradora" fill className="object-contain p-2" unoptimized />
               </div>
-              <p className="text-[11px] text-gray-500 mt-1">
+              {props.imobiliariaNome && (
+                <p className="text-[11px] text-gray-700 font-semibold mt-1">
+                  {props.imobiliariaNome}{props.creciJuridico ? ` · CRECI-J ${props.creciJuridico}` : ''}
+                </p>
+              )}
+              {props.temRazaoSocial && props.corretorNome ? (
+                <p className="text-[11px] text-gray-500">
+                  Corretor(a) responsável: {props.corretorNome}{props.corretorCreci ? ` — CRECI ${props.corretorCreci}` : ''}
+                </p>
+              ) : props.corretorCreci ? (
+                <p className="text-[11px] text-gray-500">CRECI {props.corretorCreci}</p>
+              ) : null}
+              <p className="text-[11px] text-gray-500 mt-0.5">
                 assinado em {props.assinadoLocadorEm ? new Date(props.assinadoLocadorEm).toLocaleString('pt-BR') : '—'}
               </p>
             </div>

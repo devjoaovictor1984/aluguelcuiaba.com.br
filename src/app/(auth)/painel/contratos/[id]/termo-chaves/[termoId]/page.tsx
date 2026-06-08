@@ -38,6 +38,12 @@ export default async function TermoPage({ params }: Props) {
     )
   }
 
+  const { data: perfil } = await admin
+    .from('perfis')
+    .select('nome, razao_social, creci, creci_juridico')
+    .eq('id', acesso.userId)
+    .maybeSingle()
+
   const { data: contrato } = await admin
     .from('contratos_locacao')
     .select('codigo, inquilino:pessoas!inquilino_id(nome, whatsapp, telefone), imovel:imoveis(titulo)')
@@ -85,6 +91,11 @@ export default async function TermoPage({ params }: Props) {
         selfieLocadorUrl={termo.selfie_locador_url}
         whatsappInquilino={inquilino?.whatsapp ?? inquilino?.telefone ?? null}
         nomeInquilino={inquilino?.nome ?? null}
+        imobiliariaNome={perfil?.razao_social ?? perfil?.nome ?? null}
+        corretorNome={perfil?.nome ?? null}
+        corretorCreci={perfil?.creci ?? null}
+        creciJuridico={perfil?.creci_juridico ?? null}
+        temRazaoSocial={!!perfil?.razao_social}
         baseUrl={baseUrl}
       />
     </div>

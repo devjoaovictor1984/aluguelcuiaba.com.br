@@ -240,6 +240,17 @@ export function TermoEntregaDocument({ data }: { data: TermoEntregaPDFData }) {
               <Text style={{ fontSize: 8, color: cinza, textAlign: 'center', paddingVertical: 14 }}>(sem assinatura)</Text>
             )}
             <Text style={styles.assNome}>{nomeInst}</Text>
+            {data.anunciante_creci_juridico && (
+              <Text style={styles.assMeta}>CRECI-J {data.anunciante_creci_juridico}</Text>
+            )}
+            {data.anunciante_razao_social ? (
+              <Text style={styles.assMeta}>
+                Corretor(a) responsável: {data.anunciante_nome}
+                {data.anunciante_creci ? ` — CRECI ${data.anunciante_creci}` : ''}
+              </Text>
+            ) : data.anunciante_creci ? (
+              <Text style={styles.assMeta}>CRECI {data.anunciante_creci}</Text>
+            ) : null}
             <Text style={styles.assMeta}>
               {fmtDataHora(data.assinado_locador_em)}{data.assinado_locador_ip ? ` · IP ${data.assinado_locador_ip}` : ''}
             </Text>
