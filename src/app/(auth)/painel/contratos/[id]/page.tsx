@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Home, User, Shield, Calendar, DollarSign, Pencil, Repeat, XCircle, FileSignature, FileText,
+  ArrowLeft, Home, User, Shield, Calendar, DollarSign, Pencil, Repeat, XCircle, FileSignature, FileText, KeyRound,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
@@ -202,6 +202,12 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
               className="flex items-center gap-1.5 text-sm text-amber-700 hover:text-amber-800 border border-amber-200 hover:border-amber-400 hover:bg-amber-50 px-3 py-1.5 rounded-xl transition-colors"
             >
               <FileSignature size={13} /> Vistorias
+            </Link>
+            <Link
+              href={`/painel/contratos/${id}/termo-chaves`}
+              className="flex items-center gap-1.5 text-sm text-amber-700 hover:text-amber-800 border border-amber-200 hover:border-amber-400 hover:bg-amber-50 px-3 py-1.5 rounded-xl transition-colors"
+            >
+              <KeyRound size={13} /> Termo de chaves
             </Link>
             <Link
               href={`/painel/contratos/${id}/gerar`}
