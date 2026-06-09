@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { exigirAdmin } from '@/lib/admin/acesso'
 
 export async function salvarCoords(imovelId: string, lat: number, lng: number) {
+  await exigirAdmin()
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return { error: 'Coordenadas inválidas' }
   }

@@ -11,7 +11,7 @@ import { BannerSidebar } from '@/components/banner-sidebar'
 import { formatarPreco, gerarLinkWhatsApp, gerarMensagemWhatsApp, buildImovelUrl, labelComodo } from '@/lib/utils'
 import { buildMetadata } from '@/lib/seo/metadata'
 import { realEstateJsonLd, breadcrumbJsonLd } from '@/lib/seo/jsonld'
-import { htmlParaTextoPlano } from '@/lib/seo/sanitize'
+import { htmlParaTextoPlano, sanitizeHtmlContent } from '@/lib/seo/sanitize'
 import { JsonLd } from '@/components/json-ld'
 import { PrecoImovel } from '@/components/preco-imovel'
 import {
@@ -225,7 +225,7 @@ export default async function ImovelPage({ params }: Props) {
                   {imovel.descricao.trimStart().startsWith('<') ? (
                     <div
                       className="text-gray-600 text-sm leading-relaxed ProseMirror"
-                      dangerouslySetInnerHTML={{ __html: imovel.descricao }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(imovel.descricao) }}
                     />
                   ) : (
                     <p className="text-gray-600 text-sm leading-relaxed whitespace-pre-line">

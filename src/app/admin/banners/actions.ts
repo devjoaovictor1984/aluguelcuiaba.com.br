@@ -2,8 +2,10 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { exigirAdmin } from '@/lib/admin/acesso'
 
 export async function adicionarBanner(formData: FormData) {
+  await exigirAdmin()
   const imagem_url = formData.get('imagem_url') as string
   const link_url = (formData.get('link_url') as string) || null
 
@@ -36,6 +38,7 @@ export async function adicionarBanner(formData: FormData) {
 }
 
 export async function excluirBanner(id: string, imagemUrl: string) {
+  await exigirAdmin()
   const supabase = createAdminClient()
 
   // Remove from storage if it's in site-assets/banners/
@@ -56,6 +59,7 @@ export async function excluirBanner(id: string, imagemUrl: string) {
 }
 
 export async function atualizarLinkBanner(id: string, linkUrl: string) {
+  await exigirAdmin()
   const supabase = createAdminClient()
 
   // Normaliza: vazio = sem link; domínio sem esquema vira https://
@@ -77,6 +81,7 @@ export async function atualizarLinkBanner(id: string, linkUrl: string) {
 }
 
 export async function toggleBannerAtivo(id: string, ativo: boolean) {
+  await exigirAdmin()
   const supabase = createAdminClient()
   const { error } = await supabase
     .from('banners_sidebar')
@@ -90,6 +95,7 @@ export async function toggleBannerAtivo(id: string, ativo: boolean) {
 }
 
 export async function reordenarBanner(id: string, direcao: 'up' | 'down', ordemAtual: number) {
+  await exigirAdmin()
   const supabase = createAdminClient()
   const novaOrdem = direcao === 'up' ? ordemAtual - 1 : ordemAtual + 1
 

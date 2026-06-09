@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { ArrowLeft } from 'lucide-react'
 import { iconePorNome } from '../_icone'
+import { sanitizeHtmlContent } from '@/lib/seo/sanitize'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,7 +45,7 @@ export default async function SecaoAjudaPage({ params }: Props) {
       <article className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-7">
         <div
           className="prose prose-sm sm:prose-base prose-violet max-w-none prose-headings:font-bold prose-headings:text-gray-900 prose-a:text-violet-700"
-          dangerouslySetInnerHTML={{ __html: secao.conteudo_html || '<p class="text-gray-400">Sem conteúdo ainda.</p>' }}
+          dangerouslySetInnerHTML={{ __html: secao.conteudo_html ? sanitizeHtmlContent(secao.conteudo_html) : '<p class="text-gray-400">Sem conteúdo ainda.</p>' }}
         />
       </article>
 

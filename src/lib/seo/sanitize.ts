@@ -1,9 +1,16 @@
-// Pós-processamento de HTML vindo do editor (tiptap).
-// Roda em Server Component antes do dangerouslySetInnerHTML.
+// Sanitização + pós-processamento de HTML vindo do editor (tiptap).
+// Roda antes do dangerouslySetInnerHTML, em Server ou Client Component.
 //
 // Uma única função pra qualquer conteúdo editorial: posts, seções de ajuda,
 // descrições longas. Se a regra muda (ex: rebaixar h2→h3 num contexto),
 // muda aqui e propaga.
+//
+// SEGURANÇA: o passo 1 (DOMPurify) remove <script>, atributos on* (onerror,
+// onclick…), javascript:/data: perigosos, <iframe>, etc. — bloqueando XSS
+// armazenado em conteúdo que pode ter origem não confiável (ex: descrição
+// de imóvel preenchida pelo anunciante). Os passos seguintes são só SEO.
+
+import DOMPurify from 'isomorphic-dompurify'
 
 interface Options {
   /** Rebaixa h1 → h2 pra evitar múltiplos H1 na página. Default: true. */
@@ -19,7 +26,15 @@ const APP_HOST = new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://aluguelcuia
 export function sanitizeHtmlContent(html: string, opts: Options = {}): string {
   if (!html) return ''
   const o = { rebaixarH1: true, lazyImages: true, externalLinksSafe: true, ...opts }
-  let out = html
+
+  // 1. Sanitização de segurança (anti-XSS). Mantém formatação de texto,
+  //    listas, links, imagens e tabelas; remove script/handlers/iframe.
+  let out = DOMPurify.sanitize(html, {
+    USE_PROFILES: { html: true },
+    ADD_ATTR: ['target'],            // links podem abrir em nova aba
+    FORBID_TAGS: ['style', 'form', 'input', 'button'],
+    FORBID_ATTR: ['srcset'],
+  })
 
   if (o.rebaixarH1) {
     out = out.replace(/<h1(\s[^>]*)?>/gi, '<h2$1>').replace(/<\/h1>/gi, '</h2>')
