@@ -3,6 +3,7 @@
 import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { subirSelfieBase64 } from '@/lib/storage/selfies'
+import { limitePorIp } from '@/lib/rate-limit'
 
 const BUCKET = 'termos-chaves'
 
@@ -56,6 +57,7 @@ export async function locatarioAssinar(token: string, input: {
   selfie_dataurl: string
   observacoes?: string
 }) {
+  if (!await limitePorIp('termo-assinar', 10, 60)) return { error: 'Muitas tentativas. Aguarde um instante.' }
   const { termo, error } = await carregarPorToken(token)
   if (!termo || error) return { error: error ?? 'Erro.' }
 

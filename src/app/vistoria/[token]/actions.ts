@@ -3,6 +3,7 @@
 import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { subirSelfieBase64 } from '@/lib/storage/selfies'
+import { limitePorIp } from '@/lib/rate-limit'
 
 const BUCKET = 'vistorias-fotos'
 const MAX_FILE = 5 * 1024 * 1024
@@ -53,6 +54,7 @@ export async function inquilinoObservacaoItem(token: string, itemId: string, obs
 }
 
 export async function inquilinoUploadFoto(token: string, formData: FormData) {
+  if (!await limitePorIp('vist-upload', 60, 60)) return { error: 'Muitos envios. Aguarde um instante.' }
   const { vist, error } = await carregarPorToken(token)
   if (!vist || error) return { error: error ?? 'Erro.' }
 
@@ -117,6 +119,7 @@ export async function inquilinoAssinar(token: string, input: {
   selfie_dataurl: string      // JPEG base64 da câmera
   observacoes?: string
 }) {
+  if (!await limitePorIp('vist-assinar', 10, 60)) return { error: 'Muitas tentativas. Aguarde um instante.' }
   const { vist, error } = await carregarPorToken(token)
   if (!vist || error) return { error: error ?? 'Erro.' }
 

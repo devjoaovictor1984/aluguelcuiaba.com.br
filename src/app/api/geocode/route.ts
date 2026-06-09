@@ -1,12 +1,24 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { geocodificar } from '@/lib/geocoding'
+import { limitePorIp } from '@/lib/rate-limit'
 
 // POST /api/geocode  { imovel_id: string }
 // Lê o endereço do imóvel, geocoda via Nominatim e salva lat/lng.
 // Chamado pelo form ao criar/editar um anúncio (fire-and-forget).
 export async function POST(request: NextRequest) {
   try {
+    // Auth: só usuário logado (a rota grava via service-role e bate no Nominatim).
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return NextResponse.json({ ok: false, error: 'Não autenticado' }, { status: 401 })
+
+    // Rate limit: protege o Nominatim de abuso (e nosso IP de bloqueio).
+    if (!await limitePorIp('geocode', 30, 60)) {
+      return NextResponse.json({ ok: false, error: 'Muitas requisições. Tente em instantes.' }, { status: 429 })
+    }
+
     const { imovel_id } = await request.json()
     if (!imovel_id) return NextResponse.json({ ok: false, error: 'imovel_id obrigatório' }, { status: 400 })
 
@@ -14,11 +26,19 @@ export async function POST(request: NextRequest) {
 
     const { data: imovel } = await admin
       .from('imoveis')
-      .select('id, endereco_resumido, bairro:bairros(id, nome, lat, lng)')
+      .select('id, user_id, endereco_resumido, bairro:bairros(id, nome, lat, lng)')
       .eq('id', imovel_id)
       .single()
 
     if (!imovel) return NextResponse.json({ ok: false, error: 'Imóvel não encontrado' }, { status: 404 })
+
+    // Ownership: só o dono do imóvel (ou admin) pode disparar o geocode dele.
+    if (imovel.user_id !== user.id) {
+      const { data: perfil } = await supabase.from('perfis').select('role').eq('id', user.id).single()
+      if (perfil?.role !== 'admin') {
+        return NextResponse.json({ ok: false, error: 'Sem permissão' }, { status: 403 })
+      }
+    }
 
     // endereco_resumido = "Rua X, 123, Apto 4"  → pegamos só rua+numero
     const partes = ((imovel.endereco_resumido ?? '') as string).split(',').map((s: string) => s.trim()).filter(Boolean)
