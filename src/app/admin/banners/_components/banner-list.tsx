@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Trash2, ChevronUp, ChevronDown, Eye, EyeOff, ExternalLink, Loader2 } from 'lucide-react'
-import { excluirBanner, toggleBannerAtivo, reordenarBanner } from '../actions'
+import { Trash2, ChevronUp, ChevronDown, Eye, EyeOff, ExternalLink, Loader2, Pencil, Check, X } from 'lucide-react'
+import { excluirBanner, toggleBannerAtivo, reordenarBanner, atualizarLinkBanner } from '../actions'
 
 interface Banner {
   id: string
@@ -15,7 +15,26 @@ interface Banner {
 export function BannerList({ banners: inicial }: { banners: Banner[] }) {
   const [banners, setBanners] = useState(inicial)
   const [loadingId, setLoadingId] = useState<string | null>(null)
+  const [editandoId, setEditandoId] = useState<string | null>(null)
+  const [editValor, setEditValor] = useState('')
   const [isPending, startTransition] = useTransition()
+
+  const abrirEdicao = (id: string, linkAtual: string | null) => {
+    setEditandoId(id)
+    setEditValor(linkAtual ?? '')
+  }
+
+  const salvarLink = (id: string) => {
+    const valor = editValor
+    setLoadingId(id)
+    startTransition(async () => {
+      const r = await atualizarLinkBanner(id, valor)
+      if (r.error) { alert(r.error); setLoadingId(null); return }
+      setBanners(prev => prev.map(b => b.id === id ? { ...b, link_url: r.link_url ?? null } : b))
+      setEditandoId(null)
+      setLoadingId(null)
+    })
+  }
 
   const run = (id: string, fn: () => Promise<{ ok?: boolean; error?: string }>) => {
     setLoadingId(id)
@@ -49,7 +68,38 @@ export function BannerList({ banners: inicial }: { banners: Banner[] }) {
           {/* Info */}
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900">Banner #{b.ordem + 1}</p>
-            {b.link_url ? (
+            {editandoId === b.id ? (
+              <div className="flex items-center gap-1.5 mt-1">
+                <input
+                  type="text"
+                  value={editValor}
+                  onChange={e => setEditValor(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') salvarLink(b.id)
+                    if (e.key === 'Escape') setEditandoId(null)
+                  }}
+                  autoFocus
+                  placeholder="https://… ou /imoveis/… (vazio = sem link)"
+                  className="flex-1 min-w-0 text-xs px-2 py-1.5 rounded-lg border border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                />
+                <button
+                  disabled={loadingId === b.id}
+                  onClick={() => salvarLink(b.id)}
+                  title="Salvar"
+                  className="w-7 h-7 flex items-center justify-center text-green-600 hover:bg-green-50 rounded-lg transition-colors disabled:opacity-40"
+                >
+                  {loadingId === b.id ? <Loader2 size={13} className="animate-spin" /> : <Check size={14} />}
+                </button>
+                <button
+                  disabled={loadingId === b.id}
+                  onClick={() => setEditandoId(null)}
+                  title="Cancelar"
+                  className="w-7 h-7 flex items-center justify-center text-gray-400 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-40"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            ) : b.link_url ? (
               <a
                 href={b.link_url}
                 target="_blank"
@@ -66,6 +116,16 @@ export function BannerList({ banners: inicial }: { banners: Banner[] }) {
 
           {/* Ações */}
           <div className="flex items-center gap-1 shrink-0">
+            {/* Editar link */}
+            <button
+              disabled={loadingId === b.id || editandoId === b.id}
+              onClick={() => abrirEdicao(b.id, b.link_url)}
+              title="Editar link"
+              className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-colors disabled:opacity-30"
+            >
+              <Pencil size={13} />
+            </button>
+
             {/* Reordenar */}
             <button
               disabled={i === 0 || loadingId === b.id}

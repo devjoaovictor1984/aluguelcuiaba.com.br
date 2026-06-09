@@ -55,6 +55,27 @@ export async function excluirBanner(id: string, imagemUrl: string) {
   return { ok: true }
 }
 
+export async function atualizarLinkBanner(id: string, linkUrl: string) {
+  const supabase = createAdminClient()
+
+  // Normaliza: vazio = sem link; domínio sem esquema vira https://
+  let link: string | null = linkUrl.trim() || null
+  if (link && !link.startsWith('http://') && !link.startsWith('https://') && !link.startsWith('/')) {
+    link = `https://${link}`
+  }
+
+  const { error } = await supabase
+    .from('banners_sidebar')
+    .update({ link_url: link })
+    .eq('id', id)
+
+  if (error) return { error: error.message }
+  revalidatePath('/admin/banners')
+  revalidatePath('/')
+  revalidatePath('/blog')
+  return { ok: true, link_url: link }
+}
+
 export async function toggleBannerAtivo(id: string, ativo: boolean) {
   const supabase = createAdminClient()
   const { error } = await supabase
