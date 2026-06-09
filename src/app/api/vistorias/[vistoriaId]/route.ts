@@ -30,7 +30,7 @@ export async function GET(
       qtd_chaves, qtd_controles,
       qtd_chaves_inquilino, qtd_controles_inquilino,
       assinada_em, assinada_ip,
-      assinatura_inquilino_url, inquilino_observacoes,
+      assinatura_inquilino_url, selfie_inquilino_url, inquilino_observacoes,
       contrato:contratos_locacao!vistorias_contrato_id_fkey(
         codigo,
         inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
@@ -183,6 +183,9 @@ export async function GET(
     inquilino_observacoes: vistoria.inquilino_observacoes,
     assinatura_inquilino_url: vistoria.assinatura_inquilino_url
       ? vistoria.assinatura_inquilino_url.split('?')[0]  // remove cache-buster
+      : null,
+    selfie_inquilino_url: vistoria.selfie_inquilino_url
+      ? vistoria.selfie_inquilino_url.split('?')[0]
       : null,
     assinada_em: vistoria.assinada_em,
     assinada_ip: vistoria.assinada_ip,

@@ -91,8 +91,29 @@ export async function inquilinoUploadFoto(token: string, formData: FormData) {
   return { ok: true, id: row.id, url: pub.publicUrl }
 }
 
+/** Decodifica um data URL de imagem e sobe no bucket. Retorna a URL pública. */
+async function subirImagemBase64(
+  admin: ReturnType<typeof createAdminClient>,
+  dataUrl: string,
+  basePath: string,
+  limite = 5 * 1024 * 1024,
+): Promise<{ url?: string; error?: string }> {
+  const m = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
+  if (!m) return { error: 'Formato de imagem inválido.' }
+  const ext = m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase()
+  const bytes = Buffer.from(m[2], 'base64')
+  if (bytes.length > limite) return { error: 'Imagem muito grande.' }
+  const path = `${basePath}.${ext}`
+  const { error } = await admin.storage.from(BUCKET)
+    .upload(path, bytes, { contentType: `image/${ext}`, upsert: true })
+  if (error) return { error: error.message }
+  const { data } = admin.storage.from(BUCKET).getPublicUrl(path)
+  return { url: data.publicUrl }
+}
+
 export async function inquilinoAssinar(token: string, input: {
   assinatura_dataurl: string  // PNG base64 do canvas
+  selfie_dataurl: string      // JPEG base64 da câmera
   observacoes?: string
 }) {
   const { vist, error } = await carregarPorToken(token)
@@ -101,22 +122,17 @@ export async function inquilinoAssinar(token: string, input: {
   if (!input.assinatura_dataurl || !input.assinatura_dataurl.startsWith('data:image/')) {
     return { error: 'Assinatura inválida.' }
   }
+  if (!input.selfie_dataurl || !input.selfie_dataurl.startsWith('data:image/')) {
+    return { error: 'A selfie é obrigatória.' }
+  }
 
   const admin = createAdminClient()
 
-  // Decodifica base64 → bytes
-  const m = input.assinatura_dataurl.match(/^data:image\/(\w+);base64,(.+)$/)
-  if (!m) return { error: 'Formato de assinatura inválido.' }
-  const ext = m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase()
-  const bytes = Buffer.from(m[2], 'base64')
-  if (bytes.length > 2 * 1024 * 1024) return { error: 'Assinatura muito grande.' }
+  const ass = await subirImagemBase64(admin, input.assinatura_dataurl, `${vist.user_id}/${vist.id}/assinatura`, 2 * 1024 * 1024)
+  if (ass.error || !ass.url) return { error: ass.error ?? 'Falha ao salvar assinatura.' }
 
-  const path = `${vist.user_id}/${vist.id}/assinatura.${ext}`
-  const { error: upErr } = await admin.storage.from(BUCKET)
-    .upload(path, bytes, { contentType: `image/${ext}`, upsert: true })
-  if (upErr) return { error: upErr.message }
-
-  const { data: pub } = admin.storage.from(BUCKET).getPublicUrl(path)
+  const selfie = await subirImagemBase64(admin, input.selfie_dataurl, `${vist.user_id}/${vist.id}/selfie-inquilino`)
+  if (selfie.error || !selfie.url) return { error: selfie.error ?? 'Falha ao salvar selfie.' }
 
   const hdrs = await headers()
   const ip = hdrs.get('x-forwarded-for')?.split(',')[0].trim() ?? hdrs.get('x-real-ip') ?? null
@@ -125,7 +141,8 @@ export async function inquilinoAssinar(token: string, input: {
     status: 'assinada',
     assinada_em: new Date().toISOString(),
     assinada_ip: ip,
-    assinatura_inquilino_url: pub.publicUrl,
+    assinatura_inquilino_url: ass.url,
+    selfie_inquilino_url: selfie.url,
     inquilino_observacoes: input.observacoes?.trim() || null,
   }).eq('id', vist.id)
   if (e) return { error: e.message }

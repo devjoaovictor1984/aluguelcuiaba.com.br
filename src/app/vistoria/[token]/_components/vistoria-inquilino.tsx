@@ -6,6 +6,7 @@ import {
   Camera, Pencil, AlertCircle, Loader2, Check, X, MessageSquare, Plus, AlertTriangle,
 } from 'lucide-react'
 import { LABEL_ESTADO, COR_ESTADO, type EstadoItem } from '@/lib/vistorias/modelos'
+import { CapturaSelfie } from '@/components/captura-selfie'
 import {
   inquilinoObservacaoItem, inquilinoUploadFoto, inquilinoAssinar, inquilinoRecusar,
   inquilinoAdicionarProblema, inquilinoContestarQuantidades,
@@ -48,6 +49,7 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
   const [itens, setItens] = useState(itensIniciais)
   const [fotos, setFotos] = useState(fotosIniciais)
   const [observacoesFinal, setObservacoesFinal] = useState('')
+  const [selfie, setSelfie] = useState<string | null>(null)
   const [recusarMotivo, setRecusarMotivo] = useState('')
   const [mostrarRecusa, setMostrarRecusa] = useState(false)
   const [assinado, setAssinado] = useState(false)
@@ -241,13 +243,14 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
     setErroGlobal('')
     if (canvasVazio) { setErroGlobal('Desenhe sua assinatura no quadro abaixo.'); return }
     if (previewMode) {
-      alert('🧪 Pré-visualização — no envio real, aqui a vistoria seria assinada e fechada.\n\nO PDF final teria essa assinatura embedada, mais IP e data/hora.')
+      alert('🧪 Pré-visualização — no envio real, aqui a vistoria seria assinada e fechada.\n\nO PDF final teria essa assinatura e a selfie embedadas, mais IP e data/hora.')
       return
     }
+    if (!selfie) { setErroGlobal('Tire a selfie antes de assinar.'); return }
     const c = canvasRef.current!
     const dataUrl = c.toDataURL('image/png')
     startTransition(async () => {
-      const r = await inquilinoAssinar(token, { assinatura_dataurl: dataUrl, observacoes: observacoesFinal })
+      const r = await inquilinoAssinar(token, { assinatura_dataurl: dataUrl, selfie_dataurl: selfie, observacoes: observacoesFinal })
       if (r.error) { setErroGlobal(r.error); return }
       setAssinado(true)
     })
@@ -493,10 +496,18 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
         />
       </section>
 
+      {/* Selfie obrigatória */}
+      <section className="bg-white border-2 border-violet-200 rounded-xl p-3 space-y-2">
+        <h3 className="text-sm font-bold text-violet-900 flex items-center gap-1.5">
+          <Camera size={14} /> Selfie de confirmação <span className="text-red-500">*</span>
+        </h3>
+        <CapturaSelfie value={selfie} onChange={setSelfie} disabled={isPending} />
+      </section>
+
       {/* Canvas de assinatura */}
       <section className="bg-white border-2 border-violet-200 rounded-xl p-3 space-y-2">
         <h3 className="text-sm font-bold text-violet-900 flex items-center gap-1.5">
-          <Pencil size={14} /> Sua assinatura
+          <Pencil size={14} /> Sua assinatura <span className="text-red-500">*</span>
         </h3>
         <p className="text-[11px] text-gray-500">
           Use o dedo (no celular) ou o mouse pra desenhar sua assinatura no quadro abaixo.
@@ -533,7 +544,7 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
         <button
           type="button"
           onClick={assinar}
-          disabled={isPending || canvasVazio}
+          disabled={isPending || canvasVazio || (!previewMode && !selfie)}
           className="flex-1 flex items-center justify-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white font-semibold py-3.5 rounded-xl"
         >
           {isPending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}

@@ -186,6 +186,7 @@ export default async function VistoriaPage({ params, searchParams }: Props) {
         assinadaEm={vistoria.assinada_em}
         inquilinoObservacoes={vistoria.inquilino_observacoes}
         assinaturaUrl={vistoria.assinatura_inquilino_url}
+        selfieUrl={vistoria.selfie_inquilino_url ?? null}
         whatsappInquilino={inquilino?.whatsapp ?? inquilino?.telefone ?? null}
         nomeInquilino={inquilino?.nome ?? null}
         itens={itens}

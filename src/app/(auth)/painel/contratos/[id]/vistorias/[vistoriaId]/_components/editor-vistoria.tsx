@@ -58,6 +58,7 @@ interface Props {
   assinadaEm: string | null
   inquilinoObservacoes: string | null
   assinaturaUrl: string | null
+  selfieUrl: string | null
   whatsappInquilino: string | null
   nomeInquilino: string | null
   itens: ItemRow[]
@@ -204,7 +205,7 @@ const LS_DIAS_VALIDADE = 'vistoria_dias_validade_padrao'
 
 function BlocoStatus({
   vistoriaId, status, token, expiraEm, enviadaEm, assinadaEm, inquilinoObservacoes,
-  assinaturaUrl, whatsappInquilino, nomeInquilino, baseUrl, editavel,
+  assinaturaUrl, selfieUrl, whatsappInquilino, nomeInquilino, baseUrl, editavel,
 }: Props & { isPending: boolean; startTransition: ReturnType<typeof useTransition>[1]; router: ReturnType<typeof useRouter>; editavel: boolean }) {
   const router = useRouter()
 
@@ -318,11 +319,22 @@ function BlocoStatus({
             <p className="text-sm text-gray-700 whitespace-pre-wrap">{inquilinoObservacoes}</p>
           </div>
         )}
-        {assinaturaUrl && (
-          <div className="mt-3 bg-white border border-green-100 rounded-xl p-3">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-green-700 mb-2">Assinatura</p>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={assinaturaUrl} alt="Assinatura do inquilino" className="max-h-24 mx-auto" />
+        {(assinaturaUrl || selfieUrl) && (
+          <div className="mt-3 bg-white border border-green-100 rounded-xl p-3 flex items-start gap-4 flex-wrap justify-center">
+            {selfieUrl && (
+              <div className="text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-green-700 mb-2">Selfie</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={selfieUrl} alt="Selfie do inquilino" className="w-24 h-24 object-cover rounded-xl mx-auto border border-green-100" />
+              </div>
+            )}
+            {assinaturaUrl && (
+              <div className="text-center">
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-green-700 mb-2">Assinatura</p>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={assinaturaUrl} alt="Assinatura do inquilino" className="max-h-24 mx-auto" />
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -24,6 +24,7 @@ export interface VistoriaPDFData {
   qtd_controles_inquilino: number | null
   inquilino_observacoes: string | null
   assinatura_inquilino_url: string | null
+  selfie_inquilino_url: string | null
   assinada_em: string | null
   assinada_ip: string | null
   // Emitente
@@ -586,6 +587,12 @@ export function VistoriaDocument({ data }: { data: VistoriaPDFData }) {
         {/* Assinatura */}
         <View style={styles.assinaturaBox} wrap={false}>
           <Text style={styles.assinaturaTitulo}>Assinatura do inquilino</Text>
+          {data.selfie_inquilino_url && (
+            <Image
+              src={data.selfie_inquilino_url}
+              style={{ width: 56, height: 56, borderRadius: 4, objectFit: 'cover', alignSelf: 'center', marginBottom: 4 }}
+            />
+          )}
           {data.assinatura_inquilino_url ? (
             <Image
               src={data.assinatura_inquilino_url}
