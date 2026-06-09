@@ -40,6 +40,14 @@ const nextConfig: NextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Frame-Options', value: 'DENY' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Força HTTPS por 2 anos (sem preload pra não travar reversão futura).
+          { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },
+          // Câmera liberada só pra mesma origem (selfie de vistoria/termo);
+          // microfone bloqueado; geolocalização e pagamento só same-origin.
+          {
+            key: 'Permissions-Policy',
+            value: 'camera=(self), microphone=(), geolocation=(self), payment=(self), browsing-topics=()',
+          },
         ],
       },
     ]
