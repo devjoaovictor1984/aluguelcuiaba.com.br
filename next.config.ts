@@ -33,6 +33,27 @@ const nextConfig: NextConfig = {
     ]
   },
   async headers() {
+    // CSP em modo REPORT-ONLY: não bloqueia nada, só reporta violações em
+    // /api/csp-report pra calibrar a política antes de virar enforce.
+    // Domínios mapeados: Supabase, tiles OSM, Google Maps (iframe), GTM +
+    // Facebook Pixel, Stripe, viaCEP. 'unsafe-inline' em script é necessário
+    // enquanto não houver nonce do Next; revisar antes do enforce.
+    const csp = [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+      "script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://connect.facebook.net https://js.stripe.com",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://*.supabase.co https://*.tile.openstreetmap.org https://www.googletagmanager.com https://www.google-analytics.com https://www.facebook.com",
+      "font-src 'self' data:",
+      "connect-src 'self' https://*.supabase.co https://viacep.com.br https://www.google-analytics.com https://analytics.google.com https://region1.google-analytics.com https://www.googletagmanager.com https://connect.facebook.net https://api.stripe.com",
+      "frame-src 'self' https://maps.google.com https://www.google.com https://js.stripe.com https://hooks.stripe.com",
+      "worker-src 'self' blob:",
+      "report-uri /api/csp-report",
+    ].join('; ')
+
     return [
       {
         source: '/(.*)',
@@ -48,6 +69,9 @@ const nextConfig: NextConfig = {
             key: 'Permissions-Policy',
             value: 'camera=(self), microphone=(), geolocation=(self), payment=(self), browsing-topics=()',
           },
+          // REPORT-ONLY: observa violações sem bloquear. Trocar pra
+          // 'Content-Security-Policy' (enforce) só após os relatórios zerarem.
+          { key: 'Content-Security-Policy-Report-Only', value: csp },
         ],
       },
     ]
