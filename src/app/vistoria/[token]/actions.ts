@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { subirSelfieBase64 } from '@/lib/storage/selfies'
 
 const BUCKET = 'vistorias-fotos'
 const MAX_FILE = 5 * 1024 * 1024
@@ -131,8 +132,9 @@ export async function inquilinoAssinar(token: string, input: {
   const ass = await subirImagemBase64(admin, input.assinatura_dataurl, `${vist.user_id}/${vist.id}/assinatura`, 2 * 1024 * 1024)
   if (ass.error || !ass.url) return { error: ass.error ?? 'Falha ao salvar assinatura.' }
 
-  const selfie = await subirImagemBase64(admin, input.selfie_dataurl, `${vist.user_id}/${vist.id}/selfie-inquilino`)
-  if (selfie.error || !selfie.url) return { error: selfie.error ?? 'Falha ao salvar selfie.' }
+  // Selfie vai pro bucket privado; guardamos o caminho (não a URL).
+  const selfie = await subirSelfieBase64(admin, input.selfie_dataurl, `${vist.user_id}/${vist.id}/selfie-inquilino`)
+  if (selfie.error || !selfie.path) return { error: selfie.error ?? 'Falha ao salvar selfie.' }
 
   const hdrs = await headers()
   const ip = hdrs.get('x-forwarded-for')?.split(',')[0].trim() ?? hdrs.get('x-real-ip') ?? null
@@ -142,7 +144,7 @@ export async function inquilinoAssinar(token: string, input: {
     assinada_em: new Date().toISOString(),
     assinada_ip: ip,
     assinatura_inquilino_url: ass.url,
-    selfie_inquilino_url: selfie.url,
+    selfie_inquilino_url: selfie.path,
     inquilino_observacoes: input.observacoes?.trim() || null,
   }).eq('id', vist.id)
   if (e) return { error: e.message }

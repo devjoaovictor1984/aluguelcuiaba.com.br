@@ -3,6 +3,7 @@ import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { VistoriaDocument, type VistoriaPDFData, type VistoriaPDFItem } from '@/lib/crm/vistoria-pdf'
+import { assinarUrlSelfie } from '@/lib/storage/selfies'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -172,6 +173,9 @@ export async function GET(
     fotos_inquilino: fotosPorItem[it.id]?.inquilino ?? [],
   }))
 
+  // Selfie em bucket privado → URL assinada (curta) só pro render do PDF.
+  const selfieInquilinoUrl = await assinarUrlSelfie(admin, vistoria.selfie_inquilino_url, 300)
+
   const dados: VistoriaPDFData = {
     tipo: vistoria.tipo as 'entrada' | 'saida',
     data_vistoria: vistoria.data_vistoria,
@@ -184,9 +188,7 @@ export async function GET(
     assinatura_inquilino_url: vistoria.assinatura_inquilino_url
       ? vistoria.assinatura_inquilino_url.split('?')[0]  // remove cache-buster
       : null,
-    selfie_inquilino_url: vistoria.selfie_inquilino_url
-      ? vistoria.selfie_inquilino_url.split('?')[0]
-      : null,
+    selfie_inquilino_url: selfieInquilinoUrl,
     assinada_em: vistoria.assinada_em,
     assinada_ip: vistoria.assinada_ip,
     anunciante_nome: perfil?.nome ?? 'AluguelCuiabá',

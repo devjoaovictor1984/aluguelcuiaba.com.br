@@ -3,6 +3,7 @@ import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { TermoEntregaDocument, type TermoEntregaPDFData } from '@/lib/crm/termo-entrega-pdf'
+import { assinarUrlSelfie } from '@/lib/storage/selfies'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -84,6 +85,12 @@ export async function GET(
 
   const semCache = (u: string | null) => (u ? u.split('?')[0] : null)
 
+  // Selfies ficam em bucket privado → URL assinada (curta) só pro render.
+  const [selfieLocatario, selfieLocador] = await Promise.all([
+    assinarUrlSelfie(admin, termo.selfie_locatario_url, 300),
+    assinarUrlSelfie(admin, termo.selfie_locador_url, 300),
+  ])
+
   const dados: TermoEntregaPDFData = {
     data_entrega: termo.data_entrega,
     qtd_chaves: termo.qtd_chaves_entregues ?? 0,
@@ -92,12 +99,12 @@ export async function GET(
     observacoes: termo.observacoes,
     status: termo.status,
     assinatura_locatario_url: semCache(termo.assinatura_locatario_url),
-    selfie_locatario_url: semCache(termo.selfie_locatario_url),
+    selfie_locatario_url: selfieLocatario,
     assinado_locatario_em: termo.assinado_locatario_em,
     assinado_locatario_ip: termo.assinado_locatario_ip,
     observacoes_locatario: termo.observacoes_locatario,
     assinatura_locador_url: semCache(termo.assinatura_locador_url),
-    selfie_locador_url: semCache(termo.selfie_locador_url),
+    selfie_locador_url: selfieLocador,
     assinado_locador_em: termo.assinado_locador_em,
     assinado_locador_ip: termo.assinado_locador_ip,
     anunciante_nome: perfil?.nome ?? 'AluguelCuiabá',

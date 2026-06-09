@@ -3,6 +3,7 @@ import { ArrowLeft, KeyRound, AlertOctagon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { assinarUrlSelfie } from '@/lib/storage/selfies'
 import { EditorTermo } from './_components/editor-termo'
 
 interface Props {
@@ -52,6 +53,12 @@ export default async function TermoPage({ params }: Props) {
   const inquilino = contrato && (Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino) as { nome: string; whatsapp: string | null; telefone: string | null } | null
   const imovel = contrato && (Array.isArray(contrato.imovel) ? contrato.imovel[0] : contrato.imovel) as { titulo: string } | null
 
+  // Selfies em bucket privado → URL assinada (1h) pra exibir no painel.
+  const [selfieLocatarioUrl, selfieLocadorUrl] = await Promise.all([
+    assinarUrlSelfie(admin, termo.selfie_locatario_url),
+    assinarUrlSelfie(admin, termo.selfie_locador_url),
+  ])
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
 
   // URLs públicas das selfies/assinaturas já vêm prontas (bucket público).
@@ -84,11 +91,11 @@ export default async function TermoPage({ params }: Props) {
         recusadaMotivo={termo.recusada_motivo}
         assinadoLocatarioEm={termo.assinado_locatario_em}
         assinaturaLocatarioUrl={termo.assinatura_locatario_url}
-        selfieLocatarioUrl={termo.selfie_locatario_url}
+        selfieLocatarioUrl={selfieLocatarioUrl}
         observacoesLocatario={termo.observacoes_locatario}
         assinadoLocadorEm={termo.assinado_locador_em}
         assinaturaLocadorUrl={termo.assinatura_locador_url}
-        selfieLocadorUrl={termo.selfie_locador_url}
+        selfieLocadorUrl={selfieLocadorUrl}
         whatsappInquilino={inquilino?.whatsapp ?? inquilino?.telefone ?? null}
         nomeInquilino={inquilino?.nome ?? null}
         imobiliariaNome={perfil?.razao_social ?? perfil?.nome ?? null}

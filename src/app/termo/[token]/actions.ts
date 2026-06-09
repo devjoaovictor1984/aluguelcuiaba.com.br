@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { subirSelfieBase64 } from '@/lib/storage/selfies'
 
 const BUCKET = 'termos-chaves'
 
@@ -66,8 +67,9 @@ export async function locatarioAssinar(token: string, input: {
   const ass = await salvarImagemBase64(admin, input.assinatura_dataurl, `${termo.user_id}/${termo.id}/assinatura-locatario`)
   if (ass.error || !ass.url) return { error: ass.error ?? 'Falha ao salvar assinatura.' }
 
-  const selfie = await salvarImagemBase64(admin, input.selfie_dataurl, `${termo.user_id}/${termo.id}/selfie-locatario`)
-  if (selfie.error || !selfie.url) return { error: selfie.error ?? 'Falha ao salvar selfie.' }
+  // Selfie no bucket privado; guardamos o caminho (não a URL).
+  const selfie = await subirSelfieBase64(admin, input.selfie_dataurl, `${termo.user_id}/${termo.id}/selfie-locatario`)
+  if (selfie.error || !selfie.path) return { error: selfie.error ?? 'Falha ao salvar selfie.' }
 
   const hdrs = await headers()
   const ip = hdrs.get('x-forwarded-for')?.split(',')[0].trim() ?? hdrs.get('x-real-ip') ?? null
@@ -75,7 +77,7 @@ export async function locatarioAssinar(token: string, input: {
   const { error: e } = await admin.from('termos_entrega_chaves').update({
     status: 'assinado_locatario',
     assinatura_locatario_url: ass.url,
-    selfie_locatario_url: selfie.url,
+    selfie_locatario_url: selfie.path,
     assinado_locatario_em: new Date().toISOString(),
     assinado_locatario_ip: ip,
     observacoes_locatario: input.observacoes?.trim() || null,

@@ -3,6 +3,7 @@ import { ArrowLeft, ClipboardCheck, AlertOctagon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { assinarUrlSelfie } from '@/lib/storage/selfies'
 import { EditorVistoria, type ItemRow, type FotoRow } from './_components/editor-vistoria'
 
 interface Props {
@@ -156,6 +157,9 @@ export default async function VistoriaPage({ params, searchParams }: Props) {
   const itens: ItemRow[] = (itensRaw ?? []) as ItemRow[]
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
 
+  // Selfie em bucket privado → URL assinada (1h) pra exibir no painel.
+  const selfieUrl = await assinarUrlSelfie(admin, vistoria.selfie_inquilino_url ?? null)
+
   return (
     <div className="p-4 sm:p-6 space-y-4 max-w-5xl mx-auto pb-32">
       <div>
@@ -186,7 +190,7 @@ export default async function VistoriaPage({ params, searchParams }: Props) {
         assinadaEm={vistoria.assinada_em}
         inquilinoObservacoes={vistoria.inquilino_observacoes}
         assinaturaUrl={vistoria.assinatura_inquilino_url}
-        selfieUrl={vistoria.selfie_inquilino_url ?? null}
+        selfieUrl={selfieUrl}
         whatsappInquilino={inquilino?.whatsapp ?? inquilino?.telefone ?? null}
         nomeInquilino={inquilino?.nome ?? null}
         itens={itens}

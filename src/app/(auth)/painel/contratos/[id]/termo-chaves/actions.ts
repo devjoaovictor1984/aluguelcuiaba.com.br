@@ -7,6 +7,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { subirSelfieBase64, SELFIE_BUCKET } from '@/lib/storage/selfies'
 
 const BUCKET = 'termos-chaves'
 
@@ -196,9 +197,10 @@ export async function assinarComoLocador(termoId: string, input: {
 
   let selfieUrl: string | null = null
   if (input.selfie_dataurl?.startsWith('data:image/')) {
-    const s = await salvarImagemBase64(admin, input.selfie_dataurl, `${acesso.userId}/${termoId}/selfie-locador`)
+    // Selfie no bucket privado; guardamos o caminho (não a URL).
+    const s = await subirSelfieBase64(admin, input.selfie_dataurl, `${acesso.userId}/${termoId}/selfie-locador`)
     if (s.error) return { error: s.error }
-    selfieUrl = s.url ?? null
+    selfieUrl = s.path ?? null
   }
 
   const hdrs = await headers()
@@ -239,10 +241,16 @@ export async function excluirTermo(termoId: string) {
   if (!posse) return { error: 'Termo não encontrado.' }
 
   const admin = createAdminClient()
-  // Remove arquivos do storage (assinaturas/selfies) antes de apagar a linha.
-  const { data: arquivos } = await admin.storage.from(BUCKET).list(`${acesso.userId}/${termoId}`)
+  // Remove arquivos do storage antes de apagar a linha.
+  // Assinaturas ficam no bucket termos-chaves; selfies no bucket privado.
+  const pasta = `${acesso.userId}/${termoId}`
+  const { data: arquivos } = await admin.storage.from(BUCKET).list(pasta)
   if (arquivos?.length) {
-    await admin.storage.from(BUCKET).remove(arquivos.map(a => `${acesso.userId}/${termoId}/${a.name}`))
+    await admin.storage.from(BUCKET).remove(arquivos.map(a => `${pasta}/${a.name}`))
+  }
+  const { data: selfies } = await admin.storage.from(SELFIE_BUCKET).list(pasta)
+  if (selfies?.length) {
+    await admin.storage.from(SELFIE_BUCKET).remove(selfies.map(a => `${pasta}/${a.name}`))
   }
 
   const supabase = await createClient()
