@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { HelpCircle, X, Loader2, ExternalLink } from 'lucide-react'
-import { sanitizeHtmlContent } from '@/lib/seo/sanitize'
 
 interface Props {
   slug: string
@@ -126,7 +125,7 @@ export function BotaoAjuda({ slug, size = 14, className = '', titulo = 'Ajuda' }
                   )}
                   <div
                     className="prose prose-sm prose-violet max-w-none prose-headings:font-bold prose-headings:text-gray-900 prose-a:text-violet-700"
-                    dangerouslySetInnerHTML={{ __html: conteudo.conteudo_html ? sanitizeHtmlContent(conteudo.conteudo_html) : '<p class="text-gray-400">Sem conteúdo ainda.</p>' }}
+                    dangerouslySetInnerHTML={{ __html: conteudo.conteudo_html || '<p class="text-gray-400">Sem conteúdo ainda.</p>' }}
                   />
                 </>
               )}
