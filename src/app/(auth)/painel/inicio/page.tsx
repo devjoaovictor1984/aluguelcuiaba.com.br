@@ -52,6 +52,7 @@ interface ParcelaCompleta {
   vencimento: string
   valor_total: number
   valor_aluguel: number
+  valor_repasse_proprietario: number
   status_pagamento: string
   status_repasse: string
   status_seguro: string
@@ -72,6 +73,7 @@ interface ParcelaView {
   bairro: string | null
   vencimento: string
   valor: number
+  repasse: number
   status: string
   statusRepasse: string
   statusSeguro: string
@@ -129,7 +131,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
       .from('parcelas_aluguel')
       .select(`
         id, contrato_id, numero, mes_referencia, vencimento,
-        valor_total, valor_aluguel,
+        valor_total, valor_aluguel, valor_repasse_proprietario,
         status_pagamento, status_repasse, status_seguro, boleto_enviado,
         data_pagamento, valor_pago,
         contrato:contratos_locacao!inner(
@@ -169,6 +171,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
       bairro: bairro?.nome ?? null,
       vencimento: p.vencimento,
       valor: p.valor_total,
+      repasse: p.valor_repasse_proprietario ?? 0,
       status: p.status_pagamento,
       statusRepasse: p.status_repasse,
       statusSeguro: p.status_seguro,

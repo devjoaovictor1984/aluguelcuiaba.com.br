@@ -24,6 +24,7 @@ export interface LinhaParcela {
   bairro: string | null
   vencimento: string
   valor: number
+  repasse: number
   status: string
   statusRepasse: string
   statusSeguro: string
@@ -103,7 +104,7 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[800px]">
+          <table className="w-full text-sm min-w-[900px]">
             <thead className="bg-gray-50 text-left text-xs font-semibold text-gray-500">
               <tr>
                 <th className="px-3 py-2 w-8">
@@ -121,6 +122,7 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
                 <th className="px-3 py-2">Boleto</th>
                 <th className="px-3 py-2 text-center">Venc.</th>
                 <th className="px-3 py-2 text-right">Valor</th>
+                <th className="px-3 py-2 text-right">Repasse</th>
                 <th className="px-3 py-2 text-center">Status</th>
                 <th className="px-3 py-2 text-right">Ações</th>
               </tr>
@@ -174,6 +176,11 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
                       dia <strong className="text-gray-900">{diaVenc}</strong>
                     </td>
                     <td className="px-3 py-2 text-right font-medium text-gray-900">{formatarBRL(p.valor)}</td>
+                    <td className="px-3 py-2 text-right">
+                      <span className="font-bold text-blue-700" title="Repasse ao proprietário (aluguel − comissão, sem o seguro)">
+                        {formatarBRL(p.repasse)}
+                      </span>
+                    </td>
                     <td className="px-3 py-2 text-center">
                       <StatusBadge p={p} />
                     </td>
