@@ -10,7 +10,7 @@ import { MapaImoveisWrapper } from '@/components/mapa-imoveis-wrapper'
 import { BuscaBar } from '@/components/busca-bar'
 import { getBairros, getImoveis, getBannersSidebar, getImoveisParaMapa } from '@/lib/supabase/queries'
 import { parseBusca } from '@/lib/parse-busca'
-import { SlidersHorizontal, MapPin } from 'lucide-react'
+import { SlidersHorizontal } from 'lucide-react'
 import type { FiltrosBusca, Imovel, TipoImovel, TipoUsuario, OrdenarPor } from '@/types'
 
 interface Props {
@@ -74,6 +74,10 @@ export default async function Home({ searchParams }: Props) {
     ? { lat: bairroSelecionado.lat, lng: bairroSelecionado.lng, zoom: 15 }
     : null
 
+  // Desktop: mapa hero centrado em Cuiabá com aproximação um pouco maior
+  // quando nenhum bairro está selecionado. (Mobile mantém o fit-to-pins.)
+  const focusCenterDesktop = focusCenter ?? { lat: -15.5989, lng: -56.0949, zoom: 13 }
+
   const totalStr = count != null
     ? `${count} imóv${count === 1 ? 'el' : 'eis'} encontrado${count === 1 ? '' : 's'}`
     : 'Carregando...'
@@ -105,45 +109,28 @@ export default async function Home({ searchParams }: Props) {
         <BuscaBar inicial={p.busca ?? ''} />
       </div>
 
-      {/* DESKTOP: header brand (escondido no mobile).
-          SEO: o H1 semântico fica no bloco mobile acima (Google indexa
-          mobile-first). Aqui usamos <p> com tamanho de heading só pro
-          visual — evita duplicar H1 no HTML. */}
-      <div className="bg-violet-700 py-5 px-4 hidden md:block">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="text-xl font-bold text-white leading-tight">
-              Imóveis para alugar em Cuiabá/MT
-            </p>
-            <p className="text-violet-200 text-sm mt-0.5">{totalStr}</p>
-            <div className="mt-3">
-              <BuscaBar inicial={p.busca ?? ''} />
-            </div>
-          </div>
-
-          {/* Bairros chips */}
-          <div className="hidden sm:flex gap-1.5 flex-wrap max-w-lg">
-            {bairros?.slice(0, 6).map(b => (
-              <a
-                key={b.id}
-                href={`/bairros/${b.slug}`}
-                className="flex items-center gap-1 px-2.5 py-1 bg-violet-600 hover:bg-violet-500 text-white text-xs rounded-full transition-colors"
-              >
-                <MapPin size={10} />
-                {b.nome}
-              </a>
-            ))}
-            {(bairros?.length ?? 0) > 6 && (
-              <span className="px-2.5 py-1 bg-violet-800 text-violet-300 text-xs rounded-full">
-                +{(bairros?.length ?? 0) - 6} bairros
-              </span>
-            )}
-          </div>
+      {/* DESKTOP: mapa hero edge-to-edge (substitui a antiga faixa de busca).
+          A busca por palavras foi removida do desktop por enquanto.
+          SEO: o H1 semântico segue no bloco mobile acima (mobile-first). */}
+      <section className="hidden md:block">
+        <MapaImoveisWrapper
+          key={`desktop-${filtros.bairro_slug ?? 'todos'}`}
+          imoveis={pinsMobile}
+          focusCenter={focusCenterDesktop}
+          containerClassName="h-[55vh] w-full relative z-0"
+        />
+        <div className="max-w-[1800px] mx-auto px-6 flex items-center justify-between mt-1.5 text-[11px] text-gray-400">
+          <span>Arraste e dê zoom no mapa para filtrar os imóveis pela área visível.</span>
+          {count != null && (pinsMapa?.length ?? 0) < count && (
+            <span className="text-amber-600">
+              {count - (pinsMapa?.length ?? 0)} sem localização (só na lista)
+            </span>
+          )}
         </div>
-      </div>
+      </section>
 
       {/* Layout principal (padding do bottom-nav já vem do layout do grupo) */}
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-[1800px] mx-auto px-4 lg:px-6 py-6">
         <div className="flex gap-6 items-start">
 
           {/* Sidebar — só desktop */}
@@ -158,25 +145,6 @@ export default async function Home({ searchParams }: Props) {
 
           {/* Conteúdo */}
           <div className="flex-1 min-w-0">
-
-            {/* Mapa em-fluxo (desktop) — no mobile já temos o hero acima */}
-            {((pinsMapa && pinsMapa.length > 0) || focusCenter) && (
-              <div className="mb-6 hidden md:block">
-                <MapaImoveisWrapper
-                  key={filtros.bairro_slug ?? 'todos'}
-                  imoveis={pinsMobile}
-                  focusCenter={focusCenter}
-                />
-                <div className="flex items-center justify-between mt-1.5 px-1 text-[11px] text-gray-400">
-                  <span>Arraste e dê zoom no mapa para filtrar os imóveis pela área visível.</span>
-                  {count != null && (pinsMapa?.length ?? 0) < count && (
-                    <span className="text-amber-600">
-                      {count - (pinsMapa?.length ?? 0)} sem localização (só na lista)
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
 
             <div className="flex items-center justify-between mb-5 gap-3">
               <p className="text-sm text-gray-500 shrink-0">
