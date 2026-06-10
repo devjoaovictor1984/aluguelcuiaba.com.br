@@ -20,9 +20,12 @@ async function getLogoUrl(): Promise<string> {
 export async function Navbar() {
   const logoUrl = await getLogoUrl()
 
+  const linkCls = 'px-3 py-2 text-sm font-medium text-gray-600 hover:text-gray-900 rounded-lg hover:bg-gray-50 transition-colors'
+  const iconCls = 'p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors'
+
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-100 shadow-sm hidden md:block">
-      <div className="max-w-7xl mx-auto px-4 h-14 lg:h-24 flex items-center justify-between">
+    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-sm border-b border-gray-100 hidden md:block">
+      <div className="max-w-[1800px] mx-auto px-6 h-14 lg:h-24 flex items-center justify-between gap-6">
         <Link href="/" className="flex items-center shrink-0">
           <Image
             src={logoUrl}
@@ -35,31 +38,27 @@ export async function Navbar() {
           />
         </Link>
 
-        <nav className="flex items-center gap-3">
-          <Link href="/" className="text-sm text-gray-600 hover:text-gray-900 hidden sm:block">
-            Imóveis
-          </Link>
-          <Link href="/blog" className="text-sm text-gray-600 hover:text-gray-900 hidden sm:block">
-            Blog
-          </Link>
-          <Link
-            href="/corretor"
-            className="hidden lg:inline-flex items-center gap-1 text-sm font-semibold text-amber-700 hover:text-amber-800 border border-amber-300 hover:border-amber-400 hover:bg-amber-50 px-2.5 py-1.5 rounded-lg transition-colors"
-          >
-            Pra corretor →
-          </Link>
-          <Link
-            href="/painel/anuncios/novo"
-            className="flex items-center gap-1.5 bg-violet-700 text-white text-sm px-3 py-1.5 rounded-lg hover:bg-violet-800 transition-colors font-medium"
-          >
-            <Plus size={15} />
-            Anunciar
-          </Link>
-          <Link href="/favoritos" className="p-1.5 text-gray-400 hover:text-red-500 transition-colors" aria-label="Favoritos">
+        <nav className="flex items-center gap-1">
+          <Link href="/" className={linkCls}>Imóveis</Link>
+          <Link href="/blog" className={linkCls}>Blog</Link>
+          <Link href="/corretor" className={`${linkCls} hidden lg:block`}>Para corretores</Link>
+
+          {/* Ícones de conta — discretos, separados por um respiro */}
+          <Link href="/favoritos" aria-label="Favoritos" className={`${iconCls} ml-2 hover:text-red-500`}>
             <Heart size={18} />
           </Link>
-          <Link href="/painel" className="p-1.5 text-gray-400 hover:text-gray-700 transition-colors">
+          <Link href="/painel" aria-label="Minha conta" className={iconCls}>
             <User size={18} />
+          </Link>
+
+          {/* CTA primário único */}
+          <Link
+            href="/painel/anuncios/novo"
+            className="ml-2 inline-flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            <Plus size={16} />
+            <span className="hidden lg:inline">Anunciar grátis</span>
+            <span className="lg:hidden">Anunciar</span>
           </Link>
         </nav>
       </div>
