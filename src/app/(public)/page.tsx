@@ -7,6 +7,7 @@ import { FiltrosSidebar } from '@/components/filtros-sidebar'
 import { FiltrosMobileDrawer } from '@/components/filtros-mobile'
 import { BannerSidebar } from '@/components/banner-sidebar'
 import { MapaImoveisWrapper } from '@/components/mapa-imoveis-wrapper'
+import { SomenteDesktop } from '@/components/somente-desktop'
 import { BuscaBar } from '@/components/busca-bar'
 import { getBairros, getImoveis, getBannersSidebar, getImoveisParaMapa } from '@/lib/supabase/queries'
 import { parseBusca } from '@/lib/parse-busca'
@@ -112,22 +113,27 @@ export default async function Home({ searchParams }: Props) {
       {/* DESKTOP: mapa hero edge-to-edge (substitui a antiga faixa de busca).
           A busca por palavras foi removida do desktop por enquanto.
           SEO: o H1 semântico segue no bloco mobile acima (mobile-first). */}
-      <section className="hidden md:block">
-        <MapaImoveisWrapper
-          key={`desktop-${filtros.bairro_slug ?? 'todos'}`}
-          imoveis={pinsMobile}
-          focusCenter={focusCenterDesktop}
-          containerClassName="h-[55vh] w-full relative z-0"
-        />
-        <div className="max-w-[1800px] mx-auto px-6 flex items-center justify-between mt-1.5 text-[11px] text-gray-400">
-          <span>Arraste e dê zoom no mapa para filtrar os imóveis pela área visível.</span>
-          {count != null && (pinsMapa?.length ?? 0) < count && (
-            <span className="text-amber-600">
-              {count - (pinsMapa?.length ?? 0)} sem localização (só na lista)
-            </span>
-          )}
-        </div>
-      </section>
+      {/* SomenteDesktop: monta o Leaflet só em viewport desktop. No mobile
+          o componente NÃO monta (evita Leaflet em container display:none,
+          que estourava "Invalid LatLng NaN" e derrubava a página). */}
+      <SomenteDesktop>
+        <section className="hidden md:block">
+          <MapaImoveisWrapper
+            key={`desktop-${filtros.bairro_slug ?? 'todos'}`}
+            imoveis={pinsMobile}
+            focusCenter={focusCenterDesktop}
+            containerClassName="h-[55vh] w-full relative z-0"
+          />
+          <div className="max-w-[1800px] mx-auto px-6 flex items-center justify-between mt-1.5 text-[11px] text-gray-400">
+            <span>Arraste e dê zoom no mapa para filtrar os imóveis pela área visível.</span>
+            {count != null && (pinsMapa?.length ?? 0) < count && (
+              <span className="text-amber-600">
+                {count - (pinsMapa?.length ?? 0)} sem localização (só na lista)
+              </span>
+            )}
+          </div>
+        </section>
+      </SomenteDesktop>
 
       {/* Layout principal (padding do bottom-nav já vem do layout do grupo) */}
       <div className="max-w-[1800px] mx-auto px-4 lg:px-6 py-6">
