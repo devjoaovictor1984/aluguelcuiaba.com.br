@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   CheckSquare, Square, MinusSquare, Loader2, Send, DollarSign, Shield, X, Check,
-  CheckCircle2, Clock, AlertTriangle, MessageCircle,
+  CheckCircle2, Clock, AlertTriangle, MessageCircle, ChevronUp, ChevronDown, ArrowUpDown,
 } from 'lucide-react'
 import { formatarBRL } from '@/lib/formatters'
 import { codigoBoleto } from '@/lib/crm/calculos'
@@ -41,15 +41,57 @@ interface Props {
   atrasadasMes: number
 }
 
+type SortCol = 'cliente' | 'vencimento' | 'valor' | 'repasse' | 'status'
+
+// Ordem do status pra ordenação: atrasado → vence hoje → em breve → em aberto → pago.
+// Asc deixa o que precisa de ação no topo e os pagos no fim.
+function rankStatus(p: LinhaParcela): number {
+  if (p.pago) return 4
+  if (p.diasAteVenc < 0) return 0
+  if (p.diasAteVenc === 0) return 1
+  if (p.diasAteVenc <= 5) return 2
+  return 3
+}
+
 export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
   const router = useRouter()
   const [selecionadas, setSelecionadas] = useState<Set<string>>(new Set())
   const [modalPgto, setModalPgto] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const todasIds = useMemo(() => parcelas.map(p => p.id), [parcelas])
+  // Ordenação e filtro por status (client-side)
+  const [filtro, setFiltro] = useState<'todos' | 'aberto' | 'pago'>('todos')
+  const [sortBy, setSortBy] = useState<SortCol>('vencimento')
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
+
+  const onSort = (col: SortCol) => {
+    if (sortBy === col) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'))
+    else { setSortBy(col); setSortDir('asc') }
+  }
+
+  const visiveis = useMemo(() => {
+    const filtradas = parcelas.filter(p =>
+      filtro === 'aberto' ? !p.pago : filtro === 'pago' ? p.pago : true
+    )
+    const dir = sortDir === 'asc' ? 1 : -1
+    return [...filtradas].sort((a, b) => {
+      let cmp = 0
+      switch (sortBy) {
+        case 'cliente': cmp = a.inquilino.localeCompare(b.inquilino, 'pt-BR'); break
+        case 'vencimento': cmp = a.vencimento.localeCompare(b.vencimento); break
+        case 'valor': cmp = a.valor - b.valor; break
+        case 'repasse': cmp = a.repasse - b.repasse; break
+        case 'status': cmp = rankStatus(a) - rankStatus(b); break
+      }
+      // desempate estável por vencimento
+      if (cmp === 0) cmp = a.vencimento.localeCompare(b.vencimento)
+      return cmp * dir
+    })
+  }, [parcelas, filtro, sortBy, sortDir])
+
+  const todasIds = useMemo(() => visiveis.map(p => p.id), [visiveis])
   const totalSelecionado = selecionadas.size
-  const ehTodasSelecionadas = totalSelecionado > 0 && totalSelecionado === parcelas.length
+  const ehTodasSelecionadas = totalSelecionado > 0 && visiveis.length > 0 && visiveis.every(p => selecionadas.has(p.id))
   const ehAlgumas = totalSelecionado > 0 && !ehTodasSelecionadas
 
   const toggleTodas = () => {
@@ -80,14 +122,34 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
   return (
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
       <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
-        <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-          Aluguéis do mês por cliente
-          {atrasadasMes > 0 && (
-            <span className="text-xs text-red-600 font-medium">
-              · {atrasadasMes} já atrasado{atrasadasMes === 1 ? '' : 's'}
-            </span>
-          )}
-        </h2>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+            Aluguéis do mês por cliente
+            {atrasadasMes > 0 && (
+              <span className="text-xs text-red-600 font-medium">
+                · {atrasadasMes} já atrasado{atrasadasMes === 1 ? '' : 's'}
+              </span>
+            )}
+          </h2>
+          {/* Filtro rápido por status */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-0.5 text-xs font-medium">
+            {([
+              ['todos', 'Todos'],
+              ['aberto', 'Em aberto'],
+              ['pago', 'Pagos'],
+            ] as const).map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setFiltro(val)}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  filtro === val ? 'bg-white text-violet-700 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
         {totalSelecionado > 0 && (
           <BarraBulk
             total={totalSelecionado}
@@ -98,9 +160,9 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
           />
         )}
       </div>
-      {parcelas.length === 0 ? (
+      {visiveis.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-8">
-          Sem aluguéis previstos neste mês.
+          {parcelas.length === 0 ? 'Sem aluguéis previstos neste mês.' : 'Nenhuma parcela neste filtro.'}
         </p>
       ) : (
         <div className="overflow-x-auto">
@@ -117,18 +179,18 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
                     }
                   </button>
                 </th>
-                <th className="px-3 py-2">Cliente</th>
+                <SortTh label="Cliente" col="cliente" sortBy={sortBy} sortDir={sortDir} onSort={onSort} />
                 <th className="px-3 py-2">Imóvel</th>
                 <th className="px-3 py-2">Boleto</th>
-                <th className="px-3 py-2 text-center">Venc.</th>
-                <th className="px-3 py-2 text-right">Valor</th>
-                <th className="px-3 py-2 text-right">Repasse</th>
-                <th className="px-3 py-2 text-center">Status</th>
+                <SortTh label="Venc." col="vencimento" sortBy={sortBy} sortDir={sortDir} onSort={onSort} align="center" />
+                <SortTh label="Valor" col="valor" sortBy={sortBy} sortDir={sortDir} onSort={onSort} align="right" />
+                <SortTh label="Repasse" col="repasse" sortBy={sortBy} sortDir={sortDir} onSort={onSort} align="right" />
+                <SortTh label="Status" col="status" sortBy={sortBy} sortDir={sortDir} onSort={onSort} align="center" />
                 <th className="px-3 py-2 text-right">Ações</th>
               </tr>
             </thead>
             <tbody>
-              {parcelas.map(p => {
+              {visiveis.map(p => {
                 const venc = new Date(p.vencimento + 'T00:00:00')
                 const diaVenc = venc.getDate()
                 const selecionada = selecionadas.has(p.id)
@@ -319,6 +381,33 @@ function ModalBulkPgto({
         </div>
       </div>
     </div>
+  )
+}
+
+function SortTh({ label, col, sortBy, sortDir, onSort, align = 'left' }: {
+  label: string
+  col: SortCol
+  sortBy: SortCol
+  sortDir: 'asc' | 'desc'
+  onSort: (c: SortCol) => void
+  align?: 'left' | 'center' | 'right'
+}) {
+  const ativo = sortBy === col
+  const just = align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'
+  const th = align === 'right' ? 'text-right' : align === 'center' ? 'text-center' : 'text-left'
+  return (
+    <th className={`px-3 py-2 ${th}`}>
+      <button
+        type="button"
+        onClick={() => onSort(col)}
+        className={`inline-flex items-center gap-1 w-full ${just} hover:text-gray-800 transition-colors ${ativo ? 'text-violet-700' : ''}`}
+      >
+        <span>{label}</span>
+        {ativo
+          ? (sortDir === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)
+          : <ArrowUpDown size={11} className="text-gray-300" />}
+      </button>
+    </th>
   )
 }
 
