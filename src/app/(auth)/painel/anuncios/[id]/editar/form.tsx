@@ -331,7 +331,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
           const blob = fotosNovas[i].blob ?? await comprimirImagem(fotosNovas[i].file)
           const ordem = existentesAtivas.length + i + 1
           const path = `${userId}/${imovel.id}/${Date.now()}-${i + 1}.jpg`
-          const { error: uploadErr } = await supabase.storage.from('fotos-imoveis').upload(path, blob, { contentType: 'image/jpeg', upsert: false })
+          const { error: uploadErr } = await supabase.storage.from('fotos-imoveis').upload(path, blob, { contentType: 'image/jpeg', upsert: false, cacheControl: '31536000' })
           if (uploadErr) throw new Error(uploadErr.message)
           const { data: { publicUrl } } = supabase.storage.from('fotos-imoveis').getPublicUrl(path)
           await supabase.from('fotos').insert({

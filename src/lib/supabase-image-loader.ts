@@ -37,6 +37,9 @@ export default function supabaseImageLoader({ src, width, quality }: LoaderArgs)
   url.searchParams.set('quality', String(quality ?? 75))
   // resize=contain evita corte; o object-fit do CSS cuida do enquadramento.
   url.searchParams.set('resize', 'contain')
+  // WebP: ~25-30% menor que JPEG. Suportado por todos os navegadores atuais.
+  // O Supabase render não negocia por Accept — precisa do format explícito.
+  url.searchParams.set('format', 'webp')
 
   return url.toString()
 }

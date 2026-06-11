@@ -405,7 +405,7 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
           setProgresso(`Enviando fotos ${i + 1}/${fotos.length}...`)
           const blob = fotos[i].blob ?? await comprimirImagem(fotos[i].file)
           const path = `${userId}/${imovel.id}/${i + 1}.jpg`
-          const { error: uploadError } = await supabase.storage.from('fotos-imoveis').upload(path, blob, { contentType: 'image/jpeg', upsert: true })
+          const { error: uploadError } = await supabase.storage.from('fotos-imoveis').upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '31536000' })
           if (uploadError) throw new Error(`Erro ao enviar foto ${i + 1}: ${uploadError.message}`)
           const { data: { publicUrl } } = supabase.storage.from('fotos-imoveis').getPublicUrl(path)
           await supabase.from('fotos').insert({ imovel_id: imovel.id, url: publicUrl, ordem: i + 1, principal: i === 0 })

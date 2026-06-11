@@ -15,6 +15,11 @@ const nextConfig: NextConfig = {
     // cota e passou a responder 402. Ver src/lib/supabase-image-loader.ts.
     loader: 'custom',
     loaderFile: './src/lib/supabase-image-loader.ts',
+    // Menos buckets de largura = menos transformações distintas no Supabase
+    // (cada largura é uma transformação "fria" de ~1s na 1ª vez). Consolidar
+    // mantém o cache quente e reduz o srcset.
+    deviceSizes: [640, 828, 1080, 1920],
+    imageSizes: [48, 96, 256],
     remotePatterns: [
       {
         protocol: 'https',

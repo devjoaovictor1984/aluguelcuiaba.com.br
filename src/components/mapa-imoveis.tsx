@@ -7,6 +7,7 @@ import L from 'leaflet'
 import { Locate, LocateOff, Loader2, X } from 'lucide-react'
 import 'leaflet/dist/leaflet.css'
 import { buildImovelUrl } from '@/lib/utils'
+import { thumbSupabase } from '@/lib/img-thumb'
 
 // Centro padrão: Cuiabá-MT (Praça da República)
 const CUIABA: [number, number] = [-15.5989, -56.0949]
@@ -61,8 +62,10 @@ function distanciaKm(a: [number, number], b: [number, number]): number {
 // Pin: foto circular do imóvel + balão de preço abaixo
 function criarIconeFoto(preco: number, fotoUrl: string | null): L.DivIcon {
   const label = formatarPreco(preco)
-  const bgImg = fotoUrl
-    ? `background-image:url('${fotoUrl}');background-size:cover;background-position:center;`
+  // Pin tem 44px → pede thumb de ~120px (cobre retina), não a foto original.
+  const thumb = fotoUrl ? thumbSupabase(fotoUrl, 120) : null
+  const bgImg = thumb
+    ? `background-image:url('${thumb}');background-size:cover;background-position:center;`
     : `background:#ddd6fe;`
   const inicial = fotoUrl ? '' : `
     <div style="
@@ -293,7 +296,8 @@ export default function MapaImoveis({ imoveis, height = 360, containerClassName,
                 <div className="text-sm font-sans w-44">
                   {foto && (
                     <div className="w-full aspect-[4/3] rounded-lg overflow-hidden mb-2 bg-gray-100">
-                      <img src={foto} alt={im.titulo} className="w-full h-full object-cover" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={thumbSupabase(foto, 400)} alt={im.titulo} loading="lazy" className="w-full h-full object-cover" />
                     </div>
                   )}
                   <p className="font-bold text-gray-900 mb-0.5">
