@@ -29,6 +29,18 @@ interface Props {
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://aluguelcuiaba.com.br'
 
+// ISR: a página é servida do cache (edge) e regenerada no máx. a cada 60s.
+// Visitante recebe a versão pronta na hora; mudanças aparecem em até ~1 min.
+// Só funciona porque as queries usam o cliente público (sem cookie).
+export const revalidate = 60
+
+// Sem generateStaticParams, uma rota com param dinâmico é tratada como
+// dinâmica (sem cache). Retornando [] não pré-geramos nada no build —
+// cada imóvel é renderizado na 1ª visita e cacheado on-demand (ISR).
+export async function generateStaticParams() {
+  return []
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const { data } = await getImovelPorId(slug)

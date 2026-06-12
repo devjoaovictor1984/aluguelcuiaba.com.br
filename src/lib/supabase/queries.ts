@@ -1,4 +1,5 @@
 import { createClient } from './server'
+import { createPublicClient } from './public'
 import type { FiltrosBusca } from '@/types'
 import { seedDoDia, shuffleSeeded } from '@/lib/random'
 
@@ -163,7 +164,8 @@ export async function getImoveisParaMapa(filtros: FiltrosBusca = {}) {
 }
 
 export async function getImovelPorId(idOrSlug: string) {
-  const supabase = await createClient()
+  // Leitura pública → cliente sem cookie (permite ISR/cache da página).
+  const supabase = createPublicClient()
   const selectStr = `*, bairro:bairros(*), condominio:condominios(*), fotos(*), perfil:perfis(*)`
   const filtroStatus = filtroStatusPublico()
 
@@ -183,7 +185,7 @@ export async function getImovelPorId(idOrSlug: string) {
 }
 
 export async function getBairros() {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   return supabase.from('bairros').select('*').order('nome')
 }
 
@@ -209,7 +211,7 @@ export async function getCondominios() {
 }
 
 export async function getImoveisSimilares(bairroId: string, excluirId: string, limite = 6) {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   return supabase
     .from('imoveis')
     .select(`*, fotos(*), bairro:bairros(*)`)
@@ -236,7 +238,7 @@ export async function getMeusImoveis(userId: string) {
 }
 
 export async function getBannersSidebar() {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   return supabase
     .from('banners_sidebar')
     .select('id, imagem_url, link_url, ordem')
