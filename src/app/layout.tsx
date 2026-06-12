@@ -104,8 +104,21 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     contatoEmail = cfg.contato_email || contatoEmail
   } catch {}
 
+  // Origem do Supabase (imagens) — preconnect adianta DNS+TLS e ajuda o LCP.
+  const supabaseOrigin = (() => {
+    try { return new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).origin } catch { return null }
+  })()
+
   return (
     <html lang="pt-BR">
+      <head>
+        {supabaseOrigin && (
+          <>
+            <link rel="preconnect" href={supabaseOrigin} crossOrigin="anonymous" />
+            <link rel="dns-prefetch" href={supabaseOrigin} />
+          </>
+        )}
+      </head>
       <body className={`${inter.className} flex flex-col min-h-screen`}>
 
         {/* JSON-LD: identidade da marca (Organization + WebSite) — ajuda
