@@ -22,6 +22,13 @@ interface Options {
   lazyImages?: boolean
   /** Adiciona rel="nofollow noopener noreferrer" em links externos. Default: true. */
   externalLinksSafe?: boolean
+  /**
+   * Libera TODO style inline (display, grid, padding, background, gradientes…)
+   * em vez do whitelist mínimo. Use SÓ em conteúdo editorial CONFIÁVEL escrito
+   * pelo admin (posts, ajuda) — nunca em texto de origem não confiável (ex:
+   * descrição de imóvel do anunciante), pra não abrir CSS injection. Default: false.
+   */
+  richStyles?: boolean
 }
 
 const APP_HOST = new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://aluguelcuiaba.com.br').host
@@ -31,6 +38,9 @@ const APP_HOST = new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://aluguelcuia
 const SANITIZE_OPTS: sanitizeHtml.IOptions = {
   allowedTags: [
     'p', 'br', 'hr', 'span', 'div',
+    // Tags de seção (sem risco de XSS) — preservam wrappers de layout dos
+    // templates de post (cards em grid, faixas), que senão colapsam.
+    'section', 'article', 'header', 'footer', 'aside', 'main', 'nav',
     'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
     'strong', 'b', 'em', 'i', 'u', 's', 'sub', 'sup', 'mark',
     'ul', 'ol', 'li', 'blockquote', 'pre', 'code',
@@ -59,10 +69,17 @@ const SANITIZE_OPTS: sanitizeHtml.IOptions = {
 
 export function sanitizeHtmlContent(html: string, opts: Options = {}): string {
   if (!html) return ''
-  const o = { rebaixarH1: true, lazyImages: true, externalLinksSafe: true, ...opts }
+  const o = { rebaixarH1: true, lazyImages: true, externalLinksSafe: true, richStyles: false, ...opts }
 
   // 1. Sanitização de segurança (anti-XSS) via allowlist.
-  let out = sanitizeHtml(html, SANITIZE_OPTS)
+  // Em conteúdo editorial confiável (richStyles), libera todo style inline
+  // (omitir allowedStyles faz o sanitize-html aceitar qualquer propriedade) —
+  // necessário pros templates de post feitos 100% com style inline (grid,
+  // gradiente, cards). O resto da allowlist (tags, atributos, schemes) continua.
+  const sanitizeOpts: sanitizeHtml.IOptions = o.richStyles
+    ? { ...SANITIZE_OPTS, allowedStyles: undefined }
+    : SANITIZE_OPTS
+  let out = sanitizeHtml(html, sanitizeOpts)
 
   if (o.rebaixarH1) {
     out = out.replace(/<h1(\s[^>]*)?>/gi, '<h2$1>').replace(/<\/h1>/gi, '</h2>')

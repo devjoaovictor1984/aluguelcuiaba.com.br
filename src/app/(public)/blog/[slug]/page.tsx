@@ -225,7 +225,7 @@ export default async function BlogPostPage({ params }: Props) {
                 prose-ol:list-decimal prose-ol:pl-5
                 prose-img:rounded-xl prose-img:max-w-full prose-img:h-auto
                 prose-pre:overflow-x-auto"
-              dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(p.conteudo ?? '') }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtmlContent(p.conteudo ?? '', { richStyles: true }) }}
             />
 
             {/* Tags */}
