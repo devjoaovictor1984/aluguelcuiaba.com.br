@@ -31,7 +31,7 @@ export async function GET(_req: Request, { params }: Props) {
   // Sanitiza no servidor antes de mandar pro client (o BotaoAjuda renderiza direto).
   const payload = {
     ...data,
-    conteudo_html: data.conteudo_html ? sanitizeHtmlContent(data.conteudo_html) : data.conteudo_html,
+    conteudo_html: data.conteudo_html ? sanitizeHtmlContent(data.conteudo_html, { richStyles: true }) : data.conteudo_html,
   }
 
   return NextResponse.json(payload, {
