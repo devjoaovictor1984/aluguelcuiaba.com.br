@@ -31,6 +31,14 @@ const CAMPOS_GRUPOS: { titulo: string; campos: CampoOpt[] }[] = [
     ],
   },
   {
+    titulo: 'Empresa (PJ)',
+    campos: [
+      { chave: 'nome_fantasia', label: 'Nome fantasia' },
+      { chave: 'inscricao_estadual', label: 'Inscrição estadual' },
+      { chave: 'inscricao_municipal', label: 'Inscrição municipal' },
+    ],
+  },
+  {
     titulo: 'Cônjuge (se casado)',
     campos: [
       { chave: 'conjuge_nome', label: 'Nome do cônjuge' },
@@ -109,6 +117,15 @@ const PRESETS: { nome: string; campos: string[]; docs: string[] }[] = [
       'conjuge_nome','conjuge_cpf','conjuge_rg','conjuge_rg_orgao','conjuge_data_nascimento','conjuge_profissao','conjuge_nacionalidade',
     ],
     docs: ['rg','cpf','comprovante_residencia','comprovante_renda','certidao_casamento'],
+  },
+  {
+    nome: 'Cadastro de empresa (PJ)',
+    campos: [
+      'nome','cpf_cnpj','nome_fantasia','inscricao_estadual','inscricao_municipal',
+      'email','telefone','whatsapp',
+      'endereco_cep','endereco_logradouro','endereco_numero','endereco_complemento','endereco_bairro','endereco_cidade','endereco_estado',
+    ],
+    docs: [],
   },
   {
     nome: 'Só dados bancários (proprietário)',
