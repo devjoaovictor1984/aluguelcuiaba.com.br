@@ -23,8 +23,8 @@ export const QUARTOS_OPCOES = [
 
 export const PLANOS = {
   free:          { nome: 'Gratuito',      imoveis: 1,   fotos: 20, destaque: false, preco: 0     },
-  basico:        { nome: 'Básico',        imoveis: 10,  fotos: 20, destaque: false, preco: 49.90 },
-  profissional:  { nome: 'Profissional',  imoveis: 999, fotos: 20, destaque: true,  preco: 99.90 },
+  basico:        { nome: 'Básico',        imoveis: 10,  fotos: 20, destaque: false, preco: 14.90 },
+  profissional:  { nome: 'Profissional',  imoveis: 999, fotos: 20, destaque: true,  preco: 24.90 },
 } as const
 
 export const DIAS_EXPIRACAO = 30

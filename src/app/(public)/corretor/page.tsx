@@ -483,13 +483,13 @@ export default async function CorretorPage() {
               cta="Criar conta grátis" href={SIGNUP}
             />
             <PlanoCard
-              nome="Básico" preco="49,90" periodo="/mês"
+              nome="Básico" preco="14,90" periodo="/mês"
               descricao="Pra corretor autônomo com carteira pequena/média."
               features={['Até 10 imóveis ativos', 'Painel CRM completo', 'Recibo em PDF', 'Controle financeiro', 'Comissão e repasse', 'Avisos de vencimento']}
               cta="Escolher Básico" href="/planos" destaque
             />
             <PlanoCard
-              nome="Profissional" preco="99,90" periodo="/mês"
+              nome="Profissional" preco="24,90" periodo="/mês"
               descricao="Pra pequena imobiliária com volume maior."
               features={['Imóveis ilimitados', 'Tudo do Básico', 'Destaque no portal', 'Suporte prioritário', 'Recursos avançados']}
               cta="Conhecer Profissional" href="/planos"

@@ -569,7 +569,7 @@ export default async function AdminPage() {
             <p className="text-xs text-gray-400 mb-1">Receita estimada</p>
             <p className="text-xl font-bold text-gray-900">
               {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
-                (contPlanos.basico ?? 0) * 49.90 + (contPlanos.profissional ?? 0) * 99.90
+                (contPlanos.basico ?? 0) * 14.90 + (contPlanos.profissional ?? 0) * 24.90
               )}
               <span className="text-xs font-normal text-gray-400">/mês</span>
             </p>

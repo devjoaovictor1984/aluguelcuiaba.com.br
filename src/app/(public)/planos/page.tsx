@@ -28,7 +28,7 @@ const PLANOS = [
   {
     id: 'basico',
     nome: 'Básico',
-    preco: 49.90,
+    preco: 14.90,
     periodo: '/mês',
     descricao: 'Para corretores e proprietários com até 10 imóveis.',
     icone: <Zap size={22} />,
@@ -48,7 +48,7 @@ const PLANOS = [
   {
     id: 'profissional',
     nome: 'Profissional',
-    preco: 99.90,
+    preco: 24.90,
     periodo: '/mês',
     descricao: 'Para imobiliárias e corretores com grande carteira.',
     icone: <Building2 size={22} />,
