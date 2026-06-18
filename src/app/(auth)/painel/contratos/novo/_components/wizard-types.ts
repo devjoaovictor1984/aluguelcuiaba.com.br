@@ -66,6 +66,8 @@ export interface WizardState {
   duracao_meses: string
   dia_vencimento: string
   forma_pagamento: 'boleto' | 'pix' | 'transferencia' | 'dinheiro' | 'cheque'
+  pagamento_antecipado: boolean
+  data_pagamento_antecipado: string
   observacoes: string
   clausulas_extras: string
   indice_reajuste: string
@@ -109,6 +111,8 @@ export const ESTADO_INICIAL: WizardState = {
   duracao_meses: '12',
   dia_vencimento: '5',
   forma_pagamento: 'boleto',
+  pagamento_antecipado: false,
+  data_pagamento_antecipado: '',
   observacoes: '',
   clausulas_extras: '',
   indice_reajuste: 'IGPM',

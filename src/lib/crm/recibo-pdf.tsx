@@ -21,6 +21,9 @@ export interface ReciboData {
   juros_multa: number
   desconto: number
   mes_referencia: string  // YYYY-MM-01
+  // Recibo consolidado de pagamento à vista. Quando presente, substitui a
+  // frase "referente ao aluguel do mês de X" pela descrição do período.
+  periodo_descricao?: string  // ex.: "12 parcelas (01/2026 a 12/2026)"
   data_pagamento: string  // YYYY-MM-DD
   // Emitente
   emitente_nome: string
@@ -236,7 +239,7 @@ export function ReciboDocument({ data }: { data: ReciboData }) {
           </View>
         </View>
 
-        <Text style={styles.titulo}>Recibo de Aluguel</Text>
+        <Text style={styles.titulo}>{data.periodo_descricao ? 'Recibo de Pagamento Antecipado' : 'Recibo de Aluguel'}</Text>
 
         {/* Valor em destaque */}
         <View style={styles.valorPrincipal}>
@@ -250,8 +253,10 @@ export function ReciboDocument({ data }: { data: ReciboData }) {
           Recebi de <Text style={styles.destaque}>{data.inquilino_nome}</Text>
           {data.inquilino_cpf && `, CPF ${data.inquilino_cpf},`}
           {' '}a importância de <Text style={styles.destaque}>{fmtBRL(valorRecebido)}</Text>
-          {' '}({extenso.toLowerCase()}), referente ao aluguel do mês de
-          {' '}<Text style={styles.destaque}>{mesAnoExtenso(data.mes_referencia)}</Text>
+          {' '}({extenso.toLowerCase()}),{' '}
+          {data.periodo_descricao
+            ? <>referente ao pagamento antecipado de <Text style={styles.destaque}>{data.periodo_descricao}</Text></>
+            : <>referente ao aluguel do mês de <Text style={styles.destaque}>{mesAnoExtenso(data.mes_referencia)}</Text></>}
           {data.imovel_titulo && (
             <>
               {' '}do imóvel <Text style={styles.destaque}>{data.imovel_titulo}</Text>

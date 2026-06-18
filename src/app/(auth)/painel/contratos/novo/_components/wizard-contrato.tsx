@@ -200,6 +200,10 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
       duracao_meses: parseInt(s.duracao_meses),
       dia_vencimento: parseInt(s.dia_vencimento),
       forma_pagamento: s.forma_pagamento,
+      pagamento_antecipado: s.pagamento_antecipado,
+      data_pagamento_antecipado: s.pagamento_antecipado
+        ? (s.data_pagamento_antecipado || s.data_primeiro_aluguel)
+        : null,
       observacoes: s.observacoes || null,
       clausulas_extras: s.clausulas_extras || null,
       indice_reajuste: s.indice_reajuste || null,
@@ -701,6 +705,32 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
                 <option value="dinheiro">Dinheiro</option>
                 <option value="cheque">Cheque</option>
               </select>
+            </div>
+            <div className="sm:col-span-2 bg-violet-50/60 border border-violet-100 rounded-xl p-3">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={s.pagamento_antecipado}
+                  onChange={e => setField('pagamento_antecipado', e.target.checked)}
+                  className="mt-0.5"
+                />
+                <span className="text-xs text-gray-700">
+                  <span className="font-semibold">Pagamento à vista</span> — o inquilino paga o período inteiro adiantado.
+                  As parcelas são geradas <span className="font-medium">já quitadas</span>; o repasse ao proprietário continua mês a mês.
+                </span>
+              </label>
+              {s.pagamento_antecipado && (
+                <div className="mt-2">
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Data do pagamento à vista</label>
+                  <input
+                    type="date"
+                    value={s.data_pagamento_antecipado}
+                    onChange={e => setField('data_pagamento_antecipado', e.target.value)}
+                    className={inputCls}
+                  />
+                  <p className="text-[10px] text-gray-400 mt-0.5">Se vazio, usa a data do primeiro aluguel.</p>
+                </div>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Índice reajuste</label>

@@ -43,6 +43,11 @@ export interface ContratoInput {
   indice_reajuste: string | null
   data_proximo_reajuste: string | null
 
+  // Pagamento à vista (v55): inquilino paga o período inteiro adiantado.
+  // Parcelas entram já quitadas; repasse ao proprietário segue mensal.
+  pagamento_antecipado: boolean
+  data_pagamento_antecipado: string | null
+
   // Perfil do contrato (v37+): controla cláusulas auto-injetadas
   finalidade: 'residencial' | 'comercial' | 'misto'
   tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
@@ -164,6 +169,8 @@ export async function criarContrato(input: ContratoInput) {
       clausulas_extras: input.clausulas_extras,
       indice_reajuste: input.indice_reajuste,
       data_proximo_reajuste: input.data_proximo_reajuste,
+      pagamento_antecipado: input.pagamento_antecipado,
+      data_pagamento_antecipado: input.pagamento_antecipado ? input.data_pagamento_antecipado : null,
       finalidade: input.finalidade,
       tipo_atuacao: input.tipo_atuacao,
       intermediador_assina: input.intermediador_assina,
@@ -197,6 +204,10 @@ export async function criarContrato(input: ContratoInput) {
     primeira_parcela_cheia: input.primeira_parcela_cheia,
   }
   const parcelas = gerarParcelas(calcInput)
+  // Pagamento à vista: parcelas entram já quitadas na data do pagamento.
+  // O repasse ao proprietário (status_repasse) continua 'pendente' → segue mensal.
+  const antecipado = input.pagamento_antecipado
+  const dataQuitacao = input.data_pagamento_antecipado || input.data_primeiro_aluguel
   const parcelasPayload = parcelas.map(p => ({
     contrato_id: contrato.id,
     numero: p.numero,
@@ -209,7 +220,10 @@ export async function criarContrato(input: ContratoInput) {
     valor_total: p.valor_total,
     valor_comissao: p.valor_comissao,
     valor_repasse_proprietario: p.valor_repasse_proprietario,
-    status_seguro: p.valor_seguro > 0 ? 'pendente' : 'sem_seguro',
+    status_seguro: p.valor_seguro > 0 ? (antecipado ? 'pago' : 'pendente') : 'sem_seguro',
+    ...(antecipado
+      ? { status_pagamento: 'pago', data_pagamento: dataQuitacao, valor_pago: p.valor_total }
+      : {}),
   }))
 
   const { error: errParcelas } = await supabase.from('parcelas_aluguel').insert(parcelasPayload)

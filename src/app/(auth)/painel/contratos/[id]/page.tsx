@@ -324,6 +324,16 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
           <p className="text-xs text-gray-400 flex items-center gap-1 mb-1"><Calendar size={11} /> VENCIMENTO</p>
           <p className="text-sm font-semibold text-gray-900">Dia {contrato.dia_vencimento}</p>
           <p className="text-xs text-gray-400 mt-0.5 capitalize">{contrato.forma_pagamento}</p>
+          {contrato.pagamento_antecipado && (
+            <a
+              href={`/api/recibos/contrato/${contrato.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-semibold text-violet-700 hover:text-violet-800"
+            >
+              💰 Pago à vista · recibo consolidado
+            </a>
+          )}
         </div>
       </div>
 
