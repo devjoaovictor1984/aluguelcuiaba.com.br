@@ -10,6 +10,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
   }
 
+  const { data: perfil } = await supabase
+    .from('perfis')
+    .select('role, plano')
+    .eq('id', user.id)
+    .single()
+
+  // Admin não assina plano.
+  if (perfil?.role === 'admin') {
+    return NextResponse.json({ error: 'Administradores não precisam de plano.' }, { status: 400 })
+  }
+
+  // Quem já tem plano pago troca pelo Portal (evita assinatura duplicada).
+  const planoAtual = perfil?.plano ?? 'free'
+  if (planoAtual !== 'free') {
+    return NextResponse.json(
+      { error: 'Você já tem um plano ativo. Use "Gerenciar assinatura" para trocar de plano.', portal: true },
+      { status: 409 },
+    )
+  }
+
   const { plano } = await request.json()
 
   if (!['basico', 'profissional'].includes(plano)) {

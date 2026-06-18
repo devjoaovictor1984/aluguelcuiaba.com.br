@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import type Stripe from 'stripe'
-import { stripe } from '@/lib/stripe'
+import { stripe, planoDoPrice } from '@/lib/stripe'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { aplicarLimiteImoveis } from '@/lib/planos'
 
 // Na API 2026-04-22.dahlia o campo current_period_end pode não existir diretamente.
 // Usamos fallback de 30 dias quando o valor não estiver disponível.
@@ -58,6 +59,31 @@ export async function POST(request: NextRequest) {
       .eq('id', userId)
   }
 
+  // Troca de plano pelo Portal (upgrade/downgrade) → sincroniza plano e
+  // aplica o limite de imóveis quando for downgrade.
+  if (event.type === 'customer.subscription.updated') {
+    const sub = event.data.object as Stripe.Subscription
+    const novoPlano = planoDoPrice(sub.items.data[0]?.price?.id)
+    if (!novoPlano) return NextResponse.json({ ok: true })
+
+    const { data: perfil } = await admin
+      .from('perfis')
+      .select('id')
+      .eq('stripe_subscription_id', sub.id)
+      .single()
+
+    if (perfil) {
+      const expiraEm = await getSubscriptionExpiry(sub.id)
+      await admin
+        .from('perfis')
+        .update({ plano: novoPlano, plano_expira_em: expiraEm })
+        .eq('id', perfil.id)
+
+      // Downgrade: pausa imóveis ativos além do limite (mantém os mais recentes).
+      await aplicarLimiteImoveis(admin, perfil.id, novoPlano)
+    }
+  }
+
   // Renovação mensal → atualiza data de expiração
   if (event.type === 'invoice.payment_succeeded') {
     const invoice = event.data.object as Stripe.Invoice & { subscription?: string }
@@ -95,6 +121,9 @@ export async function POST(request: NextRequest) {
         .from('perfis')
         .update({ plano: 'free', plano_expira_em: null, stripe_subscription_id: null })
         .eq('id', perfil.id)
+
+      // Voltou pro free (limite 1): pausa imóveis ativos excedentes.
+      await aplicarLimiteImoveis(admin, perfil.id, 'free')
     }
   }
 

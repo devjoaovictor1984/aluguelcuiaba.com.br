@@ -20,9 +20,10 @@ export default async function NovoAnuncioPage() {
   const isAdmin = perfil?.role === 'admin'
   const plano = (perfil?.plano ?? 'free') as keyof typeof PLANOS
   const limite = PLANOS[plano]?.imoveis ?? 1
-  const total = imoveis?.length ?? 0
+  // Vagas ocupadas = anúncios publicados ('ativo') + imóveis sob contrato ('alugado').
+  const ocupados = (imoveis ?? []).filter(i => i.status === 'ativo' || i.status === 'alugado').length
 
-  if (!isAdmin && plano === 'free' && total >= limite) {
+  if (!isAdmin && limite < 999 && ocupados >= limite) {
     return (
       <main className="max-w-xl mx-auto px-4 py-16 text-center">
         <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -30,7 +31,8 @@ export default async function NovoAnuncioPage() {
         </div>
         <h1 className="text-xl font-bold text-gray-900 mb-2">Limite atingido</h1>
         <p className="text-gray-500 mb-1">
-          O plano <strong>Gratuito</strong> permite apenas <strong>1 anúncio ativo</strong>.
+          O plano <strong>{PLANOS[plano]?.nome ?? 'Gratuito'}</strong> permite{' '}
+          <strong>{limite} {limite === 1 ? 'anúncio ativo' : 'anúncios ativos'}</strong>.
         </p>
         <p className="text-gray-400 text-sm mb-8">
           Faça upgrade para publicar mais imóveis e ter acesso a fotos extras, destaque e relatórios.

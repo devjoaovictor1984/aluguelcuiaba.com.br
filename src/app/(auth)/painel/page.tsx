@@ -60,7 +60,9 @@ export default async function PainelPage({
   const isAdmin = perfil?.role === 'admin'
   const plano = perfil?.plano ?? 'free'
   const limiteImoveis = PLANOS[plano as keyof typeof PLANOS]?.imoveis ?? 1
-  const atingiuLimite = !isAdmin && plano === 'free' && lista.length >= limiteImoveis
+  // Vagas ocupadas = anúncios publicados ('ativo') + imóveis sob contrato ('alugado').
+  const ocupados = lista.filter(i => i.status === 'ativo' || i.status === 'alugado').length
+  const atingiuLimite = !isAdmin && limiteImoveis < 999 && ocupados >= limiteImoveis
   const crmAtivo = !!(perfil as { crm_ativo?: boolean } | null)?.crm_ativo
   const podeUsarCRM = isAdmin || crmAtivo || plano === 'basico' || plano === 'profissional'
 
@@ -332,8 +334,12 @@ export default async function PainelPage({
       {/* CTA novo anúncio */}
       {atingiuLimite ? (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl px-5 py-4 mb-8 text-center">
-          <p className="text-sm font-semibold text-amber-800 mb-1">Limite do plano gratuito atingido</p>
-          <p className="text-xs text-amber-700 mb-3">O plano gratuito permite 1 anúncio ativo. Faça upgrade para publicar mais.</p>
+          <p className="text-sm font-semibold text-amber-800 mb-1">
+            Limite do plano {PLANOS[plano as keyof typeof PLANOS]?.nome ?? 'Gratuito'} atingido
+          </p>
+          <p className="text-xs text-amber-700 mb-3">
+            Seu plano permite {limiteImoveis} {limiteImoveis === 1 ? 'anúncio ativo' : 'anúncios ativos'}. Faça upgrade para publicar mais.
+          </p>
           <Link href="/planos" className="inline-flex items-center gap-1.5 bg-violet-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-violet-800 transition-colors">
             <Plus size={15} />
             Ver planos

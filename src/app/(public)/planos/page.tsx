@@ -1,8 +1,14 @@
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { Check, X, Zap, Building2, Home } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 import { CheckoutButton } from './_components/checkout-button'
+import { PortalButton } from './_components/portal-button'
+
+// Ordem dos planos para decidir upgrade x downgrade.
+const ORDEM: Record<string, number> = { free: 0, basico: 1, profissional: 2 }
 
 const PLANOS = [
   {
@@ -77,7 +83,24 @@ const corMap = {
   orange: { ring: 'ring-orange-400', bg: 'bg-white',      btn: 'bg-orange-500 hover:bg-orange-600', icon: 'bg-orange-100 text-orange-600', badge: '' },
 }
 
-export default function PlanosPage() {
+export default async function PlanosPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let planoAtual = 'free'
+  const logado = !!user
+  if (user) {
+    const { data: perfil } = await supabase
+      .from('perfis')
+      .select('role, plano')
+      .eq('id', user.id)
+      .single()
+
+    // Admin não assina plano — vai direto pro painel.
+    if (perfil?.role === 'admin') redirect('/painel')
+    planoAtual = perfil?.plano ?? 'free'
+  }
+
   return (
     <>
       <Navbar />
@@ -159,24 +182,39 @@ export default function PlanosPage() {
 
                 {/* CTA */}
                 <div className="px-6 pb-6 bg-white">
-                  {plano.id === 'free' ? (
-                    <Link
-                      href={plano.href}
-                      className="block w-full text-center font-bold py-3 rounded-2xl text-sm transition-colors bg-gray-900 hover:bg-gray-800 text-white"
-                    >
-                      {plano.cta}
-                    </Link>
-                  ) : (
-                    <CheckoutButton
-                      plano={plano.id}
-                      label={plano.cta}
-                      className={`block w-full text-center font-bold py-3 rounded-2xl text-sm transition-colors disabled:opacity-60 ${
-                        isDestaque
-                          ? 'bg-violet-700 hover:bg-violet-800 text-white'
-                          : 'bg-orange-500 hover:bg-orange-600 text-white'
-                      }`}
-                    />
-                  )}
+                  {(() => {
+                    const base = 'block w-full text-center font-bold py-3 rounded-2xl text-sm transition-colors'
+                    const clsDark = `${base} bg-gray-900 hover:bg-gray-800 text-white`
+                    const clsPago = `${base} disabled:opacity-60 ${isDestaque ? 'bg-violet-700 hover:bg-violet-800 text-white' : 'bg-orange-500 hover:bg-orange-600 text-white'}`
+                    const clsAtual = `${base} bg-gray-100 text-gray-400 cursor-default ring-1 ring-gray-200`
+                    const clsNeutro = `${base} border border-gray-300 text-gray-600 hover:bg-gray-50`
+
+                    // Visitante não logado: fluxo original (free = criar conta; pago = checkout, que pede login).
+                    if (!logado) {
+                      return plano.id === 'free'
+                        ? <Link href={plano.href} className={clsDark}>{plano.cta}</Link>
+                        : <CheckoutButton plano={plano.id} label={plano.cta} className={clsPago} />
+                    }
+
+                    // É o plano que o usuário já tem.
+                    if (plano.id === planoAtual) {
+                      return <div className={clsAtual}>Seu plano atual</div>
+                    }
+
+                    // Card gratuito enquanto está num plano pago → cancelar pelo Portal.
+                    if (plano.id === 'free') {
+                      return <PortalButton label="Cancelar assinatura" className={clsNeutro} />
+                    }
+
+                    // Está no free e quer um plano pago → checkout (nova assinatura).
+                    if (planoAtual === 'free') {
+                      return <CheckoutButton plano={plano.id} label={plano.cta} className={clsPago} />
+                    }
+
+                    // Já tem plano pago e quer outro pago → troca pelo Portal.
+                    const ehUpgrade = (ORDEM[plano.id] ?? 0) > (ORDEM[planoAtual] ?? 0)
+                    return <PortalButton label={ehUpgrade ? 'Fazer upgrade' : 'Fazer downgrade'} className={clsPago} />
+                  })()}
                 </div>
               </div>
             )

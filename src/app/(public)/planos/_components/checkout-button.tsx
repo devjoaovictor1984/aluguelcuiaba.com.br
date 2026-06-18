@@ -29,7 +29,15 @@ export function CheckoutButton({ plano, className, label }: Props) {
       const data = await res.json()
       if (data.url) {
         window.location.href = data.url
+        return
       }
+      // Já tem plano ativo → manda pro Portal pra trocar.
+      if (data.portal) {
+        const portal = await fetch('/api/portal', { method: 'POST' })
+        const pd = await portal.json()
+        if (pd.url) { window.location.href = pd.url; return }
+      }
+      if (data.error) alert(data.error)
     } finally {
       setLoading(false)
     }
