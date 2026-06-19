@@ -106,7 +106,7 @@ export async function confirmarAssinatura(token: string, payload: {
     .eq('id', sig.id)
   if (upErr) return { error: upErr.message }
 
-  // Todos assinaram? → conclui o processo
+  // Todos assinaram? → conclui o processo e envia o contrato assinado às partes
   const { data: pendentes } = await admin
     .from('contrato_assinatura_signatarios')
     .select('id')
@@ -117,6 +117,34 @@ export async function confirmarAssinatura(token: string, payload: {
       .from('contrato_assinaturas')
       .update({ status: 'concluido', concluido_em: agora })
       .eq('id', sig.assinatura_id)
+
+    // Envia o link de download do contrato assinado pra cada signatário (best-effort)
+    const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host')
+    const proto = hdrs.get('x-forwarded-proto') ?? 'https'
+    const base = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL ?? '')
+    const proc = (Array.isArray(sig.assinatura) ? sig.assinatura[0] : sig.assinatura)
+    const titulo = proc?.titulo ?? 'Contrato'
+    const { data: todos } = await admin
+      .from('contrato_assinatura_signatarios')
+      .select('nome, email, token')
+      .eq('assinatura_id', sig.assinatura_id)
+    for (const t of todos ?? []) {
+      const dl = `${base}/api/assinaturas/${sig.assinatura_id}/pdf-final?st=${t.token}`
+      await enviarEmail({
+        to: t.email,
+        subject: `Contrato assinado — ${titulo}`,
+        html: `
+          <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#1f2937">
+            <h2 style="color:#16a34a">Contrato assinado por todas as partes ✅</h2>
+            <p>Olá ${t.nome},</p>
+            <p>O contrato <strong>${titulo}</strong> foi assinado por todos. Baixe a via final (contrato + certificado de assinatura):</p>
+            <p style="margin:24px 0"><a href="${dl}" style="background:#6d28d9;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Baixar contrato assinado</a></p>
+            <p style="font-size:12px;color:#6b7280">Se o botão não abrir, copie e cole:<br>${dl}</p>
+          </div>
+        `,
+        canal: 'assinatura_concluida',
+      })
+    }
   }
 
   return { ok: true }

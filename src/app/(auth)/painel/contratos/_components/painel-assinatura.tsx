@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X } from 'lucide-react'
+import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download } from 'lucide-react'
 import { criarProcessoAssinatura, cancelarProcessoAssinatura } from '../assinatura-actions'
 
 interface Sugestao { nome: string; email: string; papel: string }
@@ -103,7 +103,11 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
                   {p.status === 'concluido' ? 'Concluído' : 'Em assinatura'}
                 </span>
                 <span className="text-[10px] text-gray-400 flex-1">{new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
-                {p.status !== 'concluido' && (
+                {p.status === 'concluido' ? (
+                  <a href={`/api/assinaturas/${p.id}/pdf-final`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] font-semibold text-green-700 hover:text-green-800">
+                    <Download size={12} /> Baixar assinado
+                  </a>
+                ) : (
                   <button type="button" onClick={() => cancelar(p.id)} className="text-red-400 hover:text-red-600 p-1" title="Cancelar"><X size={13} /></button>
                 )}
               </div>
