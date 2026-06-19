@@ -59,7 +59,7 @@ async function renderizar(contratoAdmId: string) {
   const { data: contrato } = await supabase
     .from('contratos_administracao')
     .select(`
-      id, codigo, taxa_valor, dia_repasse, exclusividade,
+      id, codigo, taxa_valor, dia_repasse, exclusividade, checklist_manual,
       proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj),
       imovel:imoveis(id, titulo)
     `)
@@ -175,6 +175,7 @@ async function renderizar(contratoAdmId: string) {
       <EditorContratoAdm
         contratoAdmId={contratoAdmId}
         codigo={contrato.codigo}
+        checklistManual={((contrato as { checklist_manual?: Record<string, boolean> }).checklist_manual ?? {})}
         checklistBase={{
           proprietario_nome: prop?.nome ?? null,
           proprietario_cpf: prop?.cpf_cnpj ?? null,

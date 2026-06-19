@@ -246,6 +246,29 @@ export function rodarChecklistAdm(d: DadosChecklistAdm): ItemChecklist[] {
   return itens
 }
 
+// Itens essenciais de um contrato de administração que o corretor confirma
+// manualmente (não dá pra inferir automaticamente do texto livre da cláusula).
+// Baseado nos elementos obrigatórios de um contrato de administração imobiliária.
+export interface ItemEssencialAdm {
+  chave: string
+  rotulo: string
+  dica: string
+}
+
+export const ITENS_ESSENCIAIS_ADM: ItemEssencialAdm[] = [
+  { chave: 'qualificacao_partes', rotulo: 'Qualificação das partes', dica: 'Proprietário(a) e administradora com nome, CPF/CNPJ, estado civil e endereço.' },
+  { chave: 'identificacao_imovel', rotulo: 'Identificação do imóvel', dica: 'Endereço completo, matrícula no cartório e condições (vistoria).' },
+  { chave: 'escopo_servicos', rotulo: 'Escopo dos serviços', dica: 'Intermediação (captação) e/ou gestão (cobrança, repasse, boletos, inadimplência).' },
+  { chave: 'taxa_administracao', rotulo: 'Taxa de administração', dica: 'Percentual mensal sobre o aluguel.' },
+  { chave: 'taxa_captacao', rotulo: 'Taxa de captação / 1º aluguel', dica: 'Valor pela busca do inquilino e contrato inicial.' },
+  { chave: 'juros_multas', rotulo: 'Destino de juros e multas', dica: 'De quem ficam os juros/multa de atraso do aluguel.' },
+  { chave: 'manutencao_limite', rotulo: 'Manutenção e limite emergencial', dica: 'Reparos do administrador e limite de custo sem consultar o proprietário.' },
+  { chave: 'poderes_judiciais', rotulo: 'Poderes e medidas judiciais', dica: 'O que o admin pode firmar/representar e quem custeia despejo/cobrança.' },
+  { chave: 'vigencia', rotulo: 'Vigência (início e término)', dica: 'Datas de início e fim do contrato.' },
+  { chave: 'multa_rescisao', rotulo: 'Multa rescisória', dica: 'Penalidade por encerrar antes do prazo.' },
+  { chave: 'aviso_previo', rotulo: 'Aviso prévio', dica: 'Prazo mínimo (30–90 dias) pra notificar o encerramento.' },
+]
+
 export function bloqueiaGeracao(itens: ItemChecklist[]): boolean {
   return itens.some(i => i.severidade === 'block')
 }

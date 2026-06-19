@@ -96,6 +96,36 @@ export async function obterOuCriarGeracaoAdm(contratoAdmId: string) {
   return { ok: true, geracao: nova }
 }
 
+/** Marca/desmarca um item do checklist manual do contrato de administração. */
+export async function marcarItemChecklistAdm(contratoAdmId: string, itemKey: string, feito: boolean) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { data: c } = await supabase
+    .from('contratos_administracao')
+    .select('checklist_manual')
+    .eq('id', contratoAdmId)
+    .eq('user_id', acesso.userId)
+    .is('deleted_at', null)
+    .maybeSingle()
+  if (!c) return { error: 'Contrato não encontrado.' }
+
+  const atual = (c.checklist_manual ?? {}) as Record<string, boolean>
+  const novo = { ...atual }
+  if (feito) novo[itemKey] = true
+  else delete novo[itemKey]
+
+  const { error } = await supabase
+    .from('contratos_administracao')
+    .update({ checklist_manual: novo })
+    .eq('id', contratoAdmId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/administracoes/${contratoAdmId}/gerar`)
+  return { ok: true }
+}
+
 export async function atualizarOrdemClausulasAdm(geracaoId: string, novaOrdem: string[]) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()

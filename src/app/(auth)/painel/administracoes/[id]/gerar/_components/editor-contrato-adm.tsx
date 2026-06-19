@@ -15,17 +15,17 @@ import {
   GripVertical, FileDown, Loader2, AlertCircle, X, Plus,
   Eye, Upload, FileCheck, CheckCircle2, AlertTriangle, ListChecks,
 } from 'lucide-react'
-import { rodarChecklistAdm, contagem, type DadosChecklistAdm } from '@/lib/contratos/checklist'
+import { rodarChecklistAdm, contagem, ITENS_ESSENCIAIS_ADM, type DadosChecklistAdm } from '@/lib/contratos/checklist'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
 import { atualizarClausula, criarClausula } from '../../../../contratos/clausulas/actions'
-
-// Placeholders úteis em cláusulas de administração (proprietária, imóvel, admin, termos).
-const PLACEHOLDERS_ADM = PLACEHOLDERS.filter(p => /^(ADM|ADMIN|LOCADOR|IMOVEL)/.test(p.chave))
 import {
   atualizarOrdemClausulasAdm, alternarClausulaNaGeracaoAdm,
   atualizarTestemunhasAdm, atualizarAnexosDocumentosAdm,
-  uploadAdmAssinado,
+  uploadAdmAssinado, marcarItemChecklistAdm,
 } from '../actions'
+
+// Placeholders úteis em cláusulas de administração (proprietária, imóvel, admin, termos).
+const PLACEHOLDERS_ADM = PLACEHOLDERS.filter(p => /^(ADM|ADMIN|LOCADOR|IMOVEL)/.test(p.chave))
 
 interface ClausulaLista {
   id: string
@@ -49,6 +49,7 @@ interface Props {
   contratoAdmId: string
   codigo: string
   checklistBase: ChecklistBase
+  checklistManual: Record<string, boolean>
   geracao: {
     id: string
     clausula_ids: string[]
@@ -63,7 +64,7 @@ interface Props {
   documentosPartes: Array<{ id: string; tipo: string; nome_original: string; pessoa_nome: string }>
 }
 
-export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, checklistManual, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
   const router = useRouter()
   const [clausulaIds, setClausulaIds] = useState(geracao.clausula_ids)
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
@@ -91,6 +92,22 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
     categorias_presentes: selecionadas.map(c => c.categoria),
   })
   const contChecklist = contagem(itensChecklist)
+
+  // Checklist manual (itens essenciais que o corretor confirma)
+  const [marcados, setMarcados] = useState<Record<string, boolean>>(checklistManual)
+  const totalMarcados = ITENS_ESSENCIAIS_ADM.filter(i => marcados[i.chave]).length
+
+  const toggleItem = (chave: string) => {
+    const novo = !marcados[chave]
+    setMarcados(prev => ({ ...prev, [chave]: novo }))
+    startTransition(async () => {
+      const r = await marcarItemChecklistAdm(contratoAdmId, chave, novo)
+      if (r.error) {
+        setErro(r.error)
+        setMarcados(prev => ({ ...prev, [chave]: !novo })) // reverte
+      }
+    })
+  }
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -226,6 +243,39 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
                     <p className="text-[11px] font-medium text-gray-800 leading-tight">{item.rotulo}</p>
                     {item.mensagem && <p className="text-[10px] text-gray-400 leading-tight">{item.mensagem}</p>}
                   </div>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+
+        {/* Checklist manual — itens essenciais confirmados */}
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+              <ListChecks size={12} /> Itens essenciais
+            </h2>
+            <span className="text-[10px] font-semibold text-gray-500">{totalMarcados}/{ITENS_ESSENCIAIS_ADM.length}</span>
+          </div>
+          <p className="text-[10px] text-gray-400">Confirme que cada item está contemplado no contrato.</p>
+          <ul className="space-y-1">
+            {ITENS_ESSENCIAIS_ADM.map(item => {
+              const feito = !!marcados[item.chave]
+              return (
+                <li key={item.chave}>
+                  <label className="flex items-start gap-2 cursor-pointer group">
+                    <input
+                      type="checkbox"
+                      checked={feito}
+                      onChange={() => toggleItem(item.chave)}
+                      disabled={isPending}
+                      className="mt-0.5 accent-violet-600 shrink-0"
+                    />
+                    <span className="min-w-0">
+                      <span className={`text-[11px] font-medium leading-tight ${feito ? 'text-gray-800 line-through' : 'text-gray-700'}`}>{item.rotulo}</span>
+                      <span className="block text-[10px] text-gray-400 leading-tight">{item.dica}</span>
+                    </span>
+                  </label>
                 </li>
               )
             })}
