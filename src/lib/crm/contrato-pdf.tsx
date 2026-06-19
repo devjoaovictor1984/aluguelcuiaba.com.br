@@ -91,6 +91,10 @@ export interface ContratoPDFData {
   // Partes (pra folha de assinatura)
   locador_nome: string
   locador_cpf: string | null
+  /** Representante da proprietária PJ no contrato de administração (sócio/representante legal que assina). */
+  proprietario_representante_nome?: string | null
+  proprietario_representante_cpf?: string | null
+  proprietario_representante_qualificacao?: string | null
   /** True quando há administração imobiliária — quem assina é o admin/corretor representando o locador. */
   tem_administracao: boolean
   admin_responsavel_nome: string | null   // nome do corretor (ex: João Victor Vieira)
@@ -1013,6 +1017,13 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 <Text style={blocoPapel}>PROPRIETÁRIA(O)</Text>
                 <Text style={blocoNome}>{data.locador_nome}</Text>
                 {data.locador_cpf && <Text style={blocoSecundario}>CPF/CNPJ {data.locador_cpf}</Text>}
+                {data.proprietario_representante_nome && (
+                  <Text style={blocoSecundario}>
+                    Representada por {data.proprietario_representante_nome}
+                    {data.proprietario_representante_cpf ? ` — CPF ${data.proprietario_representante_cpf}` : ''}
+                    {` (${data.proprietario_representante_qualificacao?.trim() || 'representante legal'})`}
+                  </Text>
+                )}
                 <View style={linhaAssinatura} />
               </View>
             </>
@@ -1348,7 +1359,13 @@ function PartesCapa({
       nome: `${data.anunciante_razao_social ?? data.anunciante_nome}${data.admin_responsavel_nome ? ` — rep. ${data.admin_responsavel_nome}` : ''}`,
       cpf: data.anunciante_cnpj,
     })
-    linhas.push({ papel: 'Proprietária(o)', nome: data.locador_nome, cpf: data.locador_cpf })
+    linhas.push({
+      papel: 'Proprietária(o)',
+      nome: data.proprietario_representante_nome
+        ? `${data.locador_nome} — rep. ${data.proprietario_representante_nome}`
+        : data.locador_nome,
+      cpf: data.proprietario_representante_cpf ?? data.locador_cpf,
+    })
     return (
       <View>
         {linhas.map((l, i) => (

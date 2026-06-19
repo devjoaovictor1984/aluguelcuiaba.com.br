@@ -15,6 +15,8 @@ interface Props {
 export function FormNovoAdm({ pessoas, imoveis }: Props) {
   const router = useRouter()
   const [proprietarioId, setProprietarioId] = useState('')
+  const [representanteId, setRepresentanteId] = useState('')
+  const [representanteQual, setRepresentanteQual] = useState('')
   const [imovelId, setImovelId] = useState('')
   const [dataInicio, setDataInicio] = useState(new Date().toISOString().slice(0, 10))
   // prazoSel: '1'..'5' anos | 'indeterminado' | 'outro' (revela input de meses)
@@ -51,6 +53,8 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
     startTransition(async () => {
       const r = await criarContratoAdmin({
         proprietario_id: proprietarioId,
+        proprietario_representante_id: representanteId || null,
+        proprietario_representante_qualificacao: representanteQual || null,
         imovel_id: imovelId || null,
         data_inicio: dataInicio,
         data_termino: dataTermino,
@@ -87,6 +91,23 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
             <p className="text-[11px] text-amber-700 mt-1">Cadastre uma pessoa do tipo &ldquo;proprietário&rdquo; antes.</p>
           )}
         </label>
+
+        <div className="grid sm:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600 block mb-1">Representante da proprietária <span className="text-gray-400 font-normal">(se for empresa)</span></span>
+            <select value={representanteId} onChange={e => setRepresentanteId(e.target.value)} className={inputCls}>
+              <option value="">— proprietária assina diretamente —</option>
+              {pessoas.map(p => (
+                <option key={p.id} value={p.id}>{p.nome}{p.cpf_cnpj ? ` · ${p.cpf_cnpj}` : ''}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600 block mb-1">Qualidade do representante</span>
+            <input value={representanteQual} onChange={e => setRepresentanteQual(e.target.value)} placeholder="sócio-administrador" className={inputCls} />
+            <p className="text-[10px] text-gray-400 mt-0.5">Em branco usa &ldquo;representante legal&rdquo;.</p>
+          </label>
+        </div>
 
         <label className="block">
           <span className="text-xs font-medium text-gray-600 block mb-1">Imóvel (opcional — pode definir depois)</span>

@@ -21,6 +21,8 @@ export interface ContratoAdminInput {
   aviso_previo_dias?: number
   observacoes?: string | null
   recebimento_comissao?: 'mensal' | 'pagamento_unico'
+  proprietario_representante_id?: string | null
+  proprietario_representante_qualificacao?: string | null
 }
 
 function gerarCodigo(): string {
@@ -59,6 +61,8 @@ export async function criarContratoAdmin(input: ContratoAdminInput) {
       aviso_previo_dias: input.aviso_previo_dias ?? 30,
       observacoes: input.observacoes ?? null,
       recebimento_comissao: input.recebimento_comissao ?? 'mensal',
+      proprietario_representante_id: input.proprietario_representante_id || null,
+      proprietario_representante_qualificacao: input.proprietario_representante_qualificacao?.trim() || null,
       status: 'ativo',
     })
     .select('id')

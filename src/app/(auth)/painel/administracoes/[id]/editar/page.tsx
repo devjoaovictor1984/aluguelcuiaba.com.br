@@ -59,6 +59,8 @@ export default async function EditarContratoAdmPage({ params }: { params: Promis
         id={id}
         inicial={{
           proprietario_id: contrato.proprietario_id,
+          proprietario_representante_id: contrato.proprietario_representante_id ?? null,
+          proprietario_representante_qualificacao: contrato.proprietario_representante_qualificacao ?? null,
           imovel_id: contrato.imovel_id ?? null,
           data_inicio: contrato.data_inicio,
           data_termino: contrato.data_termino,

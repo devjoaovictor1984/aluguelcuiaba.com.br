@@ -162,6 +162,9 @@ export interface DadosContrato {
     multa_rescisao_meses?: number | null
     exclusividade?: boolean | null
     recebimento_comissao?: 'mensal' | 'pagamento_unico' | null
+    proprietario_representante_nome?: string | null
+    proprietario_representante_cpf?: string | null
+    proprietario_representante_qualificacao?: string | null
   } | null
 }
 
@@ -651,6 +654,13 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'ADM_REMUNERACAO_FORMA': return dados.administracao?.recebimento_comissao === 'pagamento_unico'
       ? 'Parágrafo. As partes ajustam que a remuneração da ADMINISTRADORA (comissão de intermediação e taxa de administração do período) será recebida em PARCELA ÚNICA, no ato da assinatura deste contrato ou da efetivação da locação, ficando dispensado o desconto ou repasse mensal da taxa de administração durante o referido período.'
       : 'Parágrafo. A remuneração da ADMINISTRADORA será recebida mensalmente, mediante desconto ou retenção sobre os valores recebidos do LOCATÁRIO, conforme os parágrafos acima.'
+    case 'ADM_PROPRIETARIO_REPRESENTANTE': {
+      const a = dados.administracao
+      if (!a?.proprietario_representante_nome) return ''
+      const cpf = a.proprietario_representante_cpf ? `, CPF nº ${a.proprietario_representante_cpf}` : ''
+      const qual = a.proprietario_representante_qualificacao?.trim() || 'representante legal'
+      return `A PROPRIETÁRIA é, neste ato, representada por ${a.proprietario_representante_nome}${cpf}, na qualidade de ${qual}, que assina o presente instrumento em seu nome.`
+    }
 
     default: return `{{${chave}}}`  // não conhecido: mantém pra usuário ver
   }

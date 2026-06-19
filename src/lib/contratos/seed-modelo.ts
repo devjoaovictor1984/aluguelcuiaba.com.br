@@ -615,7 +615,9 @@ Parágrafo terceiro. A dispensa da multa rescisória não exonera o LOCATÁRIO d
 
 {{LOCADOR_PROPRIETARIO}} / CONTRATANTE: {{LOCADOR_NOME}}, {{LOCADOR_BRASILEIRO}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, {{LOCADOR_PORTADOR}} do CPF nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, {{LOCADOR_DOMICILIADO}} em {{LOCADOR_ENDERECO}}, doravante {{LOCADOR_DENOMINADO}} simplesmente {{LOCADOR_PROPRIETARIO}} ou CONTRATANTE.
 
-As partes acima identificadas têm, entre si, justo e contratado o presente CONTRATO DE ADMINISTRAÇÃO DE IMÓVEL COM EXCLUSIVIDADE, regido pela Lei nº 8.245/1991 (Lei do Inquilinato), pelo Código Civil e demais normas aplicáveis, mediante as cláusulas e condições seguintes.`,
+As partes acima identificadas têm, entre si, justo e contratado o presente CONTRATO DE ADMINISTRAÇÃO DE IMÓVEL COM EXCLUSIVIDADE, regido pela Lei nº 8.245/1991 (Lei do Inquilinato), pelo Código Civil e demais normas aplicáveis, mediante as cláusulas e condições seguintes.
+
+{{ADM_PROPRIETARIO_REPRESENTANTE}}`,
   },
 
   {

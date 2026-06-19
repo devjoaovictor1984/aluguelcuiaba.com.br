@@ -125,6 +125,7 @@ export async function GET(
           endereco_logradouro, endereco_numero, endereco_complemento,
           endereco_bairro, endereco_cidade, endereco_estado, endereco_cep
         ),
+        proprietario_representante:pessoas!proprietario_representante_id(nome, cpf_cnpj),
         imovel:imoveis(
           tipo, endereco_resumido, endereco_completo, endereco_numero, endereco_complemento,
           endereco_cep, descricao, descricao_real,
@@ -222,6 +223,10 @@ export async function GET(
 
     // 4. Monta dados pros placeholders
     const prop = Array.isArray(c.proprietario) ? c.proprietario[0] : c.proprietario
+    const reprRaw = (c as { proprietario_representante?: unknown }).proprietario_representante
+    const repr = (Array.isArray(reprRaw) ? reprRaw[0] : reprRaw) as { nome: string; cpf_cnpj: string | null } | null
+    const reprCpf = fmtCpf(repr?.cpf_cnpj ?? null)
+    const reprQualificacao = (c.proprietario_representante_qualificacao as string | null) ?? null
     const im = Array.isArray(c.imovel) ? c.imovel[0] : c.imovel
     const bairro = im && (Array.isArray(im.bairro) ? im.bairro[0] : im.bairro)
 
@@ -259,6 +264,9 @@ export async function GET(
         multa_rescisao_meses: c.multa_rescisao_meses,
         exclusividade: c.exclusividade,
         recebimento_comissao: c.recebimento_comissao,
+        proprietario_representante_nome: repr?.nome ?? null,
+        proprietario_representante_cpf: reprCpf,
+        proprietario_representante_qualificacao: reprQualificacao,
       },
     }
 
@@ -343,6 +351,9 @@ export async function GET(
         : null,
       locador_nome: prop?.nome ?? '[PREENCHER]',
       locador_cpf: fmtCpf(prop?.cpf_cnpj ?? null),
+      proprietario_representante_nome: repr?.nome ?? null,
+      proprietario_representante_cpf: reprCpf,
+      proprietario_representante_qualificacao: reprQualificacao,
       tem_administracao: true,
       admin_responsavel_nome: perfil?.nome ?? null,
       admin_responsavel_creci: perfil?.creci ?? null,

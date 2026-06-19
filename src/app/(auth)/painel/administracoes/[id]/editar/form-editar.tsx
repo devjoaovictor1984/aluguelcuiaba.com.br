@@ -9,6 +9,8 @@ const inputCls = "w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:out
 
 interface Inicial {
   proprietario_id: string
+  proprietario_representante_id: string | null
+  proprietario_representante_qualificacao: string | null
   imovel_id: string | null
   data_inicio: string
   data_termino: string | null
@@ -35,6 +37,8 @@ interface Props {
 export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
   const router = useRouter()
   const [proprietarioId, setProprietarioId] = useState(inicial.proprietario_id)
+  const [representanteId, setRepresentanteId] = useState(inicial.proprietario_representante_id ?? '')
+  const [representanteQual, setRepresentanteQual] = useState(inicial.proprietario_representante_qualificacao ?? '')
   const [imovelId, setImovelId] = useState(inicial.imovel_id ?? '')
   const [dataInicio, setDataInicio] = useState(inicial.data_inicio)
   const [dataTermino, setDataTermino] = useState(inicial.data_termino ?? '')
@@ -70,6 +74,8 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
     startTransition(async () => {
       const r = await atualizarContratoAdmin(id, {
         proprietario_id: proprietarioId,
+        proprietario_representante_id: representanteId || null,
+        proprietario_representante_qualificacao: representanteQual || null,
         imovel_id: imovelId || null,
         data_inicio: dataInicio,
         data_termino: dataTermino || null,
@@ -107,6 +113,21 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
             ))}
           </select>
         </label>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600 block mb-1">Representante da proprietária <span className="text-gray-400 font-normal">(se for empresa)</span></span>
+            <select value={representanteId} onChange={e => setRepresentanteId(e.target.value)} className={inputCls}>
+              <option value="">— proprietária assina diretamente —</option>
+              {pessoas.map(p => (
+                <option key={p.id} value={p.id}>{p.nome}{p.cpf_cnpj ? ` · ${p.cpf_cnpj}` : ''}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600 block mb-1">Qualidade do representante</span>
+            <input value={representanteQual} onChange={e => setRepresentanteQual(e.target.value)} placeholder="sócio-administrador" className={inputCls} />
+          </label>
+        </div>
         <label className="block">
           <span className="text-xs font-medium text-gray-600 block mb-1">Imóvel</span>
           <select value={imovelId} onChange={e => setImovelId(e.target.value)} className={inputCls}>
