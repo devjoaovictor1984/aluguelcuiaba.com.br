@@ -330,3 +330,187 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
     </Document>
   )
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Termo aditivo ao CONTRATO DE ADMINISTRAÇÃO (administradora ↔ proprietária).
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TIPO_LABEL_ADM: Record<string, string> = {
+  taxa: 'Alteração da taxa de administração',
+  prorrogacao: 'Prorrogação de prazo',
+  exclusividade: 'Alteração de exclusividade',
+  repasse: 'Alteração de repasse',
+  clausula: 'Inclusão / alteração de cláusula',
+  outro: 'Aditamento',
+}
+
+export interface AditivoAdmPDFData {
+  anunciante_nome: string
+  anunciante_razao_social: string | null
+  anunciante_cnpj: string | null
+  anunciante_creci: string | null
+  anunciante_creci_juridico: string | null
+  anunciante_logo_url: string | null
+  anunciante_endereco: string | null
+  anunciante_cidade_uf: string | null
+
+  contrato_codigo: string
+  contrato_data_assinatura: string | null
+  imovel_endereco: string
+
+  proprietario_nome: string
+  proprietario_cpf: string | null
+  admin_responsavel_nome: string | null
+  admin_responsavel_creci: string | null
+
+  testemunhas: Array<{ nome: string; cpf: string | null; rg: string | null }>
+
+  numero: number
+  data_aditivo: string
+  tipo: string
+  titulo: string | null
+  objeto: string
+}
+
+export function AditivoAdmDocument({ data }: { data: AditivoAdmPDFData }) {
+  const nomeInst = data.anunciante_razao_social ?? data.anunciante_nome
+  const cidadeUf = data.anunciante_cidade_uf ?? 'Cuiabá-MT'
+  const dataExtenso = fmtDataExtenso(data.data_aditivo)
+  const ordinal = `${data.numero}º`
+
+  const objetoParagrafos = numerarObjeto(1, data.objeto)
+  const tipoLabel = data.titulo?.trim() || TIPO_LABEL_ADM[data.tipo] || TIPO_LABEL_ADM.outro
+
+  const adminQuali = `${nomeInst}${data.anunciante_cnpj ? `, inscrita no CNPJ sob nº ${data.anunciante_cnpj}` : ''}${data.anunciante_creci_juridico ? `, CRECI-J ${data.anunciante_creci_juridico}` : ''}`
+  const propQuali = `${data.proprietario_nome}${data.proprietario_cpf ? `, inscrito(a) no CPF/CNPJ sob nº ${data.proprietario_cpf}` : ''}`
+
+  return (
+    <Document
+      title={`Termo Aditivo ${ordinal} — Contrato de Administração ${data.contrato_codigo}`}
+      author={nomeInst}
+      subject={`${ordinal} Termo Aditivo ao contrato de administração ${data.contrato_codigo}`}
+    >
+      <Page size="A4" style={styles.page}>
+        {/* Cabeçalho institucional */}
+        <View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {data.anunciante_logo_url && (
+              <Image src={data.anunciante_logo_url} style={{ width: 48, height: 48, objectFit: 'contain' }} />
+            )}
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 11, fontFamily: FAMILIA, fontWeight: 'bold', color: COR.textoForte }}>
+                {nomeInst}
+                {data.anunciante_creci_juridico ? ` — CRECI-J ${data.anunciante_creci_juridico}` : ''}
+              </Text>
+              {data.anunciante_creci && (
+                <Text style={{ fontSize: 8, color: COR.cinza }}>
+                  {data.anunciante_nome} — Corretor de Imóveis | CRECI {data.anunciante_creci}
+                </Text>
+              )}
+              {data.anunciante_endereco && (
+                <Text style={{ fontSize: 8, color: COR.cinza }}>{data.anunciante_endereco}</Text>
+              )}
+              {data.anunciante_cnpj && (
+                <Text style={{ fontSize: 8, color: COR.cinza }}>CNPJ {data.anunciante_cnpj}</Text>
+              )}
+            </View>
+          </View>
+          <View style={styles.cabecalhoLinha} />
+        </View>
+
+        <Text style={styles.selo}>INSTRUMENTO PARTICULAR</Text>
+        <Text style={styles.titulo}>{ordinal} Termo Aditivo ao Contrato de Administração de Imóvel</Text>
+        <Text style={styles.subtitulo}>Contrato originário nº {data.contrato_codigo}</Text>
+        <Text style={styles.subtitulo}>Objeto: {tipoLabel}</Text>
+
+        {/* Preâmbulo */}
+        <Text style={styles.preambulo}>
+          Pelo presente instrumento particular, de um lado{' '}
+          <Text style={styles.parteNome}>{adminQuali}</Text>, doravante designada{' '}
+          <Text style={styles.parteNome}>ADMINISTRADORA</Text>
+          {data.admin_responsavel_nome && (
+            <Text>, neste ato representada por seu corretor responsável {data.admin_responsavel_nome}{data.admin_responsavel_creci ? ` (CRECI ${data.admin_responsavel_creci})` : ''}</Text>
+          )}
+          , e de outro lado{' '}
+          <Text style={styles.parteNome}>{propQuali}</Text>, doravante designado(a){' '}
+          <Text style={styles.parteNome}>PROPRIETÁRIA</Text>, têm entre si justo e acordado o presente{' '}
+          <Text style={styles.parteNome}>{ordinal} TERMO ADITIVO</Text> ao Contrato de Administração de Imóvel nº{' '}
+          {data.contrato_codigo}
+          {data.contrato_data_assinatura ? `, firmado em ${data.contrato_data_assinatura}` : ''}, relativo ao
+          imóvel situado à {data.imovel_endereco || '[ENDEREÇO DO IMÓVEL]'}, mediante as cláusulas e condições a
+          seguir, com fundamento na Lei nº 8.245/1991 e no Código Civil Brasileiro.
+        </Text>
+
+        <View style={styles.clausulaWrap}>
+          <Text style={styles.clausulaTitulo}>CLÁUSULA 1ª — DO OBJETO DESTE ADITIVO</Text>
+          {objetoParagrafos.map((par, i) => (
+            <Text key={i} style={styles.clausulaCorpo}>{par}</Text>
+          ))}
+        </View>
+
+        <View style={styles.clausulaWrap}>
+          <Text style={styles.clausulaTitulo}>CLÁUSULA 2ª — DA RATIFICAÇÃO</Text>
+          <Text style={styles.clausulaCorpo}>
+            2.1. Permanecem em pleno vigor, ratificadas e inalteradas, todas as demais cláusulas, condições e
+            obrigações do contrato de administração originário e de eventuais aditivos anteriores que não tenham
+            sido expressamente modificadas por este instrumento.
+          </Text>
+          <Text style={styles.clausulaCorpo}>
+            2.2. Este Termo Aditivo passa a integrar o contrato de administração para todos os fins de direito.
+          </Text>
+        </View>
+
+        <View style={styles.clausulaWrap}>
+          <Text style={styles.clausulaTitulo}>CLÁUSULA 3ª — DO FORO</Text>
+          <Text style={styles.clausulaCorpo}>
+            3.1. As partes elegem o foro da Comarca de {cidadeUf.replace('-', '/')} para dirimir quaisquer
+            controvérsias oriundas deste Termo Aditivo, com renúncia a qualquer outro.
+          </Text>
+          <Text style={styles.clausulaCorpo}>
+            E, por estarem assim justas e acordadas, as partes assinam o presente em 2 (duas) vias de igual teor
+            e forma, na presença das testemunhas abaixo.
+          </Text>
+        </View>
+
+        <Text style={styles.data}>{cidadeUf}, {dataExtenso}.</Text>
+
+        <View wrap={false}>
+          {/* Administradora */}
+          <View style={styles.assinaturaBloco}>
+            <View style={styles.assinaturaLinha} />
+            <Text style={styles.assinaturaPapel}>Administradora</Text>
+            <Text style={styles.assinaturaNome}>{data.admin_responsavel_nome || nomeInst}</Text>
+            <Text style={styles.assinaturaCpf}>
+              {nomeInst}{data.admin_responsavel_creci ? ` · CRECI ${data.admin_responsavel_creci}` : ''}
+            </Text>
+          </View>
+
+          {/* Proprietária */}
+          <View style={styles.assinaturaBloco}>
+            <View style={styles.assinaturaLinha} />
+            <Text style={styles.assinaturaPapel}>Proprietária / Contratante</Text>
+            <Text style={styles.assinaturaNome}>{data.proprietario_nome}</Text>
+            {data.proprietario_cpf && <Text style={styles.assinaturaCpf}>CPF/CNPJ {data.proprietario_cpf}</Text>}
+          </View>
+
+          <Text style={styles.testemunhaTit}>Testemunhas</Text>
+          {(data.testemunhas.length > 0 ? data.testemunhas : [null, null]).map((t, i) => (
+            <View key={i} style={styles.assinaturaBloco}>
+              <View style={styles.assinaturaLinha} />
+              {t ? (
+                <>
+                  <Text style={styles.assinaturaNome}>{t.nome}</Text>
+                  <Text style={styles.assinaturaCpf}>
+                    {[t.cpf ? `CPF ${t.cpf}` : null, t.rg ? `RG ${t.rg}` : null].filter(Boolean).join(' · ') || 'Testemunha'}
+                  </Text>
+                </>
+              ) : (
+                <Text style={styles.assinaturaCpf}>Nome / CPF</Text>
+              )}
+            </View>
+          ))}
+        </View>
+      </Page>
+    </Document>
+  )
+}

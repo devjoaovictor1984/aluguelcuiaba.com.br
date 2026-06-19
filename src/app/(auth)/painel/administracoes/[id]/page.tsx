@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { ChevronLeft, Briefcase, User, Home, Calendar, Percent, FileDown, Eye, Pencil } from 'lucide-react'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { BotaoExcluirAdm } from './_components/botao-excluir-adm'
+import { AditivosAdmSecao, type AditivoAdmRow } from './_components/aditivos-adm-secao'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 
@@ -41,6 +42,13 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
     .maybeSingle()
 
   if (!contrato) notFound()
+
+  const { data: aditivos } = await supabase
+    .from('contratos_administracao_aditivos')
+    .select('id, numero, data_aditivo, tipo, titulo, objeto')
+    .eq('contrato_id', id)
+    .eq('user_id', acesso.userId)
+    .order('numero', { ascending: true })
 
   const prop = unwrap(contrato.proprietario) as { nome: string; cpf_cnpj: string | null; telefone: string | null; email: string | null } | null
   const imovel = unwrap(contrato.imovel) as { titulo: string; endereco_resumido: string | null; endereco_completo: string | null } | null
@@ -183,6 +191,8 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
           <p className="text-sm text-amber-900 whitespace-pre-wrap">{contrato.observacoes}</p>
         </div>
       )}
+
+      <AditivosAdmSecao contratoId={id} aditivos={(aditivos ?? []) as AditivoAdmRow[]} />
 
       <BotaoExcluirAdm contratoAdmId={id} codigo={contrato.codigo} />
     </div>
