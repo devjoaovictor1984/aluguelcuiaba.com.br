@@ -64,7 +64,9 @@ const nextConfig: NextConfig = {
         source: '/(.*)',
         headers: [
           { key: 'X-Content-Type-Options', value: 'nosniff' },
-          { key: 'X-Frame-Options', value: 'DENY' },
+          // SAMEORIGIN (não DENY): permite embutir nosso próprio PDF no iframe
+          // da página de revisão (mesma origem). Continua bloqueando framing externo.
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
           // Força HTTPS por 2 anos (sem preload pra não travar reversão futura).
           { key: 'Strict-Transport-Security', value: 'max-age=63072000; includeSubDomains' },

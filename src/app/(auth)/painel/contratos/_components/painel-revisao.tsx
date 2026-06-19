@@ -32,8 +32,10 @@ export function PainelRevisao({ tipoContrato, contratoId, titulo, baseUrl, links
   const [erro, setErro] = useState('')
   const [copiado, setCopiado] = useState<string | null>(null)
   const [agora] = useState(() => Date.now())
+  // Usa a origem real do navegador (evita link no host errado apex/www).
+  const [origin] = useState(() => (typeof window !== 'undefined' ? window.location.origin : baseUrl))
 
-  const urlDe = (token: string) => `${baseUrl}/revisar-contrato/${token}`
+  const urlDe = (token: string) => `${origin}/revisar-contrato/${token}`
   const ativos = links.filter(l => !l.revogado_em && new Date(l.expira_em).getTime() > agora)
 
   const gerar = () => {
