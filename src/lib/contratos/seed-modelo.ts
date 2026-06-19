@@ -779,6 +779,26 @@ Parágrafo único. As partes autorizam o tratamento dos dados pessoais estritame
 Parágrafo único. E por estarem de pleno acordo, as partes assinam o presente instrumento, inclusive por meio eletrônico, conferindo-lhe validade jurídica conforme a Medida Provisória nº 2.200-2/2001 (ICP-Brasil) e demais normas aplicáveis, em vias de igual teor, na presença de 02 (duas) testemunhas.`,
   },
 
+  {
+    tipo: 'administracao', categoria: 'manutencao', titulo: 'Do limite para reparos e despesas emergenciais', numero: 19,
+    corpo: `A PROPRIETÁRIA autoriza a ADMINISTRADORA a contratar e custear, deduzindo do repasse, reparos e despesas de manutenção de caráter urgente ou emergencial — assim entendidos os necessários à segurança, habitabilidade, preservação do IMÓVEL ou cumprimento de obrigação legal — independentemente de autorização prévia, até o limite equivalente a 1 (um) aluguel mensal por evento.
+
+Parágrafo primeiro. Despesas acima desse limite dependerão de autorização prévia e expressa da PROPRIETÁRIA, salvo risco iminente de dano grave, hipótese em que a ADMINISTRADORA agirá para evitar o agravamento e comunicará a PROPRIETÁRIA no menor prazo possível.
+
+Parágrafo segundo. A ADMINISTRADORA apresentará orçamento, nota fiscal ou comprovante das despesas realizadas, que serão demonstradas na prestação de contas mensal.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'atribuicoes', titulo: 'Dos poderes especiais e das medidas judiciais', numero: 20,
+    corpo: `A PROPRIETÁRIA confere à ADMINISTRADORA poderes para, em seu nome e interesse: representar perante condomínio, concessionárias e órgãos públicos para fins operacionais; firmar, aditar e rescindir contratos de locação; conceder quitação e emitir recibos; receber e dar quitação de aluguéis e encargos; e adotar as medidas de cobrança administrativa e extrajudicial cabíveis.
+
+Parágrafo primeiro. Para a propositura de medidas judiciais (inclusive ação de despejo, cobrança e execução), a ADMINISTRADORA atuará por meio de advogado, mediante ciência prévia da PROPRIETÁRIA, salvo urgência.
+
+Parágrafo segundo. As custas processuais, honorários advocatícios contratuais e demais despesas das medidas judiciais correrão por conta da PROPRIETÁRIA, ressalvado o direito de reembolso quando recuperados do locatário ou fiador, ou disposição diversa ajustada por escrito.
+
+Parágrafo terceiro. Os juros e multas efetivamente recebidos por atraso no pagamento do aluguel pertencem à PROPRIETÁRIA, salvo ajuste em contrário, podendo a ADMINISTRADORA reter a parcela correspondente à sua taxa quando incidente sobre o valor recebido.`,
+  },
+
   // ════════════════════════════════════════════════════════════════
   //  FUNDAMENTAÇÃO LEGAL (Lei 8.245/91) — vai antes das partes
   // ════════════════════════════════════════════════════════════════

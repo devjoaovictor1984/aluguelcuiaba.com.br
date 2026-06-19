@@ -16,7 +16,11 @@ import {
   Eye, Upload, FileCheck, CheckCircle2, AlertTriangle, ListChecks,
 } from 'lucide-react'
 import { rodarChecklistAdm, contagem, type DadosChecklistAdm } from '@/lib/contratos/checklist'
+import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
 import { atualizarClausula, criarClausula } from '../../../../contratos/clausulas/actions'
+
+// Placeholders úteis em cláusulas de administração (proprietária, imóvel, admin, termos).
+const PLACEHOLDERS_ADM = PLACEHOLDERS.filter(p => /^(ADM|ADMIN|LOCADOR|IMOVEL)/.test(p.chave))
 import {
   atualizarOrdemClausulasAdm, alternarClausulaNaGeracaoAdm,
   atualizarTestemunhasAdm, atualizarAnexosDocumentosAdm,
@@ -385,8 +389,31 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
               </div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">Título</label>
               <input type="text" value={novoTitulo} onChange={e => setNovoTitulo(e.target.value)} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm mb-3" />
-              <label className="block text-xs font-semibold text-gray-600 mb-1">Corpo</label>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">
+                Corpo <span className="text-gray-400 font-normal">(clique num placeholder pra inserir {'{{X}}'})</span>
+              </label>
               <textarea value={novoCorpo} onChange={e => setNovoCorpo(e.target.value)} rows={8} className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-xs font-mono leading-relaxed resize-y" />
+
+              {/* Picker de placeholders de administração */}
+              <details className="mt-2 group">
+                <summary className="text-[11px] font-semibold text-violet-700 cursor-pointer select-none">
+                  Placeholders disponíveis ({PLACEHOLDERS_ADM.length})
+                </summary>
+                <div className="mt-2 max-h-40 overflow-y-auto flex flex-wrap gap-1.5 bg-gray-50 rounded-lg p-2">
+                  {PLACEHOLDERS_ADM.map(p => (
+                    <button
+                      key={p.chave}
+                      type="button"
+                      title={`${p.label} — ex.: ${p.exemplo}`}
+                      onClick={() => setNovoCorpo(prev => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}{{${p.chave}}}`)}
+                      className="text-[10px] font-mono bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 px-1.5 py-0.5 rounded"
+                    >
+                      {`{{${p.chave}}}`}
+                    </button>
+                  ))}
+                </div>
+              </details>
+
               {erroNova && <p className="text-xs text-red-600 mt-2 flex items-center gap-1"><AlertCircle size={11} /> {erroNova}</p>}
               <div className="flex gap-2 mt-4 justify-end">
                 <button type="button" onClick={() => setModalNova(false)} disabled={isPending} className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900">Cancelar</button>
