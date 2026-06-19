@@ -68,6 +68,7 @@ export default async function EditarContratoAdmPage({ params }: { params: Promis
           taxa_valor: Number(contrato.taxa_valor),
           primeira_parcela_cheia: contrato.primeira_parcela_cheia,
           dia_repasse: contrato.dia_repasse,
+          recebimento_comissao: contrato.recebimento_comissao ?? 'mensal',
           exclusividade: contrato.exclusividade,
           multa_rescisao_meses: contrato.multa_rescisao_meses,
           aviso_previo_dias: contrato.aviso_previo_dias,

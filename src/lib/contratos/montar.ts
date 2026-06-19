@@ -161,6 +161,7 @@ export interface DadosContrato {
     aviso_previo_dias?: number | null
     multa_rescisao_meses?: number | null
     exclusividade?: boolean | null
+    recebimento_comissao?: 'mensal' | 'pagamento_unico' | null
   } | null
 }
 
@@ -647,6 +648,9 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'ADM_EXCLUSIVIDADE': return dados.administracao?.exclusividade === false
       ? 'sem exclusividade de captação'
       : 'em regime de exclusividade'
+    case 'ADM_REMUNERACAO_FORMA': return dados.administracao?.recebimento_comissao === 'pagamento_unico'
+      ? 'Parágrafo. As partes ajustam que a remuneração da ADMINISTRADORA (comissão de intermediação e taxa de administração do período) será recebida em PARCELA ÚNICA, no ato da assinatura deste contrato ou da efetivação da locação, ficando dispensado o desconto ou repasse mensal da taxa de administração durante o referido período.'
+      : 'Parágrafo. A remuneração da ADMINISTRADORA será recebida mensalmente, mediante desconto ou retenção sobre os valores recebidos do LOCATÁRIO, conforme os parágrafos acima.'
 
     default: return `{{${chave}}}`  // não conhecido: mantém pra usuário ver
   }

@@ -250,6 +250,7 @@ export async function GET(
         aviso_previo_dias: c.aviso_previo_dias,
         multa_rescisao_meses: c.multa_rescisao_meses,
         exclusividade: c.exclusividade,
+        recebimento_comissao: c.recebimento_comissao,
       },
     }
 

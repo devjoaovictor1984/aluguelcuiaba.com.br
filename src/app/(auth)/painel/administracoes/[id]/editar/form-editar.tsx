@@ -18,6 +18,7 @@ interface Inicial {
   taxa_valor: number
   primeira_parcela_cheia: boolean
   dia_repasse: number | null
+  recebimento_comissao: 'mensal' | 'pagamento_unico'
   exclusividade: boolean
   multa_rescisao_meses: number | null
   aviso_previo_dias: number
@@ -52,6 +53,7 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
   const [taxaValor, setTaxaValor] = useState(String(inicial.taxa_valor))
   const [primeiraCheia, setPrimeiraCheia] = useState(inicial.primeira_parcela_cheia)
   const [diaRepasse, setDiaRepasse] = useState(String(inicial.dia_repasse ?? ''))
+  const [recebimentoComissao, setRecebimentoComissao] = useState<'mensal' | 'pagamento_unico'>(inicial.recebimento_comissao)
   const [exclusividade, setExclusividade] = useState(inicial.exclusividade)
   const [multaMeses, setMultaMeses] = useState(String(inicial.multa_rescisao_meses ?? ''))
   const [avisoPrevio, setAvisoPrevio] = useState(String(inicial.aviso_previo_dias))
@@ -79,6 +81,7 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
         taxa_valor: taxa,
         primeira_parcela_cheia: primeiraCheia,
         dia_repasse: parseInt(diaRepasse, 10) || null,
+        recebimento_comissao: recebimentoComissao,
         exclusividade,
         multa_rescisao_meses: parseInt(multaMeses, 10) || null,
         aviso_previo_dias: parseInt(avisoPrevio, 10) || 30,
@@ -175,6 +178,13 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={primeiraCheia} onChange={e => setPrimeiraCheia(e.target.checked)} className="accent-violet-600" />
           <span className="text-sm text-gray-700">Primeira parcela 100% pra administradora</span>
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-gray-600 block mb-1">Recebimento da comissão</span>
+          <select value={recebimentoComissao} onChange={e => setRecebimentoComissao(e.target.value as 'mensal' | 'pagamento_unico')} className={inputCls}>
+            <option value="mensal">Mensal (taxa descontada mês a mês)</option>
+            <option value="pagamento_unico">Pagamento único (intermediação + taxa do período à vista)</option>
+          </select>
         </label>
       </section>
 

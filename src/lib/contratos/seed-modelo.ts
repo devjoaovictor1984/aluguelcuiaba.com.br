@@ -682,7 +682,9 @@ Parágrafo primeiro. Além da taxa mensal, a ADMINISTRADORA terá direito à com
 
 Parágrafo segundo. A comissão de intermediação será devida no ato da formalização do contrato ou do aditivo de renovação, podendo ser retida pela ADMINISTRADORA do primeiro recebimento.
 
-Parágrafo terceiro. A taxa de administração não incide sobre indenizações por danos, reembolsos e valores que não constituam aluguel ou encargos faturados.`,
+Parágrafo terceiro. A taxa de administração não incide sobre indenizações por danos, reembolsos e valores que não constituam aluguel ou encargos faturados.
+
+{{ADM_REMUNERACAO_FORMA}}`,
   },
 
   {

@@ -20,6 +20,7 @@ export interface ContratoAdminInput {
   multa_rescisao_meses?: number | null
   aviso_previo_dias?: number
   observacoes?: string | null
+  recebimento_comissao?: 'mensal' | 'pagamento_unico'
 }
 
 function gerarCodigo(): string {
@@ -57,6 +58,7 @@ export async function criarContratoAdmin(input: ContratoAdminInput) {
       multa_rescisao_meses: input.multa_rescisao_meses ?? 3,
       aviso_previo_dias: input.aviso_previo_dias ?? 30,
       observacoes: input.observacoes ?? null,
+      recebimento_comissao: input.recebimento_comissao ?? 'mensal',
       status: 'ativo',
     })
     .select('id')

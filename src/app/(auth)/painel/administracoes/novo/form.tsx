@@ -25,6 +25,7 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
   const [taxaValor, setTaxaValor] = useState('10')
   const [primeiraCheia, setPrimeiraCheia] = useState(false)
   const [diaRepasse, setDiaRepasse] = useState('5')
+  const [recebimentoComissao, setRecebimentoComissao] = useState<'mensal' | 'pagamento_unico'>('mensal')
   const [exclusividade, setExclusividade] = useState(true)
   const [multaMeses, setMultaMeses] = useState('3')
   const [avisoPrevio, setAvisoPrevio] = useState('30')
@@ -59,6 +60,7 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
         taxa_valor: taxa,
         primeira_parcela_cheia: primeiraCheia,
         dia_repasse: parseInt(diaRepasse, 10) || null,
+        recebimento_comissao: recebimentoComissao,
         exclusividade,
         multa_rescisao_meses: parseInt(multaMeses, 10) || null,
         aviso_previo_dias: parseInt(avisoPrevio, 10) || 30,
@@ -155,6 +157,14 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={primeiraCheia} onChange={e => setPrimeiraCheia(e.target.checked)} className="accent-violet-600" />
           <span className="text-sm text-gray-700">Primeira parcela 100% pra administradora (comissão de intermediação)</span>
+        </label>
+        <label className="block">
+          <span className="text-xs font-medium text-gray-600 block mb-1">Recebimento da comissão</span>
+          <select value={recebimentoComissao} onChange={e => setRecebimentoComissao(e.target.value as 'mensal' | 'pagamento_unico')} className={inputCls}>
+            <option value="mensal">Mensal (taxa descontada mês a mês)</option>
+            <option value="pagamento_unico">Pagamento único (intermediação + taxa do período à vista)</option>
+          </select>
+          <p className="text-[11px] text-gray-400 mt-1">Define o parágrafo de remuneração que entra no contrato.</p>
         </label>
       </section>
 
