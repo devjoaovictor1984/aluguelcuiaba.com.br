@@ -7,6 +7,7 @@ import { Breadcrumbs } from '@/components/breadcrumbs'
 import { obterOuCriarGeracaoAdm } from './actions'
 import { EditorContratoAdm } from './_components/editor-contrato-adm'
 import { PainelRevisao } from '../../../contratos/_components/painel-revisao'
+import { PainelAssinatura } from '../../../contratos/_components/painel-assinatura'
 
 export const dynamic = 'force-dynamic'
 
@@ -60,7 +61,7 @@ async function renderizar(contratoAdmId: string) {
     .from('contratos_administracao')
     .select(`
       id, codigo, taxa_valor, dia_repasse, exclusividade, checklist_manual,
-      proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj),
+      proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj, email),
       imovel:imoveis(id, titulo)
     `)
     .eq('id', contratoAdmId)
@@ -141,6 +142,20 @@ async function renderizar(contratoAdmId: string) {
         .order('created_at', { ascending: false })
     : { data: [] }
 
+  // Processos de assinatura + sugestões de signatários
+  const { data: processosAss } = await supabase
+    .from('contrato_assinaturas')
+    .select('id, status, created_at, signatarios:contrato_assinatura_signatarios(nome, email, papel, status, token)')
+    .eq('user_id', acesso.userId)
+    .eq('tipo_contrato', 'administracao')
+    .eq('contrato_id', contratoAdmId)
+    .order('created_at', { ascending: false })
+
+  const propComEmail = unwrap(contrato.proprietario) as { nome: string; email: string | null } | null
+  const sugestoesAss = propComEmail?.email
+    ? [{ nome: propComEmail.nome, email: propComEmail.email, papel: 'Proprietária(o)' }]
+    : []
+
   return (
     <main className="px-4 py-4 pb-20 max-w-7xl mx-auto">
       <Breadcrumbs items={[
@@ -170,6 +185,15 @@ async function renderizar(contratoAdmId: string) {
         baseUrl={baseUrl}
         linksIniciais={(linksRev ?? []) as Array<{ id: string; token: string; expira_em: string; revogado_em: string | null }>}
         consideracoes={(consideracoesRev ?? []) as Array<{ id: string; autor_nome: string | null; texto: string; created_at: string }>}
+      />
+
+      <PainelAssinatura
+        tipoContrato="administracao"
+        contratoId={contratoAdmId}
+        titulo={contrato.codigo}
+        baseUrl={baseUrl}
+        sugestoes={sugestoesAss}
+        processos={(processosAss ?? []) as Array<{ id: string; status: string; created_at: string; signatarios: Array<{ nome: string; email: string; papel: string | null; status: string; token: string }> }>}
       />
 
       <EditorContratoAdm

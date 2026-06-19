@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
 import { aplicarPlaceholders, type DadosContrato } from '@/lib/contratos/montar'
 import { validarTokenRevisao } from '@/lib/crm/revisao-token'
+import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
 import React from 'react'
 
 async function mergeAnexos(
@@ -109,8 +110,11 @@ export async function GET(
     // Autoriza por login OU por token de revisão (?rt=), pro cliente ver sem conta.
     let ownerId: string | null = user?.id ?? null
     if (!ownerId) {
-      const rt = new URL(request.url).searchParams.get('rt')
+      const url = new URL(request.url)
+      const rt = url.searchParams.get('rt')
+      const st = url.searchParams.get('st')
       if (rt) ownerId = await validarTokenRevisao(admin, rt, 'administracao', id)
+      else if (st) ownerId = await validarTokenAssinatura(admin, st, 'administracao', id)
     }
     if (!ownerId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 

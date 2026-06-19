@@ -7,6 +7,7 @@ import { Breadcrumbs } from '@/components/breadcrumbs'
 import { obterOuCriarGeracao } from './actions'
 import { EditorContrato } from './_components/editor-contrato'
 import { PainelRevisao } from '../../_components/painel-revisao'
+import { PainelAssinatura } from '../../_components/painel-assinatura'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 
 export const dynamic = 'force-dynamic'
@@ -84,8 +85,8 @@ async function renderizarEditor(contratoId: string) {
       id, codigo, garantia_tipo, valor_aluguel, data_inicio, data_termino,
       qtd_chaves, qtd_controles, qtd_tags, conjuge_inquilino_papel, anotacoes_corretor,
       imovel_id,
-      inquilino:pessoas!inquilino_id(id, nome, conjuge_nome),
-      proprietario:pessoas!proprietario_id(id, nome),
+      inquilino:pessoas!inquilino_id(id, nome, conjuge_nome, email),
+      proprietario:pessoas!proprietario_id(id, nome, email),
       imovel:imoveis(
         id, titulo,
         endereco_completo, endereco_numero, endereco_cep,
@@ -190,6 +191,22 @@ async function renderizarEditor(contratoId: string) {
         .order('created_at', { ascending: false })
     : { data: [] }
 
+  // Processos de assinatura + sugestões (chave = id da geração)
+  const { data: processosAss } = await supabase
+    .from('contrato_assinaturas')
+    .select('id, status, created_at, signatarios:contrato_assinatura_signatarios(nome, email, papel, status, token)')
+    .eq('user_id', acesso.userId)
+    .eq('tipo_contrato', 'locacao')
+    .eq('contrato_id', r.geracao.id)
+    .order('created_at', { ascending: false })
+
+  const inqEmail = inqTmp as { nome: string; email?: string | null } | null
+  const propEmail = propTmp as { nome: string; email?: string | null } | null
+  const sugestoesAss = [
+    inqEmail?.email ? { nome: inqEmail.nome, email: inqEmail.email, papel: 'Locatário(a)' } : null,
+    propEmail?.email ? { nome: propEmail.nome, email: propEmail.email, papel: 'Locador(a)' } : null,
+  ].filter((s): s is { nome: string; email: string; papel: string } => !!s)
+
   // Detecta dados do imóvel faltando pra contrato robusto
   const dadosImovelFaltando: string[] = []
   if (!im?.endereco_completo) dadosImovelFaltando.push('endereço completo')
@@ -248,6 +265,15 @@ async function renderizarEditor(contratoId: string) {
         baseUrl={baseUrl}
         linksIniciais={(linksRev ?? []) as Array<{ id: string; token: string; expira_em: string; revogado_em: string | null }>}
         consideracoes={(consideracoesRev ?? []) as Array<{ id: string; autor_nome: string | null; texto: string; created_at: string }>}
+      />
+
+      <PainelAssinatura
+        tipoContrato="locacao"
+        contratoId={r.geracao.id}
+        titulo={contrato.codigo}
+        baseUrl={baseUrl}
+        sugestoes={sugestoesAss}
+        processos={(processosAss ?? []) as Array<{ id: string; status: string; created_at: string; signatarios: Array<{ nome: string; email: string; papel: string | null; status: string; token: string }> }>}
       />
 
       <EditorContrato

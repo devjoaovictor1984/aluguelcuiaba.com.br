@@ -7,6 +7,7 @@ import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from
 import { aplicarPlaceholders, limparTituloDuplicado, type DadosContrato } from '@/lib/contratos/montar'
 import { rodarChecklist, bloqueiaGeracao, type DadosChecklist } from '@/lib/contratos/checklist'
 import { validarTokenRevisao } from '@/lib/crm/revisao-token'
+import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
 import React from 'react'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
@@ -376,8 +377,11 @@ export async function GET(
   // Autoriza por login OU por token de revisão (?rt=), pro cliente ver sem conta.
   let ownerId: string | null = user?.id ?? null
   if (!ownerId) {
-    const rt = new URL(request.url).searchParams.get('rt')
+    const url = new URL(request.url)
+    const rt = url.searchParams.get('rt')
+    const st = url.searchParams.get('st')
     if (rt) ownerId = await validarTokenRevisao(admin, rt, 'locacao', geracaoId)
+    else if (st) ownerId = await validarTokenAssinatura(admin, st, 'locacao', geracaoId)
   }
   if (!ownerId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
