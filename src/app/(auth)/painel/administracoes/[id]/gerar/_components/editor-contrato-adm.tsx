@@ -13,8 +13,9 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, FileDown, Loader2, AlertCircle, X, Plus,
-  Eye, Upload, FileCheck, CheckCircle2,
+  Eye, Upload, FileCheck, CheckCircle2, AlertTriangle, ListChecks,
 } from 'lucide-react'
+import { rodarChecklistAdm, contagem, type DadosChecklistAdm } from '@/lib/contratos/checklist'
 import { atualizarClausula, criarClausula } from '../../../../contratos/clausulas/actions'
 import {
   atualizarOrdemClausulasAdm, alternarClausulaNaGeracaoAdm,
@@ -38,9 +39,12 @@ interface Pessoa {
   tipo: string
 }
 
+type ChecklistBase = Omit<DadosChecklistAdm, 'categorias_presentes'>
+
 interface Props {
   contratoAdmId: string
   codigo: string
+  checklistBase: ChecklistBase
   geracao: {
     id: string
     clausula_ids: string[]
@@ -55,7 +59,7 @@ interface Props {
   documentosPartes: Array<{ id: string; tipo: string; nome_original: string; pessoa_nome: string }>
 }
 
-export function EditorContratoAdm({ contratoAdmId, codigo, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
   const router = useRouter()
   const [clausulaIds, setClausulaIds] = useState(geracao.clausula_ids)
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
@@ -76,6 +80,13 @@ export function EditorContratoAdm({ contratoAdmId, codigo, geracao, todasClausul
   const mapaClausulas = new Map(todasClausulas.map(c => [c.id, c]))
   const selecionadas = clausulaIds.map(id => mapaClausulas.get(id)).filter((c): c is ClausulaLista => !!c)
   const disponiveis = todasClausulas.filter(c => !clausulaIds.includes(c.id))
+
+  // Checklist de mínimos (recalcula conforme as cláusulas selecionadas mudam)
+  const itensChecklist = rodarChecklistAdm({
+    ...checklistBase,
+    categorias_presentes: selecionadas.map(c => c.categoria),
+  })
+  const contChecklist = contagem(itensChecklist)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -181,6 +192,42 @@ export function EditorContratoAdm({ contratoAdmId, codigo, geracao, todasClausul
   return (
     <div className="grid lg:grid-cols-[280px_1fr] gap-4">
       <aside className="space-y-4">
+        {/* Checklist de mínimos */}
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+              <ListChecks size={12} /> Checklist do contrato
+            </h2>
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold">
+              <span className="text-green-600">{contChecklist.ok} ok</span>
+              {contChecklist.warn > 0 && <span className="text-amber-600">{contChecklist.warn} aviso{contChecklist.warn > 1 ? 's' : ''}</span>}
+              {contChecklist.block > 0 && <span className="text-red-600">{contChecklist.block} pend.</span>}
+            </div>
+          </div>
+          {contChecklist.block > 0 && (
+            <p className="text-[10px] text-red-700 bg-red-50 rounded-lg px-2 py-1.5">
+              Itens em vermelho são essenciais — resolva antes de gerar/assinar.
+            </p>
+          )}
+          <ul className="space-y-1">
+            {itensChecklist.map(item => {
+              const cor = item.severidade === 'ok' ? 'text-green-600'
+                : item.severidade === 'warn' ? 'text-amber-600' : 'text-red-600'
+              const Icone = item.severidade === 'ok' ? CheckCircle2
+                : item.severidade === 'warn' ? AlertTriangle : AlertCircle
+              return (
+                <li key={item.id} className="flex items-start gap-1.5">
+                  <Icone size={12} className={`${cor} shrink-0 mt-0.5`} />
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-medium text-gray-800 leading-tight">{item.rotulo}</p>
+                    {item.mensagem && <p className="text-[10px] text-gray-400 leading-tight">{item.mensagem}</p>}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+
         {/* Testemunhas */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
           <div>

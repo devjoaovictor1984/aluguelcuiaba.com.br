@@ -58,8 +58,8 @@ async function renderizar(contratoAdmId: string) {
   const { data: contrato } = await supabase
     .from('contratos_administracao')
     .select(`
-      id, codigo,
-      proprietario:pessoas!proprietario_id(id, nome),
+      id, codigo, taxa_valor, dia_repasse, exclusividade,
+      proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj),
       imovel:imoveis(id, titulo)
     `)
     .eq('id', contratoAdmId)
@@ -68,6 +68,13 @@ async function renderizar(contratoAdmId: string) {
     .maybeSingle()
 
   if (!contrato) redirect('/painel/administracoes')
+
+  // Dados jurídicos da administradora (pro checklist de mínimos)
+  const { data: perfilAdm } = await supabase
+    .from('perfis')
+    .select('cnpj, creci_juridico')
+    .eq('id', acesso.userId)
+    .maybeSingle()
 
   // Obtém ou cria geração
   const r = await obterOuCriarGeracaoAdm(contratoAdmId)
@@ -103,7 +110,7 @@ async function renderizar(contratoAdmId: string) {
     .order('nome', { ascending: true })
 
   // Documentos do proprietário (pra anexar)
-  const prop = unwrap(contrato.proprietario) as { id: string; nome: string } | null
+  const prop = unwrap(contrato.proprietario) as { id: string; nome: string; cpf_cnpj: string | null } | null
   const { data: documentosPartes } = prop
     ? await supabase
         .from('pessoas_documentos')
@@ -140,6 +147,15 @@ async function renderizar(contratoAdmId: string) {
       <EditorContratoAdm
         contratoAdmId={contratoAdmId}
         codigo={contrato.codigo}
+        checklistBase={{
+          proprietario_nome: prop?.nome ?? null,
+          proprietario_cpf: prop?.cpf_cnpj ?? null,
+          admin_cnpj: (perfilAdm as { cnpj?: string | null } | null)?.cnpj ?? null,
+          admin_creci_juridico: (perfilAdm as { creci_juridico?: string | null } | null)?.creci_juridico ?? null,
+          taxa_valor: (contrato as { taxa_valor?: number | null }).taxa_valor ?? null,
+          dia_repasse: (contrato as { dia_repasse?: number | null }).dia_repasse ?? null,
+          exclusividade: !!(contrato as { exclusividade?: boolean }).exclusividade,
+        }}
         geracao={{
           id: r.geracao.id,
           clausula_ids: r.geracao.clausula_ids as string[],

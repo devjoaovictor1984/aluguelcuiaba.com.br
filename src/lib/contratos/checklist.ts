@@ -152,6 +152,100 @@ export function rodarChecklist(d: DadosChecklist): ItemChecklist[] {
   return itens
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Checklist do CONTRATO DE ADMINISTRAÇÃO (proprietário ↔ administradora).
+// Mínimos diferentes do contrato de locação: aqui o foco é a administradora
+// (CNPJ/CRECI-J), a taxa, o repasse e as cláusulas essenciais selecionadas.
+// ─────────────────────────────────────────────────────────────────────────────
+export interface DadosChecklistAdm {
+  proprietario_nome?: string | null
+  proprietario_cpf?: string | null
+  admin_cnpj?: string | null
+  admin_creci_juridico?: string | null
+  taxa_valor?: number | null
+  dia_repasse?: number | null
+  exclusividade?: boolean
+  // categorias das cláusulas atualmente no contrato (ex.: 'objeto','remuneracao')
+  categorias_presentes: string[]
+}
+
+export function rodarChecklistAdm(d: DadosChecklistAdm): ItemChecklist[] {
+  const itens: ItemChecklist[] = []
+  const tem = (cat: string) => d.categorias_presentes.includes(cat)
+
+  // ── Partes / qualificação ──
+  itens.push({
+    id: 'proprietario',
+    rotulo: 'Proprietário identificado',
+    severidade: d.proprietario_nome && d.proprietario_cpf ? 'ok' : 'block',
+    mensagem: d.proprietario_nome
+      ? (d.proprietario_cpf ? undefined : 'CPF/CNPJ do proprietário em branco')
+      : 'Proprietário sem nome',
+  })
+  itens.push({
+    id: 'admin_cnpj',
+    rotulo: 'CNPJ da administradora',
+    severidade: d.admin_cnpj ? 'ok' : 'warn',
+    mensagem: d.admin_cnpj ? undefined : 'CNPJ vazio — preencha em /painel/perfil',
+  })
+  itens.push({
+    id: 'admin_creci_j',
+    rotulo: 'CRECI Jurídico',
+    severidade: d.admin_creci_juridico ? 'ok' : 'warn',
+    mensagem: d.admin_creci_juridico ? undefined : 'CRECI-J em branco — recomendado em /painel/perfil',
+  })
+
+  // ── Valores / operacional ──
+  itens.push({
+    id: 'taxa',
+    rotulo: 'Taxa de administração',
+    severidade: d.taxa_valor && d.taxa_valor > 0 ? 'ok' : 'block',
+    mensagem: d.taxa_valor && d.taxa_valor > 0 ? undefined : 'Taxa em branco ou zero',
+  })
+  itens.push({
+    id: 'dia_repasse',
+    rotulo: 'Dia de repasse',
+    severidade: d.dia_repasse ? 'ok' : 'warn',
+    mensagem: d.dia_repasse ? undefined : 'Dia de repasse não definido',
+  })
+
+  // ── Cláusulas essenciais (presença por categoria) ──
+  itens.push({
+    id: 'cl_objeto',
+    rotulo: 'Cláusula de objeto/mandato',
+    severidade: tem('objeto') ? 'ok' : 'warn',
+    mensagem: tem('objeto') ? undefined : 'Sem cláusula de objeto — adicione no editor',
+  })
+  itens.push({
+    id: 'cl_remuneracao',
+    rotulo: 'Cláusula de remuneração',
+    severidade: tem('remuneracao') ? 'ok' : 'block',
+    mensagem: tem('remuneracao') ? undefined : 'Sem cláusula de remuneração — adicione no editor',
+  })
+  itens.push({
+    id: 'cl_repasse',
+    rotulo: 'Cláusula de repasse / prestação de contas',
+    severidade: tem('repasse') ? 'ok' : 'warn',
+    mensagem: tem('repasse') ? undefined : 'Sem cláusula de repasse',
+  })
+  if (d.exclusividade) {
+    itens.push({
+      id: 'cl_exclusividade',
+      rotulo: 'Cláusula de exclusividade',
+      severidade: tem('exclusividade') ? 'ok' : 'warn',
+      mensagem: tem('exclusividade') ? undefined : 'Marcado como exclusivo, mas sem a cláusula de exclusividade',
+    })
+  }
+  itens.push({
+    id: 'cl_rescisao',
+    rotulo: 'Cláusula de rescisão / inadimplência',
+    severidade: tem('inadimplencia') || tem('rescisao') ? 'ok' : 'warn',
+    mensagem: (tem('inadimplencia') || tem('rescisao')) ? undefined : 'Sem cláusula de rescisão/inadimplência',
+  })
+
+  return itens
+}
+
 export function bloqueiaGeracao(itens: ItemChecklist[]): boolean {
   return itens.some(i => i.severidade === 'block')
 }
