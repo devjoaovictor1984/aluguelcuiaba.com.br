@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
 import { aplicarPlaceholders, limparTituloDuplicado, type DadosContrato } from '@/lib/contratos/montar'
 import { rodarChecklist, bloqueiaGeracao, type DadosChecklist } from '@/lib/contratos/checklist'
+import { validarTokenRevisao } from '@/lib/crm/revisao-token'
 import React from 'react'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
@@ -365,13 +366,20 @@ export async function GET(
   try {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
   // ?force=1 ignora os bloqueios do checklist (corretor decidiu gerar mesmo assim)
   const forcar = new URL(request.url).searchParams.get('force') === '1'
 
   const { geracaoId } = await params
   const admin = createAdminClient()
+
+  // Autoriza por login OU por token de revisão (?rt=), pro cliente ver sem conta.
+  let ownerId: string | null = user?.id ?? null
+  if (!ownerId) {
+    const rt = new URL(request.url).searchParams.get('rt')
+    if (rt) ownerId = await validarTokenRevisao(admin, rt, 'locacao', geracaoId)
+  }
+  if (!ownerId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
   // 1. Carrega a geração
   const { data: geracao } = await admin
@@ -380,7 +388,7 @@ export async function GET(
     .eq('id', geracaoId)
     .maybeSingle()
 
-  if (!geracao || geracao.user_id !== user.id) {
+  if (!geracao || geracao.user_id !== ownerId) {
     return NextResponse.json({ error: 'Geração não encontrada' }, { status: 404 })
   }
 
@@ -454,7 +462,7 @@ export async function GET(
         .from('pessoas')
         .select('id, nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf')
         .in('id', testemunhaIds)
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
     : { data: [] }
 
   // 3. Carrega perfil do usuário (administradora)
@@ -465,7 +473,7 @@ export async function GET(
       endereco_logradouro, endereco_numero, endereco_bairro,
       endereco_cidade, endereco_uf, endereco_cep
     `)
-    .eq('id', user.id)
+    .eq('id', ownerId)
     .maybeSingle()
 
   // 4. Carrega as cláusulas selecionadas e mantém a ordem do array
@@ -791,7 +799,7 @@ export async function GET(
       .from('pessoas_documentos')
       .select('id, arquivo_path, mime_type')
       .in('id', anexoIds)
-      .eq('user_id', user.id)
+      .eq('user_id', ownerId)
 
     if (docs && docs.length > 0) {
       // baixa cada arquivo do storage

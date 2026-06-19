@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
 import { aplicarPlaceholders, type DadosContrato } from '@/lib/contratos/montar'
+import { validarTokenRevisao } from '@/lib/crm/revisao-token'
 import React from 'react'
 
 async function mergeAnexos(
@@ -95,16 +96,23 @@ function formatPct(v: number | null | undefined): string {
 }
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
     const { id } = await params
     const admin = createAdminClient()
+
+    // Autoriza por login OU por token de revisão (?rt=), pro cliente ver sem conta.
+    let ownerId: string | null = user?.id ?? null
+    if (!ownerId) {
+      const rt = new URL(request.url).searchParams.get('rt')
+      if (rt) ownerId = await validarTokenRevisao(admin, rt, 'administracao', id)
+    }
+    if (!ownerId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
     // 1. Carrega contrato de administração + proprietário + imóvel
     const { data: c } = await admin
@@ -130,7 +138,7 @@ export async function GET(
       .single()
 
     if (!c) return NextResponse.json({ error: 'Contrato de administração não encontrado' }, { status: 404 })
-    if (c.user_id !== user.id) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    if (c.user_id !== ownerId) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
 
     // 2. Perfil emitente (administradora)
     const { data: perfil } = await admin
@@ -140,7 +148,7 @@ export async function GET(
         endereco_logradouro, endereco_numero, endereco_bairro,
         endereco_cidade, endereco_uf, endereco_cep
       `)
-      .eq('id', user.id)
+      .eq('id', ownerId)
       .maybeSingle()
 
     const cepFmt = perfil?.endereco_cep
@@ -174,7 +182,7 @@ export async function GET(
       const { data: todas } = await admin
         .from('contrato_clausulas')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
         .eq('tipo', 'administracao')
         .eq('ativa', true)
         .order('numero', { ascending: true })
@@ -205,7 +213,7 @@ export async function GET(
       const { data: todas } = await admin
         .from('contrato_clausulas')
         .select('id, titulo, corpo, numero')
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
         .eq('tipo', 'administracao')
         .eq('ativa', true)
         .order('numero', { ascending: true })
@@ -267,7 +275,7 @@ export async function GET(
           .from('pessoas')
           .select('id, nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf')
           .in('id', testemunhaIds)
-          .eq('user_id', user.id)
+          .eq('user_id', ownerId)
       : { data: [] }
 
     // 4b. Monta resumo da capa (taxa, prazo, datas, exclusividade) + endereço do imóvel
@@ -372,7 +380,7 @@ export async function GET(
         .from('pessoas_documentos')
         .select('id, arquivo_path, mime_type')
         .in('id', anexoIds)
-        .eq('user_id', user.id)
+        .eq('user_id', ownerId)
       if (docs && docs.length > 0) {
         const mapaDoc = new Map(docs.map(d => [d.id, d]))
         const anexosBuffers: Array<{ buffer: Uint8Array; mime: string }> = []

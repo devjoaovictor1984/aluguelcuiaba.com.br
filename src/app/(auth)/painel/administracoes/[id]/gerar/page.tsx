@@ -6,6 +6,7 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { obterOuCriarGeracaoAdm } from './actions'
 import { EditorContratoAdm } from './_components/editor-contrato-adm'
+import { PainelRevisao } from '../../../contratos/_components/painel-revisao'
 
 export const dynamic = 'force-dynamic'
 
@@ -122,6 +123,24 @@ async function renderizar(contratoAdmId: string) {
 
   const imovel = unwrap(contrato.imovel) as { titulo: string } | null
 
+  // Links de revisão + considerações recebidas
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  const { data: linksRev } = await supabase
+    .from('contrato_revisao_links')
+    .select('id, token, expira_em, revogado_em')
+    .eq('user_id', acesso.userId)
+    .eq('tipo_contrato', 'administracao')
+    .eq('contrato_id', contratoAdmId)
+    .order('created_at', { ascending: false })
+  const linkIdsRev = (linksRev ?? []).map(l => l.id)
+  const { data: consideracoesRev } = linkIdsRev.length > 0
+    ? await supabase
+        .from('contrato_revisao_consideracoes')
+        .select('id, autor_nome, texto, created_at')
+        .in('link_id', linkIdsRev)
+        .order('created_at', { ascending: false })
+    : { data: [] }
+
   return (
     <main className="px-4 py-4 pb-20 max-w-7xl mx-auto">
       <Breadcrumbs items={[
@@ -143,6 +162,15 @@ async function renderizar(contratoAdmId: string) {
           </p>
         </div>
       </div>
+
+      <PainelRevisao
+        tipoContrato="administracao"
+        contratoId={contratoAdmId}
+        titulo={contrato.codigo}
+        baseUrl={baseUrl}
+        linksIniciais={(linksRev ?? []) as Array<{ id: string; token: string; expira_em: string; revogado_em: string | null }>}
+        consideracoes={(consideracoesRev ?? []) as Array<{ id: string; autor_nome: string | null; texto: string; created_at: string }>}
+      />
 
       <EditorContratoAdm
         contratoAdmId={contratoAdmId}
