@@ -13,15 +13,15 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, FileDown, Loader2, AlertCircle, X, Plus,
-  Eye, Upload, FileCheck, CheckCircle2, AlertTriangle, ListChecks,
+  Eye, Upload, FileCheck, CheckCircle2,
 } from 'lucide-react'
-import { rodarChecklistAdm, contagem, ITENS_ESSENCIAIS_ADM, type DadosChecklistAdm } from '@/lib/contratos/checklist'
+import { rodarChecklistAdm, type DadosChecklistAdm } from '@/lib/contratos/checklist'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
 import { atualizarClausula, criarClausula } from '../../../../contratos/clausulas/actions'
 import {
   atualizarOrdemClausulasAdm, alternarClausulaNaGeracaoAdm,
   atualizarTestemunhasAdm, atualizarAnexosDocumentosAdm,
-  uploadAdmAssinado, marcarItemChecklistAdm,
+  uploadAdmAssinado,
 } from '../actions'
 
 // Placeholders úteis em cláusulas de administração (proprietária, imóvel, admin, termos).
@@ -49,7 +49,6 @@ interface Props {
   contratoAdmId: string
   codigo: string
   checklistBase: ChecklistBase
-  checklistManual: Record<string, boolean>
   geracao: {
     id: string
     clausula_ids: string[]
@@ -64,7 +63,7 @@ interface Props {
   documentosPartes: Array<{ id: string; tipo: string; nome_original: string; pessoa_nome: string }>
 }
 
-export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, checklistManual, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
   const router = useRouter()
   const [clausulaIds, setClausulaIds] = useState(geracao.clausula_ids)
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
@@ -86,28 +85,12 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, checkl
   const selecionadas = clausulaIds.map(id => mapaClausulas.get(id)).filter((c): c is ClausulaLista => !!c)
   const disponiveis = todasClausulas.filter(c => !clausulaIds.includes(c.id))
 
-  // Checklist de mínimos (recalcula conforme as cláusulas selecionadas mudam)
+  // Checklist — só os bloqueios (estilo do editor de locação), recalcula conforme as cláusulas.
   const itensChecklist = rodarChecklistAdm({
     ...checklistBase,
     categorias_presentes: selecionadas.map(c => c.categoria),
   })
-  const contChecklist = contagem(itensChecklist)
-
-  // Checklist manual (itens essenciais que o corretor confirma)
-  const [marcados, setMarcados] = useState<Record<string, boolean>>(checklistManual)
-  const totalMarcados = ITENS_ESSENCIAIS_ADM.filter(i => marcados[i.chave]).length
-
-  const toggleItem = (chave: string) => {
-    const novo = !marcados[chave]
-    setMarcados(prev => ({ ...prev, [chave]: novo }))
-    startTransition(async () => {
-      const r = await marcarItemChecklistAdm(contratoAdmId, chave, novo)
-      if (r.error) {
-        setErro(r.error)
-        setMarcados(prev => ({ ...prev, [chave]: !novo })) // reverte
-      }
-    })
-  }
+  const bloqueios = itensChecklist.filter(i => i.severidade === 'block')
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -213,75 +196,6 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, checkl
   return (
     <div className="grid lg:grid-cols-[280px_1fr] gap-4">
       <aside className="space-y-4">
-        {/* Checklist de mínimos */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-              <ListChecks size={12} /> Checklist do contrato
-            </h2>
-            <div className="flex items-center gap-1.5 text-[10px] font-semibold">
-              <span className="text-green-600">{contChecklist.ok} ok</span>
-              {contChecklist.warn > 0 && <span className="text-amber-600">{contChecklist.warn} aviso{contChecklist.warn > 1 ? 's' : ''}</span>}
-              {contChecklist.block > 0 && <span className="text-red-600">{contChecklist.block} pend.</span>}
-            </div>
-          </div>
-          {contChecklist.block > 0 && (
-            <p className="text-[10px] text-red-700 bg-red-50 rounded-lg px-2 py-1.5">
-              Itens em vermelho são essenciais — resolva antes de gerar/assinar.
-            </p>
-          )}
-          <ul className="space-y-1">
-            {itensChecklist.map(item => {
-              const cor = item.severidade === 'ok' ? 'text-green-600'
-                : item.severidade === 'warn' ? 'text-amber-600' : 'text-red-600'
-              const Icone = item.severidade === 'ok' ? CheckCircle2
-                : item.severidade === 'warn' ? AlertTriangle : AlertCircle
-              return (
-                <li key={item.id} className="flex items-start gap-1.5">
-                  <Icone size={12} className={`${cor} shrink-0 mt-0.5`} />
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-medium text-gray-800 leading-tight">{item.rotulo}</p>
-                    {item.mensagem && <p className="text-[10px] text-gray-400 leading-tight">{item.mensagem}</p>}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-
-        {/* Checklist manual — itens essenciais confirmados */}
-        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-              <ListChecks size={12} /> Itens essenciais
-            </h2>
-            <span className="text-[10px] font-semibold text-gray-500">{totalMarcados}/{ITENS_ESSENCIAIS_ADM.length}</span>
-          </div>
-          <p className="text-[10px] text-gray-400">Confirme que cada item está contemplado no contrato.</p>
-          <ul className="space-y-1">
-            {ITENS_ESSENCIAIS_ADM.map(item => {
-              const feito = !!marcados[item.chave]
-              return (
-                <li key={item.chave}>
-                  <label className="flex items-start gap-2 cursor-pointer group">
-                    <input
-                      type="checkbox"
-                      checked={feito}
-                      onChange={() => toggleItem(item.chave)}
-                      disabled={isPending}
-                      className="mt-0.5 accent-violet-600 shrink-0"
-                    />
-                    <span className="min-w-0">
-                      <span className={`text-[11px] font-medium leading-tight ${feito ? 'text-gray-800 line-through' : 'text-gray-700'}`}>{item.rotulo}</span>
-                      <span className="block text-[10px] text-gray-400 leading-tight">{item.dica}</span>
-                    </span>
-                  </label>
-                </li>
-              )
-            })}
-          </ul>
-        </section>
-
         {/* Testemunhas */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
           <div>
@@ -357,6 +271,24 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, checkl
           )}
           {erroUpload && <p className="text-[11px] text-red-600 flex items-start gap-1"><AlertCircle size={11} className="mt-0.5 shrink-0" /> {erroUpload}</p>}
         </section>
+
+        {/* Pendências antes de gerar (só bloqueios) */}
+        {bloqueios.length > 0 && (
+          <section className="bg-rose-50 border border-rose-200 rounded-2xl p-4 space-y-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-rose-700 flex items-center gap-1.5">
+              <AlertCircle size={12} /> Pendências antes de gerar ({bloqueios.length})
+            </h2>
+            <ul className="text-[11px] text-rose-700 space-y-1">
+              {bloqueios.map(b => (
+                <li key={b.id} className="flex items-start gap-1.5">
+                  <span className="mt-0.5 shrink-0">•</span>
+                  <span><strong>{b.rotulo}:</strong> {b.mensagem}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[10px] text-rose-600">Corrija no cadastro do contrato/cláusulas ou gere mesmo assim por sua conta.</p>
+          </section>
+        )}
 
         {/* Botões PDF */}
         <div className="grid gap-2">

@@ -202,9 +202,15 @@ async function renderizarEditor(contratoId: string) {
 
   const inqEmail = inqTmp as { nome: string; email?: string | null } | null
   const propEmail = propTmp as { nome: string; email?: string | null } | null
+  const testIdsAss = (r.geracao.testemunha_ids as string[] | null) ?? []
+  const { data: testPessoasAss } = testIdsAss.length > 0
+    ? await supabase.from('pessoas').select('nome, email').in('id', testIdsAss).eq('user_id', acesso.userId)
+    : { data: [] }
   const sugestoesAss = [
     inqEmail?.email ? { nome: inqEmail.nome, email: inqEmail.email, papel: 'Locatário(a)' } : null,
     propEmail?.email ? { nome: propEmail.nome, email: propEmail.email, papel: 'Locador(a)' } : null,
+    ...((testPessoasAss ?? []) as Array<{ nome: string; email: string | null }>)
+      .map(t => t.email ? { nome: t.nome, email: t.email, papel: 'Testemunha' } : null),
   ].filter((s): s is { nome: string; email: string; papel: string } => !!s)
 
   // Detecta dados do imóvel faltando pra contrato robusto

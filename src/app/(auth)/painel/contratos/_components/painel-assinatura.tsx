@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download } from 'lucide-react'
+import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download, MessageCircle } from 'lucide-react'
 import { criarProcessoAssinatura, cancelarProcessoAssinatura } from '../assinatura-actions'
 
 interface Sugestao { nome: string; email: string; papel: string }
@@ -52,6 +52,11 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
       await navigator.clipboard.writeText(`${origin}/assinar/${token}`)
       setCopiado(token); setTimeout(() => setCopiado(null), 2000)
     } catch { setErro('Não consegui copiar.') }
+  }
+
+  const whatsapp = (s: SignatarioStatus) => {
+    const msg = `Olá ${s.nome.split(' ')[0]}, segue o link para você assinar o contrato ${titulo}${s.papel ? ` (como ${s.papel})` : ''}:\n\n${origin}/assinar/${s.token}`
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
   }
 
   const cancelar = (id: string) => {
@@ -121,9 +126,14 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
                     <span className="text-gray-400">{s.papel ? `· ${s.papel}` : ''}</span>
                     <span className="text-gray-300 flex-1 truncate">{s.email}</span>
                     {s.status !== 'assinado' && p.status !== 'concluido' && (
-                      <button type="button" onClick={() => copiar(s.token)} className="text-violet-600 hover:text-violet-800 p-1" title="Copiar link">
-                        {copiado === s.token ? <Check size={12} /> : <Copy size={12} />}
-                      </button>
+                      <span className="flex items-center gap-0.5 shrink-0">
+                        <button type="button" onClick={() => copiar(s.token)} className="text-violet-600 hover:text-violet-800 p-1" title="Copiar link">
+                          {copiado === s.token ? <Check size={12} /> : <Copy size={12} />}
+                        </button>
+                        <button type="button" onClick={() => whatsapp(s)} className="text-green-600 hover:text-green-700 p-1" title="Enviar por WhatsApp">
+                          <MessageCircle size={12} />
+                        </button>
+                      </span>
                     )}
                   </li>
                 ))}

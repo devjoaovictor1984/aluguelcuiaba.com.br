@@ -55,6 +55,7 @@ export default async function GerarContratoAdmPage({ params }: Props) {
 async function renderizar(contratoAdmId: string) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Confirma posse + puxa proprietário pra mostrar
   const { data: contrato } = await supabase
@@ -62,6 +63,7 @@ async function renderizar(contratoAdmId: string) {
     .select(`
       id, codigo, taxa_valor, dia_repasse, exclusividade, checklist_manual,
       proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj, email),
+      proprietario_representante:pessoas!proprietario_representante_id(nome, email),
       imovel:imoveis(id, titulo)
     `)
     .eq('id', contratoAdmId)
@@ -71,10 +73,10 @@ async function renderizar(contratoAdmId: string) {
 
   if (!contrato) redirect('/painel/administracoes')
 
-  // Dados jurídicos da administradora (pro checklist de mínimos)
+  // Dados da administradora (pro checklist e pra sugestão de signatário)
   const { data: perfilAdm } = await supabase
     .from('perfis')
-    .select('cnpj, creci_juridico')
+    .select('cnpj, creci_juridico, nome, razao_social')
     .eq('id', acesso.userId)
     .maybeSingle()
 
@@ -151,10 +153,22 @@ async function renderizar(contratoAdmId: string) {
     .eq('contrato_id', contratoAdmId)
     .order('created_at', { ascending: false })
 
+  // Sugestões de signatários = partes reais do contrato (preenche automático).
   const propComEmail = unwrap(contrato.proprietario) as { nome: string; email: string | null } | null
-  const sugestoesAss = propComEmail?.email
-    ? [{ nome: propComEmail.nome, email: propComEmail.email, papel: 'Proprietária(o)' }]
-    : []
+  const reprComEmail = unwrap(contrato.proprietario_representante) as { nome: string; email: string | null } | null
+  const adminNome = perfilAdm?.razao_social || perfilAdm?.nome || 'Administradora'
+  const testIds = (r.geracao.testemunha_ids as string[] | null) ?? []
+  const { data: testPessoas } = testIds.length > 0
+    ? await supabase.from('pessoas').select('nome, email').in('id', testIds).eq('user_id', acesso.userId)
+    : { data: [] }
+
+  const sugestoesAss = [
+    user?.email ? { nome: adminNome, email: user.email, papel: 'Administradora (responsável)' } : null,
+    propComEmail?.email ? { nome: propComEmail.nome, email: propComEmail.email, papel: 'Proprietária(o)' } : null,
+    reprComEmail?.email ? { nome: reprComEmail.nome, email: reprComEmail.email, papel: 'Representante da proprietária' } : null,
+    ...((testPessoas ?? []) as Array<{ nome: string; email: string | null }>)
+      .map(t => t.email ? { nome: t.nome, email: t.email, papel: 'Testemunha' } : null),
+  ].filter((s): s is { nome: string; email: string; papel: string } => !!s)
 
   return (
     <main className="px-4 py-4 pb-20 max-w-7xl mx-auto">
@@ -199,7 +213,6 @@ async function renderizar(contratoAdmId: string) {
       <EditorContratoAdm
         contratoAdmId={contratoAdmId}
         codigo={contrato.codigo}
-        checklistManual={((contrato as { checklist_manual?: Record<string, boolean> }).checklist_manual ?? {})}
         checklistBase={{
           proprietario_nome: prop?.nome ?? null,
           proprietario_cpf: prop?.cpf_cnpj ?? null,
