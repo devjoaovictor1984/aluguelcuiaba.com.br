@@ -296,7 +296,8 @@ async function renderizarEditor(contratoId: string) {
           id: r.geracao.id,
           tipo_seguro_incendio: r.geracao.tipo_seguro_incendio,
           saida_sem_multa_12m: r.geracao.saida_sem_multa_12m,
-          clausula_ids: r.geracao.clausula_ids as string[],
+          clausulas: (((r.geracao as { clausulas?: unknown }).clausulas ?? []) as Array<{ id: string; titulo: string; corpo: string; categoria: string; tipo: string }>)
+            .map(c => ({ ...c, tipo: c.tipo as TipoClausula })),
           testemunha_ids: (r.geracao.testemunha_ids as string[] | null) ?? [],
           clausulas_seguradora_texto: r.geracao.clausulas_seguradora_texto ?? '',
           incluir_capa: r.geracao.incluir_capa ?? true,

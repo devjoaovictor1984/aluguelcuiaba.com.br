@@ -15,9 +15,9 @@ import {
   GripVertical, Save, FileDown, Loader2, AlertCircle, X, Plus,
   Settings, Eye, Upload, FileCheck, CheckCircle2, Star, Key, StickyNote, Trash2,
 } from 'lucide-react'
-import { atualizarClausula, criarClausula } from '../../../clausulas/actions'
 import {
-  atualizarOpcoesGeracao, atualizarOrdemClausulas, alternarClausulaNaGeracao,
+  atualizarOpcoesGeracao, atualizarOrdemClausulas,
+  editarClausulaGeracao, adicionarClausulaGeracao, removerClausulaGeracao,
   atualizarTestemunhas, atualizarClausulasSeguradora,
   uploadContratoAssinado, removerContratoAssinado,
   atualizarAnexosDocumentos, marcarComoGerado, atualizarItensEntrega,
@@ -28,12 +28,22 @@ import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
 import { ProgressoContrato } from './progresso-contrato'
 import { SECOES_ESSENCIAIS, isCategoriaEssencial } from '@/lib/contratos/secoes-essenciais'
 
+// Cláusula do BANCO genérico (catálogo "adicionar do banco")
 interface ClausulaLista {
   id: string
   tipo: TipoClausula
   categoria: string
   titulo: string
   numero: number
+  corpo: string
+}
+
+// Cláusula DESTE contrato (snapshot editável, independente do banco)
+interface ClausulaSel {
+  id: string
+  tipo: TipoClausula
+  categoria: string
+  titulo: string
   corpo: string
 }
 
@@ -58,7 +68,7 @@ interface Props {
     id: string
     tipo_seguro_incendio: 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
     saida_sem_multa_12m: boolean
-    clausula_ids: string[]
+    clausulas: ClausulaSel[]
     testemunha_ids: string[]
     clausulas_seguradora_texto: string
     incluir_capa: boolean
@@ -83,7 +93,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
   const router = useRouter()
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
-  const [clausulaIds, setClausulaIds] = useState(geracao.clausula_ids)
+  const [clausulas, setClausulas] = useState<ClausulaSel[]>(geracao.clausulas)
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
   const [textoSeguradora, setTextoSeguradora] = useState(geracao.clausulas_seguradora_texto)
   const [incluirCapa, setIncluirCapa] = useState(geracao.incluir_capa ?? true)
@@ -274,25 +284,21 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
         else tipoEscolhido = 'generica'
       }
     }
+    // Cria direto no snapshot DESTE contrato (não toca o banco genérico)
+    const nova: ClausulaSel = {
+      id: crypto.randomUUID(),
+      tipo: tipoEscolhido,
+      categoria: categoriaEscolhida,
+      titulo: novaClausulaTitulo.trim(),
+      corpo: novaClausulaCorpo.trim(),
+    }
+    setClausulas(prev => [...prev, nova])
     startTransition(async () => {
-      const r = await criarClausula({
-        tipo: tipoEscolhido,
-        categoria: categoriaEscolhida,
-        titulo: novaClausulaTitulo.trim(),
-        numero: 100 + clausulaIds.length,
-        corpo: novaClausulaCorpo.trim(),
-      })
-      if (r.error || !r.id) {
-        setErroNovaClausula(r.error ?? 'Falha ao criar.')
+      const r = await adicionarClausulaGeracao(geracao.id, nova)
+      if (r.error) {
+        setErroNovaClausula(r.error)
         return
       }
-      const r2 = await alternarClausulaNaGeracao(geracao.id, r.id, true)
-      if (r2.error) {
-        setErroNovaClausula(r2.error)
-        return
-      }
-      setClausulaIds(prev => [...prev, r.id!])
-      router.refresh()
       setModalNovaClausula(false)
       setNovaClausulaTitulo('')
       setNovaClausulaCorpo('')
@@ -308,10 +314,12 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
     })
   }
 
-  // Mapa pra resolver id -> cláusula
-  const mapaClausulas = new Map(todasClausulas.map(c => [c.id, c]))
-  const clausulasSelecionadas = clausulaIds.map(id => mapaClausulas.get(id)).filter((c): c is ClausulaLista => !!c)
-  const clausulasDisponiveis = todasClausulas.filter(c => !clausulaIds.includes(c.id))
+  // Snapshot é a fonte da verdade. O catálogo mostra cláusulas do banco cujo
+  // título ainda não está neste contrato (matching por título, case-insensitive).
+  const clausulasSelecionadas = clausulas
+  const ordemIds = clausulas.map(c => c.id)
+  const titulosNoContrato = new Set(clausulas.map(c => c.titulo.trim().toLowerCase()))
+  const clausulasDisponiveis = todasClausulas.filter(c => !titulosNoContrato.has(c.titulo.trim().toLowerCase()))
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -321,12 +329,12 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = clausulaIds.indexOf(active.id as string)
-    const newIndex = clausulaIds.indexOf(over.id as string)
-    const novaOrdem = arrayMove(clausulaIds, oldIndex, newIndex)
-    setClausulaIds(novaOrdem)
+    const oldIndex = ordemIds.indexOf(active.id as string)
+    const newIndex = ordemIds.indexOf(over.id as string)
+    const nova = arrayMove(clausulas, oldIndex, newIndex)
+    setClausulas(nova)
     startTransition(async () => {
-      const r = await atualizarOrdemClausulas(geracao.id, novaOrdem)
+      const r = await atualizarOrdemClausulas(geracao.id, nova.map(c => c.id))
       if (r.error) setErro(r.error)
     })
   }
@@ -343,10 +351,11 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
         saida_sem_multa_12m: novoSemMulta,
       })
       if (r.error) { setErro(r.error); return }
-      if (r.clausula_ids) setClausulaIds(r.clausula_ids)
+      if (r.clausulas) setClausulas(r.clausulas as ClausulaSel[])
     })
   }
 
+  // Edita SÓ neste contrato (snapshot) — não toca o banco genérico
   const onAtualizarClausula = (
     id: string,
     novoTitulo: string,
@@ -354,37 +363,35 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
     novaCategoria?: string,
     novoTipo?: TipoClausula,
   ) => {
-    const c = mapaClausulas.get(id)
-    if (!c) return
-    const tipoFinal = novoTipo ?? c.tipo
-    const categoriaFinal = novaCategoria ?? c.categoria
+    setClausulas(curr => curr.map(c => c.id === id
+      ? { ...c, titulo: novoTitulo, corpo: novoCorpo, categoria: novaCategoria ?? c.categoria, tipo: novoTipo ?? c.tipo }
+      : c))
     startTransition(async () => {
-      const r = await atualizarClausula(id, {
-        tipo: tipoFinal,
-        categoria: categoriaFinal,
-        titulo: novoTitulo,
-        numero: c.numero,
-        corpo: novoCorpo,
-      })
-      if (r.error) { setErro(r.error); return }
-      const novaCl = { ...c, titulo: novoTitulo, corpo: novoCorpo, tipo: tipoFinal, categoria: categoriaFinal }
-      mapaClausulas.set(id, novaCl)
-      setClausulaIds([...clausulaIds])
-    })
-  }
-
-  const onRemover = (id: string) => {
-    setClausulaIds(curr => curr.filter(x => x !== id))
-    startTransition(async () => {
-      const r = await alternarClausulaNaGeracao(geracao.id, id, false)
+      const r = await editarClausulaGeracao(geracao.id, id, novoTitulo, novoCorpo, novaCategoria, novoTipo)
       if (r.error) setErro(r.error)
     })
   }
 
-  const onIncluir = (id: string) => {
-    setClausulaIds(curr => [...curr, id])
+  const onRemover = (id: string) => {
+    setClausulas(curr => curr.filter(c => c.id !== id))
     startTransition(async () => {
-      const r = await alternarClausulaNaGeracao(geracao.id, id, true)
+      const r = await removerClausulaGeracao(geracao.id, id)
+      if (r.error) setErro(r.error)
+    })
+  }
+
+  // Inclui uma CÓPIA da cláusula do banco neste contrato (id novo de snapshot)
+  const onIncluir = (banco: ClausulaLista) => {
+    const nova: ClausulaSel = {
+      id: crypto.randomUUID(),
+      tipo: banco.tipo,
+      categoria: banco.categoria,
+      titulo: banco.titulo,
+      corpo: banco.corpo,
+    }
+    setClausulas(curr => [...curr, nova])
+    startTransition(async () => {
+      const r = await adicionarClausulaGeracao(geracao.id, nova)
       if (r.error) setErro(r.error)
     })
   }
@@ -408,7 +415,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
       .catch(() => setChecklistCarregado(true))
     return () => { ativo = false }
     // Recarrega quando muda cláusula (pode afetar dados); geracao.id é estável
-  }, [geracao.id, clausulaIds.length])
+  }, [geracao.id, clausulas.length])
 
   const temBloqueio = checklistBloqueios.length > 0
 
@@ -886,7 +893,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
           onDragEnd={handleDragEnd}
         >
           <SortableContext
-            items={clausulaIds}
+            items={ordemIds}
             strategy={verticalListSortingStrategy}
           >
             <div className="space-y-2">
@@ -1058,7 +1065,7 @@ function ClausulaCardEditor({
   numero, clausula, isPending, onSalvar, onRemover,
 }: {
   numero: number
-  clausula: ClausulaLista
+  clausula: ClausulaSel
   isPending: boolean
   onSalvar: (titulo: string, corpo: string, categoria?: string, tipo?: TipoClausula) => void
   onRemover: () => void
@@ -1155,7 +1162,7 @@ function ClausulaCardEditor({
 function ModalEdicaoClausula({
   clausula, isPending, onSalvar, onFechar,
 }: {
-  clausula: ClausulaLista
+  clausula: ClausulaSel
   isPending: boolean
   onSalvar: (titulo: string, corpo: string, categoria?: string, tipo?: TipoClausula) => void
   onFechar: () => void
@@ -1367,7 +1374,7 @@ function CatalogoDisponiveis({
 }: {
   clausulas: ClausulaLista[]
   isPending: boolean
-  onIncluir: (id: string) => void
+  onIncluir: (clausula: ClausulaLista) => void
   onCriarNova: () => void
 }) {
   const [busca, setBusca] = useState('')
@@ -1463,7 +1470,7 @@ function CatalogoDisponiveis({
               <button
                 key={c.id}
                 type="button"
-                onClick={() => onIncluir(c.id)}
+                onClick={() => onIncluir(c)}
                 disabled={isPending}
                 className={`w-full text-left hover:shadow-sm rounded-lg p-2.5 transition-all disabled:opacity-50 group border ${
                   essencial

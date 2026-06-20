@@ -1,9 +1,21 @@
 'use server'
 
+import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { CATEGORIAS_ORDEM } from '@/lib/contratos/placeholders'
+
+type SB = Awaited<ReturnType<typeof createClient>>
+
+/** Cláusula DESTE contrato (snapshot editável, independente do banco genérico). */
+export interface ClausulaSnapshot {
+  id: string
+  titulo: string
+  corpo: string
+  categoria: string
+  tipo: string
+}
 
 type TipoSeguroIncendio = 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
 type TipoAtuacao = 'administracao' | 'intermediacao' | 'direto'
@@ -40,16 +52,25 @@ interface ContratoContext {
  *  - 1 variante de mobília (tipo='mobilia', titulo casa com tipo_mobilia) + cláusula de inventário se mobiliado
  *  - 1 variante de pet (tipo='pet', titulo casa com aceita_pet) + cláusula de limpeza se aceita pet
  *
- * Retorna IDs ordenados pelo número de cada cláusula.
+ * Retorna as cláusulas (conteúdo completo) ordenadas pelo número de cada uma.
  */
+interface ClausulaRow {
+  id: string
+  tipo: string
+  categoria: string
+  numero: number
+  titulo: string
+  corpo: string
+}
+
 async function selecionarClausulasIniciais(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: SB,
   userId: string,
   ctx: ContratoContext,
-): Promise<string[]> {
+): Promise<ClausulaRow[]> {
   const { data: clausulas } = await supabase
     .from('contrato_clausulas')
-    .select('id, tipo, categoria, numero, titulo')
+    .select('id, tipo, categoria, numero, titulo, corpo')
     .eq('user_id', userId)
     .eq('ativa', true)
     .order('numero', { ascending: true })
@@ -176,7 +197,35 @@ async function selecionarClausulasIniciais(
       if (ca !== cb) return ca - cb
       return a.numero - b.numero
     })
-    .map(c => c.id)
+    .map(c => ({ id: c.id, tipo: c.tipo, categoria: c.categoria, numero: c.numero, titulo: c.titulo, corpo: c.corpo }))
+}
+
+/** Converte rows do banco em snapshot (IDs novos, conteúdo copiado). */
+function rowsParaSnapshot(rows: ClausulaRow[]): ClausulaSnapshot[] {
+  return rows.map(c => ({ id: randomUUID(), titulo: c.titulo, corpo: c.corpo, categoria: c.categoria, tipo: c.tipo }))
+}
+
+// ── Helpers do snapshot de cláusulas DESTE contrato (não tocam o banco) ──
+async function carregarSnap(supabase: SB, userId: string, geracaoId: string) {
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id, clausulas')
+    .eq('id', geracaoId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' as const }
+  return { g, clausulas: (g.clausulas ?? []) as ClausulaSnapshot[] }
+}
+
+async function salvarSnap(supabase: SB, userId: string, geracaoId: string, contratoId: string, clausulas: ClausulaSnapshot[]) {
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({ clausulas })
+    .eq('id', geracaoId)
+    .eq('user_id', userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${contratoId}/gerar`)
+  return { ok: true }
 }
 
 /**
@@ -213,6 +262,17 @@ export async function obterOuCriarGeracao(contratoId: string) {
     !contrato.aluguel_inclui_gas && !contrato.aluguel_inclui_internet
   )
 
+  const ctx: ContratoContext = {
+    garantiaTipo: contrato.garantia_tipo,
+    tipoSeguroIncendio: seguroIncendioDefault,
+    tipoAtuacao: (contrato.tipo_atuacao ?? 'administracao') as TipoAtuacao,
+    tipoMobilia: (contrato.tipo_mobilia ?? 'sem') as TipoMobilia,
+    aceitaPet: (contrato.aceita_pet ?? 'nao') as AceitaPet,
+    aluguelPacote,
+    pacoteIptuCondominio,
+    finalidade: (contrato.finalidade ?? 'residencial') as Finalidade,
+  }
+
   // Já existe geração?
   const { data: existente } = await supabase
     .from('contrato_geracoes')
@@ -222,19 +282,36 @@ export async function obterOuCriarGeracao(contratoId: string) {
     .limit(1)
     .maybeSingle()
 
-  if (existente) return { ok: true, geracao: existente }
+  if (existente) {
+    let clausulas = (existente.clausulas ?? []) as ClausulaSnapshot[]
+    // Backfill: gerações antigas (antes do snapshot) copiam o conteúdo do banco
+    // pelos clausula_ids; se nada casar, refazem a seleção inicial.
+    if (!Array.isArray(clausulas) || clausulas.length === 0) {
+      const ids = (existente.clausula_ids ?? []) as string[]
+      if (ids.length > 0) {
+        const { data: bank } = await supabase
+          .from('contrato_clausulas')
+          .select('id, tipo, categoria, numero, titulo, corpo')
+          .in('id', ids)
+          .eq('user_id', acesso.userId)
+        const mapa = new Map((bank ?? []).map(b => [b.id, b]))
+        clausulas = ids
+          .map(id => mapa.get(id))
+          .filter((b): b is NonNullable<typeof b> => !!b)
+          .map(b => ({ id: randomUUID(), titulo: b.titulo, corpo: b.corpo, categoria: b.categoria, tipo: b.tipo }))
+      }
+      if (clausulas.length === 0) {
+        clausulas = rowsParaSnapshot(await selecionarClausulasIniciais(supabase, acesso.userId, ctx))
+      }
+      await supabase.from('contrato_geracoes')
+        .update({ clausulas })
+        .eq('id', existente.id).eq('user_id', acesso.userId)
+    }
+    return { ok: true, geracao: { ...existente, clausulas } }
+  }
 
-  // Cria nova com defaults
-  const clausulaIds = await selecionarClausulasIniciais(supabase, acesso.userId, {
-    garantiaTipo: contrato.garantia_tipo,
-    tipoSeguroIncendio: seguroIncendioDefault,
-    tipoAtuacao: (contrato.tipo_atuacao ?? 'administracao') as TipoAtuacao,
-    tipoMobilia: (contrato.tipo_mobilia ?? 'sem') as TipoMobilia,
-    aceitaPet: (contrato.aceita_pet ?? 'nao') as AceitaPet,
-    aluguelPacote,
-    pacoteIptuCondominio,
-    finalidade: (contrato.finalidade ?? 'residencial') as Finalidade,
-  })
+  // Cria nova com defaults — snapshot copiado do banco genérico
+  const clausulas = rowsParaSnapshot(await selecionarClausulasIniciais(supabase, acesso.userId, ctx))
 
   const { data: nova, error } = await supabase
     .from('contrato_geracoes')
@@ -243,7 +320,8 @@ export async function obterOuCriarGeracao(contratoId: string) {
       contrato_id: contratoId,
       tipo_seguro_incendio: seguroIncendioDefault,
       saida_sem_multa_12m: false,
-      clausula_ids: clausulaIds,
+      clausulas,
+      clausula_ids: [],
       anexo_documento_ids: [],
       status: 'rascunho',
     })
@@ -257,8 +335,9 @@ export async function obterOuCriarGeracao(contratoId: string) {
 }
 
 /**
- * Atualiza as opções de uma geração. Se tipo_seguro_incendio mudou,
- * re-seleciona as cláusulas (troca a de seguro incêndio).
+ * Atualiza as opções de uma geração. Se tipo_seguro_incendio mudou, troca a
+ * cláusula de seguro incêndio DENTRO do snapshot (preservando as edições das
+ * demais cláusulas), buscando a variante nova no banco genérico.
  */
 export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGeracao) {
   const acesso = await exigirAcessoCRM()
@@ -266,37 +345,39 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
 
   const { data: atual } = await supabase
     .from('contrato_geracoes')
-    .select('id, contrato_id, tipo_seguro_incendio, clausula_ids, contratos_locacao:contratos_locacao!inner(garantia_tipo, tipo_atuacao, tipo_mobilia, aceita_pet, finalidade, aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua, aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet)')
+    .select('id, contrato_id, tipo_seguro_incendio, clausulas')
     .eq('id', geracaoId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
   if (!atual) return { error: 'Geração não encontrada.' }
 
-  let clausulaIds = atual.clausula_ids as string[]
+  let clausulas = (atual.clausulas ?? []) as ClausulaSnapshot[]
 
-  // Trocou o tipo de seguro incêndio? Re-seleciona pra trocar a cláusula
+  // Trocou o tipo de seguro incêndio? Substitui a cláusula de seguro no snapshot.
   if (atual.tipo_seguro_incendio !== opcoes.tipo_seguro_incendio) {
-    const contratoRel = Array.isArray(atual.contratos_locacao) ? atual.contratos_locacao[0] : atual.contratos_locacao
-    const aluguelPacoteRel = !!(
-      contratoRel.aluguel_inclui_iptu || contratoRel.aluguel_inclui_condominio ||
-      contratoRel.aluguel_inclui_agua || contratoRel.aluguel_inclui_energia ||
-      contratoRel.aluguel_inclui_gas || contratoRel.aluguel_inclui_internet
-    )
-    const pacoteIptuCondominioRel = !!(
-      contratoRel.aluguel_inclui_iptu && contratoRel.aluguel_inclui_condominio &&
-      !contratoRel.aluguel_inclui_agua && !contratoRel.aluguel_inclui_energia &&
-      !contratoRel.aluguel_inclui_gas && !contratoRel.aluguel_inclui_internet
-    )
-    clausulaIds = await selecionarClausulasIniciais(supabase, acesso.userId, {
-      garantiaTipo: contratoRel.garantia_tipo,
-      tipoSeguroIncendio: opcoes.tipo_seguro_incendio,
-      tipoAtuacao: (contratoRel.tipo_atuacao ?? 'administracao') as TipoAtuacao,
-      tipoMobilia: (contratoRel.tipo_mobilia ?? 'sem') as TipoMobilia,
-      aceitaPet: (contratoRel.aceita_pet ?? 'nao') as AceitaPet,
-      aluguelPacote: aluguelPacoteRel,
-      pacoteIptuCondominio: pacoteIptuCondominioRel,
-      finalidade: (contratoRel.finalidade ?? 'residencial') as Finalidade,
-    })
+    const { data: variante } = await supabase
+      .from('contrato_clausulas')
+      .select('tipo, categoria, titulo, corpo')
+      .eq('user_id', acesso.userId)
+      .eq('tipo', 'seguro_incendio')
+      .eq('categoria', opcoes.tipo_seguro_incendio)
+      .eq('ativa', true)
+      .order('numero', { ascending: true })
+      .limit(1)
+      .maybeSingle()
+
+    const idxSeguro = clausulas.findIndex(c => c.tipo === 'seguro_incendio')
+    if (variante) {
+      const nova: ClausulaSnapshot = {
+        id: randomUUID(), titulo: variante.titulo, corpo: variante.corpo,
+        categoria: variante.categoria, tipo: variante.tipo,
+      }
+      if (idxSeguro >= 0) clausulas = clausulas.map((c, i) => i === idxSeguro ? nova : c)
+      else clausulas = [...clausulas, nova]
+    } else if (idxSeguro >= 0) {
+      // Sem variante no banco (ex: dispensado sem cláusula) → remove a anterior.
+      clausulas = clausulas.filter((_, i) => i !== idxSeguro)
+    }
   }
 
   const { error } = await supabase
@@ -304,42 +385,80 @@ export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGe
     .update({
       tipo_seguro_incendio: opcoes.tipo_seguro_incendio,
       saida_sem_multa_12m: opcoes.saida_sem_multa_12m,
-      clausula_ids: clausulaIds,
+      clausulas,
     })
     .eq('id', geracaoId)
     .eq('user_id', acesso.userId)
   if (error) return { error: error.message }
 
   revalidatePath(`/painel/contratos/${atual.contrato_id}/gerar`)
-  return { ok: true, clausula_ids: clausulaIds }
+  return { ok: true, clausulas }
 }
 
 /**
- * Atualiza a ordem das cláusulas (após drag-and-drop).
+ * Reordena as cláusulas do snapshot (após drag-and-drop). `ordemIds` são os
+ * IDs do snapshot na nova ordem.
  */
-export async function atualizarOrdemClausulas(geracaoId: string, novaOrdem: string[]) {
+export async function atualizarOrdemClausulas(geracaoId: string, ordemIds: string[]) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
-  if (!Array.isArray(novaOrdem)) return { error: 'Ordem inválida.' }
+  if (!Array.isArray(ordemIds)) return { error: 'Ordem inválida.' }
 
-  const { data: g } = await supabase
-    .from('contrato_geracoes')
-    .select('id, contrato_id')
-    .eq('id', geracaoId)
-    .eq('user_id', acesso.userId)
-    .maybeSingle()
-  if (!g) return { error: 'Geração não encontrada.' }
+  const r = await carregarSnap(supabase, acesso.userId, geracaoId)
+  if ('error' in r) return { error: r.error }
 
-  const { error } = await supabase
-    .from('contrato_geracoes')
-    .update({ clausula_ids: novaOrdem })
-    .eq('id', geracaoId)
-    .eq('user_id', acesso.userId)
-  if (error) return { error: error.message }
+  const mapa = new Map(r.clausulas.map(c => [c.id, c]))
+  const reordenadas = ordemIds.map(id => mapa.get(id)).filter((c): c is ClausulaSnapshot => !!c)
+  for (const c of r.clausulas) if (!ordemIds.includes(c.id)) reordenadas.push(c)  // segurança
 
-  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
-  return { ok: true }
+  return salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_id, reordenadas)
+}
+
+/** Edita uma cláusula SÓ neste contrato (não toca o banco genérico). */
+export async function editarClausulaGeracao(
+  geracaoId: string, clausulaId: string,
+  titulo: string, corpo: string, categoria?: string, tipo?: string,
+) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  if (!titulo?.trim() || !corpo?.trim()) return { error: 'Título e corpo são obrigatórios.' }
+  const r = await carregarSnap(supabase, acesso.userId, geracaoId)
+  if ('error' in r) return { error: r.error }
+  const clausulas = r.clausulas.map(c => c.id === clausulaId
+    ? { ...c, titulo: titulo.trim(), corpo: corpo.trim(), categoria: categoria ?? c.categoria, tipo: tipo ?? c.tipo }
+    : c)
+  return salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_id, clausulas)
+}
+
+/** Adiciona uma cláusula ao snapshot deste contrato (cópia do banco ou nova). */
+export async function adicionarClausulaGeracao(
+  geracaoId: string,
+  clausula: { id?: string; titulo: string; corpo: string; categoria?: string; tipo?: string },
+) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  if (!clausula.titulo?.trim() || !clausula.corpo?.trim()) return { error: 'Título e corpo são obrigatórios.' }
+  const r = await carregarSnap(supabase, acesso.userId, geracaoId)
+  if ('error' in r) return { error: r.error }
+  const nova: ClausulaSnapshot = {
+    id: clausula.id ?? randomUUID(),
+    titulo: clausula.titulo.trim(),
+    corpo: clausula.corpo.trim(),
+    categoria: clausula.categoria ?? 'custom',
+    tipo: clausula.tipo ?? 'adicional',
+  }
+  const res = await salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_id, [...r.clausulas, nova])
+  return res.error ? res : { ok: true, id: nova.id }
+}
+
+/** Remove uma cláusula do snapshot deste contrato (não exclui do banco). */
+export async function removerClausulaGeracao(geracaoId: string, clausulaId: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const r = await carregarSnap(supabase, acesso.userId, geracaoId)
+  if ('error' in r) return { error: r.error }
+  return salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_id, r.clausulas.filter(c => c.id !== clausulaId))
 }
 
 /**
@@ -581,37 +700,6 @@ export async function atualizarClausulasSeguradora(geracaoId: string, texto: str
   const { error } = await supabase
     .from('contrato_geracoes')
     .update({ clausulas_seguradora_texto: limpo.length > 0 ? limpo : null })
-    .eq('id', geracaoId)
-    .eq('user_id', acesso.userId)
-  if (error) return { error: error.message }
-
-  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
-  return { ok: true }
-}
-
-/**
- * Inclui ou remove uma cláusula adicional na geração.
- */
-export async function alternarClausulaNaGeracao(geracaoId: string, clausulaId: string, incluir: boolean) {
-  const acesso = await exigirAcessoCRM()
-  const supabase = await createClient()
-
-  const { data: g } = await supabase
-    .from('contrato_geracoes')
-    .select('id, contrato_id, clausula_ids')
-    .eq('id', geracaoId)
-    .eq('user_id', acesso.userId)
-    .maybeSingle()
-  if (!g) return { error: 'Geração não encontrada.' }
-
-  const ids = (g.clausula_ids ?? []) as string[]
-  const novaLista = incluir
-    ? (ids.includes(clausulaId) ? ids : [...ids, clausulaId])
-    : ids.filter(id => id !== clausulaId)
-
-  const { error } = await supabase
-    .from('contrato_geracoes')
-    .update({ clausula_ids: novaLista })
     .eq('id', geracaoId)
     .eq('user_id', acesso.userId)
   if (error) return { error: error.message }

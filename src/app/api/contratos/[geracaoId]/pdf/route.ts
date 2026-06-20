@@ -388,7 +388,7 @@ export async function GET(
   // 1. Carrega a geração
   const { data: geracao } = await admin
     .from('contrato_geracoes')
-    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids, incluir_capa')
+    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausulas, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids, incluir_capa')
     .eq('id', geracaoId)
     .maybeSingle()
 
@@ -496,21 +496,26 @@ export async function GET(
     .eq('id', ownerId)
     .maybeSingle()
 
-  // 4. Carrega as cláusulas selecionadas e mantém a ordem do array
-  const ids = (geracao.clausula_ids ?? []) as string[]
-  if (ids.length === 0) {
-    return NextResponse.json({ error: 'Nenhuma cláusula selecionada na geração' }, { status: 400 })
+  // 4. Cláusulas: usa o SNAPSHOT da geração (cópia própria deste contrato).
+  //    Gerações antigas (antes da v64) caem no fallback via clausula_ids.
+  const snapshot = (geracao.clausulas ?? []) as Array<{ titulo: string; corpo: string }>
+  let clausulasOrdenadas: Array<{ titulo: string; corpo: string }>
+  if (snapshot.length > 0) {
+    clausulasOrdenadas = snapshot
+  } else {
+    const ids = (geracao.clausula_ids ?? []) as string[]
+    if (ids.length === 0) {
+      return NextResponse.json({ error: 'Nenhuma cláusula selecionada na geração' }, { status: 400 })
+    }
+    const { data: clausulasRaw } = await admin
+      .from('contrato_clausulas')
+      .select('id, titulo, corpo')
+      .in('id', ids)
+    const mapaClausulas = new Map((clausulasRaw ?? []).map(c => [c.id, c]))
+    clausulasOrdenadas = ids
+      .map(id => mapaClausulas.get(id))
+      .filter((c): c is NonNullable<typeof c> => !!c)
   }
-
-  const { data: clausulasRaw } = await admin
-    .from('contrato_clausulas')
-    .select('id, titulo, corpo')
-    .in('id', ids)
-
-  const mapaClausulas = new Map((clausulasRaw ?? []).map(c => [c.id, c]))
-  const clausulasOrdenadas = ids
-    .map(id => mapaClausulas.get(id))
-    .filter((c): c is NonNullable<typeof c> => !!c)
 
   // 5. Monta os dados pra placeholders
   const inq = Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino
