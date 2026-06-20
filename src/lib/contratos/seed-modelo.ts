@@ -799,6 +799,64 @@ Parágrafo segundo. As custas processuais, honorários advocatícios contratuais
 Parágrafo terceiro. Os juros e multas efetivamente recebidos por atraso no pagamento do aluguel pertencem à PROPRIETÁRIA, salvo ajuste em contrário, podendo a ADMINISTRADORA reter a parcela correspondente à sua taxa quando incidente sobre o valor recebido.`,
   },
 
+  {
+    tipo: 'administracao', categoria: 'publicidade', titulo: 'Da divulgação e captação', numero: 21,
+    corpo: `A PROPRIETÁRIA autoriza a ADMINISTRADORA a divulgar o IMÓVEL para fins de locação nos meios que entender convenientes (portais, redes sociais, placas, sites e parceiros), captar e qualificar interessados, agendar e realizar visitas, produzir e utilizar fotos, vídeos e plantas do imóvel.
+
+Parágrafo único. A divulgação observará a exclusividade pactuada e a ADMINISTRADORA poderá retirar o anúncio quando concretizada a locação ou por orientação da PROPRIETÁRIA.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'despesas_proprietario', titulo: 'Das despesas e tributos do imóvel', numero: 22,
+    corpo: `Correrão por conta da PROPRIETÁRIA as despesas inerentes à propriedade: IPTU (quando não repassado ao locatário), despesas extraordinárias de condomínio, fundo de reserva, obras estruturais, taxas de regularização, vícios e defeitos ocultos e demais encargos próprios do titular do domínio.
+
+Parágrafo único. A ADMINISTRADORA poderá, mediante autorização, providenciar o pagamento dessas despesas e deduzi-las do repasse, apresentando os comprovantes na prestação de contas.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'vistoria', titulo: 'Da vistoria de entrada e saída', numero: 23,
+    corpo: `A ADMINISTRADORA realizará vistoria de entrada antes da entrega das chaves ao locatário e vistoria de saída no encerramento da locação, com laudo descritivo e registro fotográfico, que integrarão o contrato de locação respectivo.
+
+Parágrafo único. Os custos de vistoria, quando houver, observarão o ajustado no contrato de locação; eventuais danos apurados serão cobrados do locatário conforme a garantia e a lei.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'prestacao_contas', titulo: 'Da prestação de contas e extrato', numero: 24,
+    corpo: `A ADMINISTRADORA disponibilizará à PROPRIETÁRIA, mensalmente, demonstrativo (extrato) com os valores recebidos, retenções (taxa de administração, comissões, encargos autorizados, taxas bancárias) e o valor líquido repassado, mantendo a documentação de suporte à disposição.
+
+Parágrafo único. Eventual divergência deverá ser apontada por escrito em até 30 (trinta) dias do recebimento do extrato; o silêncio importa concordância com as contas apresentadas.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'declaracoes', titulo: 'Das declarações da proprietária', numero: 25,
+    corpo: `A PROPRIETÁRIA declara ser legítima titular/possuidora do IMÓVEL, com poderes para celebrar este contrato e dar o bem em locação, inexistindo impedimento, litígio, penhora, indisponibilidade ou ônus que obste a administração e a locação.
+
+Parágrafo único. A PROPRIETÁRIA se responsabiliza pela veracidade das informações e documentos fornecidos e comunicará à ADMINISTRADORA qualquer alteração de titularidade, estado civil, endereço, dados bancários ou situação jurídica do imóvel.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'reajuste_taxa', titulo: 'Do reajuste da taxa de administração', numero: 26,
+    corpo: `A taxa de administração poderá ser reajustada anualmente, na menor periodicidade permitida em lei, pela variação do IGP-M/FGV ou, na sua falta, do IPCA/IBGE, ou por novo ajuste escrito entre as partes.
+
+Parágrafo único. Reajuste do valor do aluguel no contrato de locação não altera o percentual da taxa de administração, que continua incidindo sobre o valor bruto efetivamente cobrado.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'cessao', titulo: 'Da cessão, sucessão e continuidade', numero: 27,
+    corpo: `Este contrato obriga as partes, seus herdeiros e sucessores. Em caso de alienação do IMÓVEL, a PROPRIETÁRIA envidará esforços para que o adquirente respeite a administração vigente e os contratos de locação em curso.
+
+Parágrafo único. A ADMINISTRADORA poderá ceder este contrato a empresa do mesmo grupo ou sucessora, mediante comunicação à PROPRIETÁRIA, mantidas as condições pactuadas.`,
+  },
+
+  {
+    tipo: 'administracao', categoria: 'tolerancia', titulo: 'Da tolerância e disposições gerais', numero: 28,
+    corpo: `A tolerância de qualquer das partes quanto ao descumprimento de obrigação não implica novação, renúncia ou alteração do contrato, podendo a parte exigir o cumprimento a qualquer tempo.
+
+Parágrafo primeiro. A nulidade de qualquer cláusula não prejudica as demais, que permanecem válidas e eficazes.
+
+Parágrafo segundo. Alterações deste contrato somente terão validade se feitas por escrito, por termo aditivo assinado pelas partes.`,
+  },
+
   // ════════════════════════════════════════════════════════════════
   //  FUNDAMENTAÇÃO LEGAL (Lei 8.245/91) — vai antes das partes
   // ════════════════════════════════════════════════════════════════

@@ -443,6 +443,28 @@ function ClausulaCard({ numero, clausula, isPending, onSalvar, onRemover }: {
         {editando ? (
           <>
             <textarea value={corpo} onChange={e => setCorpo(e.target.value)} rows={Math.max(6, Math.min(20, corpo.split('\n').length + 1))} className="w-full text-xs font-mono leading-relaxed border border-gray-200 rounded p-2 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y" />
+
+            {/* Picker de placeholders nesta cláusula */}
+            <details className="mt-1.5">
+              <summary className="text-[11px] font-semibold text-violet-700 cursor-pointer select-none">
+                ➕ Inserir dado automático (placeholder) — {PLACEHOLDERS_ADM.length}
+              </summary>
+              <p className="text-[10px] text-gray-400 mt-1">Clique num item pra inserir no texto. No PDF ele vira o dado real (ex.: {'{{ADM_TAXA_VALOR}}'} → 10%).</p>
+              <div className="mt-1.5 max-h-36 overflow-y-auto flex flex-wrap gap-1.5 bg-gray-50 rounded-lg p-2">
+                {PLACEHOLDERS_ADM.map(p => (
+                  <button
+                    key={p.chave}
+                    type="button"
+                    title={`${p.label} — ex.: ${p.exemplo}`}
+                    onClick={() => setCorpo(prev => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}{{${p.chave}}}`)}
+                    className="text-[10px] font-mono bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 px-1.5 py-0.5 rounded"
+                  >
+                    {`{{${p.chave}}}`}
+                  </button>
+                ))}
+              </div>
+            </details>
+
             <p className="text-[10px] text-amber-700 mt-1">⚠️ Editar altera a cláusula no banco global.</p>
             <div className="flex gap-2 mt-2">
               <button type="button" onClick={() => { onSalvar(titulo, corpo); setEditando(false) }} disabled={isPending} className="flex-1 flex items-center justify-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg">

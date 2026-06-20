@@ -22,9 +22,10 @@ interface Linha { nome: string; email: string; papel: string }
 
 export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, sugestoes, processos }: Props) {
   const router = useRouter()
-  const [linhas, setLinhas] = useState<Linha[]>(
-    sugestoes.length > 0 ? sugestoes.map(s => ({ ...s })) : [{ nome: '', email: '', papel: '' }],
-  )
+  const [linhas, setLinhas] = useState<Linha[]>(() => {
+    const comEmail = sugestoes.filter(s => s.email)
+    return comEmail.length > 0 ? comEmail.map(s => ({ ...s })) : [{ nome: '', email: '', papel: '' }]
+  })
   const [erro, setErro] = useState('')
   const [copiado, setCopiado] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -93,7 +94,7 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
       </div>
 
       {/* Chips das partes do contrato (inclui testemunhas selecionadas) */}
-      {sugestoes.filter(s => !linhas.some(l => l.email.toLowerCase() === s.email.toLowerCase())).length > 0 && (
+      {sugestoes.filter(s => !linhas.some(l => l.nome.trim().toLowerCase() === s.nome.trim().toLowerCase())).length > 0 && (
         <div className="flex flex-wrap items-center gap-1.5 mb-3">
           <span className="text-[11px] text-gray-400">Adicionar das partes:</span>
           {sugestoes

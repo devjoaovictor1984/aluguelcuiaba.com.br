@@ -167,7 +167,7 @@ async function renderizar(contratoAdmId: string) {
     propComEmail?.email ? { nome: propComEmail.nome, email: propComEmail.email, papel: 'Proprietária(o)' } : null,
     reprComEmail?.email ? { nome: reprComEmail.nome, email: reprComEmail.email, papel: 'Representante da proprietária' } : null,
     ...((testPessoas ?? []) as Array<{ nome: string; email: string | null }>)
-      .map(t => t.email ? { nome: t.nome, email: t.email, papel: 'Testemunha' } : null),
+      .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' })),
   ].filter((s): s is { nome: string; email: string; papel: string } => !!s)
 
   return (
