@@ -17,16 +17,31 @@ import {
 } from 'lucide-react'
 import { rodarChecklistAdm, type DadosChecklistAdm } from '@/lib/contratos/checklist'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
-import { atualizarClausula, criarClausula } from '../../../../contratos/clausulas/actions'
 import {
-  atualizarOrdemClausulasAdm, alternarClausulaNaGeracaoAdm,
-  atualizarTestemunhasAdm, atualizarAnexosDocumentosAdm,
-  uploadAdmAssinado,
+  atualizarTestemunhasAdm, atualizarAnexosDocumentosAdm, uploadAdmAssinado,
+  editarClausulaGeracaoAdm, adicionarClausulaGeracaoAdm, removerClausulaGeracaoAdm, ordenarClausulasGeracaoAdm,
 } from '../actions'
 
 // Placeholders úteis em cláusulas de administração (proprietária, imóvel, admin, termos).
 const PLACEHOLDERS_ADM = PLACEHOLDERS.filter(p => /^(ADM|ADMIN|LOCADOR|IMOVEL)/.test(p.chave))
 
+// Seções essenciais de um contrato de administração (linha do tempo / progresso).
+// Se faltar alguma no contrato, fica em alerta.
+const SECOES_ESSENCIAIS_ADM: Array<{ id: string; label: string; categorias: string[] }> = [
+  { id: 'partes', label: 'Partes', categorias: ['partes'] },
+  { id: 'imovel', label: 'Imóvel', categorias: ['imovel'] },
+  { id: 'objeto', label: 'Objeto', categorias: ['objeto'] },
+  { id: 'remuneracao', label: 'Remuneração', categorias: ['remuneracao'] },
+  { id: 'repasse', label: 'Repasse', categorias: ['repasse'] },
+  { id: 'contas', label: 'Prestação de contas', categorias: ['prestacao_contas'] },
+  { id: 'vigencia', label: 'Vigência', categorias: ['vigencia'] },
+  { id: 'rescisao', label: 'Rescisão', categorias: ['rescisao'] },
+  { id: 'garantias', label: 'Garantias', categorias: ['garantias'] },
+  { id: 'lgpd', label: 'LGPD/Dados', categorias: ['lgpd', 'comunicacoes'] },
+  { id: 'foro', label: 'Foro', categorias: ['foro'] },
+]
+
+// Cláusula do BANCO genérico (picker "adicionar do banco")
 interface ClausulaLista {
   id: string
   tipo: 'administracao'
@@ -34,6 +49,14 @@ interface ClausulaLista {
   titulo: string
   numero: number
   corpo: string
+}
+
+// Cláusula DESTE contrato (snapshot editável, independente do banco)
+interface ClausulaSel {
+  id: string
+  titulo: string
+  corpo: string
+  categoria: string
 }
 
 interface Pessoa {
@@ -51,7 +74,7 @@ interface Props {
   checklistBase: ChecklistBase
   geracao: {
     id: string
-    clausula_ids: string[]
+    clausulas: ClausulaSel[]
     testemunha_ids: string[]
     anexo_documento_ids: string[]
     pdf_assinado_url: string | null
@@ -65,7 +88,7 @@ interface Props {
 
 export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
   const router = useRouter()
-  const [clausulaIds, setClausulaIds] = useState(geracao.clausula_ids)
+  const [clausulas, setClausulas] = useState<ClausulaSel[]>(geracao.clausulas)
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
   const [anexoIds, setAnexoIds] = useState<string[]>(geracao.anexo_documento_ids)
   const [mostrarAdicionais, setMostrarAdicionais] = useState(false)
@@ -76,7 +99,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
   const [isPending, startTransition] = useTransition()
 
   // Edição de cláusula em modal
-  const [clausulaEdicao, setClausulaEdicao] = useState<ClausulaLista | null>(null)
+  const [clausulaEdicao, setClausulaEdicao] = useState<ClausulaSel | null>(null)
 
   // Modal nova cláusula
   const [modalNova, setModalNova] = useState(false)
@@ -84,9 +107,11 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
   const [novoCorpo, setNovoCorpo] = useState('')
   const [erroNova, setErroNova] = useState('')
 
-  const mapaClausulas = new Map(todasClausulas.map(c => [c.id, c]))
-  const selecionadas = clausulaIds.map(id => mapaClausulas.get(id)).filter((c): c is ClausulaLista => !!c)
-  const disponiveis = todasClausulas.filter(c => !clausulaIds.includes(c.id))
+  const selecionadas = clausulas
+  const ordemIds = clausulas.map(c => c.id)
+  // Picker do banco: cláusulas genéricas cujo título ainda não está neste contrato
+  const titulosNoContrato = new Set(clausulas.map(c => c.titulo.trim().toLowerCase()))
+  const disponiveis = todasClausulas.filter(c => !titulosNoContrato.has(c.titulo.trim().toLowerCase()))
 
   // Checklist — só os bloqueios (estilo do editor de locação), recalcula conforme as cláusulas.
   const itensChecklist = rodarChecklistAdm({
@@ -94,6 +119,11 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
     categorias_presentes: selecionadas.map(c => c.categoria),
   })
   const bloqueios = itensChecklist.filter(i => i.severidade === 'block')
+
+  // Linha do tempo de seções essenciais
+  const categoriasPresentes = new Set(clausulas.map(c => c.categoria))
+  const secoesStatus = SECOES_ESSENCIAIS_ADM.map(s => ({ ...s, presente: s.categorias.some(cat => categoriasPresentes.has(cat)) }))
+  const secoesFaltando = secoesStatus.filter(s => !s.presente).length
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -103,39 +133,40 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = clausulaIds.indexOf(active.id as string)
-    const newIndex = clausulaIds.indexOf(over.id as string)
-    const novaOrdem = arrayMove(clausulaIds, oldIndex, newIndex)
-    setClausulaIds(novaOrdem)
+    const oldIndex = ordemIds.indexOf(active.id as string)
+    const newIndex = ordemIds.indexOf(over.id as string)
+    const nova = arrayMove(clausulas, oldIndex, newIndex)
+    setClausulas(nova)
     startTransition(async () => {
-      const r = await atualizarOrdemClausulasAdm(geracao.id, novaOrdem)
+      const r = await ordenarClausulasGeracaoAdm(geracao.id, nova.map(c => c.id))
       if (r.error) setErro(r.error)
     })
   }
 
+  // Edita SÓ neste contrato (não toca o banco genérico)
   const onAtualizar = (id: string, titulo: string, corpo: string) => {
-    const c = mapaClausulas.get(id)
-    if (!c) return
+    setClausulas(curr => curr.map(c => c.id === id ? { ...c, titulo, corpo } : c))
     startTransition(async () => {
-      const r = await atualizarClausula(id, { tipo: c.tipo, categoria: c.categoria, titulo, numero: c.numero, corpo })
-      if (r.error) { setErro(r.error); return }
-      mapaClausulas.set(id, { ...c, titulo, corpo })
-      setClausulaIds([...clausulaIds])
+      const r = await editarClausulaGeracaoAdm(geracao.id, id, titulo, corpo)
+      if (r.error) setErro(r.error)
     })
   }
 
   const onRemover = (id: string) => {
-    setClausulaIds(curr => curr.filter(x => x !== id))
+    setClausulas(curr => curr.filter(c => c.id !== id))
     startTransition(async () => {
-      const r = await alternarClausulaNaGeracaoAdm(geracao.id, id, false)
+      const r = await removerClausulaGeracaoAdm(geracao.id, id)
       if (r.error) setErro(r.error)
     })
   }
 
-  const onIncluir = (id: string) => {
-    setClausulaIds(curr => [...curr, id])
+  // Adiciona uma cópia da cláusula do banco neste contrato
+  const onIncluir = (banco: ClausulaLista) => {
+    const novoId = crypto.randomUUID()
+    const nova: ClausulaSel = { id: novoId, titulo: banco.titulo, corpo: banco.corpo, categoria: banco.categoria }
+    setClausulas(curr => [...curr, nova])
     startTransition(async () => {
-      const r = await alternarClausulaNaGeracaoAdm(geracao.id, id, true)
+      const r = await adicionarClausulaGeracaoAdm(geracao.id, nova)
       if (r.error) setErro(r.error)
     })
   }
@@ -182,13 +213,12 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
     setErroNova('')
     if (novoTitulo.trim().length < 3) { setErroNova('Título curto demais.'); return }
     if (novoCorpo.trim().length < 10) { setErroNova('Corpo curto demais.'); return }
+    const novoId = crypto.randomUUID()
+    const nova: ClausulaSel = { id: novoId, titulo: novoTitulo.trim(), corpo: novoCorpo.trim(), categoria: 'custom' }
+    setClausulas(prev => [...prev, nova])
     startTransition(async () => {
-      const r = await criarClausula({ tipo: 'administracao', categoria: 'custom', titulo: novoTitulo.trim(), numero: 100 + clausulaIds.length, corpo: novoCorpo.trim() })
-      if (r.error || !r.id) { setErroNova(r.error ?? 'Falha.'); return }
-      const r2 = await alternarClausulaNaGeracaoAdm(geracao.id, r.id, true)
-      if (r2.error) { setErroNova(r2.error); return }
-      setClausulaIds(prev => [...prev, r.id!])
-      router.refresh()
+      const r = await adicionarClausulaGeracaoAdm(geracao.id, nova)
+      if (r.error) { setErroNova(r.error); return }
       setModalNova(false)
       setNovoTitulo('')
       setNovoCorpo('')
@@ -306,6 +336,35 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
       </aside>
 
       <section className="space-y-2">
+        {/* Linha do tempo de cláusulas essenciais */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500">Cláusulas essenciais</h2>
+            <span className={`text-[11px] font-semibold ${secoesFaltando > 0 ? 'text-amber-600' : 'text-green-600'}`}>
+              {secoesStatus.length - secoesFaltando}/{secoesStatus.length}{secoesFaltando > 0 ? ` · ${secoesFaltando} faltando` : ' · completo'}
+            </span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {secoesStatus.map(s => (
+              <span
+                key={s.id}
+                title={s.presente ? 'Presente no contrato' : 'Cláusula essencial ausente — adicione do banco ou crie'}
+                className={`inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border ${
+                  s.presente
+                    ? 'bg-green-50 border-green-200 text-green-700'
+                    : 'bg-amber-50 border-amber-300 text-amber-700'
+                }`}
+              >
+                {s.presente ? <CheckCircle2 size={11} /> : <AlertCircle size={11} />}
+                {s.label}
+              </span>
+            ))}
+          </div>
+          {secoesFaltando > 0 && (
+            <p className="text-[10px] text-amber-600 mt-1.5">Itens em amarelo não estão no contrato. Adicione do banco ou crie a cláusula.</p>
+          )}
+        </div>
+
         {erro && (
           <div className="flex items-start gap-2 bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3">
             <AlertCircle size={14} className="mt-0.5 shrink-0" /> {erro}
@@ -313,7 +372,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
         )}
 
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={clausulaIds} strategy={verticalListSortingStrategy}>
+          <SortableContext items={ordemIds} strategy={verticalListSortingStrategy}>
             <div className="space-y-2">
               {selecionadas.map((c, idx) => (
                 <ClausulaCard
@@ -347,7 +406,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
         {mostrarAdicionais && (
           <div className="mt-2 space-y-1.5">
             {disponiveis.map(c => (
-              <button key={c.id} type="button" onClick={() => onIncluir(c.id)} disabled={isPending} className="w-full text-left bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 rounded-lg p-3 transition-colors disabled:opacity-50">
+              <button key={c.id} type="button" onClick={() => onIncluir(c)} disabled={isPending} className="w-full text-left bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 rounded-lg p-3 transition-colors disabled:opacity-50">
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="text-[9px] text-gray-400">{c.categoria}</span>
                   <Plus size={12} className="text-violet-600 shrink-0" />
@@ -428,7 +487,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
 
 function ClausulaCard({ numero, clausula, isPending, onEditar, onRemover }: {
   numero: number
-  clausula: ClausulaLista
+  clausula: ClausulaSel
   isPending: boolean
   onEditar: () => void
   onRemover: () => void
@@ -460,7 +519,7 @@ function ClausulaCard({ numero, clausula, isPending, onEditar, onRemover }: {
 
 // Modal de edição da cláusula com barra lateral de placeholders (estilo do editor de locação).
 function ModalEditarClausulaAdm({ clausula, isPending, onSalvar, onFechar }: {
-  clausula: ClausulaLista
+  clausula: ClausulaSel
   isPending: boolean
   onSalvar: (titulo: string, corpo: string) => void
   onFechar: () => void

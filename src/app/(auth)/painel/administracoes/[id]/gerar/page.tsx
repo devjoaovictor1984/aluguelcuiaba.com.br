@@ -230,7 +230,7 @@ async function renderizar(contratoAdmId: string) {
         }}
         geracao={{
           id: r.geracao.id,
-          clausula_ids: r.geracao.clausula_ids as string[],
+          clausulas: ((r.geracao as { clausulas?: unknown }).clausulas ?? []) as Array<{ id: string; titulo: string; corpo: string; categoria: string }>,
           testemunha_ids: (r.geracao.testemunha_ids as string[] | null) ?? [],
           anexo_documento_ids: (r.geracao.anexo_documento_ids as string[] | null) ?? [],
           pdf_assinado_url: r.geracao.pdf_assinado_url ?? null,

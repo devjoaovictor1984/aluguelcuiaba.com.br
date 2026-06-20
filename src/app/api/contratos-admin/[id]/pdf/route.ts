@@ -186,59 +186,50 @@ export async function GET(
       cepFmt ? `CEP ${cepFmt}` : null,
     ].filter(Boolean)
 
-    // 3a. Tenta pegar a geração existente desse contrato (ordem editada pelo user)
+    // 3. Cláusulas DESTE contrato: usa o snapshot da geração (fonte de verdade);
+    //    fallback ao banco genérico só para gerações antigas sem snapshot.
     const { data: geracao } = await admin
       .from('contrato_admin_geracoes')
-      .select('id, clausula_ids, testemunha_ids, anexo_documento_ids')
+      .select('id, clausulas, clausula_ids, testemunha_ids, anexo_documento_ids')
       .eq('contrato_admin_id', c.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
 
-    // 3b. Define IDs das cláusulas: ordem da geração se existir, senão todas
-    let clausulaIdsOrdem: string[] | null = (geracao?.clausula_ids as string[] | null) ?? null
-
-    if (!clausulaIdsOrdem || clausulaIdsOrdem.length === 0) {
-      // Fallback: todas tipo='administracao' ativas do user, ordenadas
-      const { data: todas } = await admin
-        .from('contrato_clausulas')
-        .select('id')
-        .eq('user_id', ownerId)
-        .eq('tipo', 'administracao')
-        .eq('ativa', true)
-        .order('numero', { ascending: true })
-      clausulaIdsOrdem = (todas ?? []).map(x => x.id)
+    let clausulasRaw: Array<{ titulo: string; corpo: string }> = []
+    const snap = (geracao?.clausulas ?? []) as Array<{ titulo: string; corpo: string }>
+    if (Array.isArray(snap) && snap.length > 0) {
+      clausulasRaw = snap.map(s => ({ titulo: s.titulo, corpo: s.corpo }))
+    } else {
+      let ids = (geracao?.clausula_ids as string[] | null) ?? null
+      if (!ids || ids.length === 0) {
+        const { data: todas } = await admin
+          .from('contrato_clausulas').select('id')
+          .eq('user_id', ownerId).eq('tipo', 'administracao').eq('ativa', true)
+          .order('numero', { ascending: true })
+        ids = (todas ?? []).map(x => x.id)
+      }
+      if (ids.length > 0) {
+        const { data: bankCl } = await admin
+          .from('contrato_clausulas').select('id, titulo, corpo').in('id', ids)
+        const mapaCl = new Map((bankCl ?? []).map(cl => [cl.id, cl]))
+        clausulasRaw = ids.map(id => mapaCl.get(id))
+          .filter((x): x is NonNullable<typeof x> => !!x)
+          .map(x => ({ titulo: x.titulo, corpo: x.corpo }))
+      }
+      if (clausulasRaw.length === 0) {
+        const { data: todas } = await admin
+          .from('contrato_clausulas').select('titulo, corpo')
+          .eq('user_id', ownerId).eq('tipo', 'administracao').eq('ativa', true)
+          .order('numero', { ascending: true })
+        clausulasRaw = (todas ?? []).map(x => ({ titulo: x.titulo, corpo: x.corpo }))
+      }
     }
 
-    if (clausulaIdsOrdem.length === 0) {
-      return NextResponse.json({
-        error: 'Nenhuma cláusula de administração cadastrada. Vá em /painel/contratos/clausulas e reimporte o modelo.',
-      }, { status: 400 })
-    }
-
-    const { data: clausulasRawUnordered } = await admin
-      .from('contrato_clausulas')
-      .select('id, titulo, corpo, numero')
-      .in('id', clausulaIdsOrdem)
-
-    // Reordena seguindo clausulaIdsOrdem
-    const mapaCl = new Map((clausulasRawUnordered ?? []).map(cl => [cl.id, cl]))
-    let clausulasRaw = clausulaIdsOrdem
-      .map(id => mapaCl.get(id))
-      .filter((x): x is NonNullable<typeof x> => !!x)
-
-    // Fallback: se a geração referencia cláusulas que não existem mais
-    // (ex: após reimportar o modelo de administração), usa todas as
-    // cláusulas tipo='administracao' ativas do user.
     if (clausulasRaw.length === 0) {
-      const { data: todas } = await admin
-        .from('contrato_clausulas')
-        .select('id, titulo, corpo, numero')
-        .eq('user_id', ownerId)
-        .eq('tipo', 'administracao')
-        .eq('ativa', true)
-        .order('numero', { ascending: true })
-      clausulasRaw = todas ?? []
+      return NextResponse.json({
+        error: 'Nenhuma cláusula no contrato. Abra o Editor de cláusulas e revise/reimporte o modelo.',
+      }, { status: 400 })
     }
 
     // 4. Monta dados pros placeholders
