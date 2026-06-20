@@ -18,13 +18,16 @@ async function baseUrl(): Promise<string> {
   return process.env.NEXT_PUBLIC_APP_URL ?? ''
 }
 
-function emailConvite(nome: string, papel: string | null, titulo: string, url: string, emitente: string): string {
+function emailConvite(nome: string, papel: string | null, titulo: string, url: string, emitente: string, exigirOtp = true): string {
+  const comoFunciona = exigirOtp
+    ? 'É rápido e seguro: você confere o documento, informa seu e-mail e celular, recebe um código por e-mail, tira uma selfie e assina na tela.'
+    : 'É rápido e seguro: você confere o documento, informa seu e-mail e celular, tira uma selfie e assina na tela.'
   return `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
       <h2 style="color:#6d28d9">Assinatura de contrato</h2>
       <p>Olá ${nome},</p>
       <p>${emitente} solicitou sua assinatura no contrato <strong>${titulo}</strong>${papel ? ` (como <strong>${papel}</strong>)` : ''}.</p>
-      <p>É rápido e seguro: você confere o documento, recebe um código por e-mail, tira uma selfie e assina na tela.</p>
+      <p>${comoFunciona}</p>
       <p style="margin:24px 0">
         <a href="${url}" style="background:#6d28d9;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Revisar e assinar</a>
       </p>
@@ -44,6 +47,7 @@ export interface CriarProcessoInput {
   contrato_id: string // chave do PDF (geração p/ locação, contrato p/ administração)
   titulo: string
   signatarios: SignatarioInput[]
+  exigirOtp?: boolean // default true — quando false, assina só com selfie + assinatura
 }
 
 export async function criarProcessoAssinatura(input: CriarProcessoInput) {
@@ -53,6 +57,7 @@ export async function criarProcessoAssinatura(input: CriarProcessoInput) {
   if (!input.contrato_id) return { error: 'Contrato inválido.' }
   const signatarios = (input.signatarios ?? []).filter(s => s.nome?.trim() && /\S+@\S+\.\S+/.test(s.email ?? ''))
   if (signatarios.length === 0) return { error: 'Adicione pelo menos 1 signatário com nome e e-mail válido.' }
+  const exigirOtp = input.exigirOtp !== false
 
   const { data: proc, error } = await supabase
     .from('contrato_assinaturas')
@@ -62,6 +67,7 @@ export async function criarProcessoAssinatura(input: CriarProcessoInput) {
       contrato_id: input.contrato_id,
       titulo: input.titulo ?? null,
       status: 'enviado',
+      exigir_otp: exigirOtp,
     })
     .select('id')
     .single()
@@ -95,7 +101,7 @@ export async function criarProcessoAssinatura(input: CriarProcessoInput) {
     await enviarEmail({
       to: s.email,
       subject: `Assinatura — ${input.titulo}`,
-      html: emailConvite(s.nome, s.papel, input.titulo, url, emitente),
+      html: emailConvite(s.nome, s.papel, input.titulo, url, emitente, exigirOtp),
       canal: 'assinatura_convite',
     })
   }

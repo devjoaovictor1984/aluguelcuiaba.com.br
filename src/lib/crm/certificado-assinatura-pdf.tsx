@@ -4,12 +4,22 @@ import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/render
 export interface CertificadoSignatario {
   nome: string
   email: string
+  celular: string | null
   papel: string | null
   assinado_em: string | null
+  otp_usado: boolean
   ip: string | null
   geo: string | null
   selfie_b64: string | null
   assinatura_b64: string | null
+}
+
+function fmtCel(c: string | null): string {
+  if (!c) return '—'
+  const d = c.replace(/\D/g, '')
+  if (d.length === 11) return d.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
+  if (d.length === 10) return d.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3')
+  return c
 }
 
 export interface CertificadoData {
@@ -59,7 +69,8 @@ export function CertificadoAssinaturaDocument({ data }: { data: CertificadoData 
           <View key={i} style={styles.bloco} wrap={false}>
             {s.papel && <Text style={styles.papel}>{s.papel}</Text>}
             <Text style={styles.nome}>{s.nome}</Text>
-            <Text style={styles.campo}><Text style={styles.label}>E-mail (OTP confirmado): </Text>{s.email}</Text>
+            <Text style={styles.campo}><Text style={styles.label}>E-mail{s.otp_usado ? ' (OTP confirmado)' : ''}: </Text>{s.email}</Text>
+            <Text style={styles.campo}><Text style={styles.label}>Celular: </Text>{fmtCel(s.celular)}</Text>
             <Text style={styles.campo}><Text style={styles.label}>Assinado em: </Text>{fmt(s.assinado_em)}</Text>
             <Text style={styles.campo}><Text style={styles.label}>IP: </Text>{s.ip ?? '—'}   <Text style={styles.label}>Localização: </Text>{s.geo ?? '—'}</Text>
             <View style={styles.imgRow}>
@@ -77,9 +88,10 @@ export function CertificadoAssinaturaDocument({ data }: { data: CertificadoData 
         )}
 
         <Text style={styles.rodape}>
-          Documento assinado eletronicamente pelos signatários acima identificados, com confirmação de código
-          enviado por e-mail (OTP), registro de selfie, assinatura manuscrita digital e trilha de auditoria
-          (data, hora, IP e localização), nos termos da Medida Provisória nº 2.200-2/2001 (ICP-Brasil),
+          Documento assinado eletronicamente pelos signatários acima identificados, com validação de e-mail e
+          celular, registro de selfie, assinatura manuscrita digital, trilha de auditoria (data, hora, IP e
+          localização) e, quando exigido, confirmação de código enviado por e-mail (OTP), nos termos da
+          Medida Provisória nº 2.200-2/2001 (ICP-Brasil),
           do art. 10, §2º, e da Lei nº 13.709/2018 (LGPD). O código hash acima garante a integridade do
           documento contratual ao qual este certificado se anexa: qualquer alteração no contrato resultará
           em hash diferente.

@@ -28,13 +28,13 @@ export default async function AssinarPage({ params }: Props) {
 
   const { data: sig } = await admin
     .from('contrato_assinatura_signatarios')
-    .select('nome, papel, status, assinatura:contrato_assinaturas!inner(user_id, tipo_contrato, contrato_id, titulo, status)')
+    .select('nome, papel, email, celular, status, assinatura:contrato_assinaturas!inner(user_id, tipo_contrato, contrato_id, titulo, status, exigir_otp)')
     .eq('token', token)
     .maybeSingle()
 
   if (!sig) return <PaginaErro titulo="Link inválido" mensagem="Este link de assinatura não existe ou foi removido." />
   const proc = (Array.isArray(sig.assinatura) ? sig.assinatura[0] : sig.assinatura) as
-    { user_id: string; tipo_contrato: 'locacao' | 'administracao'; contrato_id: string; titulo: string | null; status: string } | undefined
+    { user_id: string; tipo_contrato: 'locacao' | 'administracao'; contrato_id: string; titulo: string | null; status: string; exigir_otp: boolean | null } | undefined
   if (!proc) return <PaginaErro titulo="Processo não encontrado" mensagem="Não foi possível localizar este contrato." />
   if (proc.status === 'cancelado') return <PaginaErro titulo="Solicitação cancelada" mensagem="O solicitante cancelou esta assinatura. Peça um novo link." />
 
@@ -61,6 +61,9 @@ export default async function AssinarPage({ params }: Props) {
           papel={sig.papel}
           titulo={proc.titulo ?? 'Contrato'}
           jaAssinado={sig.status === 'assinado'}
+          exigirOtp={proc.exigir_otp !== false}
+          emailInicial={(sig as { email?: string | null }).email ?? ''}
+          celularInicial={(sig as { celular?: string | null }).celular ?? ''}
         />
 
         <p className="text-center text-[11px] text-gray-400 mt-5">

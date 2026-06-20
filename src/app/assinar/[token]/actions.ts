@@ -9,22 +9,31 @@ function hashOtp(code: string): string {
   return createHash('sha256').update(code).digest('hex')
 }
 
+interface ProcRow {
+  status: string
+  titulo: string | null
+  exigir_otp: boolean | null
+  tipo_contrato: 'locacao' | 'administracao'
+  contrato_id: string
+}
+
 interface SignatarioRow {
   id: string
   assinatura_id: string
   nome: string
   email: string
+  celular: string | null
   status: string
   otp_hash: string | null
   otp_expira_em: string | null
-  assinatura: { status: string; titulo: string | null } | { status: string; titulo: string | null }[] | null
+  assinatura: ProcRow | ProcRow[] | null
 }
 
-async function carregar(token: string): Promise<{ sig?: SignatarioRow; proc?: { status: string; titulo: string | null }; error?: string }> {
+async function carregar(token: string): Promise<{ sig?: SignatarioRow; proc?: ProcRow; error?: string }> {
   const admin = createAdminClient()
   const { data } = await admin
     .from('contrato_assinatura_signatarios')
-    .select('id, assinatura_id, nome, email, status, otp_hash, otp_expira_em, assinatura:contrato_assinaturas!inner(status, titulo)')
+    .select('id, assinatura_id, nome, email, celular, status, otp_hash, otp_expira_em, assinatura:contrato_assinaturas!inner(status, titulo, exigir_otp, tipo_contrato, contrato_id)')
     .eq('token', token)
     .maybeSingle()
   if (!data) return { error: 'Link inválido ou não encontrado.' }
@@ -32,6 +41,30 @@ async function carregar(token: string): Promise<{ sig?: SignatarioRow; proc?: { 
   if (!proc) return { error: 'Processo não encontrado.' }
   if (proc.status === 'cancelado') return { error: 'Esta solicitação foi cancelada.' }
   return { sig: data as SignatarioRow, proc }
+}
+
+// Salva e-mail + celular informados pelo signatário no momento de assinar.
+// O e-mail aqui passa a ser o destino do OTP (se exigido) e do contrato final.
+export async function salvarContatoSignatario(token: string, email: string, celular: string) {
+  const { sig, error } = await carregar(token)
+  if (!sig) return { error: error ?? 'Link inválido.' }
+  if (sig.status === 'assinado') return { error: 'Você já assinou este contrato.' }
+
+  const emailLimpo = (email ?? '').trim().toLowerCase()
+  const celLimpo = (celular ?? '').replace(/\D/g, '')
+  if (!/\S+@\S+\.\S+/.test(emailLimpo)) return { error: 'Informe um e-mail válido.' }
+  if (celLimpo.length < 10 || celLimpo.length > 13) return { error: 'Informe um celular válido com DDD.' }
+
+  const admin = createAdminClient()
+  // Trocou o e-mail? invalida qualquer OTP pendente (o código antigo foi pro e-mail antigo).
+  const patch: Record<string, unknown> = { email: emailLimpo, celular: celLimpo }
+  if (emailLimpo !== sig.email.toLowerCase()) { patch.otp_hash = null; patch.otp_expira_em = null }
+  const { error: upErr } = await admin
+    .from('contrato_assinatura_signatarios')
+    .update(patch)
+    .eq('id', sig.id)
+  if (upErr) return { error: upErr.message }
+  return { ok: true, email: emailLimpo }
 }
 
 export async function solicitarOtp(token: string) {
@@ -73,18 +106,22 @@ export async function confirmarAssinatura(token: string, payload: {
   consentimento: boolean
   geo?: string | null
 }) {
-  const { sig, error } = await carregar(token)
-  if (!sig) return { error: error ?? 'Link inválido.' }
+  const { sig, proc, error } = await carregar(token)
+  if (!sig || !proc) return { error: error ?? 'Link inválido.' }
   if (sig.status === 'assinado') return { error: 'Você já assinou este contrato.' }
 
   if (!payload.consentimento) return { error: 'É preciso aceitar o termo de consentimento.' }
+  if (!sig.celular) return { error: 'Informe seu e-mail e celular antes de assinar.' }
   if (!payload.selfie_b64?.startsWith('data:image')) return { error: 'Selfie obrigatória.' }
   if (!payload.assinatura_b64?.startsWith('data:image')) return { error: 'Assinatura obrigatória.' }
 
-  // Verifica OTP
-  if (!sig.otp_hash || !sig.otp_expira_em) return { error: 'Solicite o código primeiro.' }
-  if (new Date(sig.otp_expira_em).getTime() < Date.now()) return { error: 'Código expirado. Solicite outro.' }
-  if (hashOtp((payload.otp ?? '').trim()) !== sig.otp_hash) return { error: 'Código incorreto.' }
+  // Verifica OTP apenas se o processo exigir
+  const exigirOtp = proc.exigir_otp !== false
+  if (exigirOtp) {
+    if (!sig.otp_hash || !sig.otp_expira_em) return { error: 'Solicite o código primeiro.' }
+    if (new Date(sig.otp_expira_em).getTime() < Date.now()) return { error: 'Código expirado. Solicite outro.' }
+    if (hashOtp((payload.otp ?? '').trim()) !== sig.otp_hash) return { error: 'Código incorreto.' }
+  }
 
   const admin = createAdminClient()
   const hdrs = await headers()
@@ -100,13 +137,13 @@ export async function confirmarAssinatura(token: string, payload: {
       assinatura_b64: payload.assinatura_b64,
       consentimento_em: agora,
       assinado_em: agora,
-      otp_verificado_em: agora,
+      otp_verificado_em: exigirOtp ? agora : null,
       ip, user_agent: ua, geo: payload.geo ?? null,
     })
     .eq('id', sig.id)
   if (upErr) return { error: upErr.message }
 
-  // Todos assinaram? → conclui o processo e envia o contrato assinado às partes
+  // Todos assinaram? → conclui o processo, TRAVA o contrato e envia a via final
   const { data: pendentes } = await admin
     .from('contrato_assinatura_signatarios')
     .select('id')
@@ -118,12 +155,22 @@ export async function confirmarAssinatura(token: string, payload: {
       .update({ status: 'concluido', concluido_em: agora })
       .eq('id', sig.assinatura_id)
 
+    // Trava o contrato: vira 'assinado' (editor passa a ser somente leitura — só aditivo).
+    if (proc.tipo_contrato === 'locacao') {
+      await admin.from('contrato_geracoes')
+        .update({ status: 'assinado', assinado_em: agora })
+        .eq('id', proc.contrato_id)
+    } else {
+      await admin.from('contrato_admin_geracoes')
+        .update({ status: 'assinado', assinado_em: agora })
+        .eq('contrato_admin_id', proc.contrato_id)
+    }
+
     // Envia o link de download do contrato assinado pra cada signatário (best-effort)
     const host = hdrs.get('x-forwarded-host') ?? hdrs.get('host')
     const proto = hdrs.get('x-forwarded-proto') ?? 'https'
     const base = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL ?? '')
-    const proc = (Array.isArray(sig.assinatura) ? sig.assinatura[0] : sig.assinatura)
-    const titulo = proc?.titulo ?? 'Contrato'
+    const titulo = proc.titulo ?? 'Contrato'
     const { data: todos } = await admin
       .from('contrato_assinatura_signatarios')
       .select('nome, email, token')

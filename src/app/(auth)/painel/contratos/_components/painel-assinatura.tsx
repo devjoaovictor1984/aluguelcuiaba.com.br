@@ -28,6 +28,7 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
   })
   const [erro, setErro] = useState('')
   const [copiado, setCopiado] = useState<string | null>(null)
+  const [exigirOtp, setExigirOtp] = useState(true)
   const [isPending, startTransition] = useTransition()
   const [origin] = useState(() => (typeof window !== 'undefined' ? window.location.origin : baseUrl))
   const [editId, setEditId] = useState<string | null>(null)
@@ -67,7 +68,7 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
     const signatarios = linhas.filter(l => l.nome.trim() && /\S+@\S+\.\S+/.test(l.email))
     if (signatarios.length === 0) { setErro('Adicione ao menos 1 signatário com nome e e-mail válido.'); return }
     startTransition(async () => {
-      const r = await criarProcessoAssinatura({ tipo_contrato: tipoContrato, contrato_id: contratoId, titulo, signatarios })
+      const r = await criarProcessoAssinatura({ tipo_contrato: tipoContrato, contrato_id: contratoId, titulo, signatarios, exigirOtp })
       if (r.error) { setErro(r.error); return }
       setLinhas([{ nome: '', email: '', papel: '' }])
       router.refresh()
@@ -137,6 +138,19 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
             ))}
         </div>
       )}
+
+      {/* Opção: exigir código (OTP) por e-mail */}
+      <label className="flex items-start gap-2 cursor-pointer mb-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
+        <input type="checkbox" checked={exigirOtp} onChange={e => setExigirOtp(e.target.checked)} className="mt-0.5 accent-violet-600 shrink-0" />
+        <span>
+          <span className="text-xs font-semibold text-gray-800">Exigir código por e-mail (OTP)</span>
+          <span className="block text-[11px] text-gray-500 leading-tight mt-0.5">
+            {exigirOtp
+              ? 'Cada parte confirma um código enviado ao e-mail antes de assinar (mais seguro).'
+              : 'Desmarcado: a pessoa assina só com selfie + assinatura (sem código). O e-mail ainda é registrado e recebe o contrato final quando todos assinarem.'}
+          </span>
+        </span>
+      </label>
 
       {erro && <p className="text-xs text-red-600 mb-2">{erro}</p>}
 

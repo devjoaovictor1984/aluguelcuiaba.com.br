@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { Loader2, Check, AlertCircle, Mail, ShieldCheck, PenLine } from 'lucide-react'
+import { Loader2, Check, AlertCircle, Mail, ShieldCheck, PenLine, UserCheck } from 'lucide-react'
 import { CapturaSelfie } from '@/components/captura-selfie'
 import { SignaturePad } from './signature-pad'
-import { solicitarOtp, confirmarAssinatura } from '../actions'
+import { solicitarOtp, confirmarAssinatura, salvarContatoSignatario } from '../actions'
 
 interface Props {
   token: string
@@ -13,14 +13,29 @@ interface Props {
   papel: string | null
   titulo: string
   jaAssinado: boolean
+  exigirOtp: boolean
+  emailInicial: string
+  celularInicial: string
 }
 
 const TERMO =
   'Declaro que li e concordo com o conteúdo do contrato acima e assino-o eletronicamente. ' +
-  'Autorizo o registro da minha selfie, do código enviado ao meu e-mail e dos dados de acesso ' +
+  'Autorizo o registro do meu e-mail, celular, selfie e dos dados de acesso ' +
   '(data, hora, IP e localização) como prova da minha autoria, nos termos da MP 2.200-2/2001 e da LGPD.'
 
-export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado }: Props) {
+// Máscara leve de celular: (99) 99999-9999
+function fmtCelular(v: string): string {
+  const d = v.replace(/\D/g, '').slice(0, 11)
+  if (d.length <= 2) return d
+  if (d.length <= 7) return `(${d.slice(0, 2)}) ${d.slice(2)}`
+  return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
+}
+
+export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado, exigirOtp, emailInicial, celularInicial }: Props) {
+  const [email, setEmail] = useState(emailInicial)
+  const [celular, setCelular] = useState(fmtCelular(celularInicial))
+  const [contatoOk, setContatoOk] = useState(false)
+
   const [otpEnviado, setOtpEnviado] = useState(false)
   const [emailMasc, setEmailMasc] = useState('')
   const [otp, setOtp] = useState('')
@@ -30,6 +45,19 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
   const [erro, setErro] = useState('')
   const [concluido, setConcluido] = useState(jaAssinado)
   const [isPending, startTransition] = useTransition()
+
+  const confirmarContato = () => {
+    setErro('')
+    const cel = celular.replace(/\D/g, '')
+    if (!/\S+@\S+\.\S+/.test(email.trim())) { setErro('Informe um e-mail válido.'); return }
+    if (cel.length < 10) { setErro('Informe um celular válido com DDD.'); return }
+    startTransition(async () => {
+      const r = await salvarContatoSignatario(token, email.trim(), cel)
+      if (r.error) { setErro(r.error); return }
+      setContatoOk(true)
+      setOtpEnviado(false) // se trocou e-mail, reinicia o OTP
+    })
+  }
 
   const pedirOtp = () => {
     setErro('')
@@ -53,7 +81,8 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
 
   const assinar = () => {
     setErro('')
-    if (otp.trim().length !== 6) { setErro('Digite o código de 6 dígitos enviado ao seu e-mail.'); return }
+    if (!contatoOk) { setErro('Confirme seu e-mail e celular primeiro.'); return }
+    if (exigirOtp && otp.trim().length !== 6) { setErro('Digite o código de 6 dígitos enviado ao seu e-mail.'); return }
     if (!selfie) { setErro('Tire a selfie.'); return }
     if (!assinatura) { setErro('Desenhe sua assinatura.'); return }
     if (!consent) { setErro('Aceite o termo de consentimento.'); return }
@@ -79,6 +108,10 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
     )
   }
 
+  // Numeração dos passos depende de exigir OTP ou não
+  let n = 0
+  const passo = () => ++n
+
   return (
     <div className="space-y-5">
       <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 text-sm text-violet-900">
@@ -93,41 +126,76 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
         </div>
       </div>
 
-      {/* 1. OTP */}
+      {/* Passo 1: seus dados (e-mail + celular) */}
       <section className="bg-white rounded-2xl border border-gray-100 p-4">
-        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 mb-2"><Mail size={14} className="text-violet-600" /> 1. Código por e-mail</h3>
-        {!otpEnviado ? (
-          <button type="button" onClick={pedirOtp} disabled={isPending} className="flex items-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl">
-            {isPending ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} Enviar código pro meu e-mail
-          </button>
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 mb-2">
+          <UserCheck size={14} className="text-violet-600" /> {passo()}. Seus dados
+        </h3>
+        <p className="text-xs text-gray-500 mb-3">Confirme seu e-mail e celular — usados pra validar sua identidade{exigirOtp ? ', enviar o código' : ''} e te mandar o contrato assinado.</p>
+        <div className="grid sm:grid-cols-2 gap-2">
+          <input
+            type="email"
+            value={email}
+            onChange={e => { setEmail(e.target.value); setContatoOk(false) }}
+            placeholder="seu@email.com"
+            disabled={isPending}
+            className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          />
+          <input
+            type="tel"
+            value={celular}
+            onChange={e => { setCelular(fmtCelular(e.target.value)); setContatoOk(false) }}
+            placeholder="(65) 99999-9999"
+            disabled={isPending}
+            className="px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500"
+          />
+        </div>
+        {contatoOk ? (
+          <p className="text-xs text-green-700 font-semibold mt-2 flex items-center gap-1"><Check size={13} /> Dados confirmados</p>
         ) : (
-          <>
-            <p className="text-xs text-gray-500 mb-2">Enviamos um código para <strong>{emailMasc}</strong>.</p>
-            <input
-              value={otp}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              inputMode="numeric"
-              placeholder="000000"
-              className="w-40 text-center tracking-[0.4em] font-mono text-lg px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
-            />
-            <button type="button" onClick={pedirOtp} disabled={isPending} className="ml-3 text-xs text-violet-700 hover:underline">Reenviar</button>
-          </>
+          <button type="button" onClick={confirmarContato} disabled={isPending} className="mt-2 flex items-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl">
+            {isPending ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />} Confirmar dados
+          </button>
         )}
       </section>
 
-      {/* 2. Selfie */}
-      <section className="bg-white rounded-2xl border border-gray-100 p-4">
-        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 mb-2"><ShieldCheck size={14} className="text-violet-600" /> 2. Selfie</h3>
+      {/* Passo 2: OTP (só se exigido) */}
+      {exigirOtp && (
+        <section className={`bg-white rounded-2xl border border-gray-100 p-4 ${!contatoOk ? 'opacity-50 pointer-events-none' : ''}`}>
+          <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 mb-2"><Mail size={14} className="text-violet-600" /> {passo()}. Código por e-mail</h3>
+          {!otpEnviado ? (
+            <button type="button" onClick={pedirOtp} disabled={isPending || !contatoOk} className="flex items-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl">
+              {isPending ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />} Enviar código pro meu e-mail
+            </button>
+          ) : (
+            <>
+              <p className="text-xs text-gray-500 mb-2">Enviamos um código para <strong>{emailMasc}</strong>.</p>
+              <input
+                value={otp}
+                onChange={e => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                inputMode="numeric"
+                placeholder="000000"
+                className="w-40 text-center tracking-[0.4em] font-mono text-lg px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500"
+              />
+              <button type="button" onClick={pedirOtp} disabled={isPending} className="ml-3 text-xs text-violet-700 hover:underline">Reenviar</button>
+            </>
+          )}
+        </section>
+      )}
+
+      {/* Selfie */}
+      <section className={`bg-white rounded-2xl border border-gray-100 p-4 ${!contatoOk ? 'opacity-50 pointer-events-none' : ''}`}>
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 mb-2"><ShieldCheck size={14} className="text-violet-600" /> {passo()}. Selfie</h3>
         <CapturaSelfie value={selfie} onChange={setSelfie} />
       </section>
 
-      {/* 3. Assinatura */}
-      <section className="bg-white rounded-2xl border border-gray-100 p-4">
-        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 mb-2"><PenLine size={14} className="text-violet-600" /> 3. Sua assinatura</h3>
+      {/* Assinatura */}
+      <section className={`bg-white rounded-2xl border border-gray-100 p-4 ${!contatoOk ? 'opacity-50 pointer-events-none' : ''}`}>
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 mb-2"><PenLine size={14} className="text-violet-600" /> {passo()}. Sua assinatura</h3>
         <SignaturePad value={assinatura} onChange={setAssinatura} />
       </section>
 
-      {/* 4. Consentimento */}
+      {/* Consentimento */}
       <section className="bg-white rounded-2xl border border-gray-100 p-4">
         <label className="flex items-start gap-2 cursor-pointer">
           <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5 accent-violet-600 shrink-0" />
@@ -144,7 +212,7 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
       <button
         type="button"
         onClick={assinar}
-        disabled={isPending}
+        disabled={isPending || !contatoOk}
         className="w-full flex items-center justify-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl"
       >
         {isPending ? <Loader2 size={18} className="animate-spin" /> : <PenLine size={18} />}

@@ -44,7 +44,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: signatarios } = await admin
       .from('contrato_assinatura_signatarios')
-      .select('nome, email, papel, assinado_em, ip, geo, selfie_b64, assinatura_b64, token')
+      .select('nome, email, celular, papel, assinado_em, otp_verificado_em, ip, geo, selfie_b64, assinatura_b64, token')
       .eq('assinatura_id', proc.id)
       .order('ordem', { ascending: true })
 
@@ -80,8 +80,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       concluido_em: null,
       hash,
       signatarios: (signatarios ?? []).map(s => ({
-        nome: s.nome, email: s.email, papel: s.papel,
-        assinado_em: s.assinado_em, ip: s.ip, geo: s.geo,
+        nome: s.nome, email: s.email, celular: s.celular, papel: s.papel,
+        assinado_em: s.assinado_em, otp_usado: !!s.otp_verificado_em, ip: s.ip, geo: s.geo,
         selfie_b64: s.selfie_b64, assinatura_b64: s.assinatura_b64,
       })),
     }
