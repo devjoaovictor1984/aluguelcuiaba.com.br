@@ -332,8 +332,18 @@ export async function GET(
     } else if (im?.endereco_resumido) {
       imovelEndereco = `${im.endereco_resumido}${bairro?.nome ? `, ${bairro.nome}` : ''}`
     }
-    let imovelDescricao = (im?.descricao_real ?? im?.descricao ?? '')
-      .replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+    // Usa SÓ a descrição própria do imóvel (descricao_real) — não o texto de
+    // marketing do anúncio. Limpa HTML, entidades e caracteres não imprimíveis.
+    const limparTextoImovel = (s: string | null | undefined): string =>
+      (s ?? '')
+        .replace(/&nbsp;|&#160;/gi, ' ')
+        .replace(/&lt;/gi, ' ').replace(/&gt;/gi, ' ').replace(/&amp;/gi, '&')
+        .replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\p{Cc}/gu, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+    let imovelDescricao = limparTextoImovel(im?.descricao_real).slice(0, 220)
     if (im?.area_construida_m2 && !imovelDescricao.includes('m²')) {
       imovelDescricao = imovelDescricao ? `${imovelDescricao} · ${im.area_construida_m2} m²` : `${im.area_construida_m2} m²`
     }
