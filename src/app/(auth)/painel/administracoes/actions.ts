@@ -25,10 +25,26 @@ export interface ContratoAdminInput {
   proprietario_representante_qualificacao?: string | null
 }
 
-function gerarCodigo(): string {
+// Próximo código sequencial (primeiro número livre), considerando só contratos
+// ativos (não apagados) — testes excluídos liberam o número. Igual à locação.
+async function proximoCodigoAdm(userId: string, supabase: Awaited<ReturnType<typeof createClient>>): Promise<string> {
   const ano = new Date().getFullYear()
-  const rand = Math.floor(Math.random() * 9000 + 1000)
-  return `ADM${ano}-${rand}`
+  const prefixo = `ADM${ano}-`
+  const { data } = await supabase
+    .from('contratos_administracao')
+    .select('codigo')
+    .eq('user_id', userId)
+    .like('codigo', `${prefixo}%`)
+    .is('deleted_at', null)
+
+  const usados = new Set<number>()
+  for (const row of data ?? []) {
+    const n = parseInt(String(row.codigo).slice(prefixo.length), 10)
+    if (Number.isFinite(n)) usados.add(n)
+  }
+  let proximo = 1
+  while (usados.has(proximo)) proximo++
+  return `${prefixo}${String(proximo).padStart(3, '0')}`
 }
 
 export async function criarContratoAdmin(input: ContratoAdminInput) {
@@ -39,7 +55,7 @@ export async function criarContratoAdmin(input: ContratoAdminInput) {
   if (!input.data_inicio) return { error: 'Informe a data de início.' }
   if (input.taxa_valor == null || input.taxa_valor < 0) return { error: 'Informe a taxa.' }
 
-  const codigo = gerarCodigo()
+  const codigo = await proximoCodigoAdm(acesso.userId, supabase)
   const { data, error } = await supabase
     .from('contratos_administracao')
     .insert({
