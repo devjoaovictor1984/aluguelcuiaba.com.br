@@ -168,10 +168,16 @@ async function renderizar(contratoAdmId: string) {
     ? await supabase.from('pessoas').select('nome, email').in('id', testIds).eq('user_id', acesso.userId)
     : { data: [] }
 
+  // Quando há representante (proprietária PJ representada por uma pessoa), quem
+  // assina é o REPRESENTANTE em nome da empresa — a própria proprietária (PJ)
+  // não assina. Sem representante, sugere a proprietária diretamente.
+  const temRepresentante = !!reprComEmail
   const sugestoesAss = [
     user?.email ? { nome: adminNome, email: user.email, papel: 'Administradora (responsável)' } : null,
-    propComEmail?.email ? { nome: propComEmail.nome, email: propComEmail.email, papel: 'Proprietária(o)' } : null,
-    reprComEmail?.email ? { nome: reprComEmail.nome, email: reprComEmail.email, papel: 'Representante da proprietária' } : null,
+    (!temRepresentante && propComEmail?.email)
+      ? { nome: propComEmail.nome, email: propComEmail.email, papel: 'Proprietária(o)' } : null,
+    reprComEmail?.email
+      ? { nome: reprComEmail.nome, email: reprComEmail.email, papel: 'Representante da proprietária' } : null,
     ...((testPessoas ?? []) as Array<{ nome: string; email: string | null }>)
       .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' })),
   ].filter((s): s is { nome: string; email: string; papel: string } => !!s)
