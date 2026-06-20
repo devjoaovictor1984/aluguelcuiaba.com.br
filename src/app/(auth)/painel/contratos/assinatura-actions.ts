@@ -103,6 +103,73 @@ export async function criarProcessoAssinatura(input: CriarProcessoInput) {
   return { ok: true, id: proc.id }
 }
 
+// Corrige o e-mail de um signatário pendente (ex.: digitado errado) e, em
+// seguida, reenvia o convite com o link de assinatura pro e-mail correto.
+export async function atualizarEmailSignatario(signatarioId: string, email: string, reenviar = true) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const emailLimpo = (email ?? '').trim().toLowerCase()
+  if (!/\S+@\S+\.\S+/.test(emailLimpo)) return { error: 'E-mail inválido.' }
+
+  const { data: s } = await supabase
+    .from('contrato_assinatura_signatarios')
+    .select('id, nome, papel, token, status, assinatura:contrato_assinaturas!inner(user_id, titulo, status)')
+    .eq('id', signatarioId)
+    .maybeSingle()
+  const a = (Array.isArray(s?.assinatura) ? s?.assinatura[0] : s?.assinatura) as { user_id: string; titulo: string | null; status: string } | undefined
+  if (!s || a?.user_id !== acesso.userId) return { error: 'Signatário não encontrado.' }
+  if (s.status === 'assinado') return { error: 'Este signatário já assinou.' }
+  if (a?.status === 'cancelado') return { error: 'Processo cancelado.' }
+
+  const { error } = await supabase
+    .from('contrato_assinatura_signatarios')
+    .update({ email: emailLimpo, otp_hash: null, otp_expira_em: null })
+    .eq('id', signatarioId)
+  if (error) return { error: error.message }
+
+  if (reenviar) {
+    const { data: perfil } = await supabase.from('perfis').select('razao_social, nome').eq('id', acesso.userId).maybeSingle()
+    const emitente = perfil?.razao_social || perfil?.nome || 'AluguelCuiabá'
+    const url = `${await baseUrl()}/assinar/${s.token}`
+    await enviarEmail({
+      to: emailLimpo,
+      subject: `Assinatura — ${a?.titulo ?? 'Contrato'}`,
+      html: emailConvite(s.nome, s.papel, a?.titulo ?? 'Contrato', url, emitente),
+      canal: 'assinatura_convite',
+    })
+  }
+  return { ok: true }
+}
+
+// Reenvia o convite (link de assinatura) pro e-mail atual do signatário.
+export async function reenviarConviteSignatario(signatarioId: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { data: s } = await supabase
+    .from('contrato_assinatura_signatarios')
+    .select('nome, email, papel, token, status, assinatura:contrato_assinaturas!inner(user_id, titulo, status)')
+    .eq('id', signatarioId)
+    .maybeSingle()
+  const a = (Array.isArray(s?.assinatura) ? s?.assinatura[0] : s?.assinatura) as { user_id: string; titulo: string | null; status: string } | undefined
+  if (!s || a?.user_id !== acesso.userId) return { error: 'Signatário não encontrado.' }
+  if (s.status === 'assinado') return { error: 'Este signatário já assinou.' }
+  if (a?.status === 'cancelado') return { error: 'Processo cancelado.' }
+
+  const { data: perfil } = await supabase.from('perfis').select('razao_social, nome').eq('id', acesso.userId).maybeSingle()
+  const emitente = perfil?.razao_social || perfil?.nome || 'AluguelCuiabá'
+  const url = `${await baseUrl()}/assinar/${s.token}`
+  const r = await enviarEmail({
+    to: s.email,
+    subject: `Assinatura — ${a?.titulo ?? 'Contrato'}`,
+    html: emailConvite(s.nome, s.papel, a?.titulo ?? 'Contrato', url, emitente),
+    canal: 'assinatura_convite',
+  })
+  if (r.error) return { error: `Falha ao enviar: ${r.error}` }
+  return { ok: true }
+}
+
 export async function cancelarProcessoAssinatura(processoId: string) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()

@@ -2,11 +2,11 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download, MessageCircle } from 'lucide-react'
-import { criarProcessoAssinatura, cancelarProcessoAssinatura } from '../assinatura-actions'
+import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download, MessageCircle, Pencil, Mail } from 'lucide-react'
+import { criarProcessoAssinatura, cancelarProcessoAssinatura, atualizarEmailSignatario, reenviarConviteSignatario } from '../assinatura-actions'
 
 interface Sugestao { nome: string; email: string; papel: string }
-interface SignatarioStatus { nome: string; email: string; papel: string | null; status: string; token: string }
+interface SignatarioStatus { id: string; nome: string; email: string; papel: string | null; status: string; token: string }
 interface Processo { id: string; status: string; created_at: string; signatarios: SignatarioStatus[] }
 
 interface Props {
@@ -30,6 +30,26 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
   const [copiado, setCopiado] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
   const [origin] = useState(() => (typeof window !== 'undefined' ? window.location.origin : baseUrl))
+  const [editId, setEditId] = useState<string | null>(null)
+  const [editVal, setEditVal] = useState('')
+  const [reenviado, setReenviado] = useState<string | null>(null)
+
+  const salvarEmail = (id: string) => {
+    startTransition(async () => {
+      const r = await atualizarEmailSignatario(id, editVal, true)
+      if (r.error) { setErro(r.error); return }
+      setErro(''); setEditId(null); setReenviado(id); setTimeout(() => setReenviado(null), 2500)
+      router.refresh()
+    })
+  }
+  const reenviar = (id: string) => {
+    setErro('')
+    startTransition(async () => {
+      const r = await reenviarConviteSignatario(id)
+      if (r.error) { setErro(r.error); return }
+      setReenviado(id); setTimeout(() => setReenviado(null), 2500)
+    })
+  }
 
   const set = (i: number, campo: keyof Linha, v: string) =>
     setLinhas(prev => prev.map((l, idx) => idx === i ? { ...l, [campo]: v } : l))
@@ -143,26 +163,59 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
                 )}
               </div>
               <ul className="space-y-1.5">
-                {p.signatarios.map(s => (
-                  <li key={s.token} className="flex items-center gap-2 text-xs">
-                    {s.status === 'assinado'
-                      ? <CheckCircle2 size={13} className="text-green-600 shrink-0" />
-                      : <Clock size={13} className="text-amber-500 shrink-0" />}
-                    <span className="font-medium text-gray-800">{s.nome}</span>
-                    <span className="text-gray-400">{s.papel ? `· ${s.papel}` : ''}</span>
-                    <span className="text-gray-300 flex-1 truncate">{s.email}</span>
-                    {s.status !== 'assinado' && p.status !== 'concluido' && (
-                      <span className="flex items-center gap-0.5 shrink-0">
-                        <button type="button" onClick={() => copiar(s.token)} className="text-violet-600 hover:text-violet-800 p-1" title="Copiar link">
-                          {copiado === s.token ? <Check size={12} /> : <Copy size={12} />}
-                        </button>
-                        <button type="button" onClick={() => whatsapp(s)} className="text-green-600 hover:text-green-700 p-1" title="Enviar por WhatsApp">
-                          <MessageCircle size={12} />
-                        </button>
-                      </span>
-                    )}
-                  </li>
-                ))}
+                {p.signatarios.map(s => {
+                  const pendente = s.status !== 'assinado' && p.status !== 'concluido'
+                  return (
+                    <li key={s.token} className="text-xs bg-gray-50 rounded-lg px-2 py-1.5">
+                      <div className="flex items-center gap-2">
+                        {s.status === 'assinado'
+                          ? <CheckCircle2 size={13} className="text-green-600 shrink-0" />
+                          : <Clock size={13} className="text-amber-500 shrink-0" />}
+                        <span className="font-medium text-gray-800">{s.nome}</span>
+                        <span className="text-gray-400 flex-1 truncate">{s.papel ? `· ${s.papel}` : ''}</span>
+                        {reenviado === s.id && <span className="text-[10px] font-semibold text-green-600">enviado ✓</span>}
+                        {pendente && (
+                          <span className="flex items-center gap-0.5 shrink-0">
+                            <button type="button" onClick={() => copiar(s.token)} className="text-violet-600 hover:text-violet-800 p-1" title="Copiar link">
+                              {copiado === s.token ? <Check size={12} /> : <Copy size={12} />}
+                            </button>
+                            <button type="button" onClick={() => whatsapp(s)} className="text-green-600 hover:text-green-700 p-1" title="Enviar por WhatsApp">
+                              <MessageCircle size={12} />
+                            </button>
+                            <button type="button" onClick={() => reenviar(s.id)} disabled={isPending} className="text-gray-500 hover:text-violet-700 p-1 disabled:opacity-50" title="Reenviar e-mail">
+                              <Mail size={12} />
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5 pl-5">
+                        {editId === s.id ? (
+                          <>
+                            <input
+                              value={editVal}
+                              onChange={e => setEditVal(e.target.value)}
+                              placeholder="e-mail correto"
+                              className="flex-1 px-2 py-1 rounded border border-violet-300 text-[11px] focus:outline-none focus:ring-1 focus:ring-violet-500"
+                            />
+                            <button type="button" onClick={() => salvarEmail(s.id)} disabled={isPending} className="text-[10px] font-semibold bg-violet-700 hover:bg-violet-800 text-white px-2 py-1 rounded disabled:opacity-50">
+                              {isPending ? '...' : 'Salvar e reenviar'}
+                            </button>
+                            <button type="button" onClick={() => setEditId(null)} className="text-[10px] text-gray-500">Cancelar</button>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-gray-400 truncate">{s.email || '(sem e-mail)'}</span>
+                            {pendente && (
+                              <button type="button" onClick={() => { setEditId(s.id); setEditVal(s.email) }} className="text-gray-400 hover:text-violet-700 shrink-0" title="Corrigir e-mail">
+                                <Pencil size={11} />
+                              </button>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           ))}

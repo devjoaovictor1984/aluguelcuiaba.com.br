@@ -194,7 +194,7 @@ async function renderizarEditor(contratoId: string) {
   // Processos de assinatura + sugestões (chave = id da geração)
   const { data: processosAss } = await supabase
     .from('contrato_assinaturas')
-    .select('id, status, created_at, signatarios:contrato_assinatura_signatarios(nome, email, papel, status, token)')
+    .select('id, status, created_at, signatarios:contrato_assinatura_signatarios(id, nome, email, papel, status, token)')
     .eq('user_id', acesso.userId)
     .eq('tipo_contrato', 'locacao')
     .eq('contrato_id', r.geracao.id)
@@ -279,7 +279,7 @@ async function renderizarEditor(contratoId: string) {
         titulo={contrato.codigo}
         baseUrl={baseUrl}
         sugestoes={sugestoesAss}
-        processos={(processosAss ?? []) as Array<{ id: string; status: string; created_at: string; signatarios: Array<{ nome: string; email: string; papel: string | null; status: string; token: string }> }>}
+        processos={(processosAss ?? []) as Array<{ id: string; status: string; created_at: string; signatarios: Array<{ id: string; nome: string; email: string; papel: string | null; status: string; token: string }> }>}
       />
 
       <EditorContrato
