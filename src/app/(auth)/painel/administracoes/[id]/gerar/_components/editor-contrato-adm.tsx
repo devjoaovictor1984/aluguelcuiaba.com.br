@@ -71,6 +71,7 @@ type ChecklistBase = Omit<DadosChecklistAdm, 'categorias_presentes'>
 interface Props {
   contratoAdmId: string
   codigo: string
+  travado?: boolean
   checklistBase: ChecklistBase
   geracao: {
     id: string
@@ -86,7 +87,7 @@ interface Props {
   documentosPartes: Array<{ id: string; tipo: string; nome_original: string; pessoa_nome: string }>
 }
 
-export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContratoAdm({ contratoAdmId, codigo, travado = false, checklistBase, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
   const router = useRouter()
   const [clausulas, setClausulas] = useState<ClausulaSel[]>(geracao.clausulas)
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
@@ -131,6 +132,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
   )
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (travado) return
     const { active, over } = event
     if (!over || active.id === over.id) return
     const oldIndex = ordemIds.indexOf(active.id as string)
@@ -145,6 +147,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
 
   // Edita SÓ neste contrato (não toca o banco genérico)
   const onAtualizar = (id: string, titulo: string, corpo: string) => {
+    if (travado) return
     setClausulas(curr => curr.map(c => c.id === id ? { ...c, titulo, corpo } : c))
     startTransition(async () => {
       const r = await editarClausulaGeracaoAdm(geracao.id, id, titulo, corpo)
@@ -153,6 +156,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
   }
 
   const onRemover = (id: string) => {
+    if (travado) return
     setClausulas(curr => curr.filter(c => c.id !== id))
     startTransition(async () => {
       const r = await removerClausulaGeracaoAdm(geracao.id, id)
@@ -162,6 +166,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
 
   // Adiciona uma cópia da cláusula do banco neste contrato
   const onIncluir = (banco: ClausulaLista) => {
+    if (travado) return
     const novoId = crypto.randomUUID()
     const nova: ClausulaSel = { id: novoId, titulo: banco.titulo, corpo: banco.corpo, categoria: banco.categoria }
     setClausulas(curr => [...curr, nova])
@@ -210,6 +215,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
   }
 
   const onCriarNova = () => {
+    if (travado) return
     setErroNova('')
     if (novoTitulo.trim().length < 3) { setErroNova('Título curto demais.'); return }
     if (novoCorpo.trim().length < 10) { setErroNova('Corpo curto demais.'); return }
@@ -228,6 +234,16 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
   const pdfUrl = `/api/contratos-admin/${contratoAdmId}/pdf`
 
   return (
+    <>
+    {travado && (
+      <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 flex items-start gap-3 mb-4">
+        <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+        <div className="text-sm text-emerald-900">
+          <strong>Contrato assinado por todas as partes.</strong> Ele está travado e não pode mais ser editado —
+          qualquer alteração deve ser feita por <strong>termo aditivo</strong>. Você ainda pode visualizar e baixar o PDF.
+        </div>
+      </div>
+    )}
     <div className="grid lg:grid-cols-[280px_1fr] gap-4">
       <aside className="space-y-4">
         {/* Testemunhas */}
@@ -380,6 +396,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
                   numero={idx + 1}
                   clausula={c}
                   isPending={isPending}
+                  travado={travado}
                   onEditar={() => setClausulaEdicao(c)}
                   onRemover={() => onRemover(c.id)}
                 />
@@ -394,16 +411,18 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
           </div>
         )}
 
-        <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button type="button" onClick={() => setMostrarAdicionais(v => !v)} className="flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 py-3 rounded-xl border-2 border-dashed border-violet-200">
-            <Plus size={13} /> {mostrarAdicionais ? 'Esconder' : 'Adicionar'} do banco ({disponiveis.length})
-          </button>
-          <button type="button" onClick={() => { setModalNova(true); setNovoTitulo(''); setNovoCorpo(''); setErroNova('') }} className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 py-3 rounded-xl border-2 border-dashed border-amber-300">
-            <Plus size={13} /> Criar cláusula nova
-          </button>
-        </div>
+        {!travado && (
+          <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button type="button" onClick={() => setMostrarAdicionais(v => !v)} className="flex items-center justify-center gap-1.5 text-xs font-semibold text-violet-700 hover:bg-violet-50 py-3 rounded-xl border-2 border-dashed border-violet-200">
+              <Plus size={13} /> {mostrarAdicionais ? 'Esconder' : 'Adicionar'} do banco ({disponiveis.length})
+            </button>
+            <button type="button" onClick={() => { setModalNova(true); setNovoTitulo(''); setNovoCorpo(''); setErroNova('') }} className="flex items-center justify-center gap-1.5 text-xs font-semibold text-amber-700 hover:bg-amber-50 py-3 rounded-xl border-2 border-dashed border-amber-300">
+              <Plus size={13} /> Criar cláusula nova
+            </button>
+          </div>
+        )}
 
-        {mostrarAdicionais && (
+        {!travado && mostrarAdicionais && (
           <div className="mt-2 space-y-1.5">
             {disponiveis.map(c => (
               <button key={c.id} type="button" onClick={() => onIncluir(c)} disabled={isPending} className="w-full text-left bg-white hover:bg-violet-50 border border-gray-200 hover:border-violet-300 rounded-lg p-3 transition-colors disabled:opacity-50">
@@ -482,13 +501,15 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
         )}
       </section>
     </div>
+    </>
   )
 }
 
-function ClausulaCard({ numero, clausula, isPending, onEditar, onRemover }: {
+function ClausulaCard({ numero, clausula, isPending, travado = false, onEditar, onRemover }: {
   numero: number
   clausula: ClausulaSel
   isPending: boolean
+  travado?: boolean
   onEditar: () => void
   onRemover: () => void
 }) {
@@ -506,12 +527,14 @@ function ClausulaCard({ numero, clausula, isPending, onEditar, onRemover }: {
       </div>
       <div className="p-3">
         <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-4">{clausula.corpo}</p>
-        <div className="flex justify-end gap-2 mt-2">
-          <button type="button" onClick={onEditar} className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded">Editar</button>
-          <button type="button" onClick={onRemover} disabled={isPending} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50">
-            <X size={12} />
-          </button>
-        </div>
+        {!travado && (
+          <div className="flex justify-end gap-2 mt-2">
+            <button type="button" onClick={onEditar} className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded">Editar</button>
+            <button type="button" onClick={onRemover} disabled={isPending} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50">
+              <X size={12} />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

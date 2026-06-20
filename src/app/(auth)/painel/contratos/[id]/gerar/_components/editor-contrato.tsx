@@ -57,6 +57,7 @@ interface Pessoa {
 interface Props {
   contratoId: string
   codigo: string
+  travado?: boolean
   garantiaTipo: string
   qtdChavesInicial?: number
   qtdControlesInicial?: number
@@ -89,7 +90,7 @@ interface Props {
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 text-sm transition"
 
-export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContrato({ contratoId, codigo, travado = false, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
   const router = useRouter()
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
@@ -262,6 +263,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
 
   // Modal: criar cláusula adicional inline
   const onCriarClausulaInline = () => {
+    if (travado) return
     setErroNovaClausula('')
     if (novaClausulaTitulo.trim().length < 3) {
       setErroNovaClausula('Título precisa de pelo menos 3 caracteres.')
@@ -327,6 +329,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
   )
 
   const handleDragEnd = (event: DragEndEvent) => {
+    if (travado) return
     const { active, over } = event
     if (!over || active.id === over.id) return
     const oldIndex = ordemIds.indexOf(active.id as string)
@@ -340,6 +343,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
   }
 
   const onChangeOpcoes = (mudancas: Partial<{ tipo_seguro_incendio: typeof tipoSeguroIncendio; saida_sem_multa_12m: boolean }>) => {
+    if (travado) return
     setErro('')
     const novoIncendio = mudancas.tipo_seguro_incendio ?? tipoSeguroIncendio
     const novoSemMulta = mudancas.saida_sem_multa_12m ?? saidaSemMulta12m
@@ -363,6 +367,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
     novaCategoria?: string,
     novoTipo?: TipoClausula,
   ) => {
+    if (travado) return
     setClausulas(curr => curr.map(c => c.id === id
       ? { ...c, titulo: novoTitulo, corpo: novoCorpo, categoria: novaCategoria ?? c.categoria, tipo: novoTipo ?? c.tipo }
       : c))
@@ -373,6 +378,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
   }
 
   const onRemover = (id: string) => {
+    if (travado) return
     setClausulas(curr => curr.filter(c => c.id !== id))
     startTransition(async () => {
       const r = await removerClausulaGeracao(geracao.id, id)
@@ -382,6 +388,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
 
   // Inclui uma CÓPIA da cláusula do banco neste contrato (id novo de snapshot)
   const onIncluir = (banco: ClausulaLista) => {
+    if (travado) return
     const nova: ClausulaSel = {
       id: crypto.randomUUID(),
       tipo: banco.tipo,
@@ -423,6 +430,16 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
 
   return (
     <div className="space-y-4">
+      {travado && (
+        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3 flex items-start gap-3">
+          <CheckCircle2 size={18} className="text-emerald-600 shrink-0 mt-0.5" />
+          <div className="text-sm text-emerald-900">
+            <strong>Contrato assinado por todas as partes.</strong> Ele está travado e não pode mais ser editado —
+            qualquer alteração deve ser feita por <strong>termo aditivo</strong>. Você ainda pode visualizar e baixar o PDF.
+          </div>
+        </div>
+      )}
+
       {/* Barra de progresso gamificada */}
       <ProgressoContrato
         categoriasIncluidas={categoriasIncluidas}
@@ -451,7 +468,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
             <select
               value={tipoSeguroIncendio}
               onChange={e => onChangeOpcoes({ tipo_seguro_incendio: e.target.value as typeof tipoSeguroIncendio })}
-              disabled={isPending}
+              disabled={isPending || travado}
               className={inputCls}
             >
               <option value="dispensado">Dispensado</option>
@@ -466,7 +483,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
               type="checkbox"
               checked={saidaSemMulta12m}
               onChange={e => onChangeOpcoes({ saida_sem_multa_12m: e.target.checked })}
-              disabled={isPending}
+              disabled={isPending || travado}
               className="accent-violet-600"
             />
             <span className="text-sm text-gray-700">Saída sem multa após 12 meses</span>
@@ -871,13 +888,15 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
         </div>
       </aside>
 
-      {/* Catálogo de cláusulas disponíveis (sempre visível) */}
-      <CatalogoDisponiveis
-        clausulas={clausulasDisponiveis}
-        isPending={isPending}
-        onIncluir={onIncluir}
-        onCriarNova={() => { setModalNovaClausula(true); setNovaClausulaTitulo(''); setNovaClausulaCorpo(''); setErroNovaClausula('') }}
-      />
+      {/* Catálogo de cláusulas disponíveis (oculto quando o contrato está travado) */}
+      {travado ? <div /> : (
+        <CatalogoDisponiveis
+          clausulas={clausulasDisponiveis}
+          isPending={isPending}
+          onIncluir={onIncluir}
+          onCriarNova={() => { setModalNovaClausula(true); setNovaClausulaTitulo(''); setNovaClausulaCorpo(''); setErroNovaClausula('') }}
+        />
+      )}
 
       {/* Editor */}
       <section className="space-y-2">
@@ -903,6 +922,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
                   numero={idx + 1}
                   clausula={c}
                   isPending={isPending}
+                  travado={travado}
                   onSalvar={(t, b, cat, tp) => onAtualizarClausula(c.id, t, b, cat, tp)}
                   onRemover={() => onRemover(c.id)}
                 />
@@ -1062,11 +1082,12 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
 
 // ── Card de uma cláusula no editor (sortable + editável) ──
 function ClausulaCardEditor({
-  numero, clausula, isPending, onSalvar, onRemover,
+  numero, clausula, isPending, travado = false, onSalvar, onRemover,
 }: {
   numero: number
   clausula: ClausulaSel
   isPending: boolean
+  travado?: boolean
   onSalvar: (titulo: string, corpo: string, categoria?: string, tipo?: TipoClausula) => void
   onRemover: () => void
 }) {
@@ -1125,24 +1146,26 @@ function ClausulaCardEditor({
           <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-4 break-words">
             {clausula.corpo}
           </p>
-          <div className="flex justify-end gap-2 mt-2">
-            <button
-              type="button"
-              onClick={() => setModalAberto(true)}
-              className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded"
-            >
-              Editar
-            </button>
-            <button
-              type="button"
-              onClick={onRemover}
-              disabled={isPending}
-              className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50"
-              title="Remover deste contrato (não exclui do banco)"
-            >
-              <X size={12} />
-            </button>
-          </div>
+          {!travado && (
+            <div className="flex justify-end gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => setModalAberto(true)}
+                className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={onRemover}
+                disabled={isPending}
+                className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50"
+                title="Remover deste contrato (não exclui do banco)"
+              >
+                <X size={12} />
+              </button>
+            </div>
+          )}
         </div>
       </div>
 

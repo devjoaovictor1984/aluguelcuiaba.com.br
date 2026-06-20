@@ -4,6 +4,7 @@ import { randomUUID } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { contratoAssinado, MSG_CONTRATO_TRAVADO } from '@/lib/crm/assinatura-lock'
 
 export interface ClausulaSnapshot {
   id: string
@@ -121,6 +122,7 @@ export async function editarClausulaGeracaoAdm(geracaoId: string, clausulaId: st
   const supabase = await createClient()
   const r = await carregarSnap(supabase, acesso.userId, geracaoId)
   if ('error' in r) return { error: r.error }
+  if (await contratoAssinado(supabase, 'administracao', r.g.contrato_admin_id)) return { error: MSG_CONTRATO_TRAVADO }
   const clausulas = r.clausulas.map(c => c.id === clausulaId ? { ...c, titulo: titulo.trim(), corpo: corpo.trim() } : c)
   return salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_admin_id, clausulas)
 }
@@ -131,6 +133,7 @@ export async function adicionarClausulaGeracaoAdm(geracaoId: string, clausula: {
   if (!clausula.titulo?.trim() || !clausula.corpo?.trim()) return { error: 'Título e corpo são obrigatórios.' }
   const r = await carregarSnap(supabase, acesso.userId, geracaoId)
   if ('error' in r) return { error: r.error }
+  if (await contratoAssinado(supabase, 'administracao', r.g.contrato_admin_id)) return { error: MSG_CONTRATO_TRAVADO }
   const nova: ClausulaSnapshot = {
     id: clausula.id ?? randomUUID(),
     titulo: clausula.titulo.trim(),
@@ -146,6 +149,7 @@ export async function removerClausulaGeracaoAdm(geracaoId: string, clausulaId: s
   const supabase = await createClient()
   const r = await carregarSnap(supabase, acesso.userId, geracaoId)
   if ('error' in r) return { error: r.error }
+  if (await contratoAssinado(supabase, 'administracao', r.g.contrato_admin_id)) return { error: MSG_CONTRATO_TRAVADO }
   return salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_admin_id, r.clausulas.filter(c => c.id !== clausulaId))
 }
 
@@ -154,6 +158,7 @@ export async function ordenarClausulasGeracaoAdm(geracaoId: string, ordemIds: st
   const supabase = await createClient()
   const r = await carregarSnap(supabase, acesso.userId, geracaoId)
   if ('error' in r) return { error: r.error }
+  if (await contratoAssinado(supabase, 'administracao', r.g.contrato_admin_id)) return { error: MSG_CONTRATO_TRAVADO }
   const mapa = new Map(r.clausulas.map(c => [c.id, c]))
   const reordenadas = ordemIds.map(id => mapa.get(id)).filter((c): c is ClausulaSnapshot => !!c)
   // mantém eventuais não listadas no fim (segurança)

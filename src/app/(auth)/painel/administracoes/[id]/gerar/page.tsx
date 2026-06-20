@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { obterOuCriarGeracaoAdm } from './actions'
+import { contratoAssinado } from '@/lib/crm/assinatura-lock'
 import { EditorContratoAdm } from './_components/editor-contrato-adm'
 import { PainelRevisao } from '../../../contratos/_components/painel-revisao'
 import { PainelAssinatura } from '../../../contratos/_components/painel-assinatura'
@@ -225,6 +226,7 @@ async function renderizar(contratoAdmId: string) {
       <EditorContratoAdm
         contratoAdmId={contratoAdmId}
         codigo={contrato.codigo}
+        travado={await contratoAssinado(supabase, 'administracao', contratoAdmId)}
         checklistBase={{
           proprietario_nome: prop?.nome ?? null,
           proprietario_cpf: prop?.cpf_cnpj ?? null,

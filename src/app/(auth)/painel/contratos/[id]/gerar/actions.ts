@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { CATEGORIAS_ORDEM } from '@/lib/contratos/placeholders'
+import { contratoAssinado, MSG_CONTRATO_TRAVADO } from '@/lib/crm/assinatura-lock'
 
 type SB = Awaited<ReturnType<typeof createClient>>
 
@@ -342,6 +343,7 @@ export async function obterOuCriarGeracao(contratoId: string) {
 export async function atualizarOpcoesGeracao(geracaoId: string, opcoes: OpcoesGeracao) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+  if (await contratoAssinado(supabase, 'locacao', geracaoId)) return { error: MSG_CONTRATO_TRAVADO }
 
   const { data: atual } = await supabase
     .from('contrato_geracoes')
@@ -404,6 +406,7 @@ export async function atualizarOrdemClausulas(geracaoId: string, ordemIds: strin
   const supabase = await createClient()
 
   if (!Array.isArray(ordemIds)) return { error: 'Ordem inválida.' }
+  if (await contratoAssinado(supabase, 'locacao', geracaoId)) return { error: MSG_CONTRATO_TRAVADO }
 
   const r = await carregarSnap(supabase, acesso.userId, geracaoId)
   if ('error' in r) return { error: r.error }
@@ -423,6 +426,7 @@ export async function editarClausulaGeracao(
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
   if (!titulo?.trim() || !corpo?.trim()) return { error: 'Título e corpo são obrigatórios.' }
+  if (await contratoAssinado(supabase, 'locacao', geracaoId)) return { error: MSG_CONTRATO_TRAVADO }
   const r = await carregarSnap(supabase, acesso.userId, geracaoId)
   if ('error' in r) return { error: r.error }
   const clausulas = r.clausulas.map(c => c.id === clausulaId
@@ -439,6 +443,7 @@ export async function adicionarClausulaGeracao(
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
   if (!clausula.titulo?.trim() || !clausula.corpo?.trim()) return { error: 'Título e corpo são obrigatórios.' }
+  if (await contratoAssinado(supabase, 'locacao', geracaoId)) return { error: MSG_CONTRATO_TRAVADO }
   const r = await carregarSnap(supabase, acesso.userId, geracaoId)
   if ('error' in r) return { error: r.error }
   const nova: ClausulaSnapshot = {
@@ -456,6 +461,7 @@ export async function adicionarClausulaGeracao(
 export async function removerClausulaGeracao(geracaoId: string, clausulaId: string) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+  if (await contratoAssinado(supabase, 'locacao', geracaoId)) return { error: MSG_CONTRATO_TRAVADO }
   const r = await carregarSnap(supabase, acesso.userId, geracaoId)
   if ('error' in r) return { error: r.error }
   return salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_id, r.clausulas.filter(c => c.id !== clausulaId))

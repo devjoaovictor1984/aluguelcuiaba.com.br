@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { obterOuCriarGeracao } from './actions'
+import { contratoAssinado } from '@/lib/crm/assinatura-lock'
 import { EditorContrato } from './_components/editor-contrato'
 import { PainelRevisao } from '../../_components/painel-revisao'
 import { PainelAssinatura } from '../../_components/painel-assinatura'
@@ -117,6 +118,9 @@ async function renderizarEditor(contratoId: string) {
       </main>
     )
   }
+
+  // Contrato travado? (assinado por todas as partes pela plataforma → só aditivo)
+  const travado = await contratoAssinado(supabase, 'locacao', r.geracao.id)
 
   // Carrega TODAS as cláusulas do user (pra mostrar opções de adicionar/incluir)
   const { data: todasClausulas } = await supabase
@@ -285,6 +289,7 @@ async function renderizarEditor(contratoId: string) {
       <EditorContrato
         contratoId={contratoId}
         codigo={contrato.codigo}
+        travado={travado}
         garantiaTipo={contrato.garantia_tipo}
         qtdChavesInicial={contrato.qtd_chaves ?? 0}
         qtdControlesInicial={contrato.qtd_controles ?? 0}
