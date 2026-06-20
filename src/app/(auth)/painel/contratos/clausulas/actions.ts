@@ -109,51 +109,6 @@ export async function excluirClausula(id: string) {
 }
 
 /**
- * Popula a tabela com o seed das cláusulas do contrato modelo IMOBILIATTO.
- *
- * Se `sobrescrever=true`, apaga TODAS as cláusulas atuais do usuário antes
- * de reimportar — útil pra quem já importou uma versão antiga do seed e
- * quer pegar os textos mais novos. Cuidado: edições manuais são perdidas.
- */
-export async function importarContratoModelo(sobrescrever = false) {
-  const acesso = await exigirAcessoCRM()
-  const supabase = await createClient()
-
-  const { count } = await supabase
-    .from('contrato_clausulas')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', acesso.userId)
-
-  if ((count ?? 0) > 0 && !sobrescrever) {
-    return { error: 'Você já tem cláusulas cadastradas. Use "Reimportar" pra sobrescrever ou exclua-as manualmente antes.' }
-  }
-
-  if (sobrescrever && (count ?? 0) > 0) {
-    const { error: delErr } = await supabase
-      .from('contrato_clausulas')
-      .delete()
-      .eq('user_id', acesso.userId)
-    if (delErr) return { error: `Falha ao limpar cláusulas atuais: ${delErr.message}` }
-  }
-
-  const rows = SEED_CLAUSULAS.map(c => ({
-    user_id: acesso.userId,
-    tipo: c.tipo,
-    categoria: c.categoria,
-    titulo: c.titulo,
-    numero: c.numero,
-    corpo: c.corpo,
-    ativa: true,
-  }))
-
-  const { error } = await supabase.from('contrato_clausulas').insert(rows)
-  if (error) return { error: error.message }
-
-  revalidatePath('/painel/contratos/clausulas')
-  return { ok: true, importadas: rows.length }
-}
-
-/**
  * Reimporta SOMENTE as cláusulas de administração (tipo='administracao'):
  * apaga as atuais desse tipo e reinsere as do seed. Não toca nas cláusulas
  * de locação que o usuário possa ter editado. Útil quando o modelo de
@@ -185,8 +140,44 @@ export async function reimportarClausulasAdministracao() {
   const { error } = await supabase.from('contrato_clausulas').insert(rows)
   if (error) return { error: error.message }
 
+  revalidatePath('/painel/administracoes/clausulas')
   revalidatePath('/painel/contratos/clausulas')
   return { ok: true, importadas: rows.length, mensagem: `${rows.length} cláusula(s) de administração reimportada(s).` }
+}
+
+/**
+ * Reimporta SOMENTE as cláusulas de LOCAÇÃO (todos os tipos exceto
+ * 'administracao'). Não toca nas de administração. Substitui o "Reimportar
+ * modelo" completo, que era perigoso (apagava tudo).
+ */
+export async function reimportarClausulasLocacao() {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { error: delErr } = await supabase
+    .from('contrato_clausulas')
+    .delete()
+    .eq('user_id', acesso.userId)
+    .neq('tipo', 'administracao')
+  if (delErr) return { error: `Falha ao limpar cláusulas de locação: ${delErr.message}` }
+
+  const rows = SEED_CLAUSULAS
+    .filter(c => c.tipo !== 'administracao')
+    .map(c => ({
+      user_id: acesso.userId,
+      tipo: c.tipo,
+      categoria: c.categoria,
+      titulo: c.titulo,
+      numero: c.numero,
+      corpo: c.corpo,
+      ativa: true,
+    }))
+
+  const { error } = await supabase.from('contrato_clausulas').insert(rows)
+  if (error) return { error: error.message }
+
+  revalidatePath('/painel/contratos/clausulas')
+  return { ok: true, importadas: rows.length, mensagem: `${rows.length} cláusula(s) de locação reimportada(s).` }
 }
 
 /**
@@ -194,7 +185,7 @@ export async function reimportarClausulasAdministracao() {
  * (matching por titulo+tipo). Útil pra puxar cláusulas novas que entraram no
  * seed sem apagar nada que o usuário já editou.
  */
-export async function importarClausulasFaltantes() {
+export async function importarClausulasFaltantes(escopo?: 'locacao' | 'administracao') {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
@@ -205,7 +196,9 @@ export async function importarClausulasFaltantes() {
 
   const setExistente = new Set((existentes ?? []).map(c => `${c.tipo}::${c.titulo}`))
 
-  const faltantes = SEED_CLAUSULAS.filter(c => !setExistente.has(`${c.tipo}::${c.titulo}`))
+  let faltantes = SEED_CLAUSULAS.filter(c => !setExistente.has(`${c.tipo}::${c.titulo}`))
+  if (escopo === 'administracao') faltantes = faltantes.filter(c => c.tipo === 'administracao')
+  else if (escopo === 'locacao') faltantes = faltantes.filter(c => c.tipo !== 'administracao')
 
   if (faltantes.length === 0) {
     return { ok: true, importadas: 0, mensagem: 'Banco já está em dia — nada a importar.' }
@@ -225,5 +218,6 @@ export async function importarClausulasFaltantes() {
   if (error) return { error: error.message }
 
   revalidatePath('/painel/contratos/clausulas')
+  revalidatePath('/painel/administracoes/clausulas')
   return { ok: true, importadas: rows.length, mensagem: `${rows.length} cláusula(s) nova(s) importada(s).` }
 }

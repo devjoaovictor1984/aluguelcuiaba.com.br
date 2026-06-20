@@ -9,8 +9,10 @@ import {
 import { TIPOS_CLAUSULA, PLACEHOLDERS, type TipoClausula } from '@/lib/contratos/placeholders'
 import {
   criarClausula, atualizarClausula, alternarAtiva, excluirClausula,
-  importarContratoModelo, importarClausulasFaltantes, reimportarClausulasAdministracao,
+  importarClausulasFaltantes, reimportarClausulasAdministracao, reimportarClausulasLocacao,
 } from '../actions'
+
+export type EscopoClausulas = 'locacao' | 'administracao'
 
 export interface ClausulaRow {
   id: string
@@ -25,10 +27,25 @@ export interface ClausulaRow {
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 text-sm transition"
 
-export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: ClausulaRow[] }) {
+const ehAdmTipo = (t: TipoClausula) => t === 'administracao'
+
+export function ClausulasCliente({
+  clausulasIniciais,
+  escopo = 'locacao',
+}: {
+  clausulasIniciais: ClausulaRow[]
+  escopo?: EscopoClausulas
+}) {
   const router = useRouter()
-  const [clausulas, setClausulas] = useState(clausulasIniciais)
-  const [tipoAtivo, setTipoAtivo] = useState<TipoClausula>('generica')
+  const adm = escopo === 'administracao'
+
+  // Só os tipos do escopo aparecem (admin só vê 'administracao'; locação vê o resto).
+  const tiposDoEscopo = TIPOS_CLAUSULA.filter(t => adm ? ehAdmTipo(t.valor) : !ehAdmTipo(t.valor))
+  // Defesa extra: mesmo que a page mande dados de outro escopo, escondemos aqui.
+  const clausulasDoEscopo = clausulasIniciais.filter(c => adm ? ehAdmTipo(c.tipo) : !ehAdmTipo(c.tipo))
+
+  const [clausulas, setClausulas] = useState(clausulasDoEscopo)
+  const [tipoAtivo, setTipoAtivo] = useState<TipoClausula>(adm ? 'administracao' : 'generica')
   const [editandoId, setEditandoId] = useState<string | null>(null)
   const [criandoNova, setCriandoNova] = useState(false)
   const [mostrarPlaceholders, setMostrarPlaceholders] = useState(false)
@@ -41,46 +58,39 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
 
   const recarregar = () => router.refresh()
 
-  const onImportarModelo = () => {
+  // Semear o banco vazio: só adiciona o que falta no escopo (nunca apaga).
+  const onSemear = () => {
     setErro('')
     startTransition(async () => {
-      const r = await importarContratoModelo()
+      const r = await importarClausulasFaltantes(escopo)
       if (r.error) { setErro(r.error); return }
       recarregar()
     })
   }
 
-  const onReimportarModelo = () => {
-    if (!confirm(
-      'ATENÇÃO: vai apagar TODAS as suas cláusulas atuais e reimportar o modelo padrão.\n\n' +
-      'Edições que você fez serão PERDIDAS.\n\nConfirmar?'
-    )) return
-    setErro('')
-    startTransition(async () => {
-      const r = await importarContratoModelo(true)
-      if (r.error) { setErro(r.error); return }
-      recarregar()
-    })
-  }
-
+  // Importar apenas as cláusulas novas do modelo, sem mexer no que o user editou.
   const onImportarFaltantes = () => {
     setErro('')
     startTransition(async () => {
-      const r = await importarClausulasFaltantes()
+      const r = await importarClausulasFaltantes(escopo)
       if (r.error) { setErro(r.error); return }
       if (r.mensagem) alert(r.mensagem)
       recarregar()
     })
   }
 
-  const onReimportarAdmin = () => {
+  // Reimportar o modelo do escopo atual: apaga e refaz SÓ as cláusulas deste escopo.
+  // Nunca toca no outro contrato (admin não mexe em locação e vice-versa).
+  const onReimportarEscopo = () => {
+    const nome = adm ? 'administração' : 'locação'
     if (!confirm(
-      'Vai apagar e reimportar SOMENTE as cláusulas de administração (modelo atualizado).\n\n' +
-      'Edições que você fez nas cláusulas de administração serão perdidas. As cláusulas de locação NÃO são afetadas.\n\nConfirmar?'
+      `Vai apagar e reimportar SOMENTE as cláusulas de ${nome} (modelo atualizado).\n\n` +
+      `Edições que você fez nas cláusulas de ${nome} serão perdidas. ` +
+      `As cláusulas do outro tipo de contrato NÃO são afetadas.\n\nConfirmar?`
     )) return
     setErro('')
     startTransition(async () => {
-      const r = await reimportarClausulasAdministracao()
+      const r = adm ? await reimportarClausulasAdministracao() : await reimportarClausulasLocacao()
       if (r.error) { setErro(r.error); return }
       if (r.mensagem) alert(r.mensagem)
       recarregar()
@@ -94,7 +104,9 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
         <div className="flex items-center gap-2">
           <FileSignature className="text-violet-700" size={22} />
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Banco de cláusulas</h1>
+            <h1 className="text-xl font-bold text-gray-900">
+              Cláusulas {adm ? 'de administração' : 'de locação'}
+            </h1>
             <p className="text-xs text-gray-500">
               {clausulas.length === 0
                 ? 'Nenhuma cláusula cadastrada ainda'
@@ -110,33 +122,21 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
                 onClick={onImportarFaltantes}
                 disabled={isPending}
                 className="text-xs font-medium text-emerald-700 hover:bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200 flex items-center gap-1.5 disabled:opacity-50"
-                title="Importa apenas as cláusulas novas do seed (preserva suas edições)"
+                title={`Importa apenas as cláusulas novas do modelo de ${adm ? 'administração' : 'locação'} (preserva suas edições)`}
               >
                 {isPending ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
                 Importar novas
               </button>
               <button
                 type="button"
-                onClick={onReimportarModelo}
+                onClick={onReimportarEscopo}
                 disabled={isPending}
                 className="text-xs font-medium text-amber-700 hover:bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200 flex items-center gap-1.5 disabled:opacity-50"
-                title="Apaga as atuais e reimporta o modelo atualizado"
+                title={`Apaga e reimporta SÓ as cláusulas de ${adm ? 'administração' : 'locação'} (não toca no outro contrato)`}
               >
                 {isPending ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                Reimportar modelo
+                Reimportar {adm ? 'administração' : 'locação'}
               </button>
-              {tipoAtivo === 'administracao' && (
-                <button
-                  type="button"
-                  onClick={onReimportarAdmin}
-                  disabled={isPending}
-                  className="text-xs font-medium text-violet-700 hover:bg-violet-50 px-3 py-1.5 rounded-lg border border-violet-200 flex items-center gap-1.5 disabled:opacity-50"
-                  title="Apaga e reimporta só as cláusulas de administração (não toca nas de locação)"
-                >
-                  {isPending ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />}
-                  Atualizar administração
-                </button>
-              )}
             </>
           )}
           <button
@@ -153,55 +153,37 @@ export function ClausulasCliente({ clausulasIniciais }: { clausulasIniciais: Cla
       {vazio && (
         <div className="bg-violet-50 border border-violet-200 rounded-2xl p-6 text-center">
           <FileSignature size={28} className="text-violet-600 mx-auto mb-2" />
-          <h2 className="text-base font-semibold text-violet-900 mb-1">Comece com o contrato modelo</h2>
+          <h2 className="text-base font-semibold text-violet-900 mb-1">
+            Comece com o modelo de {adm ? 'administração' : 'locação'}
+          </h2>
           <p className="text-sm text-violet-800/90 mb-4 max-w-md mx-auto">
-            Importa 28 cláusulas prontas: genéricas (partes, objeto, prazo, aluguel, mora, rescisão…), todas as variações de garantia (sem garantia, caução, fiador, seguro fiança) e seguro incêndio (3 modalidades). Você edita o que quiser depois.
+            {adm
+              ? 'Importa as cláusulas genéricas do contrato de administração imobiliária (Lei 8.245/91, mandato, remuneração, prestação de contas, LGPD, PLD…). Vêm com placeholders prontos — você adapta cada uma pro seu jeito de trabalhar.'
+              : 'Importa as cláusulas prontas do contrato de locação: genéricas (partes, objeto, prazo, aluguel, mora, rescisão…), todas as variações de garantia e de seguro incêndio. Você edita o que quiser depois.'}
           </p>
           <button
             type="button"
-            onClick={onImportarModelo}
+            onClick={onSemear}
             disabled={isPending}
             className="inline-flex items-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-60 text-white text-sm font-semibold px-5 py-2.5 rounded-xl"
           >
             {isPending ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-            Importar contrato modelo
+            Importar cláusulas de {adm ? 'administração' : 'locação'}
           </button>
           {erro && (
             <div className="mt-3 space-y-2">
               <p className="text-xs text-red-700 flex items-center gap-1.5 justify-center">
                 <AlertCircle size={12} /> {erro}
               </p>
-              {/* Quando a action diz "já tem cláusulas" mas a tela tá vazia,
-                  é descompasso de cache. Oferece reimportação direta. */}
-              {erro.toLowerCase().includes('já tem cláusulas') && (
-                <div className="bg-white border border-amber-200 rounded-lg p-3 text-left">
-                  <p className="text-[11px] text-gray-700 mb-2">
-                    A tela está vazia mas o sistema diz que você já tem cláusulas no banco. Provável cache. Tenta:
-                  </p>
-                  <ol className="text-[11px] text-gray-600 list-decimal pl-4 space-y-0.5 mb-3">
-                    <li>Hard refresh (<strong>Ctrl + Shift + R</strong>) — costuma resolver</li>
-                    <li>Se persistir, clique no botão abaixo pra apagar tudo e reimportar do zero</li>
-                  </ol>
-                  <button
-                    type="button"
-                    onClick={onReimportarModelo}
-                    disabled={isPending}
-                    className="w-full inline-flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white text-xs font-semibold px-4 py-2 rounded-lg"
-                  >
-                    {isPending ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                    Forçar reimportação (apaga e refaz)
-                  </button>
-                </div>
-              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Tabs por tipo */}
-      {!vazio && (
+      {/* Tabs por tipo (só faz sentido quando há mais de um tipo no escopo) */}
+      {!vazio && tiposDoEscopo.length > 1 && (
         <div className="flex flex-wrap gap-2 border-b border-gray-200">
-          {TIPOS_CLAUSULA.map(t => {
+          {tiposDoEscopo.map(t => {
             const quantas = clausulas.filter(c => c.tipo === t.valor).length
             const ativo = tipoAtivo === t.valor
             return (

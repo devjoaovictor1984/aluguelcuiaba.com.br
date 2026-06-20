@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Briefcase, Plus, Home, User, CalendarClock } from 'lucide-react'
+import { Briefcase, Plus, Home, User, CalendarClock, Variable } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { Breadcrumbs } from '@/components/breadcrumbs'
@@ -101,13 +101,23 @@ export default async function AdministracoesPage() {
             {lista.length} contrato{lista.length === 1 ? '' : 's'} de administração com proprietários
           </p>
         </div>
-        <Link
-          href="/painel/administracoes/novo"
-          className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-colors"
-        >
-          <Plus size={15} />
-          <span>Novo contrato de admin</span>
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/painel/administracoes/clausulas"
+            className="flex items-center gap-1.5 bg-white hover:bg-violet-50 text-violet-700 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-violet-200 transition-colors"
+            title="Cláusulas do contrato de administração (separadas das de locação)"
+          >
+            <Variable size={14} />
+            <span className="hidden sm:inline">Cláusulas</span>
+          </Link>
+          <Link
+            href="/painel/administracoes/novo"
+            className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl transition-colors"
+          >
+            <Plus size={15} />
+            <span>Novo contrato de admin</span>
+          </Link>
+        </div>
       </div>
 
       {aRenovar.length > 0 && (

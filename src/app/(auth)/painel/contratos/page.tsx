@@ -40,7 +40,7 @@ export default async function ContratosPage() {
           <Link
             href="/painel/contratos/clausulas"
             className="flex items-center gap-1.5 bg-white hover:bg-violet-50 text-violet-700 text-xs sm:text-sm font-semibold px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-violet-200 transition-colors"
-            title="Banco de cláusulas pra gerar contratos"
+            title="Cláusulas do contrato de locação (separadas das de administração)"
           >
             <Variable size={14} />
             <span className="hidden sm:inline">Cláusulas</span>
