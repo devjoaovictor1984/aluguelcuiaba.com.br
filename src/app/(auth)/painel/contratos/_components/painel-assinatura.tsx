@@ -92,6 +92,25 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
         <button type="button" onClick={add} className="flex items-center gap-1 text-xs font-semibold text-violet-700 hover:text-violet-800"><Plus size={12} /> Adicionar signatário</button>
       </div>
 
+      {/* Chips das partes do contrato (inclui testemunhas selecionadas) */}
+      {sugestoes.filter(s => !linhas.some(l => l.email.toLowerCase() === s.email.toLowerCase())).length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-3">
+          <span className="text-[11px] text-gray-400">Adicionar das partes:</span>
+          {sugestoes
+            .filter(s => !linhas.some(l => l.email.toLowerCase() === s.email.toLowerCase()))
+            .map((s, i) => (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setLinhas(prev => [...prev.filter(l => l.nome.trim() || l.email.trim()), { nome: s.nome, email: s.email, papel: s.papel }])}
+                className="text-[11px] bg-violet-50 hover:bg-violet-100 text-violet-700 border border-violet-200 px-2 py-0.5 rounded-full"
+              >
+                + {s.nome} <span className="text-violet-400">({s.papel})</span>
+              </button>
+            ))}
+        </div>
+      )}
+
       {erro && <p className="text-xs text-red-600 mb-2">{erro}</p>}
 
       <button type="button" onClick={enviar} disabled={isPending} className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl">

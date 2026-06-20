@@ -148,6 +148,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
     startTransition(async () => {
       const r = await atualizarTestemunhasAdm(geracao.id, nova)
       if (r.error) setErro(r.error)
+      else router.refresh() // atualiza as sugestões de signatários (testemunhas)
     })
   }
 

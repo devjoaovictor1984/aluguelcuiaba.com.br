@@ -145,6 +145,22 @@ export async function GET(
     if (!c) return NextResponse.json({ error: 'Contrato de administração não encontrado' }, { status: 404 })
     if (c.user_id !== ownerId) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
 
+    // Assinaturas desenhadas (plataforma) já registradas → sobrepõe na linha de cada parte
+    let assinaturasPartes: Array<{ papel: string; imagem: string }> = []
+    const { data: procAssin } = await admin
+      .from('contrato_assinaturas')
+      .select('id')
+      .eq('tipo_contrato', 'administracao').eq('contrato_id', id).neq('status', 'cancelado')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    if (procAssin) {
+      const { data: sigs } = await admin
+        .from('contrato_assinatura_signatarios')
+        .select('papel, assinatura_b64').eq('assinatura_id', procAssin.id).eq('status', 'assinado')
+      assinaturasPartes = (sigs ?? [])
+        .filter(s => s.assinatura_b64)
+        .map(s => ({ papel: s.papel ?? '', imagem: s.assinatura_b64 as string }))
+    }
+
     // 2. Perfil emitente (administradora)
     const { data: perfil } = await admin
       .from('perfis')
@@ -358,6 +374,7 @@ export async function GET(
       proprietario_representante_nome: repr?.nome ?? null,
       proprietario_representante_cpf: reprCpf,
       proprietario_representante_qualificacao: reprQualificacao,
+      assinaturas_partes: assinaturasPartes,
       tem_administracao: true,
       admin_responsavel_nome: perfil?.nome ?? null,
       admin_responsavel_creci: perfil?.creci ?? null,

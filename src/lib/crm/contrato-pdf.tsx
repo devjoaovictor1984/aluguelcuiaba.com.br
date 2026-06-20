@@ -95,6 +95,8 @@ export interface ContratoPDFData {
   proprietario_representante_nome?: string | null
   proprietario_representante_cpf?: string | null
   proprietario_representante_qualificacao?: string | null
+  /** Assinaturas desenhadas (base64) por papel — sobrepostas na linha de cada parte quando assinado pela plataforma. */
+  assinaturas_partes?: Array<{ papel: string; imagem: string }>
   /** True quando há administração imobiliária — quem assina é o admin/corretor representando o locador. */
   tem_administracao: boolean
   admin_responsavel_nome: string | null   // nome do corretor (ex: João Victor Vieira)
@@ -457,6 +459,13 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
   // - direto:        "Direta entre Locador e Locatário"
   const isAdmin = data.tipo_documento === 'administracao'
   const atuacao = data.tipo_atuacao ?? (data.tem_administracao ? 'administracao' : 'administracao')
+
+  // Assinaturas desenhadas (plataforma) — casadas com o bloco pela palavra-chave do papel.
+  const assinaturasPartes = data.assinaturas_partes ?? []
+  const sigDe = (...kws: string[]): string | null =>
+    assinaturasPartes.find(a => kws.some(kw => (a.papel ?? '').toLowerCase().includes(kw)))?.imagem ?? null
+  const sigsTestemunha = assinaturasPartes.filter(a => (a.papel ?? '').toLowerCase().includes('testemunh'))
+  const ASSIN_IMG = { width: 150, height: 40, objectFit: 'contain' as const, marginBottom: 1 }
   const subtituloContrato = isAdmin
     ? 'com Exclusividade'
     : atuacao === 'administracao' ? 'com Administração Imobiliária' :
@@ -1011,6 +1020,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 <Text style={blocoSecundario}>
                   {nomeInst}{data.anunciante_cnpj ? ` — CNPJ ${data.anunciante_cnpj}` : ''}
                 </Text>
+                {sigDe('administrador') && <Image src={sigDe('administrador')!} style={ASSIN_IMG} />}
                 <View style={linhaAssinatura} />
               </View>
               <View style={{ marginBottom: 22 }}>
@@ -1024,6 +1034,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                     {` (${data.proprietario_representante_qualificacao?.trim() || 'representante legal'})`}
                   </Text>
                 )}
+                {sigDe('representante', 'propriet') && <Image src={sigDe('representante', 'propriet')!} style={ASSIN_IMG} />}
                 <View style={linhaAssinatura} />
               </View>
             </>
@@ -1041,6 +1052,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 Representando: {data.locador_nome}
                 {data.locador_cpf ? ` — CPF ${data.locador_cpf}` : ''}
               </Text>
+              {sigDe('administrador', 'locador') && <Image src={sigDe('administrador', 'locador')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
           ) : (
@@ -1048,6 +1060,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               <Text style={blocoPapel}>LOCADOR</Text>
               <Text style={blocoNome}>{data.locador_nome}</Text>
               {data.locador_cpf && <Text style={blocoSecundario}>CPF {data.locador_cpf}</Text>}
+              {sigDe('locador') && <Image src={sigDe('locador')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
           )}
@@ -1057,6 +1070,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             <Text style={blocoPapel}>LOCATÁRIO</Text>
             <Text style={blocoNome}>{data.locatario_nome}</Text>
             {data.locatario_cpf && <Text style={blocoSecundario}>CPF {data.locatario_cpf}</Text>}
+            {sigDe('locatári') && <Image src={sigDe('locatári')!} style={ASSIN_IMG} />}
             <View style={linhaAssinatura} />
           </View>
 
@@ -1069,6 +1083,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 <Text style={blocoSecundario}>CRECI {data.admin_responsavel_creci}</Text>
               )}
               <Text style={blocoSecundario}>{nomeInst}</Text>
+              {sigDe('intermediador') && <Image src={sigDe('intermediador')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
           )}
@@ -1083,6 +1098,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               </Text>
               <Text style={blocoNome}>{data.conjuge_nome}</Text>
               {data.conjuge_cpf && <Text style={blocoSecundario}>CPF {data.conjuge_cpf}</Text>}
+              {sigDe('cônjuge', 'conjuge', 'solidári') && <Image src={sigDe('cônjuge', 'conjuge', 'solidári')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
           )}
@@ -1103,6 +1119,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               <Text style={blocoPapel}>FIADOR</Text>
               <Text style={blocoNome}>{data.fiador_nome}</Text>
               {data.fiador_cpf && <Text style={blocoSecundario}>CPF {data.fiador_cpf}</Text>}
+              {sigDe('fiador') && <Image src={sigDe('fiador')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
           )}
@@ -1125,6 +1142,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                   <Text style={blocoSecundario}>CPF: ______________________________________</Text>
                 </>
               )}
+              {sigsTestemunha[idx] && <Image src={sigsTestemunha[idx].imagem} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
           ))}

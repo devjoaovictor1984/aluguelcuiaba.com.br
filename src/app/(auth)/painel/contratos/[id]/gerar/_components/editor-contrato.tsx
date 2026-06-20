@@ -181,6 +181,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
     startTransition(async () => {
       const r = await atualizarTestemunhas(geracao.id, novaLista)
       if (r.error) setErro(r.error)
+      else router.refresh() // atualiza sugestões de signatários (testemunhas)
     })
   }
 
@@ -467,7 +468,7 @@ export function EditorContrato({ contratoId, codigo, garantiaTipo, qtdChavesInic
           <div className="pt-3 border-t border-gray-100">
             <p className="text-[10px] text-gray-400">
               Encargos inclusos no aluguel (IPTU/condomínio/água/luz/gás/internet) são definidos
-              no <strong>cadastro do contrato</strong> e injetam a variante "pacote" das cláusulas
+              no <strong>cadastro do contrato</strong> e injetam a variante &ldquo;pacote&rdquo; das cláusulas
               7 e 16 automaticamente.
             </p>
           </div>

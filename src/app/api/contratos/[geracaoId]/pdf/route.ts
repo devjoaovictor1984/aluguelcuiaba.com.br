@@ -396,6 +396,22 @@ export async function GET(
     return NextResponse.json({ error: 'Geração não encontrada' }, { status: 404 })
   }
 
+  // Assinaturas desenhadas (plataforma) já registradas → sobrepõe na linha de cada parte
+  let assinaturasPartes: Array<{ papel: string; imagem: string }> = []
+  const { data: procAssin } = await admin
+    .from('contrato_assinaturas')
+    .select('id')
+    .eq('tipo_contrato', 'locacao').eq('contrato_id', geracaoId).neq('status', 'cancelado')
+    .order('created_at', { ascending: false }).limit(1).maybeSingle()
+  if (procAssin) {
+    const { data: sigs } = await admin
+      .from('contrato_assinatura_signatarios')
+      .select('papel, assinatura_b64').eq('assinatura_id', procAssin.id).eq('status', 'assinado')
+    assinaturasPartes = (sigs ?? [])
+      .filter(s => s.assinatura_b64)
+      .map(s => ({ papel: s.papel ?? '', imagem: s.assinatura_b64 as string }))
+  }
+
   // 2. Carrega contrato + pessoas + imóvel
   const { data: contrato } = await admin
     .from('contratos_locacao')
@@ -717,6 +733,7 @@ export async function GET(
       : null,
     locador_nome: prop?.nome ?? '[PREENCHER]',
     locador_cpf: fmtCpf(prop?.cpf_cnpj ?? null),
+    assinaturas_partes: assinaturasPartes,
     tem_administracao: temAdministracao,
     admin_responsavel_nome: perfil?.nome ?? null,
     admin_responsavel_creci: perfil?.creci ?? null,
