@@ -63,7 +63,7 @@ async function renderizar(contratoAdmId: string) {
     .select(`
       id, codigo, taxa_valor, dia_repasse, exclusividade, checklist_manual,
       proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj, email),
-      proprietario_representante:pessoas!proprietario_representante_id(nome, email),
+      proprietario_representante:pessoas!proprietario_representante_id(id, nome, email),
       imovel:imoveis(id, titulo)
     `)
     .eq('id', contratoAdmId)
@@ -113,13 +113,19 @@ async function renderizar(contratoAdmId: string) {
     .eq('user_id', acesso.userId)
     .order('nome', { ascending: true })
 
-  // Documentos do proprietário (pra anexar)
+  // Documentos das partes (proprietário + representante + testemunhas) — opção de anexar
   const prop = unwrap(contrato.proprietario) as { id: string; nome: string; cpf_cnpj: string | null } | null
-  const { data: documentosPartes } = prop
+  const reprDoc = unwrap(contrato.proprietario_representante) as { id?: string } | null
+  const partesIds = [
+    prop?.id,
+    reprDoc?.id,
+    ...((r.geracao.testemunha_ids as string[] | null) ?? []),
+  ].filter((x): x is string => !!x)
+  const { data: documentosPartes } = partesIds.length > 0
     ? await supabase
         .from('pessoas_documentos')
         .select('id, pessoa_id, tipo, arquivo_path, nome_original, pessoa:pessoas!pessoa_id(nome)')
-        .eq('pessoa_id', prop.id)
+        .in('pessoa_id', partesIds)
         .eq('user_id', acesso.userId)
         .order('created_at', { ascending: false })
     : { data: [] }

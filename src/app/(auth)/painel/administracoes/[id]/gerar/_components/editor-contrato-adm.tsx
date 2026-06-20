@@ -75,6 +75,9 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
   const [erroUpload, setErroUpload] = useState('')
   const [isPending, startTransition] = useTransition()
 
+  // Edição de cláusula em modal
+  const [clausulaEdicao, setClausulaEdicao] = useState<ClausulaLista | null>(null)
+
   // Modal nova cláusula
   const [modalNova, setModalNova] = useState(false)
   const [novoTitulo, setNovoTitulo] = useState('')
@@ -227,7 +230,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
               <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
                 <FileDown size={12} /> Anexos
               </h2>
-              <p className="text-[10px] text-gray-400 mt-0.5">Docs do proprietário no final do PDF.</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">Docs das partes no final do PDF (marque o que anexar).</p>
             </div>
             <div className="max-h-48 overflow-y-auto space-y-1">
               {documentosPartes.map(d => {
@@ -318,7 +321,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
                   numero={idx + 1}
                   clausula={c}
                   isPending={isPending}
-                  onSalvar={(t, b) => onAtualizar(c.id, t, b)}
+                  onEditar={() => setClausulaEdicao(c)}
                   onRemover={() => onRemover(c.id)}
                 />
               ))}
@@ -408,82 +411,122 @@ export function EditorContratoAdm({ contratoAdmId, codigo, checklistBase, geraca
             </div>
           </div>
         )}
+
+        {/* Modal de edição da cláusula (com sidebar de placeholders) */}
+        {clausulaEdicao && (
+          <ModalEditarClausulaAdm
+            clausula={clausulaEdicao}
+            isPending={isPending}
+            onFechar={() => setClausulaEdicao(null)}
+            onSalvar={(t, b) => { onAtualizar(clausulaEdicao.id, t, b); setClausulaEdicao(null) }}
+          />
+        )}
       </section>
     </div>
   )
 }
 
-function ClausulaCard({ numero, clausula, isPending, onSalvar, onRemover }: {
+function ClausulaCard({ numero, clausula, isPending, onEditar, onRemover }: {
   numero: number
   clausula: ClausulaLista
   isPending: boolean
-  onSalvar: (titulo: string, corpo: string) => void
+  onEditar: () => void
   onRemover: () => void
 }) {
-  const [editando, setEditando] = useState(false)
-  const [titulo, setTitulo] = useState(clausula.titulo)
-  const [corpo, setCorpo] = useState(clausula.corpo)
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: clausula.id })
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
 
   return (
-    <div ref={setNodeRef} style={style} className={`bg-white rounded-xl border ${editando ? 'border-violet-300 shadow-sm' : 'border-gray-200'} overflow-hidden`}>
+    <div ref={setNodeRef} style={style} className="bg-white rounded-xl border border-gray-200 overflow-hidden">
       <div className="flex items-start gap-1 px-3 py-2 bg-gray-50 border-b border-gray-100">
         <button type="button" {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-700 p-1 -ml-1 touch-none">
           <GripVertical size={14} />
         </button>
         <span className="text-xs font-mono font-bold text-violet-700 px-1.5">{numero}.</span>
-        {editando ? (
-          <input type="text" value={titulo} onChange={e => setTitulo(e.target.value)} className="flex-1 text-sm font-bold text-gray-900 bg-white border border-violet-200 px-2 py-0.5 rounded focus:outline-none focus:ring-1 focus:ring-violet-500" />
-        ) : (
-          <h3 className="flex-1 text-sm font-bold text-gray-900 py-0.5">{clausula.titulo}</h3>
-        )}
+        <h3 className="flex-1 text-sm font-bold text-gray-900 py-0.5">{clausula.titulo}</h3>
       </div>
       <div className="p-3">
-        {editando ? (
-          <>
-            <textarea value={corpo} onChange={e => setCorpo(e.target.value)} rows={Math.max(6, Math.min(20, corpo.split('\n').length + 1))} className="w-full text-xs font-mono leading-relaxed border border-gray-200 rounded p-2 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y" />
+        <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-4">{clausula.corpo}</p>
+        <div className="flex justify-end gap-2 mt-2">
+          <button type="button" onClick={onEditar} className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded">Editar</button>
+          <button type="button" onClick={onRemover} disabled={isPending} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50">
+            <X size={12} />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-            {/* Picker de placeholders nesta cláusula */}
-            <details className="mt-1.5">
-              <summary className="text-[11px] font-semibold text-violet-700 cursor-pointer select-none">
-                ➕ Inserir dado automático (placeholder) — {PLACEHOLDERS_ADM.length}
-              </summary>
-              <p className="text-[10px] text-gray-400 mt-1">Clique num item pra inserir no texto. No PDF ele vira o dado real (ex.: {'{{ADM_TAXA_VALOR}}'} → 10%).</p>
-              <div className="mt-1.5 max-h-36 overflow-y-auto flex flex-wrap gap-1.5 bg-gray-50 rounded-lg p-2">
-                {PLACEHOLDERS_ADM.map(p => (
-                  <button
-                    key={p.chave}
-                    type="button"
-                    title={`${p.label} — ex.: ${p.exemplo}`}
-                    onClick={() => setCorpo(prev => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}{{${p.chave}}}`)}
-                    className="text-[10px] font-mono bg-white border border-violet-200 text-violet-700 hover:bg-violet-50 px-1.5 py-0.5 rounded"
-                  >
-                    {`{{${p.chave}}}`}
-                  </button>
-                ))}
-              </div>
-            </details>
+// Modal de edição da cláusula com barra lateral de placeholders (estilo do editor de locação).
+function ModalEditarClausulaAdm({ clausula, isPending, onSalvar, onFechar }: {
+  clausula: ClausulaLista
+  isPending: boolean
+  onSalvar: (titulo: string, corpo: string) => void
+  onFechar: () => void
+}) {
+  const [titulo, setTitulo] = useState(clausula.titulo)
+  const [corpo, setCorpo] = useState(clausula.corpo)
+  const inserir = (chave: string) => setCorpo(prev => `${prev}${prev && !prev.endsWith(' ') ? ' ' : ''}{{${chave}}}`)
 
-            <p className="text-[10px] text-amber-700 mt-1">⚠️ Editar altera a cláusula no banco global.</p>
-            <div className="flex gap-2 mt-2">
-              <button type="button" onClick={() => { onSalvar(titulo, corpo); setEditando(false) }} disabled={isPending} className="flex-1 flex items-center justify-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-xs font-semibold py-2 rounded-lg">
-                {isPending ? <Loader2 size={12} className="animate-spin" /> : 'Salvar'}
-              </button>
-              <button type="button" onClick={() => { setTitulo(clausula.titulo); setCorpo(clausula.corpo); setEditando(false) }} disabled={isPending} className="px-3 text-xs text-gray-500 hover:text-gray-700">Cancelar</button>
+  const grupos = PLACEHOLDERS_ADM.reduce<Record<string, typeof PLACEHOLDERS_ADM>>((acc, p) => {
+    (acc[p.origem] ??= []).push(p); return acc
+  }, {})
+  const labelOrigem: Record<string, string> = {
+    admin: 'Administradora', locador: 'Proprietária', imovel: 'Imóvel',
+    valores: 'Valores', prazo: 'Prazo', garantia: 'Garantia',
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !isPending && onFechar()}>
+      <div className="bg-white rounded-2xl max-w-5xl w-full shadow-xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <header className="flex items-center justify-between gap-3 p-4 border-b border-gray-100 shrink-0">
+          <div>
+            <h2 className="text-base font-bold text-gray-900">Editar cláusula</h2>
+            <p className="text-[11px] text-amber-700 mt-0.5">⚠️ Altera a cláusula no <strong>seu</strong> banco (privado). Reflete neste e nos contratos futuros. Contratos já assinados não mudam.</p>
+          </div>
+          <button type="button" onClick={onFechar} disabled={isPending} className="p-1.5 text-gray-400 hover:text-gray-700 rounded-lg hover:bg-gray-100"><X size={18} /></button>
+        </header>
+
+        <div className="grid lg:grid-cols-[1fr_240px] gap-0 flex-1 overflow-hidden">
+          <div className="p-4 space-y-3 overflow-y-auto">
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">Título</label>
+              <input type="text" value={titulo} onChange={e => setTitulo(e.target.value)} className="w-full text-sm font-medium text-gray-900 border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-violet-500" />
             </div>
-          </>
-        ) : (
-          <>
-            <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-4">{clausula.corpo}</p>
-            <div className="flex justify-end gap-2 mt-2">
-              <button type="button" onClick={() => setEditando(true)} className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded">Editar</button>
-              <button type="button" onClick={onRemover} disabled={isPending} className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50">
-                <X size={12} />
-              </button>
+            <div>
+              <label className="text-xs font-semibold text-gray-600 block mb-1">Corpo</label>
+              <textarea value={corpo} onChange={e => setCorpo(e.target.value)} rows={Math.max(10, Math.min(24, corpo.split('\n').length + 2))} className="w-full text-xs font-mono leading-relaxed border border-gray-200 rounded-lg p-3 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y" />
+              <p className="text-[10px] text-gray-400 mt-1">Clique num placeholder ao lado pra inserir no texto — no PDF vira o dado real.</p>
             </div>
-          </>
-        )}
+          </div>
+
+          <aside className="border-t lg:border-t-0 lg:border-l border-gray-100 bg-gray-50 p-3 overflow-y-auto">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1">Placeholders</p>
+            <p className="text-[10px] text-gray-400 mb-3">Clique pra inserir no corpo.</p>
+            <div className="space-y-3">
+              {Object.entries(grupos).map(([origem, lista]) => (
+                <div key={origem}>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">{labelOrigem[origem] ?? origem}</p>
+                  <div className="flex flex-wrap gap-1">
+                    {lista.map(p => (
+                      <button key={p.chave} type="button" onClick={() => inserir(p.chave)} title={`${p.label} · Ex: ${p.exemplo}`} className="text-[10px] font-mono px-1.5 py-0.5 rounded border bg-white border-gray-200 text-gray-700 hover:bg-violet-50 hover:border-violet-300">
+                        {`{{${p.chave}}}`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </aside>
+        </div>
+
+        <footer className="flex items-center justify-end gap-2 p-3 border-t border-gray-100 shrink-0">
+          <button type="button" onClick={onFechar} disabled={isPending} className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900">Cancelar</button>
+          <button type="button" onClick={() => onSalvar(titulo, corpo)} disabled={isPending || !titulo.trim() || !corpo.trim()} className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-lg">
+            {isPending ? <Loader2 size={13} className="animate-spin" /> : 'Salvar'}
+          </button>
+        </footer>
       </div>
     </div>
   )
