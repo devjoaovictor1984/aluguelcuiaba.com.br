@@ -38,6 +38,12 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
 
   const enviar = () => {
     setErro('')
+    const preenchidas = linhas.filter(l => l.nome.trim() || l.email.trim())
+    const semEmail = preenchidas.filter(l => l.nome.trim() && !/\S+@\S+\.\S+/.test(l.email))
+    if (semEmail.length > 0) {
+      setErro(`${semEmail.map(l => l.nome.trim()).join(', ')} está sem e-mail válido. Assinar pela plataforma exige e-mail (recebe o código e o link). Preencha o e-mail ou tire da lista.`)
+      return
+    }
     const signatarios = linhas.filter(l => l.nome.trim() && /\S+@\S+\.\S+/.test(l.email))
     if (signatarios.length === 0) { setErro('Adicione ao menos 1 signatário com nome e e-mail válido.'); return }
     startTransition(async () => {
@@ -85,7 +91,7 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
         {linhas.map((l, i) => (
           <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto_auto] gap-2">
             <input value={l.nome} onChange={e => set(i, 'nome', e.target.value)} placeholder="Nome" className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
-            <input value={l.email} onChange={e => set(i, 'email', e.target.value)} placeholder="E-mail" className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-500" />
+            <input value={l.email} onChange={e => set(i, 'email', e.target.value)} placeholder="E-mail (obrigatório)" className={`px-2.5 py-1.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-violet-500 ${l.nome.trim() && !/\S+@\S+\.\S+/.test(l.email) ? 'border-amber-300 bg-amber-50' : 'border-gray-200'}`} />
             <input value={l.papel} onChange={e => set(i, 'papel', e.target.value)} placeholder="Papel (ex.: Locatário)" className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-sm w-full sm:w-40 focus:outline-none focus:ring-2 focus:ring-violet-500" />
             <button type="button" onClick={() => rem(i)} className="text-gray-300 hover:text-rose-600 p-1.5 justify-self-end"><Trash2 size={14} /></button>
           </div>
