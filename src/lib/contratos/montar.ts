@@ -686,6 +686,15 @@ export function aplicarPlaceholders(corpo: string, dados: DadosContrato): string
     .replace(/:\s*$/gm, '.')                // ":" no fim de linha sem conteúdo
     .replace(/\s+([.,;:])/g, '$1')          // espaço antes de pontuação
     .replace(/\n[ \t]*\n[ \t]*\n+/g, '\n\n') // múltiplas linhas em branco → 2
+
+  // PJ: quando o número que entrou no lugar do {{..._CPF}} é um CNPJ
+  // (formato com barra: 00.000.000/0000-00), o rótulo correto é CNPJ.
+  // Reescreve "CPF nº 00.000.000/0000-00" → "CNPJ nº 00.000.000/0000-00".
+  // Não toca em rótulos já genéricos ("CPF/CNPJ") por causa do limite de gap.
+  r = r.replace(
+    /\bCPF\b([^\d]{0,6}?)(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/g,
+    'CNPJ$1$2',
+  )
   return r
 }
 
