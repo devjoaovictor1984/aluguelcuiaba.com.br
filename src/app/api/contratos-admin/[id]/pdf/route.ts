@@ -190,7 +190,7 @@ export async function GET(
     //    fallback ao banco genérico só para gerações antigas sem snapshot.
     const { data: geracao } = await admin
       .from('contrato_admin_geracoes')
-      .select('id, clausulas, clausula_ids, testemunha_ids, anexo_documento_ids')
+      .select('id, clausulas, clausula_ids, testemunha_ids, anexo_documento_ids, capa_overrides')
       .eq('contrato_admin_id', c.id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -339,14 +339,20 @@ export async function GET(
       imovelDescricao = imovelDescricao ? `${imovelDescricao} · ${im.area_construida_m2} m²` : `${im.area_construida_m2} m²`
     }
 
+    // Overrides editáveis da capa (por geração)
+    const ov = ((geracao?.capa_overrides ?? {}) as Record<string, string>)
+    const pick = (k: string) => (typeof ov[k] === 'string' ? ov[k].trim() : '')
+
     const resumoLinhas = [
-      { label: 'Taxa', valor: taxaStr },
-      { label: 'Prazo', valor: prazoStr },
-      { label: 'Início', valor: fmtData(c.data_inicio) },
-      { label: 'Término', valor: terminoStr },
-      { label: 'Repasse', valor: c.dia_repasse ? `Até o dia ${c.dia_repasse}` : '—' },
-      { label: 'Exclusividade', valor: c.exclusividade ? 'Sim' : 'Não' },
+      { label: 'Taxa', valor: pick('taxa') || taxaStr },
+      { label: 'Prazo', valor: pick('prazo') || prazoStr },
+      { label: 'Início', valor: pick('inicio') || fmtData(c.data_inicio) },
+      { label: 'Término', valor: pick('termino') || terminoStr },
+      { label: 'Repasse', valor: pick('repasse') || (c.dia_repasse ? `Até o dia ${c.dia_repasse}` : '—') },
+      { label: 'Exclusividade', valor: pick('exclusividade') || (c.exclusividade ? 'Sim' : 'Não') },
     ]
+    if (pick('endereco')) imovelEndereco = pick('endereco')
+    if (pick('descricao')) imovelDescricao = pick('descricao')
 
     // 5. Monta data pro PDF
     const pdfData: ContratoPDFData = {
@@ -359,6 +365,7 @@ export async function GET(
         aluguel_str: '', prazo_str: prazoStr, inicio_str: fmtData(c.data_inicio),
         termino_str: terminoStr, garantia_str: '',
         imovel_endereco: imovelEndereco, imovel_descricao: imovelDescricao,
+        observacao: pick('observacao') || undefined,
       },
       anunciante_nome: perfil?.nome ?? 'AluguelCuiabá',
       anunciante_razao_social: perfil?.razao_social ?? null,

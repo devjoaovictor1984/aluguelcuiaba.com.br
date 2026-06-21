@@ -22,8 +22,9 @@ import {
   uploadContratoAssinado, removerContratoAssinado,
   atualizarAnexosDocumentos, marcarComoGerado, atualizarItensEntrega,
   atualizarIncluirCapa, atualizarConjugePapel, atualizarAnotacoesCorretor,
-  atualizarCapaGarantia,
+  atualizarCapaOverrides,
 } from '../actions'
+import { CapaOverridesEditor } from '@/components/capa-overrides-editor'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
 import { ProgressoContrato } from './progresso-contrato'
@@ -75,6 +76,7 @@ interface Props {
     clausulas_seguradora_texto: string
     incluir_capa: boolean
     capa_garantia_texto?: string
+    capa_overrides?: Record<string, string>
     pdf_assinado_url: string | null
     assinado_em: string | null
     status: string
@@ -88,11 +90,24 @@ interface Props {
     nome_original: string
     pessoa_nome: string
   }>
+  capaAuto?: Record<string, string>
 }
+
+// Campos editáveis da capa do contrato de locação
+const CAMPOS_CAPA_LOCACAO: Array<{ key: string; label: string; multiline?: boolean }> = [
+  { key: 'aluguel', label: 'Aluguel' },
+  { key: 'prazo', label: 'Prazo' },
+  { key: 'inicio', label: 'Início' },
+  { key: 'termino', label: 'Término' },
+  { key: 'garantia', label: 'Garantia' },
+  { key: 'endereco', label: 'Endereço do imóvel', multiline: true },
+  { key: 'descricao', label: 'Descrição do imóvel', multiline: true },
+  { key: 'observacao', label: 'Observação (linha extra na capa)', multiline: true },
+]
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 text-sm transition"
 
-export function EditorContrato({ contratoId, codigo, travado = false, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContrato({ contratoId, codigo, travado = false, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes, capaAuto = {} }: Props) {
   const router = useRouter()
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
@@ -110,15 +125,14 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
     })
   }
 
-  // Override do texto da garantia na capa (vazio = automático)
-  const [capaGarantia, setCapaGarantia] = useState(geracao.capa_garantia_texto ?? '')
-  const onBlurCapaGarantia = () => {
-    if (capaGarantia === (geracao.capa_garantia_texto ?? '')) return
-    startTransition(async () => {
-      const r = await atualizarCapaGarantia(geracao.id, capaGarantia)
-      if (r.error) setErro(r.error)
-    })
+  // Overrides editáveis da capa. Garantia herda o legado v66 se ainda não houver override novo.
+  const capaOverridesIniciais: Record<string, string> = {
+    ...(geracao.capa_overrides ?? {}),
   }
+  if (!capaOverridesIniciais.garantia && geracao.capa_garantia_texto) {
+    capaOverridesIniciais.garantia = geracao.capa_garantia_texto
+  }
+  const camposCapa = CAMPOS_CAPA_LOCACAO.map(c => ({ ...c, auto: capaAuto[c.key] ?? '' }))
 
   // Anotações internas do corretor (não vão no PDF)
   const [modalAnotacoes, setModalAnotacoes] = useState(false)
@@ -776,22 +790,12 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
 
           {incluirCapa && (
             <div className="pt-3 mt-2 border-t border-gray-100">
-              <label className="text-[11px] font-semibold text-gray-600 block mb-1">
-                Garantia (texto da capa)
-              </label>
-              <textarea
-                value={capaGarantia}
-                onChange={e => setCapaGarantia(e.target.value)}
-                onBlur={onBlurCapaGarantia}
-                disabled={isPending || travado}
-                rows={2}
-                placeholder={`Automático: ${LABEL_GARANTIA[garantiaTipo] ?? garantiaTipo}`}
-                className="w-full text-xs border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y disabled:bg-gray-50"
+              <CapaOverridesEditor
+                campos={camposCapa}
+                iniciais={capaOverridesIniciais}
+                onSalvar={ov => atualizarCapaOverrides(geracao.id, ov)}
+                disabled={travado}
               />
-              <p className="text-[10px] text-gray-400 mt-1 leading-tight">
-                Sobrescreve só o campo <strong>Garantia</strong> da capa. Útil quando não há garantia
-                locatícia formal mas existe interveniente/sócio signatário. Deixe vazio pra usar o automático.
-              </p>
             </div>
           )}
         </section>

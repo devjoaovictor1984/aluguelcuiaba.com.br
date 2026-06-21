@@ -62,7 +62,8 @@ async function renderizar(contratoAdmId: string) {
   const { data: contrato } = await supabase
     .from('contratos_administracao')
     .select(`
-      id, codigo, taxa_valor, dia_repasse, exclusividade, checklist_manual,
+      id, codigo, taxa_valor, taxa_tipo, dia_repasse, exclusividade, checklist_manual,
+      prazo_meses, data_inicio, data_termino,
       proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj, email),
       proprietario_representante:pessoas!proprietario_representante_id(id, nome, email),
       imovel:imoveis(id, titulo)
@@ -183,6 +184,34 @@ async function renderizar(contratoAdmId: string) {
       .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' })),
   ].filter((s): s is { nome: string; email: string; papel: string } => !!s)
 
+  // Valores automáticos da capa do contrato de administração (placeholders)
+  const c2 = contrato as {
+    taxa_valor?: number | null; taxa_tipo?: string | null; prazo_meses?: number | null
+    data_inicio?: string | null; data_termino?: string | null; dia_repasse?: number | null; exclusividade?: boolean
+  }
+  const fmtBRLc = (v: number | null | undefined) =>
+    v == null ? '' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+  const fmtDataC = (iso: string | null | undefined) => {
+    if (!iso) return ''
+    const [y, m, d] = iso.slice(0, 10).split('-')
+    return `${d}/${m}/${y}`
+  }
+  let terminoAdm = ''
+  if (c2.data_termino) terminoAdm = fmtDataC(c2.data_termino)
+  else if (c2.data_inicio && c2.prazo_meses) {
+    const ini = new Date(c2.data_inicio + 'T00:00:00')
+    const fim = new Date(ini.getFullYear(), ini.getMonth() + c2.prazo_meses, ini.getDate() - 1)
+    terminoAdm = fim.toLocaleDateString('pt-BR')
+  }
+  const capaAutoAdm: Record<string, string> = {
+    taxa: c2.taxa_valor == null ? '' : (c2.taxa_tipo === 'fixo' ? `${fmtBRLc(c2.taxa_valor)} / mês` : `${c2.taxa_valor}% ao mês`),
+    prazo: c2.prazo_meses ? `${c2.prazo_meses} meses` : '',
+    inicio: fmtDataC(c2.data_inicio),
+    termino: terminoAdm,
+    repasse: c2.dia_repasse ? `Até o dia ${c2.dia_repasse}` : '',
+    exclusividade: c2.exclusividade ? 'Sim' : 'Não',
+  }
+
   return (
     <main className="px-4 py-4 pb-20 max-w-7xl mx-auto">
       <Breadcrumbs items={[
@@ -244,7 +273,9 @@ async function renderizar(contratoAdmId: string) {
           pdf_assinado_url: r.geracao.pdf_assinado_url ?? null,
           assinado_em: r.geracao.assinado_em ?? null,
           status: r.geracao.status ?? 'rascunho',
+          capa_overrides: ((r.geracao as { capa_overrides?: Record<string, string> | null }).capa_overrides ?? {}) as Record<string, string>,
         }}
+        capaAuto={capaAutoAdm}
         todasClausulas={(todasClausulas ?? []).map(c => ({
           id: c.id,
           tipo: c.tipo as 'administracao',

@@ -763,6 +763,33 @@ export async function atualizarIncluirCapa(geracaoId: string, incluir: boolean) 
   return { ok: true }
 }
 
+/** Salva os overrides editáveis da capa (JSON chave->texto). Vazio remove a chave. */
+export async function atualizarCapaOverrides(geracaoId: string, overrides: Record<string, string>) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+  // Só guarda chaves com conteúdo (limpa as vazias)
+  const limpo: Record<string, string> = {}
+  for (const [k, v] of Object.entries(overrides ?? {})) {
+    const t = (v ?? '').trim()
+    if (t) limpo[k] = t
+  }
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({ capa_overrides: limpo })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true }
+}
+
 /** Override do texto da garantia na capa. Vazio = volta ao texto automático. */
 export async function atualizarCapaGarantia(geracaoId: string, texto: string) {
   const acesso = await exigirAcessoCRM()

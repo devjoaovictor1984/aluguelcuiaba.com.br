@@ -76,6 +76,7 @@ export interface ContratoPDFData {
     seguro_fianca_str?: string  // ex: "R$ 111,11 / mês" — só quando garantia=seguro_fianca
     imovel_endereco: string     // ex: "Rua Tal, 123, apto 502, Araés, Cuiabá-MT"
     imovel_descricao: string    // ex: "Apto 3 quartos, 1 suíte, 1 vaga"
+    observacao?: string         // linha livre extra na capa (override do corretor)
   }
 
   // Emitente (administradora)
@@ -627,6 +628,22 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                   )}
                 </>
               )}
+            </View>
+          )}
+
+          {/* Observação livre da capa (override do corretor) */}
+          {data.resumo_capa?.observacao && (
+            <View style={{ marginBottom: 8 }}>
+              <Text style={{
+                fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
+                letterSpacing: 1, marginBottom: 6,
+              }}>
+                OBSERVAÇÃO
+              </Text>
+              <View style={{ height: 0.6, backgroundColor: '#e5e7eb', marginBottom: 6 }} />
+              <Text style={{ fontSize: 9.5, color: TEXTO, lineHeight: 1.5, textAlign: 'justify' }}>
+                {data.resumo_capa.observacao}
+              </Text>
             </View>
           )}
 

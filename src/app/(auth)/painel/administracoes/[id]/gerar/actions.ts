@@ -166,6 +166,32 @@ export async function ordenarClausulasGeracaoAdm(geracaoId: string, ordemIds: st
   return salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_admin_id, reordenadas)
 }
 
+/** Salva os overrides editáveis da capa do contrato de administração. */
+export async function atualizarCapaOverridesAdm(geracaoId: string, overrides: Record<string, string>) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { data: g } = await supabase
+    .from('contrato_admin_geracoes')
+    .select('id, contrato_admin_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+  const limpo: Record<string, string> = {}
+  for (const [k, v] of Object.entries(overrides ?? {})) {
+    const t = (v ?? '').trim()
+    if (t) limpo[k] = t
+  }
+  const { error } = await supabase
+    .from('contrato_admin_geracoes')
+    .update({ capa_overrides: limpo })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/administracoes/${g.contrato_admin_id}/gerar`)
+  return { ok: true }
+}
+
 /** Marca/desmarca um item do checklist manual do contrato de administração. */
 export async function marcarItemChecklistAdm(contratoAdmId: string, itemKey: string, feito: boolean) {
   const acesso = await exigirAcessoCRM()

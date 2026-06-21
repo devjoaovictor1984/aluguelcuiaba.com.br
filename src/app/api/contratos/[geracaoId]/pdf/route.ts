@@ -400,7 +400,7 @@ export async function GET(
   // 1. Carrega a geração
   const { data: geracao } = await admin
     .from('contrato_geracoes')
-    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausulas, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids, incluir_capa, capa_garantia_texto')
+    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausulas, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids, incluir_capa, capa_garantia_texto, capa_overrides')
     .eq('id', geracaoId)
     .maybeSingle()
 
@@ -758,9 +758,21 @@ export async function GET(
     incluir_capa: geracao.incluir_capa ?? true,
     resumo_capa: (() => {
       const rc = montarResumoCapa(contrato, dadosContrato)
-      // Override editável da garantia na capa (quando o corretor ajustou o texto)
-      const override = (geracao.capa_garantia_texto ?? '').trim()
-      return override ? { ...rc, garantia_str: override } : rc
+      const ov = (geracao.capa_overrides ?? {}) as Record<string, string>
+      const pick = (k: string) => (typeof ov[k] === 'string' ? ov[k].trim() : '')
+      // garantia: override novo (capa_overrides) tem prioridade; fallback ao legado v66
+      const garantia = pick('garantia') || (geracao.capa_garantia_texto ?? '').trim()
+      return {
+        ...rc,
+        aluguel_str: pick('aluguel') || rc.aluguel_str,
+        prazo_str: pick('prazo') || rc.prazo_str,
+        inicio_str: pick('inicio') || rc.inicio_str,
+        termino_str: pick('termino') || rc.termino_str,
+        garantia_str: garantia || rc.garantia_str,
+        imovel_endereco: pick('endereco') || rc.imovel_endereco,
+        imovel_descricao: pick('descricao') || rc.imovel_descricao,
+        observacao: pick('observacao') || undefined,
+      }
     })(),
     tipo_atuacao: (contrato.tipo_atuacao ?? 'administracao') as 'administracao' | 'intermediacao' | 'direto',
     intermediador_assina: contrato.intermediador_assina ?? false,

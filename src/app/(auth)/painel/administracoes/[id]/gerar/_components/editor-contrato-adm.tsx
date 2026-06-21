@@ -20,7 +20,22 @@ import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
 import {
   atualizarTestemunhasAdm, atualizarAnexosDocumentosAdm, uploadAdmAssinado,
   editarClausulaGeracaoAdm, adicionarClausulaGeracaoAdm, removerClausulaGeracaoAdm, ordenarClausulasGeracaoAdm,
+  atualizarCapaOverridesAdm,
 } from '../actions'
+import { CapaOverridesEditor } from '@/components/capa-overrides-editor'
+
+// Campos editáveis da capa do contrato de administração
+const CAMPOS_CAPA_ADM: Array<{ key: string; label: string; multiline?: boolean }> = [
+  { key: 'taxa', label: 'Taxa' },
+  { key: 'prazo', label: 'Prazo' },
+  { key: 'inicio', label: 'Início' },
+  { key: 'termino', label: 'Término' },
+  { key: 'repasse', label: 'Repasse' },
+  { key: 'exclusividade', label: 'Exclusividade' },
+  { key: 'endereco', label: 'Endereço do imóvel', multiline: true },
+  { key: 'descricao', label: 'Descrição do imóvel', multiline: true },
+  { key: 'observacao', label: 'Observação (linha extra na capa)', multiline: true },
+]
 
 // Placeholders úteis em cláusulas de administração (proprietária, imóvel, admin, termos).
 const PLACEHOLDERS_ADM = PLACEHOLDERS.filter(p => /^(ADM|ADMIN|LOCADOR|IMOVEL)/.test(p.chave))
@@ -81,14 +96,17 @@ interface Props {
     pdf_assinado_url: string | null
     assinado_em: string | null
     status: string
+    capa_overrides?: Record<string, string>
   }
   todasClausulas: ClausulaLista[]
   pessoas: Pessoa[]
   documentosPartes: Array<{ id: string; tipo: string; nome_original: string; pessoa_nome: string }>
+  capaAuto?: Record<string, string>
 }
 
-export function EditorContratoAdm({ contratoAdmId, codigo, travado = false, checklistBase, geracao, todasClausulas, pessoas, documentosPartes }: Props) {
+export function EditorContratoAdm({ contratoAdmId, codigo, travado = false, checklistBase, geracao, todasClausulas, pessoas, documentosPartes, capaAuto = {} }: Props) {
   const router = useRouter()
+  const camposCapaAdm = CAMPOS_CAPA_ADM.map(c => ({ ...c, auto: capaAuto[c.key] ?? '' }))
   const [clausulas, setClausulas] = useState<ClausulaSel[]>(geracao.clausulas)
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
   const [anexoIds, setAnexoIds] = useState<string[]>(geracao.anexo_documento_ids)
@@ -320,6 +338,16 @@ export function EditorContratoAdm({ contratoAdmId, codigo, travado = false, chec
             </label>
           )}
           {erroUpload && <p className="text-[11px] text-red-600 flex items-start gap-1"><AlertCircle size={11} className="mt-0.5 shrink-0" /> {erroUpload}</p>}
+        </section>
+
+        {/* Capa — campos editáveis */}
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <CapaOverridesEditor
+            campos={camposCapaAdm}
+            iniciais={(geracao.capa_overrides ?? {})}
+            onSalvar={ov => atualizarCapaOverridesAdm(geracao.id, ov)}
+            disabled={travado}
+          />
         </section>
 
         {/* Pendências antes de gerar (só bloqueios) */}

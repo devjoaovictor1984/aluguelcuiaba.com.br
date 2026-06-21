@@ -225,6 +225,24 @@ async function renderizarEditor(contratoId: string) {
   if (!im?.uc_energia) dadosImovelFaltando.push('UC energia')
   if (!im?.matricula_agua) dadosImovelFaltando.push('matrícula água')
 
+  // Valores automáticos da capa (placeholders nos campos editáveis)
+  const labelGarantia: Record<string, string> = {
+    sem_garantia: 'Sem garantia', caucao: 'Caução', fiador: 'Fiador', seguro_fianca: 'Seguro fiança',
+  }
+  const fmtBRLc = (v: number | null | undefined) =>
+    v == null ? '' : new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
+  const fmtDataC = (iso: string | null | undefined) => {
+    if (!iso) return ''
+    const [y, m, d] = iso.slice(0, 10).split('-')
+    return `${d}/${m}/${y}`
+  }
+  const capaAuto: Record<string, string> = {
+    aluguel: contrato.valor_aluguel ? `${fmtBRLc(contrato.valor_aluguel)} / mês` : '',
+    inicio: fmtDataC(contrato.data_inicio),
+    termino: fmtDataC(contrato.data_termino),
+    garantia: labelGarantia[contrato.garantia_tipo] ?? contrato.garantia_tipo ?? '',
+  }
+
   return (
     <main className="px-4 py-4 pb-20 max-w-7xl mx-auto">
       <Breadcrumbs items={[
@@ -307,6 +325,7 @@ async function renderizarEditor(contratoId: string) {
           clausulas_seguradora_texto: r.geracao.clausulas_seguradora_texto ?? '',
           incluir_capa: r.geracao.incluir_capa ?? true,
           capa_garantia_texto: (r.geracao as { capa_garantia_texto?: string | null }).capa_garantia_texto ?? '',
+          capa_overrides: ((r.geracao as { capa_overrides?: Record<string, string> | null }).capa_overrides ?? {}) as Record<string, string>,
           pdf_assinado_url: r.geracao.pdf_assinado_url ?? null,
           assinado_em: r.geracao.assinado_em ?? null,
           status: r.geracao.status ?? 'rascunho',
@@ -317,6 +336,7 @@ async function renderizarEditor(contratoId: string) {
           tipo: c.tipo as TipoClausula,
         }))}
         pessoas={(pessoasTestemunha ?? []) as Array<{ id: string; nome: string; cpf_cnpj: string | null; tipo: string }>}
+        capaAuto={capaAuto}
         documentosPartes={
           ((documentosPartes ?? []) as Array<{
             id: string
