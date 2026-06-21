@@ -193,9 +193,11 @@ function montarResumoCapa(
     endereco = `${im.endereco_resumido}${im.bairro_nome ? `, ${im.bairro_nome}` : ''}`
   }
 
-  // Descrição curta: prioriza descricao_real, fallback descricao do anúncio (sem HTML)
-  let descricao = im?.descricao_real ?? im?.descricao ?? ''
-  descricao = descricao.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 180)
+  // Descrição: prioriza descricao_real, fallback descricao do anúncio (sem HTML).
+  // Limite generoso pra não cortar descrições reais; reticências só se passar.
+  const MAX_DESC_CAPA = 600
+  let descricao = (im?.descricao_real ?? im?.descricao ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  if (descricao.length > MAX_DESC_CAPA) descricao = `${descricao.slice(0, MAX_DESC_CAPA).trimEnd()}…`
   if (im?.area_construida_m2 && !descricao.includes('m²')) {
     descricao = descricao ? `${descricao} · ${im.area_construida_m2} m²` : `${im.area_construida_m2} m²`
   }
