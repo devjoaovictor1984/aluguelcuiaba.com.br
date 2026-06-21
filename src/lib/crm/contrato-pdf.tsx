@@ -451,6 +451,14 @@ const CINZA_CLARO = '#9ca3af'
 const TEXTO = '#1f2937'
 const TEXTO_FORTE = '#111827'
 
+// Rótulo do documento conforme o número: CNPJ tem 14 dígitos (formatado com "/"),
+// CPF tem 11. Usado nos blocos de assinatura/qualificação onde a parte pode ser PJ.
+function docLabel(valor: string | null | undefined): string {
+  if (!valor) return 'CPF'
+  const digitos = valor.replace(/\D/g, '')
+  return (digitos.length === 14 || valor.includes('/')) ? 'CNPJ' : 'CPF'
+}
+
 export function ContratoDocument({ data }: { data: ContratoPDFData }) {
   const nomeInst = data.anunciante_razao_social ?? data.anunciante_nome
   const dataExtenso = fmtDataExtenso(data.data_assinatura)
@@ -1086,7 +1094,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               )}
               <Text style={blocoSecundario}>
                 Representando: {data.locador_nome}
-                {data.locador_cpf ? ` — CPF ${data.locador_cpf}` : ''}
+                {data.locador_cpf ? ` — ${docLabel(data.locador_cpf)} ${data.locador_cpf}` : ''}
               </Text>
               {sigDe('administrador', 'locador') && <Image src={sigDe('administrador', 'locador')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
@@ -1095,7 +1103,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             <View style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>LOCADOR</Text>
               <Text style={blocoNome}>{data.locador_nome}</Text>
-              {data.locador_cpf && <Text style={blocoSecundario}>CPF {data.locador_cpf}</Text>}
+              {data.locador_cpf && <Text style={blocoSecundario}>{docLabel(data.locador_cpf)} {data.locador_cpf}</Text>}
               {sigDe('locador') && <Image src={sigDe('locador')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
@@ -1105,7 +1113,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           <View style={{ marginBottom: 22 }}>
             <Text style={blocoPapel}>LOCATÁRIO</Text>
             <Text style={blocoNome}>{data.locatario_nome}</Text>
-            {data.locatario_cpf && <Text style={blocoSecundario}>CPF {data.locatario_cpf}</Text>}
+            {data.locatario_cpf && <Text style={blocoSecundario}>{docLabel(data.locatario_cpf)} {data.locatario_cpf}</Text>}
             {sigDe('locatári') && <Image src={sigDe('locatári')!} style={ASSIN_IMG} />}
             <View style={linhaAssinatura} />
           </View>
@@ -1144,7 +1152,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             <View key={idx} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>{m.papel.toUpperCase()}</Text>
               <Text style={blocoNome}>{m.nome}</Text>
-              {m.cpf && <Text style={blocoSecundario}>CPF {m.cpf}</Text>}
+              {m.cpf && <Text style={blocoSecundario}>{docLabel(m.cpf)} {m.cpf}</Text>}
               <View style={linhaAssinatura} />
             </View>
           ))}
@@ -1154,7 +1162,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             <View style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>FIADOR</Text>
               <Text style={blocoNome}>{data.fiador_nome}</Text>
-              {data.fiador_cpf && <Text style={blocoSecundario}>CPF {data.fiador_cpf}</Text>}
+              {data.fiador_cpf && <Text style={blocoSecundario}>{docLabel(data.fiador_cpf)} {data.fiador_cpf}</Text>}
               {sigDe('fiador') && <Image src={sigDe('fiador')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
@@ -1348,7 +1356,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 {arr.length > 1 ? `LOCATÁRIO ${idx + 1} (RECEBI AS CHAVES)` : 'LOCATÁRIO (RECEBI AS CHAVES)'}
               </Text>
               <Text style={blocoNome}>{r.nome}</Text>
-              {r.cpf && <Text style={blocoSecundario}>CPF {r.cpf}</Text>}
+              {r.cpf && <Text style={blocoSecundario}>{docLabel(r.cpf)} {r.cpf}</Text>}
               <View style={linhaAssinatura} />
             </View>
           ))}
