@@ -22,6 +22,7 @@ import {
   uploadContratoAssinado, removerContratoAssinado,
   atualizarAnexosDocumentos, marcarComoGerado, atualizarItensEntrega,
   atualizarIncluirCapa, atualizarConjugePapel, atualizarAnotacoesCorretor,
+  atualizarCapaGarantia,
 } from '../actions'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
@@ -73,6 +74,7 @@ interface Props {
     testemunha_ids: string[]
     clausulas_seguradora_texto: string
     incluir_capa: boolean
+    capa_garantia_texto?: string
     pdf_assinado_url: string | null
     assinado_em: string | null
     status: string
@@ -104,6 +106,16 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
     setIncluirCapa(novo)
     startTransition(async () => {
       const r = await atualizarIncluirCapa(geracao.id, novo)
+      if (r.error) setErro(r.error)
+    })
+  }
+
+  // Override do texto da garantia na capa (vazio = automático)
+  const [capaGarantia, setCapaGarantia] = useState(geracao.capa_garantia_texto ?? '')
+  const onBlurCapaGarantia = () => {
+    if (capaGarantia === (geracao.capa_garantia_texto ?? '')) return
+    startTransition(async () => {
+      const r = await atualizarCapaGarantia(geracao.id, capaGarantia)
       if (r.error) setErro(r.error)
     })
   }
@@ -761,6 +773,27 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
               </p>
             </span>
           </label>
+
+          {incluirCapa && (
+            <div className="pt-3 mt-2 border-t border-gray-100">
+              <label className="text-[11px] font-semibold text-gray-600 block mb-1">
+                Garantia (texto da capa)
+              </label>
+              <textarea
+                value={capaGarantia}
+                onChange={e => setCapaGarantia(e.target.value)}
+                onBlur={onBlurCapaGarantia}
+                disabled={isPending || travado}
+                rows={2}
+                placeholder={`Automático: ${LABEL_GARANTIA[garantiaTipo] ?? garantiaTipo}`}
+                className="w-full text-xs border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-violet-500 resize-y disabled:bg-gray-50"
+              />
+              <p className="text-[10px] text-gray-400 mt-1 leading-tight">
+                Sobrescreve só o campo <strong>Garantia</strong> da capa. Útil quando não há garantia
+                locatícia formal mas existe interveniente/sócio signatário. Deixe vazio pra usar o automático.
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Itens entregues — vão no Termo de Entrega de Chaves */}

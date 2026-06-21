@@ -306,6 +306,7 @@ async function renderizarEditor(contratoId: string) {
           testemunha_ids: (r.geracao.testemunha_ids as string[] | null) ?? [],
           clausulas_seguradora_texto: r.geracao.clausulas_seguradora_texto ?? '',
           incluir_capa: r.geracao.incluir_capa ?? true,
+          capa_garantia_texto: (r.geracao as { capa_garantia_texto?: string | null }).capa_garantia_texto ?? '',
           pdf_assinado_url: r.geracao.pdf_assinado_url ?? null,
           assinado_em: r.geracao.assinado_em ?? null,
           status: r.geracao.status ?? 'rascunho',

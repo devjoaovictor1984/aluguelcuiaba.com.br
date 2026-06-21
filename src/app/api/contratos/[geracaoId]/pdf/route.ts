@@ -400,7 +400,7 @@ export async function GET(
   // 1. Carrega a geração
   const { data: geracao } = await admin
     .from('contrato_geracoes')
-    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausulas, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids, incluir_capa')
+    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausulas, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids, incluir_capa, capa_garantia_texto')
     .eq('id', geracaoId)
     .maybeSingle()
 
@@ -756,7 +756,12 @@ export async function GET(
     admin_responsavel_nome: perfil?.nome ?? null,
     admin_responsavel_creci: perfil?.creci ?? null,
     incluir_capa: geracao.incluir_capa ?? true,
-    resumo_capa: montarResumoCapa(contrato, dadosContrato),
+    resumo_capa: (() => {
+      const rc = montarResumoCapa(contrato, dadosContrato)
+      // Override editável da garantia na capa (quando o corretor ajustou o texto)
+      const override = (geracao.capa_garantia_texto ?? '').trim()
+      return override ? { ...rc, garantia_str: override } : rc
+    })(),
     tipo_atuacao: (contrato.tipo_atuacao ?? 'administracao') as 'administracao' | 'intermediacao' | 'direto',
     intermediador_assina: contrato.intermediador_assina ?? false,
     finalidade: (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto',

@@ -763,6 +763,28 @@ export async function atualizarIncluirCapa(geracaoId: string, incluir: boolean) 
   return { ok: true }
 }
 
+/** Override do texto da garantia na capa. Vazio = volta ao texto automático. */
+export async function atualizarCapaGarantia(geracaoId: string, texto: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { data: g } = await supabase
+    .from('contrato_geracoes')
+    .select('id, contrato_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+  const limpo = texto.trim()
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({ capa_garantia_texto: limpo.length > 0 ? limpo : null })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
+  return { ok: true }
+}
+
 /** Define o papel do cônjuge do locatário no contrato (solidário/anuente/não participa). */
 export async function atualizarConjugePapel(
   contratoId: string,
