@@ -160,8 +160,11 @@ export interface ContratoPDFData {
       condominio: boolean  // idem condomínio
       seguro: boolean      // idem seguro fiança mensal
     }
+    antecipado?: boolean        // pagamento à vista: tabela vira "quitado antecipadamente"
+    total_antecipado?: string   // soma dos 12 meses (só usado no modo antecipado)
     linhas: Array<{
       parcela: number
+      competencia?: string      // ex.: "Julho/2026" (modo antecipado)
       periodo: string
       vencimento: string
       aluguel: string
@@ -889,8 +892,41 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           </View>
         )}
 
-        {/* ── Tabela dos 12 primeiros meses ── */}
-        {data.tabela_12_meses.linhas.length > 0 && (
+        {/* ── Tabela de discriminação (pagamento à vista / antecipado) ── */}
+        {data.tabela_12_meses.linhas.length > 0 && data.tabela_12_meses.antecipado && (
+          <View style={{ marginTop: 20 }}>
+            <Text style={{ fontSize: 11.5, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE, marginBottom: 8 }}>
+              Tabela de discriminação dos 12 meses quitados antecipadamente
+            </Text>
+            <View>
+              <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
+                <Text style={{ flex: 2.2, fontSize: 8, fontWeight: 'bold', color: CINZA }}>COMPETÊNCIA</Text>
+                <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>PERÍODO</Text>
+                <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>VALOR MENSAL</Text>
+                <Text style={{ flex: 2.6, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>SITUAÇÃO</Text>
+              </View>
+              {data.tabela_12_meses.linhas.map((p, i) => (
+                <View key={i} style={{ flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 6, backgroundColor: i % 2 === 1 ? '#fafafa' : undefined }}>
+                  <Text style={{ flex: 2.2, fontSize: 9, color: TEXTO }}>{p.competencia ?? ''}</Text>
+                  <Text style={{ flex: 3, fontSize: 9, color: TEXTO }}>{p.periodo}</Text>
+                  <Text style={{ flex: 2, fontSize: 9, color: TEXTO, textAlign: 'right' }}>{p.total}</Text>
+                  <Text style={{ flex: 2.6, fontSize: 8.5, color: '#15803d', textAlign: 'right' }}>Quitado antecipadamente</Text>
+                </View>
+              ))}
+              <View style={{ flexDirection: 'row', paddingVertical: 5, paddingHorizontal: 6, borderTopWidth: 1, borderTopColor: '#e5e7eb', borderTopStyle: 'solid' }}>
+                <Text style={{ flex: 7.2, fontSize: 9, fontWeight: 'bold', color: TEXTO_FORTE }}>Valor total quitado antecipadamente</Text>
+                <Text style={{ flex: 2.6, fontSize: 9, fontWeight: 'bold', color: TEXTO_FORTE, textAlign: 'right' }}>{data.tabela_12_meses.total_antecipado ?? ''}</Text>
+              </View>
+            </View>
+            <Text style={{ fontSize: 8, color: CINZA_CLARO, marginTop: 6, textAlign: 'justify' }}>
+              A presente tabela possui finalidade meramente discriminativa, não representando vencimentos mensais
+              ordinários, uma vez que os aluguéis do período foram ajustados para pagamento antecipado em parcela única.
+            </Text>
+          </View>
+        )}
+
+        {/* ── Tabela dos 12 primeiros meses (vencimentos normais) ── */}
+        {data.tabela_12_meses.linhas.length > 0 && !data.tabela_12_meses.antecipado && (
           <View style={{ marginTop: 20 }}>
             <Text style={{
               fontSize: 11.5,

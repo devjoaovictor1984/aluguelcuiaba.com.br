@@ -46,7 +46,7 @@ function fmtData(iso: string | null | undefined): string {
   return `${d}/${m}/${y}`
 }
 
-function montarQuadroEntrada(c: ContratoLite & { data_inicio?: string | null; data_primeiro_aluguel?: string | null }) {
+function montarQuadroEntrada(c: ContratoLite & { data_inicio?: string | null; data_primeiro_aluguel?: string | null; pagamento_antecipado?: boolean | null }) {
   const aluguel = c.valor_aluguel ?? 0
   const iptu = c.aluguel_inclui_iptu ? 0 : (c.iptu_mensal ?? 0)
   const condominio = c.aluguel_inclui_condominio ? 0 : (c.condominio_mensal ?? 0)
@@ -57,7 +57,9 @@ function montarQuadroEntrada(c: ContratoLite & { data_inicio?: string | null; da
   // O primeiro aluguel é pago NO ATO (entrada) só se o 1º vencimento cai no
   // mesmo mês da entrada. Quando vence depois (ex: seguro fiança, 1 mês após),
   // ele NÃO entra na entrada — senão duplica a linha 1 da tabela dos 12 meses.
-  const primeiroAluguelNoAto = (() => {
+  // No pagamento à vista, os aluguéis vão na tabela "quitado antecipadamente",
+  // então o quadro de entrada mostra só a caução (se houver).
+  const primeiroAluguelNoAto = c.pagamento_antecipado ? false : (() => {
     if (!c.data_inicio || !c.data_primeiro_aluguel) return true
     const ini = new Date(c.data_inicio + 'T00:00:00')
     const pa = new Date(c.data_primeiro_aluguel + 'T00:00:00')
@@ -93,7 +95,7 @@ function montarQuadroEntrada(c: ContratoLite & { data_inicio?: string | null; da
   return itens
 }
 
-function montarTabela12Meses(c: ContratoLite) {
+function montarTabela12Meses(c: ContratoLite & { pagamento_antecipado?: boolean | null }) {
   // PERÍODO da parcela: sempre a partir da DATA DE INÍCIO do contrato.
   //   Parcela 1 cobre data_inicio até dia anterior do próximo mês.
   // VENCIMENTO da parcela: a partir de data_primeiro_aluguel.
@@ -103,7 +105,7 @@ function montarTabela12Meses(c: ContratoLite) {
   const dataInicio = c.data_inicio
   const dataPrimeiroVenc = c.data_primeiro_aluguel ?? c.data_inicio
   if (!dataInicio || !dataPrimeiroVenc || !c.valor_aluguel) {
-    return { colunas: { iptu: false, condominio: false, seguro: false }, linhas: [] }
+    return { colunas: { iptu: false, condominio: false, seguro: false }, linhas: [], antecipado: false, total_antecipado: '' }
   }
 
   const aluguel = c.valor_aluguel
@@ -111,11 +113,18 @@ function montarTabela12Meses(c: ContratoLite) {
   const condominio = c.aluguel_inclui_condominio ? 0 : (c.condominio_mensal ?? 0)
   const seguroFianca = (c.garantia_tipo === 'seguro_fianca') ? (c.valor_seguro_fianca_mensal ?? 0) : 0
   const total = aluguel + iptu + condominio + seguroFianca
+  const antecipado = !!c.pagamento_antecipado
 
   const colunas = {
     iptu: iptu > 0,
     condominio: condominio > 0,
     seguro: seguroFianca > 0,
+  }
+
+  // Competência legível: "Julho/2026"
+  const competenciaDe = (d: Date): string => {
+    const mes = d.toLocaleDateString('pt-BR', { month: 'long' })
+    return `${mes.charAt(0).toUpperCase()}${mes.slice(1)}/${d.getFullYear()}`
   }
 
   const inicio = new Date(dataInicio + 'T00:00:00')
@@ -129,8 +138,9 @@ function montarTabela12Meses(c: ContratoLite) {
 
     linhas.push({
       parcela: i + 1,
+      competencia: competenciaDe(periodoIni),
       periodo: `${periodoIni.toLocaleDateString('pt-BR')} a ${periodoFim.toLocaleDateString('pt-BR')}`,
-      vencimento: venc.toLocaleDateString('pt-BR'),
+      vencimento: antecipado ? 'Quitado antecipadamente' : venc.toLocaleDateString('pt-BR'),
       aluguel: fmtBRL(aluguel),
       iptu: colunas.iptu ? fmtBRL(iptu) : null,
       condominio: colunas.condominio ? fmtBRL(condominio) : null,
@@ -138,7 +148,7 @@ function montarTabela12Meses(c: ContratoLite) {
       total: fmtBRL(total),
     })
   }
-  return { colunas, linhas }
+  return { colunas, linhas, antecipado, total_antecipado: fmtBRL(total * 12) }
 }
 
 function montarResumoCapa(
@@ -425,6 +435,7 @@ export async function GET(
       tipo_atuacao, intermediador_assina, tipo_mobilia, tem_inventario_bens, aceita_pet, finalidade, conjuge_inquilino_papel,
       aluguel_inclui_iptu, aluguel_inclui_condominio, aluguel_inclui_agua,
       aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet,
+      pagamento_antecipado, data_pagamento_antecipado,
       qtd_chaves, qtd_controles, qtd_tags,
       imovel:imoveis(
         tipo, endereco_resumido, endereco_completo, endereco_numero, endereco_complemento,
