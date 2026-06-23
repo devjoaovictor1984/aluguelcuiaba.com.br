@@ -496,6 +496,9 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
     finalidade === 'comercial' ? 'exclusivamente comercial (não residencial)'
     : finalidade === 'misto' ? 'misto (residencial e comercial)'
     : 'exclusivamente residencial'
+  // Quadro de modificações abre a página de cláusulas quando presente; senão
+  // o break vai na 1ª cláusula. Evita o `<View break />` vazio (gerava folha em branco).
+  const temQuadroMods = !!(data.mostrar_modificacoes && data.modificacoes_texto)
   const tituloFinalidade = isAdmin
     ? 'Contrato de Administração de Imóvel'
     : finalidade === 'comercial' ? 'Contrato de Locação Comercial' :
@@ -797,13 +800,10 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           </View>
         )}
 
-        {/* Cláusulas começam em página própria (após capa + sumário) */}
-        {data.clausulas.length > 0 && <View break />}
-
         {/* ── Quadro de modificações/considerações (modo revisão) ──
-           Só aparece quando o modo modificações está ligado (link de revisão
-           sempre liga). Sai do PDF final assim que o corretor desmarca. */}
-        {data.mostrar_modificacoes && data.modificacoes_texto && (
+           Flui logo após o sumário. Só aparece no modo modificações
+           (link de revisão sempre liga). */}
+        {temQuadroMods && (
           <View style={{
             marginBottom: 18,
             backgroundColor: '#fffbeb',
