@@ -797,6 +797,7 @@ export type PapelVinculo =
   | 'conjuge_responsavel_seguro'   // cônjuge do responsável pelo seguro, assina só se exigido
   | 'ocupante_autorizado'          // mora mas não assume obrigação principal (não assina)
   | 'caucionante'                  // terceiro que paga a caução (interveniente anuente)
+  | 'interveniente_anuente'        // representante legal / terceiro anuente; assina, não mora, não recebe chaves
 
 export interface AdicionarMoradorInput {
   contrato_id: string

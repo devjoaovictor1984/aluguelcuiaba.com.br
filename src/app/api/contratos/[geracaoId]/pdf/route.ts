@@ -692,6 +692,7 @@ export async function GET(
     conjuge_responsavel_seguro: 'Cônjuge do responsável pelo seguro',
     ocupante_autorizado: 'Ocupante autorizado',
     caucionante: 'Caucionante / interveniente anuente',
+    interveniente_anuente: 'Representante legal / interveniente anuente',
   }
   type MoradorRel = {
     papel: string

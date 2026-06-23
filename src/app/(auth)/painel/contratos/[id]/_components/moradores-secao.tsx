@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Users, UserPlus, X, Trash2, Loader2, ExternalLink, Building2, Handshake, Home, ShieldCheck, UserCheck, Coins } from 'lucide-react'
+import { Users, UserPlus, X, Trash2, Loader2, ExternalLink, Building2, Handshake, Home, ShieldCheck, UserCheck, Coins, Scale } from 'lucide-react'
 import {
   adicionarMorador, removerMorador,
   type ParentescoMorador, type PapelVinculo, type AdicionarMoradorInput,
@@ -64,6 +64,12 @@ const PAPEIS: { valor: PapelVinculo; label: string; descricao: string; icone: Re
     label: 'Caucionante',
     descricao: 'Terceiro que paga a caução · assina como interveniente anuente, não recebe chaves',
     icone: Coins, cor: 'text-orange-700', bg: 'bg-orange-100',
+  },
+  {
+    valor: 'interveniente_anuente',
+    label: 'Representante legal / Interveniente anuente',
+    descricao: 'Representante legal de uma das partes ou terceiro anuente · assina o contrato, não mora nem recebe chaves',
+    icone: Scale, cor: 'text-rose-700', bg: 'bg-rose-100',
   },
 ]
 const PAPEL_INFO: Record<PapelVinculo, typeof PAPEIS[number]> =
