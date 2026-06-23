@@ -48,6 +48,7 @@ export interface ContratoPDFClausula {
   numero: number
   titulo: string
   corpo: string  // já com placeholders substituídos
+  modificada?: boolean  // realçada quando o modo modificações está ligado
 }
 
 export interface ContratoPDFData {
@@ -141,6 +142,10 @@ export interface ContratoPDFData {
 
   // Cláusulas montadas
   clausulas: ContratoPDFClausula[]
+
+  // Modo modificações — quadro de destaque + realce das cláusulas alteradas
+  mostrar_modificacoes?: boolean
+  modificacoes_texto?: string | null
 
   // Inventário de bens (imóvel mobiliado) — tabela item a item
   inventario?: Array<{
@@ -790,6 +795,36 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
         {/* Cláusulas começam em página própria (após capa + sumário) */}
         {data.clausulas.length > 0 && <View break />}
 
+        {/* ── Quadro de modificações/considerações (modo revisão) ──
+           Só aparece quando o modo modificações está ligado (link de revisão
+           sempre liga). Sai do PDF final assim que o corretor desmarca. */}
+        {data.mostrar_modificacoes && data.modificacoes_texto && (
+          <View style={{
+            marginBottom: 18,
+            backgroundColor: '#fffbeb',
+            borderWidth: 1,
+            borderColor: '#fcd34d',
+            borderRadius: 4,
+            padding: 10,
+          }} wrap={false}>
+            <Text style={{
+              fontSize: 8, fontFamily: FAMILIA, fontWeight: 'bold',
+              color: '#b45309', letterSpacing: 0.5, marginBottom: 4,
+            }}>
+              ⚠ MODIFICAÇÕES E CONSIDERAÇÕES — PARA SUA CIÊNCIA
+            </Text>
+            <Text style={{
+              fontSize: 9.5, fontFamily: FAMILIA, color: '#78350f',
+              textAlign: 'justify', lineHeight: 1.5,
+            }}>
+              {data.modificacoes_texto}
+            </Text>
+            <Text style={{ fontSize: 7, color: '#b45309', marginTop: 5 }}>
+              As cláusulas alteradas estão destacadas em amarelo. Este aviso não consta na via final assinada.
+            </Text>
+          </View>
+        )}
+
         {/* ── Cláusulas ──
            Título "CLÁUSULA Nª — TÍTULO" + parágrafos numerados N.1, N.2…
            bookmark = entrada navegável no painel de marcadores do PDF.
@@ -799,19 +834,43 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           const fmt = formatarClausulaNumerada(num, c.titulo, c.corpo)
           // bookmark existe no runtime do react-pdf v4 mas o @types não expõe
           const bookmarkProp = { bookmark: { title: `${num}. ${c.titulo}`, fit: true } } as Record<string, unknown>
+          // Realce só quando o modo modificações está ligado e a cláusula foi marcada.
+          const realce = !!data.mostrar_modificacoes && !!c.modificada
           return (
-            <View key={idx} style={{ marginBottom: 14 }} {...bookmarkProp}>
-              <View wrap={false} minPresenceAhead={30}>
+            <View
+              key={idx}
+              style={realce ? {
+                marginBottom: 14,
+                backgroundColor: '#fffbeb',
+                borderLeftWidth: 3,
+                borderLeftColor: '#f59e0b',
+                borderRadius: 2,
+                paddingVertical: 6,
+                paddingHorizontal: 8,
+              } : { marginBottom: 14 }}
+              {...bookmarkProp}
+            >
+              <View wrap={false} minPresenceAhead={30} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 5 }}>
                 <Text style={{
+                  flex: 1,
                   fontSize: 10.5,
                   fontFamily: FAMILIA,
                   fontWeight: 'bold',
                   color: TEXTO_FORTE,
-                  marginBottom: 5,
                   letterSpacing: 0.2,
                 }}>
                   {fmt.titulo}
                 </Text>
+                {realce && (
+                  <Text style={{
+                    fontSize: 6.5, fontFamily: FAMILIA, fontWeight: 'bold',
+                    color: '#92400e', backgroundColor: '#fde68a',
+                    paddingVertical: 1.5, paddingHorizontal: 4, borderRadius: 2,
+                    letterSpacing: 0.5, marginLeft: 6,
+                  }}>
+                    MODIFICADA
+                  </Text>
+                )}
               </View>
               <Text style={{
                 fontSize: 10,

@@ -16,6 +16,8 @@ export interface ClausulaSnapshot {
   corpo: string
   categoria: string
   tipo: string
+  /** Marcada pelo corretor como alterada na negociação — realça no modo modificações. */
+  modificada?: boolean
 }
 
 type TipoSeguroIncendio = 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
@@ -455,6 +457,47 @@ export async function adicionarClausulaGeracao(
   }
   const res = await salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_id, [...r.clausulas, nova])
   return res.error ? res : { ok: true, id: nova.id }
+}
+
+/** Liga/desliga a marca "modificada" de uma cláusula no snapshot deste contrato. */
+export async function atualizarClausulaModificada(
+  geracaoId: string, clausulaId: string, modificada: boolean,
+) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  if (await contratoAssinado(supabase, 'locacao', geracaoId)) return { error: MSG_CONTRATO_TRAVADO }
+  const r = await carregarSnap(supabase, acesso.userId, geracaoId)
+  if ('error' in r) return { error: r.error }
+  const clausulas = r.clausulas.map(c => c.id === clausulaId ? { ...c, modificada } : c)
+  return salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_id, clausulas)
+}
+
+/** Liga/desliga o modo modificações no PDF normal (o link de revisão sempre mostra). */
+export async function atualizarMostrarModificacoes(geracaoId: string, mostrar: boolean) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({ mostrar_modificacoes: mostrar })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  return { ok: true }
+}
+
+/** Salva o texto do quadro de destaque de modificações/considerações. */
+export async function atualizarModificacoesTexto(geracaoId: string, texto: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const limpo = (texto ?? '').trim()
+  if (limpo.length > 5000) return { error: 'Texto muito longo (máx. 5000 caracteres).' }
+  const { error } = await supabase
+    .from('contrato_geracoes')
+    .update({ modificacoes_texto: limpo.length > 0 ? limpo : null })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  return { ok: true }
 }
 
 /** Remove uma cláusula do snapshot deste contrato (não exclui do banco). */

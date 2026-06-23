@@ -387,20 +387,26 @@ export async function GET(
   const admin = createAdminClient()
 
   // Autoriza por login OU por token de revisão (?rt=), pro cliente ver sem conta.
+  // viaRevisao = aberto pelo link de revisão → força os destaques de modificação.
   let ownerId: string | null = user?.id ?? null
+  let viaRevisao = false
   if (!ownerId) {
     const url = new URL(request.url)
     const rt = url.searchParams.get('rt')
     const st = url.searchParams.get('st')
-    if (rt) ownerId = await validarTokenRevisao(admin, rt, 'locacao', geracaoId)
-    else if (st) ownerId = await validarTokenAssinatura(admin, st, 'locacao', geracaoId)
+    if (rt) {
+      ownerId = await validarTokenRevisao(admin, rt, 'locacao', geracaoId)
+      viaRevisao = !!ownerId
+    } else if (st) {
+      ownerId = await validarTokenAssinatura(admin, st, 'locacao', geracaoId)
+    }
   }
   if (!ownerId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
   // 1. Carrega a geração
   const { data: geracao } = await admin
     .from('contrato_geracoes')
-    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausulas, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids, incluir_capa, capa_garantia_texto, capa_overrides')
+    .select('id, user_id, contrato_id, tipo_seguro_incendio, saida_sem_multa_12m, clausulas, clausula_ids, testemunha_ids, clausulas_seguradora_texto, anexo_documento_ids, incluir_capa, capa_garantia_texto, capa_overrides, mostrar_modificacoes, modificacoes_texto')
     .eq('id', geracaoId)
     .maybeSingle()
 
@@ -511,8 +517,8 @@ export async function GET(
 
   // 4. Cláusulas: usa o SNAPSHOT da geração (cópia própria deste contrato).
   //    Gerações antigas (antes da v64) caem no fallback via clausula_ids.
-  const snapshot = (geracao.clausulas ?? []) as Array<{ titulo: string; corpo: string }>
-  let clausulasOrdenadas: Array<{ titulo: string; corpo: string }>
+  const snapshot = (geracao.clausulas ?? []) as Array<{ titulo: string; corpo: string; modificada?: boolean }>
+  let clausulasOrdenadas: Array<{ titulo: string; corpo: string; modificada?: boolean }>
   if (snapshot.length > 0) {
     clausulasOrdenadas = snapshot
   } else {
@@ -590,7 +596,11 @@ export async function GET(
     numero: idx + 1,
     titulo: c.titulo,
     corpo: aplicarPlaceholders(limparTituloDuplicado(c.titulo, c.corpo), dadosContrato),
+    modificada: c.modificada ?? false,
   }))
+
+  // Modo modificações: link de revisão (?rt) sempre mostra; PDF normal só se ligado.
+  const mostrarModificacoes = viaRevisao || (geracao.mostrar_modificacoes ?? false)
 
   // 6b. Cláusula sintética de interveniente anuente — quando há responsável
   //     pelo seguro fiança (terceiro). Explica no CORPO que ele não tem posse
@@ -797,6 +807,8 @@ export async function GET(
       })),
     clausulas_seguradora_texto: geracao.clausulas_seguradora_texto ?? null,
     clausulas,
+    mostrar_modificacoes: mostrarModificacoes,
+    modificacoes_texto: geracao.modificacoes_texto ?? null,
     inventario: (inventarioRaw ?? []).map(it => ({
       descricao: it.descricao,
       quantidade: it.quantidade,

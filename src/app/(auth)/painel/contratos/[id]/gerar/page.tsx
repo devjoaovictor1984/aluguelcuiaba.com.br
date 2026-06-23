@@ -319,10 +319,12 @@ async function renderizarEditor(contratoId: string) {
           id: r.geracao.id,
           tipo_seguro_incendio: r.geracao.tipo_seguro_incendio,
           saida_sem_multa_12m: r.geracao.saida_sem_multa_12m,
-          clausulas: (((r.geracao as { clausulas?: unknown }).clausulas ?? []) as Array<{ id: string; titulo: string; corpo: string; categoria: string; tipo: string }>)
-            .map(c => ({ ...c, tipo: c.tipo as TipoClausula })),
+          clausulas: (((r.geracao as { clausulas?: unknown }).clausulas ?? []) as Array<{ id: string; titulo: string; corpo: string; categoria: string; tipo: string; modificada?: boolean }>)
+            .map(c => ({ ...c, tipo: c.tipo as TipoClausula, modificada: c.modificada ?? false })),
           testemunha_ids: (r.geracao.testemunha_ids as string[] | null) ?? [],
           clausulas_seguradora_texto: r.geracao.clausulas_seguradora_texto ?? '',
+          mostrar_modificacoes: (r.geracao as { mostrar_modificacoes?: boolean }).mostrar_modificacoes ?? false,
+          modificacoes_texto: (r.geracao as { modificacoes_texto?: string | null }).modificacoes_texto ?? '',
           incluir_capa: r.geracao.incluir_capa ?? true,
           capa_garantia_texto: (r.geracao as { capa_garantia_texto?: string | null }).capa_garantia_texto ?? '',
           capa_overrides: ((r.geracao as { capa_overrides?: Record<string, string> | null }).capa_overrides ?? {}) as Record<string, string>,

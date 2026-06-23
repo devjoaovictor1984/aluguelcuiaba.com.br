@@ -14,6 +14,7 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Save, FileDown, Loader2, AlertCircle, X, Plus,
   Settings, Eye, Upload, FileCheck, CheckCircle2, Star, Key, StickyNote, Trash2,
+  Highlighter,
 } from 'lucide-react'
 import {
   atualizarOpcoesGeracao, atualizarOrdemClausulas,
@@ -23,6 +24,7 @@ import {
   atualizarAnexosDocumentos, marcarComoGerado, atualizarItensEntrega,
   atualizarIncluirCapa, atualizarConjugePapel, atualizarAnotacoesCorretor,
   atualizarCapaOverrides,
+  atualizarClausulaModificada, atualizarMostrarModificacoes, atualizarModificacoesTexto,
 } from '../actions'
 import { CapaOverridesEditor } from '@/components/capa-overrides-editor'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
@@ -47,6 +49,7 @@ interface ClausulaSel {
   categoria: string
   titulo: string
   corpo: string
+  modificada?: boolean
 }
 
 interface Pessoa {
@@ -74,6 +77,8 @@ interface Props {
     clausulas: ClausulaSel[]
     testemunha_ids: string[]
     clausulas_seguradora_texto: string
+    mostrar_modificacoes: boolean
+    modificacoes_texto: string
     incluir_capa: boolean
     capa_garantia_texto?: string
     capa_overrides?: Record<string, string>
@@ -115,6 +120,35 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>(geracao.testemunha_ids)
   const [textoSeguradora, setTextoSeguradora] = useState(geracao.clausulas_seguradora_texto)
   const [incluirCapa, setIncluirCapa] = useState(geracao.incluir_capa ?? true)
+
+  // Modo modificações: realça cláusulas alteradas + quadro de destaque pro cliente
+  const [mostrarMods, setMostrarMods] = useState(geracao.mostrar_modificacoes ?? false)
+  const [modsTexto, setModsTexto] = useState(geracao.modificacoes_texto ?? '')
+
+  const onToggleMostrarMods = () => {
+    const novo = !mostrarMods
+    setMostrarMods(novo)
+    startTransition(async () => {
+      const r = await atualizarMostrarModificacoes(geracao.id, novo)
+      if (r.error) setErro(r.error)
+    })
+  }
+  const onBlurModsTexto = () => {
+    if (modsTexto === (geracao.modificacoes_texto ?? '')) return
+    startTransition(async () => {
+      const r = await atualizarModificacoesTexto(geracao.id, modsTexto)
+      if (r.error) setErro(r.error)
+    })
+  }
+  const onToggleModificada = (id: string, modificada: boolean) => {
+    if (travado) return
+    setClausulas(curr => curr.map(c => c.id === id ? { ...c, modificada } : c))
+    startTransition(async () => {
+      const r = await atualizarClausulaModificada(geracao.id, id, modificada)
+      if (r.error) setErro(r.error)
+    })
+  }
+  const qtdModificadas = clausulas.filter(c => c.modificada).length
 
   const onToggleCapa = () => {
     const novo = !incluirCapa
@@ -524,6 +558,53 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
           </div>
         </section>
 
+        {/* Modo modificações — destaque pro cliente revisar */}
+        <section className="bg-white rounded-2xl border border-amber-100 shadow-sm p-4 space-y-3">
+          <div>
+            <h2 className="text-xs font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1.5">
+              <Highlighter size={12} /> Modificações
+            </h2>
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              Marque as cláusulas alteradas (checkbox <strong>&ldquo;Modificada&rdquo;</strong> em cada uma) e escreva
+              um aviso. No <strong>link de revisão</strong> o cliente vê tudo destacado — sempre.
+            </p>
+          </div>
+
+          <div className="bg-amber-50 rounded-lg px-2.5 py-2 text-[11px] text-amber-800">
+            <strong>{qtdModificadas}</strong> cláusula{qtdModificadas === 1 ? '' : 's'} marcada{qtdModificadas === 1 ? '' : 's'} como modificada{qtdModificadas === 1 ? '' : 's'}.
+          </div>
+
+          <textarea
+            value={modsTexto}
+            onChange={e => setModsTexto(e.target.value)}
+            onBlur={onBlurModsTexto}
+            rows={4}
+            disabled={travado}
+            placeholder="Ex.: Conforme conversamos, ajustamos o índice de reajuste para IPCA e a multa de saída antecipada..."
+            className="w-full text-xs leading-relaxed border border-gray-200 rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-y disabled:bg-gray-50"
+          />
+          {modsTexto.trim() && (
+            <p className="text-[10px] text-green-700">✓ Texto salvo ao sair do campo</p>
+          )}
+
+          <label className="flex items-start gap-2 cursor-pointer pt-2 border-t border-amber-100">
+            <input
+              type="checkbox"
+              checked={mostrarMods}
+              onChange={onToggleMostrarMods}
+              disabled={isPending}
+              className="accent-amber-500 mt-0.5 shrink-0"
+            />
+            <span>
+              <p className="text-sm font-semibold text-gray-900">Mostrar no PDF normal</p>
+              <p className="text-[10px] text-gray-500 leading-tight">
+                Liga os destaques também na visualização normal. <strong>Desmarque</strong> antes de gerar/assinar
+                pra ter o contrato limpo. O link de revisão ignora isso e sempre mostra.
+              </p>
+            </span>
+          </label>
+        </section>
+
         {/* Testemunhas — escolhe até 2 dos cadastros de pessoas */}
         <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-3">
           <div>
@@ -877,6 +958,13 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
           </section>
         )}
 
+        {mostrarMods && (
+          <div className="bg-amber-50 border border-amber-300 rounded-xl px-3 py-2 text-[11px] text-amber-800 flex items-start gap-1.5">
+            <Highlighter size={13} className="shrink-0 mt-0.5" />
+            <span>Modo modificações <strong>ligado no PDF</strong> — o destaque aparece na visualização. Desmarque em &ldquo;Modificações&rdquo; antes de assinar.</span>
+          </div>
+        )}
+
         <div className="grid gap-2">
           {temBloqueio ? (
             <a
@@ -960,6 +1048,8 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
                   clausula={c}
                   isPending={isPending}
                   travado={travado}
+                  modificada={!!c.modificada}
+                  onToggleModificada={v => onToggleModificada(c.id, v)}
                   onSalvar={(t, b, cat, tp) => onAtualizarClausula(c.id, t, b, cat, tp)}
                   onRemover={() => onRemover(c.id)}
                 />
@@ -1119,12 +1209,14 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
 
 // ── Card de uma cláusula no editor (sortable + editável) ──
 function ClausulaCardEditor({
-  numero, clausula, isPending, travado = false, onSalvar, onRemover,
+  numero, clausula, isPending, travado = false, modificada, onToggleModificada, onSalvar, onRemover,
 }: {
   numero: number
   clausula: ClausulaSel
   isPending: boolean
   travado?: boolean
+  modificada: boolean
+  onToggleModificada: (v: boolean) => void
   onSalvar: (titulo: string, corpo: string, categoria?: string, tipo?: TipoClausula) => void
   onRemover: () => void
 }) {
@@ -1146,6 +1238,8 @@ function ClausulaCardEditor({
         ref={setNodeRef}
         style={style}
         className={`bg-white rounded-xl border overflow-hidden transition-colors ${
+          modificada ? 'ring-2 ring-amber-400 ' : ''
+        }${
           isCategoriaEssencial(clausula.categoria)
             ? 'border-amber-200 hover:border-amber-300'
             : 'border-gray-200 hover:border-violet-300'
@@ -1184,23 +1278,38 @@ function ClausulaCardEditor({
             {clausula.corpo}
           </p>
           {!travado && (
-            <div className="flex justify-end gap-2 mt-2">
-              <button
-                type="button"
-                onClick={() => setModalAberto(true)}
-                className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded"
+            <div className="flex items-center justify-between gap-2 mt-2">
+              <label
+                className="flex items-center gap-1.5 cursor-pointer text-[11px] font-medium text-gray-500 hover:text-amber-700"
+                title="Marca como modificada na negociação — realça pro cliente no link de revisão"
               >
-                Editar
-              </button>
-              <button
-                type="button"
-                onClick={onRemover}
-                disabled={isPending}
-                className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50"
-                title="Remover deste contrato (não exclui do banco)"
-              >
-                <X size={12} />
-              </button>
+                <input
+                  type="checkbox"
+                  checked={modificada}
+                  onChange={e => onToggleModificada(e.target.checked)}
+                  disabled={isPending}
+                  className="accent-amber-500"
+                />
+                Modificada
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setModalAberto(true)}
+                  className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-2 py-1 rounded"
+                >
+                  Editar
+                </button>
+                <button
+                  type="button"
+                  onClick={onRemover}
+                  disabled={isPending}
+                  className="text-xs text-red-500 hover:text-red-700 hover:bg-red-50 px-2 py-1 rounded disabled:opacity-50"
+                  title="Remover deste contrato (não exclui do banco)"
+                >
+                  <X size={12} />
+                </button>
+              </div>
             </div>
           )}
         </div>
