@@ -491,6 +491,11 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
   // Título principal adapta pela finalidade do contrato
   const finalidade = data.finalidade ?? 'residencial'
+  // Frase de uso no Termo de Entrega de Chaves — segue a finalidade do contrato
+  const usoFinalidadeTermo =
+    finalidade === 'comercial' ? 'exclusivamente comercial (não residencial)'
+    : finalidade === 'misto' ? 'misto (residencial e comercial)'
+    : 'exclusivamente residencial'
   const tituloFinalidade = isAdmin
     ? 'Contrato de Administração de Imóvel'
     : finalidade === 'comercial' ? 'Contrato de Locação Comercial' :
@@ -1348,8 +1353,8 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 14, lineHeight: 1.65 }}>
             O LOCATÁRIO declara que recebe a posse direta do imóvel em{' '}
-            <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.data_entrega}</Text>, para uso
-            exclusivamente residencial, assumindo, a partir desta data, responsabilidade pela guarda,
+            <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.data_entrega}</Text>, para uso{' '}
+            {usoFinalidadeTermo}, assumindo, a partir desta data, responsabilidade pela guarda,
             conservação, limpeza, pagamento de aluguel, encargos, consumos, tributos, seguros, multas
             e demais obrigações previstas no contrato de locação.
           </Text>
