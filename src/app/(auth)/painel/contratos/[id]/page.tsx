@@ -15,6 +15,7 @@ import { RegerarParcelasBotao } from './_components/regerar-parcelas'
 import { TimelineEventos, type EventoRow } from './_components/timeline-eventos'
 import { DocsPartesContrato } from './_components/docs-partes'
 import { BotaoExcluirContrato } from './_components/botao-excluir'
+import { QuitarAVista } from './_components/quitar-a-vista'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -147,6 +148,11 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   }).length
   const parcelasFuturas = lista.filter(p => p.status_pagamento !== 'pago').length
   const proximaParcela = lista.find(p => p.status_pagamento !== 'pago')
+
+  // Quitação à vista: parcelas em aberto a serem marcadas como pagas de uma vez
+  const parcelasAbertas = lista.filter(p => p.status_pagamento !== 'pago')
+  const valorAbertoTotal = parcelasAbertas.reduce((s, p) => s + Number(p.valor_total ?? 0), 0)
+  const dataSugeridaAVista = contrato.data_pagamento_antecipado || new Date().toISOString().slice(0, 10)
 
   const imovel = Array.isArray(contrato.imovel) ? contrato.imovel[0] : contrato.imovel
   const inquilino = Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino
@@ -339,9 +345,18 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
 
       {/* Parcelas */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-sm font-semibold text-gray-900">Parcelas ({lista.length})</h2>
-          <p className="text-[11px] text-gray-400">Clique nos ícones para marcar/desmarcar</p>
+          <div className="flex items-center gap-3">
+            {contrato.pagamento_antecipado && parcelasAbertas.length > 0 && (
+              <QuitarAVista
+                parcelaIdsAbertas={parcelasAbertas.map(p => p.id)}
+                valorAberto={valorAbertoTotal}
+                dataSugerida={dataSugeridaAVista}
+              />
+            )}
+            <p className="text-[11px] text-gray-400">Clique nos ícones para marcar/desmarcar</p>
+          </div>
         </div>
         <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
