@@ -135,8 +135,14 @@ export default async function FinanceiroPage({ searchParams }: Props) {
       id, contrato_id, mes_referencia, vencimento,
       valor_total, valor_aluguel, valor_seguro, valor_comissao, valor_repasse_proprietario,
       status_pagamento, status_repasse, status_seguro, boleto_enviado,
-      data_pagamento, valor_pago
-    `),
+      data_pagamento, valor_pago,
+      contrato:contratos_locacao!inner(id)
+    `)
+      // Escopa às parcelas do usuário e fora da lixeira — senão o financeiro
+      // soma parcelas de contratos soft-deletados (e de outros usuários),
+      // inflando os meses. O início já faz esse mesmo filtro.
+      .eq('contrato.user_id', acesso.userId)
+      .is('contrato.deleted_at', null),
   ])
 
   const contratos = (contratosRes.data ?? []) as ContratoRow[]

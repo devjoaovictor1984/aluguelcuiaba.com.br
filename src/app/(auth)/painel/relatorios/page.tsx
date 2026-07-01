@@ -124,6 +124,7 @@ export default async function RelatoriosPage({ searchParams }: Props) {
       )
     `)
     .eq(`contrato.${colunaPessoa}`, pessoaId)
+    .is('contrato.deleted_at', null)
     .gte('mes_referencia', inicioAno)
     .lte('mes_referencia', fimAno)
     .order('mes_referencia', { ascending: true })

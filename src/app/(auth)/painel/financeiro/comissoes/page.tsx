@@ -109,8 +109,13 @@ export default async function ComissoesPage({ searchParams }: Props) {
       id, contrato_id, mes_referencia, vencimento,
       valor_aluguel, valor_comissao, valor_repasse_proprietario,
       valor_total, valor_pago, status_pagamento, data_pagamento,
-      nf_emitida_em, nf_numero
-    `),
+      nf_emitida_em, nf_numero,
+      contrato:contratos_locacao!inner(id)
+    `)
+      // Escopa às parcelas do usuário e fora da lixeira — senão soma parcelas
+      // de contratos soft-deletados (e de outros usuários). Mesmo filtro do início.
+      .eq('contrato.user_id', acesso.userId)
+      .is('contrato.deleted_at', null),
   ])
 
   const contratos = (contratosRaw ?? []) as ContratoRow[]
