@@ -40,6 +40,7 @@ interface ContratoLite {
   seguro_incendio_data: string | null
   valor_seguro_incendio_anual: number | null
   valor_aluguel: number
+  pagamento_antecipado: boolean | null
   inquilino: PessoaLite | PessoaLite[] | null
   imovel: ImovelLite | ImovelLite[] | null
 }
@@ -72,6 +73,10 @@ interface ParcelaView {
   imovel: string
   bairro: string | null
   vencimento: string
+  // Data usada pra agrupar no mês. Normalmente = vencimento; para contrato
+  // pago à vista, a parcela paga é agrupada pela data do pagamento (aparece
+  // no mês em que foi recebida e some dos meses seguintes).
+  refMes: string
   valor: number
   repasse: number
   status: string
@@ -137,6 +142,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
         contrato:contratos_locacao!inner(
           id, codigo, status, data_termino, data_proximo_reajuste,
           seguro_incendio_data, valor_seguro_incendio_anual, valor_aluguel,
+          pagamento_antecipado,
           inquilino:pessoas!inquilino_id(id, nome, telefone),
           imovel:imoveis(id, titulo, bairro:bairros(nome))
         )
@@ -160,6 +166,13 @@ export default async function InicioCRMPage({ searchParams }: Props) {
     const imo = unwrap(c.imovel)
     const bairro = imo && unwrap(imo.bairro)
     const venc = new Date(p.vencimento + 'T00:00:00')
+    const pago = p.status_pagamento === 'pago'
+    // À vista: parcela paga é agrupada pela data do pagamento (regime de caixa,
+    // igual ao Financeiro). Assim entra no mês em que foi recebida e não reaparece
+    // nos meses de vencimento seguintes. Contrato mensal segue pelo vencimento.
+    const refMes = (c.pagamento_antecipado && pago && p.data_pagamento)
+      ? p.data_pagamento.slice(0, 10)
+      : p.vencimento
     return {
       id: p.id,
       numero: p.numero,
@@ -170,6 +183,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
       imovel: imo?.titulo ?? '—',
       bairro: bairro?.nome ?? null,
       vencimento: p.vencimento,
+      refMes,
       valor: p.valor_total,
       repasse: p.valor_repasse_proprietario ?? 0,
       status: p.status_pagamento,
@@ -185,7 +199,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
 
   // ───── Aluguéis do mês corrente ─────
   const doMes = todas.filter(p => {
-    const ref = new Date(p.vencimento + 'T00:00:00')
+    const ref = new Date(p.refMes + 'T00:00:00')
     return ref >= inicioMes && ref <= fimMes
   }).sort((a, b) => a.vencimento.localeCompare(b.vencimento))
 
