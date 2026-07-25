@@ -8,6 +8,7 @@ import Image from '@tiptap/extension-image'
 import { TableKit } from '@tiptap/extension-table'
 import TextAlign from '@tiptap/extension-text-align'
 import Placeholder from '@tiptap/extension-placeholder'
+import { PreserveAttributes, Div } from './tiptap-preserve'
 import { useRef, useState, useCallback, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -44,6 +45,10 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
       TableKit,
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Placeholder.configure({ placeholder: 'Escreva o conteúdo do post aqui...' }),
+      // Preservam style/class inline e o nó <div> no round-trip do editor,
+      // pra que HTML rico colado (cards, caixas, tabelas) não seja descartado.
+      PreserveAttributes,
+      Div,
     ],
     content,
     onUpdate({ editor }) {
