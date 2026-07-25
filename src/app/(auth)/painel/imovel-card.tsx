@@ -45,7 +45,8 @@ export function PainelImovelCard({ imovel }: { imovel: CardImovel }) {
   const dias = diasParaExpirar(imovel.expira_em)
   const foto = imovel.fotos?.[0]?.url
   const status = imovel.status
-  const expirado = dias <= 0 && status === 'ativo'
+  // 'expirado' pode ser o status real (setado pelo cron) ou um ativo já vencido
+  const expirado = status === 'expirado' || (dias <= 0 && status === 'ativo')
   const expiraEmBreve = dias > 0 && dias <= 7 && status === 'ativo'
 
   const statusInfo = expirado

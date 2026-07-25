@@ -36,7 +36,8 @@ export default async function ListarAnunciosPage({
   const lista = (imoveis ?? []) as unknown as ImovelLista[]
 
   const agora = Date.now()
-  const isExpirado = (i: ImovelLista) => i.status === 'ativo' && new Date(i.expira_em).getTime() < agora
+  const isExpirado = (i: ImovelLista) =>
+    i.status === 'expirado' || (i.status === 'ativo' && new Date(i.expira_em).getTime() < agora)
   const efetivo = (i: ImovelLista) => (isExpirado(i) ? 'expirado' : i.status)
 
   const contagem: Record<string, number> = {
