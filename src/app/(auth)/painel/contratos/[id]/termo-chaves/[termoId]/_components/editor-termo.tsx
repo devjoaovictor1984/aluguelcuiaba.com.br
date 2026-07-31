@@ -125,7 +125,11 @@ export function EditorTermo(props: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [canvasVazio, setCanvasVazio] = useState(true)
   const [selfieAdmin, setSelfieAdmin] = useState<string | null>(null)
-  const podeAssinarAdmin = props.status === 'assinado_locatario'
+  // v72: pode assinar em qualquer ordem, desde que o link já tenha saído
+  // (é o envio que trava a edição dos dados que estão sendo assinados).
+  const podeAssinarAdmin = props.status === 'enviada' || props.status === 'assinado_locatario'
+  const locatarioJaAssinou = props.status === 'assinado_locatario'
+  const locadorJaAssinou = props.status === 'assinado_locador' || props.status === 'assinado'
 
   useEffect(() => {
     if (!podeAssinarAdmin) return
@@ -239,7 +243,7 @@ export function EditorTermo(props: Props) {
       </section>
 
       {/* Envio do link pro locatário */}
-      {(props.status === 'rascunho' || props.status === 'enviada') && (
+      {(props.status === 'rascunho' || props.status === 'enviada' || props.status === 'assinado_locador') && (
         <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 space-y-3">
           <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
             <Send size={15} className="text-violet-600" /> Enviar pro locatário assinar
@@ -272,9 +276,17 @@ export function EditorTermo(props: Props) {
                   {copiado ? 'Copiado' : 'Copiar'}
                 </button>
               </div>
-              <button type="button" onClick={revogar} disabled={isPending} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-red-600">
-                <RotateCcw size={12} /> Revogar e voltar pra rascunho
-              </button>
+              {locadorJaAssinou ? (
+                // Revogar está bloqueado (já existe assinatura). Sem isto, um
+                // link expirado deixaria o termo sem saída a não ser excluir.
+                <button type="button" onClick={enviar} disabled={isPending} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-violet-700">
+                  <RotateCcw size={12} /> Gerar novo link (renova a validade)
+                </button>
+              ) : (
+                <button type="button" onClick={revogar} disabled={isPending} className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-red-600">
+                  <RotateCcw size={12} /> Revogar e voltar pra rascunho
+                </button>
+              )}
             </div>
           )}
         </section>
@@ -319,7 +331,9 @@ export function EditorTermo(props: Props) {
             <Pencil size={15} /> Confirmar recebimento (administradora)
           </h2>
           <p className="text-xs text-gray-500">
-            O locatário já assinou. Assine abaixo pra confirmar o recebimento das chaves e fechar o termo.
+            {locatarioJaAssinou
+              ? 'O locatário já assinou. Assine abaixo pra confirmar o recebimento das chaves e fechar o termo.'
+              : 'Você pode assinar agora — o termo fica aguardando o locatário assinar pelo link pra ser fechado.'}
           </p>
 
           {props.imobiliariaNome && (
@@ -363,13 +377,13 @@ export function EditorTermo(props: Props) {
             className="w-full flex items-center justify-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white font-semibold py-3 rounded-xl"
           >
             {isPending ? <Loader2 size={15} className="animate-spin" /> : <Check size={15} />}
-            Confirmar recebimento e fechar termo
+            {locatarioJaAssinou ? 'Confirmar recebimento e fechar termo' : 'Assinar como administradora'}
           </button>
         </section>
       )}
 
-      {/* Assinatura da administradora (preview quando fechado) */}
-      {props.status === 'assinado' && props.assinaturaLocadorUrl && (
+      {/* Assinatura da administradora (preview) */}
+      {locadorJaAssinou && props.assinaturaLocadorUrl && (
         <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 space-y-3">
           <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
             <UserCheck size={15} className="text-green-600" /> Assinatura da administradora
@@ -442,6 +456,7 @@ function BannerStatus({ status, recusadaMotivo }: { status: string; recusadaMoti
     rascunho: { cor: 'bg-gray-50 border-gray-200 text-gray-700', texto: 'Rascunho — preencha os dados e envie o link pro locatário.' },
     enviada: { cor: 'bg-amber-50 border-amber-200 text-amber-800', texto: 'Link enviado — aguardando o locatário tirar selfie e assinar.' },
     assinado_locatario: { cor: 'bg-blue-50 border-blue-200 text-blue-800', texto: 'Locatário assinou — falta a administradora confirmar o recebimento.' },
+    assinado_locador: { cor: 'bg-blue-50 border-blue-200 text-blue-800', texto: 'Você já assinou — aguardando o locatário assinar pelo link.' },
     assinado: { cor: 'bg-green-50 border-green-200 text-green-800', texto: 'Termo assinado pelas duas partes. Entrega registrada no contrato.' },
     recusada: { cor: 'bg-red-50 border-red-200 text-red-800', texto: recusadaMotivo ? `Recusado pelo locatário: "${recusadaMotivo}"` : 'Recusado pelo locatário.' },
   }

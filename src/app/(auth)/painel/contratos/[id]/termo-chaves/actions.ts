@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { subirSelfieBase64, SELFIE_BUCKET } from '@/lib/storage/selfies'
+import { propagarEntregaNoContrato, statusAposAssinatura } from '@/lib/crm/termo-chaves'
 
 const BUCKET = 'termos-chaves'
 
@@ -105,7 +106,11 @@ export async function atualizarTermoMeta(termoId: string, input: AtualizarTermoM
   const acesso = await exigirAcessoCRM()
   const posse = await checarPosseTermo(termoId, acesso.userId)
   if (!posse) return { error: 'Termo não encontrado.' }
-  if (posse.status === 'assinado') return { error: 'Termo já assinado por ambas as partes.' }
+  // Server action é endpoint público: repete aqui a trava que a UI já faz.
+  // Depois do envio existe assinatura (ou link ativo) em cima destes dados.
+  if (posse.status !== 'rascunho') {
+    return { error: 'Os dados ficam bloqueados depois que o link é enviado.' }
+  }
 
   const sanitiza = (n: number | null | undefined): number => {
     if (n === null || n === undefined || !Number.isFinite(n) || n < 0 || n > 999) return 0
@@ -127,11 +132,20 @@ export async function atualizarTermoMeta(termoId: string, input: AtualizarTermoM
   return { ok: true }
 }
 
-/** Gera token e marca como 'enviada' pro locatário assinar via magic link. */
+/**
+ * Gera token e libera o magic link pro locatário assinar.
+ *
+ * Também serve pra renovar link expirado. Se a administradora já assinou
+ * ('assinado_locador'), o status é preservado — só o token é renovado —
+ * senão a assinatura dela sumiria do fluxo.
+ */
 export async function enviarTermo(termoId: string, diasValidade = 7) {
   const acesso = await exigirAcessoCRM()
   const posse = await checarPosseTermo(termoId, acesso.userId)
   if (!posse) return { error: 'Termo não encontrado.' }
+  if (posse.status === 'assinado' || posse.status === 'assinado_locatario') {
+    return { error: 'O locatário já assinou este termo.' }
+  }
 
   const dias = Math.max(1, Math.min(30, diasValidade))
   const token = gerarToken()
@@ -139,7 +153,7 @@ export async function enviarTermo(termoId: string, diasValidade = 7) {
 
   const supabase = await createClient()
   const { error } = await supabase.from('termos_entrega_chaves').update({
-    status: 'enviada',
+    status: posse.status === 'assinado_locador' ? 'assinado_locador' : 'enviada',
     token,
     enviada_em: new Date().toISOString(),
     expira_em: expira,
@@ -158,6 +172,9 @@ export async function revogarEnvioTermo(termoId: string) {
   if (posse.status === 'assinado' || posse.status === 'assinado_locatario') {
     return { error: 'O locatário já assinou — não dá pra revogar.' }
   }
+  if (posse.status === 'assinado_locador') {
+    return { error: 'Você já assinou este termo. Pra refazer, exclua e crie outro.' }
+  }
 
   const supabase = await createClient()
   const { error } = await supabase.from('termos_entrega_chaves').update({
@@ -173,8 +190,13 @@ export async function revogarEnvioTermo(termoId: string) {
 
 /**
  * Administradora confirma o recebimento das chaves assinando no painel.
- * Só liberado depois que o locatário assinou. Ao concluir, fecha o termo
- * e grava chaves_entregues_em / qtd_chaves_entregues no contrato.
+ *
+ * Desde a v72 pode assinar em qualquer ordem — antes ou depois do
+ * locatário. Se o locatário já tiver assinado, este é o último a assinar
+ * e o termo fecha; se não, fica em 'assinado_locador' esperando ele.
+ *
+ * O único pré-requisito é o link já ter sido gerado ('enviada'), porque é
+ * o envio que trava a edição dos dados que estão sendo assinados.
  */
 export async function assinarComoLocador(termoId: string, input: {
   assinatura_dataurl: string
@@ -183,8 +205,11 @@ export async function assinarComoLocador(termoId: string, input: {
   const acesso = await exigirAcessoCRM()
   const posse = await checarPosseTermo(termoId, acesso.userId)
   if (!posse) return { error: 'Termo não encontrado.' }
-  if (posse.status !== 'assinado_locatario') {
-    return { error: 'O locatário precisa assinar antes da administradora.' }
+  if (posse.status === 'rascunho') {
+    return { error: 'Gere o link do locatário antes de assinar.' }
+  }
+  if (posse.status !== 'enviada' && posse.status !== 'assinado_locatario') {
+    return { error: 'Este termo não está disponível pra assinatura.' }
   }
   if (!input.assinatura_dataurl?.startsWith('data:image/')) {
     return { error: 'Assinatura inválida.' }
@@ -206,15 +231,10 @@ export async function assinarComoLocador(termoId: string, input: {
   const hdrs = await headers()
   const ip = hdrs.get('x-forwarded-for')?.split(',')[0].trim() ?? hdrs.get('x-real-ip') ?? null
 
-  // Lê os dados do termo pra propagar pro contrato.
-  const { data: termo } = await admin
-    .from('termos_entrega_chaves')
-    .select('contrato_id, data_entrega, qtd_chaves_entregues')
-    .eq('id', termoId)
-    .maybeSingle()
+  const novoStatus = statusAposAssinatura(posse.status, 'locador')
 
   const { error } = await admin.from('termos_entrega_chaves').update({
-    status: 'assinado',
+    status: novoStatus,
     assinatura_locador_url: ass.url,
     selfie_locador_url: selfieUrl,
     assinado_locador_em: new Date().toISOString(),
@@ -222,17 +242,14 @@ export async function assinarComoLocador(termoId: string, input: {
   }).eq('id', termoId)
   if (error) return { error: error.message }
 
-  // Fecha o ciclo de encerramento no contrato.
-  if (termo) {
-    await admin.from('contratos_locacao').update({
-      chaves_entregues_em: termo.data_entrega ?? new Date().toISOString().slice(0, 10),
-      qtd_chaves_entregues: termo.qtd_chaves_entregues ?? null,
-    }).eq('id', termo.contrato_id)
+  // Só fecha o ciclo no contrato quando as duas partes assinaram.
+  if (novoStatus === 'assinado') {
+    await propagarEntregaNoContrato(admin, termoId)
   }
 
   revalidatePath(`/painel/contratos/${posse.contratoId}/termo-chaves/${termoId}`)
   revalidatePath(`/painel/contratos/${posse.contratoId}`)
-  return { ok: true }
+  return { ok: true, status: novoStatus }
 }
 
 export async function excluirTermo(termoId: string) {

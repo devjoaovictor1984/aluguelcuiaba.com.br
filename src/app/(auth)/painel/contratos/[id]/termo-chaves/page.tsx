@@ -13,6 +13,7 @@ const STATUS_LABEL: Record<string, string> = {
   rascunho: 'Rascunho',
   enviada: 'Aguardando locatário',
   assinado_locatario: 'Aguardando administradora',
+  assinado_locador: 'Aguardando locatário',
   assinado: 'Assinado pelas duas partes',
   recusada: 'Recusado',
 }
@@ -21,6 +22,7 @@ const STATUS_COR: Record<string, string> = {
   rascunho: 'bg-gray-100 text-gray-600',
   enviada: 'bg-amber-100 text-amber-700',
   assinado_locatario: 'bg-blue-100 text-blue-700',
+  assinado_locador: 'bg-blue-100 text-blue-700',
   assinado: 'bg-green-100 text-green-700',
   recusada: 'bg-red-100 text-red-700',
 }
@@ -29,6 +31,7 @@ const STATUS_ICON: Record<string, React.ReactNode> = {
   rascunho: <FileSignature size={11} />,
   enviada: <Clock size={11} />,
   assinado_locatario: <UserCheck size={11} />,
+  assinado_locador: <UserCheck size={11} />,
   assinado: <CheckCircle2 size={11} />,
   recusada: <AlertOctagon size={11} />,
 }
@@ -100,7 +103,8 @@ export default async function TermosChavesPage({ params }: Props) {
       ) : (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50 overflow-hidden">
           {termos.map(t => {
-            const expirada = !!(t.expira_em && t.status === 'enviada' && new Date(t.expira_em).getTime() < Date.now())
+            const aguardaLocatario = t.status === 'enviada' || t.status === 'assinado_locador'
+            const expirada = !!(t.expira_em && aguardaLocatario && new Date(t.expira_em).getTime() < Date.now())
             const statusEx = expirada ? 'expirada' : t.status
             return (
               <Link

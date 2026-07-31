@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { subirSelfieBase64 } from '@/lib/storage/selfies'
 import { limitePorIp } from '@/lib/rate-limit'
+import { propagarEntregaNoContrato, statusAposAssinatura } from '@/lib/crm/termo-chaves'
 
 const BUCKET = 'termos-chaves'
 
@@ -27,7 +28,11 @@ async function carregarPorToken(token: string): Promise<{ termo?: TermoAuth; err
     return { error: 'Este termo já foi assinado.' }
   }
   if (data.status === 'recusada') return { error: 'Este termo foi recusado anteriormente.' }
-  if (data.status !== 'enviada') return { error: 'Termo não está disponível pra assinatura.' }
+  // 'assinado_locador': a administradora assinou primeiro (v72) e o link
+  // continua válido — é justamente o locatário que falta.
+  if (data.status !== 'enviada' && data.status !== 'assinado_locador') {
+    return { error: 'Termo não está disponível pra assinatura.' }
+  }
   if (data.expira_em && new Date(data.expira_em).getTime() < Date.now()) {
     return { error: 'Link expirado. Peça um novo à administradora.' }
   }
@@ -76,8 +81,10 @@ export async function locatarioAssinar(token: string, input: {
   const hdrs = await headers()
   const ip = hdrs.get('x-forwarded-for')?.split(',')[0].trim() ?? hdrs.get('x-real-ip') ?? null
 
+  const novoStatus = statusAposAssinatura(termo.status, 'locatario')
+
   const { error: e } = await admin.from('termos_entrega_chaves').update({
-    status: 'assinado_locatario',
+    status: novoStatus,
     assinatura_locatario_url: ass.url,
     selfie_locatario_url: selfie.path,
     assinado_locatario_em: new Date().toISOString(),
@@ -85,6 +92,11 @@ export async function locatarioAssinar(token: string, input: {
     observacoes_locatario: input.observacoes?.trim() || null,
   }).eq('id', termo.id)
   if (e) return { error: e.message }
+
+  // Se a administradora já tinha assinado, é este lado que fecha o termo.
+  if (novoStatus === 'assinado') {
+    await propagarEntregaNoContrato(admin, termo.id)
+  }
 
   return { ok: true }
 }

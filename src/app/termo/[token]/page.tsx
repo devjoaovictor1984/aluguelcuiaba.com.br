@@ -34,7 +34,10 @@ export default async function TermoPublicoPage({ params }: Props) {
       />
     )
   }
-  if (termo.status !== 'enviada') return <Erro titulo="Indisponível" mensagem="Esse termo ainda está em preparação. Peça pra administradora enviar novamente." />
+  // 'assinado_locador' = a administradora assinou primeiro; falta o locatário.
+  if (termo.status !== 'enviada' && termo.status !== 'assinado_locador') {
+    return <Erro titulo="Indisponível" mensagem="Esse termo ainda está em preparação. Peça pra administradora enviar novamente." />
+  }
   if (termo.expira_em && new Date(termo.expira_em).getTime() < Date.now()) {
     return <Erro titulo="Link expirado" mensagem="Esse link passou da validade. Peça um novo." />
   }
