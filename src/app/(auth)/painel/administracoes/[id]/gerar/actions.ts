@@ -11,6 +11,8 @@ export interface ClausulaSnapshot {
   titulo: string
   corpo: string
   categoria: string
+  /** Marcada pelo corretor como alterada na negociação — realça no modo modificações. */
+  modificada?: boolean
 }
 
 type SB = Awaited<ReturnType<typeof createClient>>
@@ -142,6 +144,61 @@ export async function adicionarClausulaGeracaoAdm(geracaoId: string, clausula: {
   }
   const res = await salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_admin_id, [...r.clausulas, nova])
   return res.error ? res : { ok: true, id: nova.id }
+}
+
+/** Liga/desliga a marca "modificada" de uma cláusula no snapshot deste contrato. */
+export async function atualizarClausulaModificadaAdm(geracaoId: string, clausulaId: string, modificada: boolean) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const r = await carregarSnap(supabase, acesso.userId, geracaoId)
+  if ('error' in r) return { error: r.error }
+  if (await contratoAssinado(supabase, 'administracao', r.g.contrato_admin_id)) return { error: MSG_CONTRATO_TRAVADO }
+  const clausulas = r.clausulas.map(c => c.id === clausulaId ? { ...c, modificada } : c)
+  return salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_admin_id, clausulas)
+}
+
+/** Liga/desliga o modo modificações no PDF normal (o link de revisão sempre mostra). */
+export async function atualizarMostrarModificacoesAdm(geracaoId: string, mostrar: boolean) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const { data: g } = await supabase
+    .from('contrato_admin_geracoes')
+    .select('id, contrato_admin_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+  const { error } = await supabase
+    .from('contrato_admin_geracoes')
+    .update({ mostrar_modificacoes: mostrar })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/administracoes/${g.contrato_admin_id}/gerar`)
+  return { ok: true }
+}
+
+/** Salva o texto do quadro de destaque de modificações/considerações. */
+export async function atualizarModificacoesTextoAdm(geracaoId: string, texto: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  const limpo = (texto ?? '').trim()
+  if (limpo.length > 5000) return { error: 'Texto muito longo (máx. 5000 caracteres).' }
+  const { data: g } = await supabase
+    .from('contrato_admin_geracoes')
+    .select('id, contrato_admin_id')
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!g) return { error: 'Geração não encontrada.' }
+  const { error } = await supabase
+    .from('contrato_admin_geracoes')
+    .update({ modificacoes_texto: limpo.length > 0 ? limpo : null })
+    .eq('id', geracaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+  revalidatePath(`/painel/administracoes/${g.contrato_admin_id}/gerar`)
+  return { ok: true }
 }
 
 export async function removerClausulaGeracaoAdm(geracaoId: string, clausulaId: string) {

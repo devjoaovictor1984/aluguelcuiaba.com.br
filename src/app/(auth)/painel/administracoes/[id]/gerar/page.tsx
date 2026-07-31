@@ -267,9 +267,11 @@ async function renderizar(contratoAdmId: string) {
         }}
         geracao={{
           id: r.geracao.id,
-          clausulas: ((r.geracao as { clausulas?: unknown }).clausulas ?? []) as Array<{ id: string; titulo: string; corpo: string; categoria: string }>,
+          clausulas: ((r.geracao as { clausulas?: unknown }).clausulas ?? []) as Array<{ id: string; titulo: string; corpo: string; categoria: string; modificada?: boolean }>,
           testemunha_ids: (r.geracao.testemunha_ids as string[] | null) ?? [],
           anexo_documento_ids: (r.geracao.anexo_documento_ids as string[] | null) ?? [],
+          mostrar_modificacoes: (r.geracao as { mostrar_modificacoes?: boolean }).mostrar_modificacoes ?? false,
+          modificacoes_texto: (r.geracao as { modificacoes_texto?: string | null }).modificacoes_texto ?? '',
           pdf_assinado_url: r.geracao.pdf_assinado_url ?? null,
           assinado_em: r.geracao.assinado_em ?? null,
           status: r.geracao.status ?? 'rascunho',

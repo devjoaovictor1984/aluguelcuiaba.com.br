@@ -108,13 +108,19 @@ export async function GET(
     const admin = createAdminClient()
 
     // Autoriza por login OU por token de revisão (?rt=), pro cliente ver sem conta.
+    // viaRevisao = aberto pelo link de revisão → força os destaques de modificação.
     let ownerId: string | null = user?.id ?? null
+    let viaRevisao = false
     if (!ownerId) {
       const url = new URL(request.url)
       const rt = url.searchParams.get('rt')
       const st = url.searchParams.get('st')
-      if (rt) ownerId = await validarTokenRevisao(admin, rt, 'administracao', id)
-      else if (st) ownerId = await validarTokenAssinatura(admin, st, 'administracao', id)
+      if (rt) {
+        ownerId = await validarTokenRevisao(admin, rt, 'administracao', id)
+        viaRevisao = !!ownerId
+      } else if (st) {
+        ownerId = await validarTokenAssinatura(admin, st, 'administracao', id)
+      }
     }
     if (!ownerId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
@@ -190,16 +196,16 @@ export async function GET(
     //    fallback ao banco genérico só para gerações antigas sem snapshot.
     const { data: geracao } = await admin
       .from('contrato_admin_geracoes')
-      .select('id, clausulas, clausula_ids, testemunha_ids, anexo_documento_ids, capa_overrides')
+      .select('id, clausulas, clausula_ids, testemunha_ids, anexo_documento_ids, capa_overrides, mostrar_modificacoes, modificacoes_texto')
       .eq('contrato_admin_id', c.id)
       .order('created_at', { ascending: false })
       .limit(1)
       .maybeSingle()
 
-    let clausulasRaw: Array<{ titulo: string; corpo: string }> = []
-    const snap = (geracao?.clausulas ?? []) as Array<{ titulo: string; corpo: string }>
+    let clausulasRaw: Array<{ titulo: string; corpo: string; modificada?: boolean }> = []
+    const snap = (geracao?.clausulas ?? []) as Array<{ titulo: string; corpo: string; modificada?: boolean }>
     if (Array.isArray(snap) && snap.length > 0) {
-      clausulasRaw = snap.map(s => ({ titulo: s.titulo, corpo: s.corpo }))
+      clausulasRaw = snap.map(s => ({ titulo: s.titulo, corpo: s.corpo, modificada: s.modificada }))
     } else {
       let ids = (geracao?.clausula_ids as string[] | null) ?? null
       if (!ids || ids.length === 0) {
@@ -285,7 +291,11 @@ export async function GET(
       numero: idx + 1,
       titulo: cl.titulo,
       corpo: aplicarPlaceholders(cl.corpo, dadosContrato),
+      modificada: cl.modificada ?? false,
     }))
+
+    // Modo modificações: link de revisão (?rt) sempre mostra; PDF normal só se ligado.
+    const mostrarModificacoes = viaRevisao || (geracao?.mostrar_modificacoes ?? false)
 
     // Testemunhas selecionadas
     const testemunhaIds = (geracao?.testemunha_ids ?? []) as string[]
@@ -404,6 +414,8 @@ export async function GET(
         })),
       clausulas_seguradora_texto: null,
       clausulas,
+      mostrar_modificacoes: mostrarModificacoes,
+      modificacoes_texto: geracao?.modificacoes_texto ?? null,
       quadro_entrada: [],
       tabela_12_meses: { colunas: { iptu: false, condominio: false, seguro: false }, linhas: [] },
       termo_chaves: null,
