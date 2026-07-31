@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FileSignature, Briefcase, Users, MessageCircle, Wallet,
   FileText, Cake, Receipt, Trash2, Home, Plus, LogOut, Menu, X, List,
+  UserCheck, Flame,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -27,6 +28,11 @@ const GRUPO_CRM: ItemNav[] = [
   { href: '/painel/financeiro',     label: 'Financeiro',     icon: Wallet,          match: ['/painel/financeiro'] },
   { href: '/painel/relatorios',     label: 'Relatórios',     icon: FileText,        match: ['/painel/relatorios'] },
   { href: '/painel/agenda',         label: 'Agenda',         icon: Cake,            match: ['/painel/agenda'] },
+]
+
+const GRUPO_SEGUROS: ItemNav[] = [
+  { href: '/painel/seguros/fianca',   label: 'Seguro fiança',   icon: UserCheck, match: ['/painel/seguros/fianca'] },
+  { href: '/painel/seguros/incendio', label: 'Seguro incêndio', icon: Flame,     match: ['/painel/seguros/incendio'] },
 ]
 
 const GRUPO_ANUNCIOS: ItemNav[] = [
@@ -109,6 +115,7 @@ export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, lo
       {/* Navegação */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {renderGrupo('CRM Locação', GRUPO_CRM)}
+        {renderGrupo('Seguros', GRUPO_SEGUROS)}
         {renderGrupo('Anúncios', GRUPO_ANUNCIOS)}
         {renderGrupo('Conta', GRUPO_CONTA)}
       </nav>
