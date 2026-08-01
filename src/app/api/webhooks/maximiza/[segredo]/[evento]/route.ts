@@ -4,6 +4,7 @@ import { registrarEvento, consultarAnalise } from '@/lib/seguros'
 import { gravarPareceres, gravarParecerUnico, resumirStatus } from '@/lib/seguros/pareceres'
 import { salvarArquivo } from '@/lib/seguros/arquivos'
 import { lerParecer } from '@/lib/seguros/maximiza/mapper'
+import { TIPO_ARQUIVO_APOLICE } from '@/lib/seguros/tabelas'
 
 /**
  * Webhooks da Maximiza: análise, biometria e arquivos.
@@ -25,6 +26,53 @@ import { lerParecer } from '@/lib/seguros/maximiza/mapper'
 
 const OK = NextResponse.json({ success: '1' })
 const FALHA = NextResponse.json({ success: '0' }, { status: 200 })
+
+/**
+ * Fecha o ciclo da contratação quando a apólice chega.
+ *
+ * O `/contratar` responde só com uma mensagem — sem número de apólice.
+ * Este webhook é o único momento em que sabemos que foi emitida, então é
+ * aqui que a contratação vira 'emitida' e o número desce pro contrato de
+ * locação, onde o corretor o digitava à mão.
+ */
+async function marcarApoliceEmitida(
+  admin: ReturnType<typeof createAdminClient>,
+  analiseId: string,
+  sigla: string | null,
+  corpo: Record<string, unknown>,
+): Promise<void> {
+  let q = admin
+    .from('seguro_contratacoes')
+    .select('id')
+    .eq('analise_id', analiseId)
+    .eq('status', 'enviada')
+  if (sigla) q = q.eq('seguradora_sigla', sigla)
+
+  const { data: contratacao } = await q.maybeSingle()
+  if (!contratacao) return
+
+  // A doc não define um campo de número de apólice no webhook; o
+  // codigoAnalise da seguradora é o identificador disponível.
+  const numero = corpo.codigoAnalise ? String(corpo.codigoAnalise) : null
+
+  await admin.from('seguro_contratacoes').update({
+    status: 'emitida',
+    apolice_numero: numero,
+    emitida_em: new Date().toISOString(),
+  }).eq('id', contratacao.id)
+
+  const { data: analise } = await admin
+    .from('seguro_analises')
+    .select('contrato_id')
+    .eq('id', analiseId)
+    .maybeSingle()
+
+  if (analise?.contrato_id && numero) {
+    await admin.from('contratos_locacao')
+      .update({ seguro_fianca_apolice: numero })
+      .eq('id', analise.contrato_id)
+  }
+}
 
 type Evento = 'analise' | 'biometria' | 'arquivos'
 const EVENTOS: Evento[] = ['analise', 'biometria', 'arquivos']
@@ -92,13 +140,21 @@ export async function POST(
     if (evento === 'arquivos') {
       const base64 = String(corpo.base64 ?? '')
       const codigoTipo = Number(corpo.codigoDescArquivo ?? 0)
+      const sigla = String(corpo.sigla ?? corpo.seguradora ?? '').toLowerCase() || null
+
       if (base64 && codigoTipo) {
         await salvarArquivo(admin, {
-          seguradoraSigla: String(corpo.sigla ?? corpo.seguradora ?? '').toLowerCase() || null,
+          seguradoraSigla: sigla,
           codigoTipo,
           descricao: corpo.descricaoArquivo ? String(corpo.descricaoArquivo) : null,
           base64,
         }, { userId: analise.user_id, analiseId: analise.id })
+      }
+
+      // A apólice é o único sinal de emissão que a API dá: /contratar
+      // responde só com uma mensagem, sem número.
+      if (codigoTipo === TIPO_ARQUIVO_APOLICE) {
+        await marcarApoliceEmitida(admin, analise.id, sigla, corpo)
       }
     }
 

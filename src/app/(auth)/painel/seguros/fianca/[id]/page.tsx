@@ -46,7 +46,7 @@ export default async function AnalisePage({ params }: Props) {
     )
   }
 
-  const [{ data: pareceres }, { data: arquivos }] = await Promise.all([
+  const [{ data: pareceres }, { data: arquivos }, { data: contratacao }] = await Promise.all([
     supabase
       .from('seguro_analise_pareceres')
       .select('*')
@@ -57,6 +57,13 @@ export default async function AnalisePage({ params }: Props) {
       .select('id, seguradora_sigla, codigo_tipo, descricao, storage_path, recebido_em')
       .eq('analise_id', id)
       .order('codigo_tipo', { ascending: true }),
+    supabase
+      .from('seguro_contratacoes')
+      .select('id, seguradora_sigla, tipo_plano, forma_pagto, qtd_parcelas, valor_parcela, premio_total, inicio_vigencia, fim_vigencia, status, apolice_numero, erro, created_at')
+      .eq('analise_id', id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
   ])
 
   // Bucket privado: assina na hora de exibir, como as selfies (v53).
@@ -121,6 +128,20 @@ export default async function AnalisePage({ params }: Props) {
           atualizadoEm: p.atualizado_em,
         }))}
         arquivos={arquivosComUrl}
+        contratacao={contratacao ? {
+          id: contratacao.id,
+          seguradoraSigla: contratacao.seguradora_sigla,
+          tipoPlano: contratacao.tipo_plano,
+          formaPagto: contratacao.forma_pagto,
+          qtdParcelas: contratacao.qtd_parcelas,
+          valorParcela: contratacao.valor_parcela,
+          premioTotal: contratacao.premio_total,
+          inicioVigencia: contratacao.inicio_vigencia,
+          fimVigencia: contratacao.fim_vigencia,
+          status: contratacao.status,
+          apoliceNumero: contratacao.apolice_numero,
+          erro: contratacao.erro,
+        } : null}
       />
     </div>
   )

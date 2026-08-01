@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   RefreshCw, Loader2, CheckCircle2, XCircle, Clock, AlertTriangle,
-  FileText, ScanFace, Trash2, RotateCcw, Copy, Check,
+  FileText, ScanFace, Trash2, RotateCcw, Copy, Check, FileSignature, ShieldCheck,
 } from 'lucide-react'
 import { STATUS_ANALISE, STATUS_BIOMETRIA, statusAprovado, statusPendente } from '@/lib/seguros/tabelas'
 import { formatarBRL } from '@/lib/formatters'
@@ -33,6 +34,21 @@ interface ArquivoView {
   url: string | null
 }
 
+interface ContratacaoView {
+  id: string
+  seguradoraSigla: string
+  tipoPlano: string | null
+  formaPagto: string | null
+  qtdParcelas: number | null
+  valorParcela: number | null
+  premioTotal: number | null
+  inicioVigencia: string | null
+  fimVigencia: string | null
+  status: string
+  apoliceNumero: string | null
+  erro: string | null
+}
+
 interface Props {
   analiseId: string
   contratoId: string | null
@@ -40,9 +56,12 @@ interface Props {
   erro: string | null
   pareceres: ParecerView[]
   arquivos: ArquivoView[]
+  contratacao: ContratacaoView | null
 }
 
-export function DetalheAnalise({ analiseId, transmitida, erro, pareceres, arquivos }: Props) {
+export function DetalheAnalise({
+  analiseId, transmitida, erro, pareceres, arquivos, contratacao,
+}: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [msg, setMsg] = useState('')
@@ -50,6 +69,8 @@ export function DetalheAnalise({ analiseId, transmitida, erro, pareceres, arquiv
 
   const temPendente = pareceres.some(p => statusPendente(p.codigoStatus))
   const recusadas = pareceres.filter(p => p.codigoStatus === 3).map(p => p.seguradoraSigla)
+  const aprovadas = pareceres.filter(p => statusAprovado(p.codigoStatus))
+  const podeContratar = aprovadas.length > 0 && !contratacao
 
   const sincronizar = () => {
     setErroAcao(''); setMsg('')
@@ -122,6 +143,20 @@ export function DetalheAnalise({ analiseId, transmitida, erro, pareceres, arquiv
         </p>
       )}
 
+      {/* Aprovado e ainda não contratado: o passo que gera a apólice. */}
+      {podeContratar && (
+        <Link
+          href={`/painel/seguros/fianca/${analiseId}/contratar`}
+          className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3.5 rounded-xl"
+        >
+          <FileSignature size={16} />
+          Contratar seguro
+          {aprovadas.length > 1 && ` (${aprovadas.length} seguradoras aprovaram)`}
+        </Link>
+      )}
+
+      {contratacao && <CardContratacao c={contratacao} />}
+
       {msg && <p className="text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">{msg}</p>}
       {erroAcao && <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{erroAcao}</p>}
 
@@ -175,6 +210,58 @@ export function DetalheAnalise({ analiseId, transmitida, erro, pareceres, arquiv
         </button>
       </div>
     </div>
+  )
+}
+
+function CardContratacao({ c }: { c: ContratacaoView }) {
+  const emitida = c.status === 'emitida'
+  const falhou = c.status === 'erro'
+
+  const cor = emitida
+    ? 'border-green-200 bg-green-50'
+    : falhou ? 'border-red-200 bg-red-50'
+    : 'border-blue-200 bg-blue-50'
+
+  return (
+    <section className={`border rounded-2xl px-4 py-3 space-y-1.5 ${cor}`}>
+      <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+        <ShieldCheck size={15} className={emitida ? 'text-green-600' : falhou ? 'text-red-500' : 'text-blue-600'} />
+        {emitida ? 'Apólice emitida' : falhou ? 'Falha na contratação' : 'Contratação enviada'}
+      </p>
+
+      {falhou ? (
+        <p className="text-xs text-red-800">{c.erro}</p>
+      ) : (
+        <>
+          <p className="text-sm text-gray-800">
+            {c.seguradoraSigla.toUpperCase()}
+            {c.formaPagto && <> · {c.formaPagto}</>}
+            {c.qtdParcelas && c.valorParcela != null && (
+              <> · {c.qtdParcelas}× {formatarBRL(c.valorParcela)}</>
+            )}
+          </p>
+          {c.premioTotal != null && (
+            <p className="text-base font-bold text-gray-900">{formatarBRL(c.premioTotal)}</p>
+          )}
+          {c.inicioVigencia && c.fimVigencia && (
+            <p className="text-[11px] text-gray-600">
+              vigência {new Date(c.inicioVigencia + 'T00:00:00').toLocaleDateString('pt-BR')}
+              {' '}a {new Date(c.fimVigencia + 'T00:00:00').toLocaleDateString('pt-BR')}
+            </p>
+          )}
+          {c.apoliceNumero ? (
+            <p className="text-xs font-semibold text-green-800">
+              Apólice nº {c.apoliceNumero}
+            </p>
+          ) : (
+            <p className="text-[11px] text-blue-800">
+              Aguardando a seguradora emitir. O número da apólice aparece aqui
+              assim que chegar.
+            </p>
+          )}
+        </>
+      )}
+    </section>
   )
 }
 
