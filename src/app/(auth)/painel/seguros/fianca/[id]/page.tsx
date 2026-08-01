@@ -59,7 +59,7 @@ export default async function AnalisePage({ params }: Props) {
       .order('codigo_tipo', { ascending: true }),
     supabase
       .from('seguro_contratacoes')
-      .select('id, seguradora_sigla, tipo_plano, forma_pagto, qtd_parcelas, valor_parcela, premio_total, inicio_vigencia, fim_vigencia, status, apolice_numero, erro, created_at')
+      .select('id, seguradora_sigla, tipo_plano, forma_pagto, qtd_parcelas, valor_parcela, premio_total, inicio_vigencia, fim_vigencia, status, apolice_numero, proposta_numero, erro, created_at')
       .eq('analise_id', id)
       .order('created_at', { ascending: false })
       .limit(1)
@@ -116,6 +116,7 @@ export default async function AnalisePage({ params }: Props) {
         erro={analise.erro}
         pareceres={(pareceres ?? []).map(p => ({
           id: p.id,
+          analiseId: id,
           seguradoraSigla: p.seguradora_sigla,
           seguradoraNome: p.seguradora_nome,
           codigoStatus: p.codigo_status,
@@ -126,6 +127,9 @@ export default async function AnalisePage({ params }: Props) {
           linkBiometria: p.link_biometria,
           msg: p.msg,
           atualizadoEm: p.atualizado_em,
+          precos: p.precos,
+          precosEm: p.precos_em,
+          precosErro: p.precos_erro,
         }))}
         arquivos={arquivosComUrl}
         contratacao={contratacao ? {
@@ -140,6 +144,7 @@ export default async function AnalisePage({ params }: Props) {
           fimVigencia: contratacao.fim_vigencia,
           status: contratacao.status,
           apoliceNumero: contratacao.apolice_numero,
+          propostaNumero: contratacao.proposta_numero,
           erro: contratacao.erro,
         } : null}
       />

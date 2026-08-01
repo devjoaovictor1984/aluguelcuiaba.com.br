@@ -195,6 +195,8 @@ const CENARIOS = [
     origem: 'painel',
     diasAtras: 9,
     resumo: 'aprovado',
+    // Ciclo completo: aprovado, contratado e apólice emitida.
+    contratado: true,
     pareceres: [
       { sigla: 'porto', nome: 'Porto Seguro', status: 1, limite: 1250 },
       { sigla: 'too',   nome: 'Too Seguros',  status: 1, limite: 1250 },
@@ -207,6 +209,35 @@ const CENARIOS = [
 
 const TIPO_ARQUIVO = { carta: 2, cotacao: 3, apolice: 9 }
 const DESC_ARQUIVO = { carta: 'Carta Parecer', cotacao: 'Cotação', apolice: 'Apólice' }
+
+/**
+ * Preço de referência no formato que consultarPrecosApi devolve: planos
+ * agrupados por forma de pagamento. Só os planos que a tela resume.
+ */
+function precosDemo(aluguel) {
+  const premio = Math.round(aluguel * 7.8 * 100) / 100   // ~7,8 aluguéis
+  const parcela29 = Math.round((premio / 29) * 100) / 100
+  const parcela12 = Math.round((premio / 12) * 1.09 * 100) / 100
+  const opcao = (forma, plano, parcelas, valor, entrada = 0) => ({
+    entrada_pagto: entrada,
+    forma_pagto_descricao: forma,
+    tipo_plano: plano,
+    qtd_parcelas: parcelas,
+    valor_parcela: valor,
+  })
+  return {
+    plano_tradicional: {
+      fatura: [opcao('Fatura', 'traditional', 29, parcela29)],
+      boleto: [opcao('Boleto', 'traditional', 1, premio, 1)],
+      ficha:  [opcao('Ficha', 'traditional', 29, parcela29)],
+      cartao: [opcao('Cartão de Crédito', 'traditional', 12, parcela12)],
+    },
+    plano_completo: {
+      fatura: [opcao('Fatura', 'complete', 29, Math.round(parcela29 * 1.22 * 100) / 100)],
+      boleto: [opcao('Boleto', 'complete', 1, Math.round(premio * 1.22 * 100) / 100, 1)],
+    },
+  }
+}
 
 /* ── Execução ──────────────────────────────────────────────────────── */
 
@@ -364,20 +395,26 @@ async function semear(db, userId) {
       continue
     }
 
-    // 3. Pareceres — um por seguradora
-    const pareceres = c.pareceres.map(p => ({
-      analise_id: analise.id,
-      seguradora_sigla: p.sigla,
-      seguradora_nome: p.nome,
-      codigo_status: p.status,
-      descricao_status: null,
-      codigo_analise: String(909000000000 + Math.floor(Math.random() * 999999999)),
-      limite_aprovado: p.limite ?? null,
-      status_biometria: p.biometria ?? null,
-      link_biometria: p.linkBiometria ?? null,
-      msg: p.msg ?? null,
-      atualizado_em: diasAtras(Math.max(0, c.diasAtras - 0.2)),
-    }))
+    // 3. Pareceres — um por seguradora. Quem aprovou já vem com preço,
+    //    que é como a tela mostra: parecer e valor lado a lado.
+    const pareceres = c.pareceres.map(p => {
+      const aprovou = p.status === 1 || p.status === 5
+      return {
+        analise_id: analise.id,
+        seguradora_sigla: p.sigla,
+        seguradora_nome: p.nome,
+        codigo_status: p.status,
+        descricao_status: null,
+        codigo_analise: String(909000000000 + Math.floor(Math.random() * 999999999)),
+        limite_aprovado: p.limite ?? null,
+        status_biometria: p.biometria ?? null,
+        link_biometria: p.linkBiometria ?? null,
+        msg: p.msg ?? null,
+        precos: aprovou ? precosDemo(p.limite ?? c.aluguel) : null,
+        precos_em: aprovou ? diasAtras(Math.max(0, c.diasAtras - 0.1)) : null,
+        atualizado_em: diasAtras(Math.max(0, c.diasAtras - 0.2)),
+      }
+    })
 
     const { error: ePar } = await db.from('seguro_analise_pareceres').insert(pareceres)
     if (ePar) console.error(`  ! pareceres de ${c.nome}: ${ePar.message}`)
@@ -398,8 +435,38 @@ async function semear(db, userId) {
       })
     }
 
+    // 5. Contratação — o cenário do seguro já emitido, pra mostrar o card
+    //    de "Seguro contratado" com proposta e apólice.
+    if (c.contratado) {
+      const seg = c.pareceres.find(p => p.status === 1) ?? c.pareceres[0]
+      const p = precosDemo(seg.limite ?? c.aluguel)
+      const opcao = p.plano_tradicional.fatura[0]
+      const inicio = new Date(Date.now() - c.diasAtras * 86400000)
+      const fim = new Date(inicio); fim.setMonth(fim.getMonth() + 30)
+
+      await db.from('seguro_contratacoes').insert({
+        analise_id: analise.id,
+        user_id: userId,
+        seguradora_sigla: seg.sigla,
+        tipo_plano: opcao.tipo_plano,
+        forma_pagto: opcao.forma_pagto_descricao,
+        qtd_parcelas: opcao.qtd_parcelas,
+        valor_parcela: opcao.valor_parcela,
+        premio_total: Math.round(opcao.qtd_parcelas * opcao.valor_parcela * 100) / 100,
+        entrada_pagto: 0,
+        inicio_vigencia: inicio.toISOString().slice(0, 10),
+        fim_vigencia: fim.toISOString().slice(0, 10),
+        coberturas: { condominio: c.condominio, iptu: c.iptu },
+        proprietario: { tipo: 'F', nome: 'Proprietário de demonstração' },
+        status: 'emitida',
+        proposta_numero: '003890',
+        apolice_numero: '1074600192411',
+        emitida_em: diasAtras(Math.max(0, c.diasAtras - 1)),
+      })
+    }
+
     n++
-    console.log(`  ✓ ${c.nome} — ${c.resumo}`)
+    console.log(`  ✓ ${c.nome} — ${c.resumo}${c.contratado ? ' (contratado)' : ''}`)
   }
 
   // 5. Um link pendente, pra mostrar o fluxo de envio ao inquilino.

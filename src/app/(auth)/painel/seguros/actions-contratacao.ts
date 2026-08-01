@@ -105,6 +105,59 @@ export async function consultarPrecosAnalise(
   }
 }
 
+/**
+ * Busca o preço de referência de UM parecer e guarda no banco.
+ *
+ * É o preço que aparece no card da seguradora, ao lado do parecer — o
+ * número que o corretor repassa ao cliente. Usa os encargos informados na
+ * própria análise; a tela de contratação recalcula com as coberturas que
+ * o corretor escolher.
+ *
+ * Cacheado de propósito: são até 4 seguradoras por análise, e consultar a
+ * cada abertura de tela viraria dezenas de chamadas por minuto.
+ */
+export async function buscarPrecosDoParecer(analiseId: string, seguradoraSigla: string) {
+  const acesso = await exigirAcessoCRM()
+  const ctx = await carregarParaContratacao(analiseId, seguradoraSigla, acesso.userId)
+  if ('error' in ctx) return { error: ctx.error }
+
+  const { admin, analise } = ctx
+  const imovel = (analise.payload as { imovel?: Record<string, number> })?.imovel ?? {}
+
+  try {
+    const planos = await consultarPrecos(
+      admin,
+      analise.maximiza_id!,
+      seguradoraSigla,
+      {
+        condominio: Number(imovel.condominio) || 0,
+        gas: Number(imovel.gas) || 0,
+        iptu: Number(imovel.iptu) || 0,
+        energia: Number(imovel.energia) || 0,
+        agua: Number(imovel.agua) || 0,
+        danos: 0, pintura_int: 0, pintura_ext: 0, multa: 0,
+      },
+      { userId: acesso.userId, analiseId },
+    )
+
+    await admin.from('seguro_analise_pareceres').update({
+      precos: planos,
+      precos_em: new Date().toISOString(),
+      precos_erro: null,
+    }).eq('analise_id', analiseId).eq('seguradora_sigla', seguradoraSigla)
+
+    revalidatePath(`/painel/seguros/fianca/${analiseId}`)
+    return { ok: true, planos }
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Falha ao consultar preços.'
+    await admin.from('seguro_analise_pareceres')
+      .update({ precos_erro: msg, precos_em: new Date().toISOString() })
+      .eq('analise_id', analiseId).eq('seguradora_sigla', seguradoraSigla)
+    revalidatePath(`/painel/seguros/fianca/${analiseId}`)
+    return { error: msg }
+  }
+}
+
 export interface ContratarInput {
   analiseId: string
   seguradoraSigla: string

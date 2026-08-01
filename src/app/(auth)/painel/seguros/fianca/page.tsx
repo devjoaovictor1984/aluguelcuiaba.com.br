@@ -8,6 +8,7 @@ import { STATUS_RESUMO_COR, STATUS_RESUMO_LABEL } from '@/lib/seguros/status-ui'
 import { formatarBRL } from '@/lib/formatters'
 import { Paginacao } from '../_components/paginacao'
 import { BuscaSeguros } from '../_components/busca-seguros'
+import { BandeiraSeguradora } from '../_components/bandeira-seguradora'
 
 const POR_PAGINA = 20
 
@@ -36,7 +37,8 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
        valor_aluguel, created_at, erro, origem,
        inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
        imovel:imoveis(titulo),
-       contrato:contratos_locacao(codigo)`,
+       contrato:contratos_locacao(codigo),
+       pareceres:seguro_analise_pareceres(seguradora_sigla, codigo_status)`,
       { count: 'exact' },
     )
     .eq('user_id', acesso.userId)
@@ -62,6 +64,7 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
     inquilino: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null
     imovel: { titulo: string } | { titulo: string }[] | null
     contrato: { codigo: string } | { codigo: string }[] | null
+    pareceres: { seguradora_sigla: string; codigo_status: number | null }[] | null
   }
 
   const um = <T,>(v: T | T[] | null): T | null =>
@@ -142,43 +145,63 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
               <Link
                 key={l.id}
                 href={`/painel/seguros/fianca/${l.id}`}
-                className="block bg-white border border-gray-100 rounded-2xl shadow-sm px-4 py-3 hover:border-violet-200 transition-colors"
+                className="block bg-white ring-1 ring-gray-100 rounded-2xl shadow-sm px-4 py-3.5 active:bg-gray-50 hover:ring-violet-200 transition-colors"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-900 truncate">
+                    <p className="text-[15px] font-bold text-gray-900 truncate leading-tight">
                       {inq?.nome ?? 'Sem inquilino vinculado'}
                     </p>
-                    <p className="text-xs text-gray-500 truncate">
+                    <p className="text-xs text-gray-500 truncate mt-0.5">
                       {imovel?.titulo ?? '—'}
-                      {contrato?.codigo && <> · Contrato {contrato.codigo}</>}
-                      {l.valor_aluguel != null && <> · {formatarBRL(l.valor_aluguel)}</>}
+                      {contrato?.codigo && <> · {contrato.codigo}</>}
                     </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">
-                      {new Date(l.created_at).toLocaleDateString('pt-BR')}
-                      {l.maximiza_id && <> · nº {l.maximiza_id}</>}
-                      {l.tipo_analise === 'reduzida' && <> · análise rápida</>}
-                      {l.finalidade === 'C' && <> · comercial</>}
-                      {l.origem === 'link' && <> · preenchida pelo inquilino</>}
-                    </p>
-                    {l.erro && (
-                      <p className="text-[11px] text-red-600 mt-1 line-clamp-1">{l.erro}</p>
-                    )}
                   </div>
                   <div className="flex flex-col items-end gap-1 shrink-0">
-                    <span className={`text-[11px] font-semibold px-2 py-1 rounded-full ${
+                    <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${
                       STATUS_RESUMO_COR[l.status_resumo] ?? 'bg-gray-100 text-gray-600'
                     }`}>
                       {STATUS_RESUMO_LABEL[l.status_resumo] ?? l.status_resumo}
                     </span>
                     {/* Homologação não emite apólice — precisa ficar óbvio. */}
                     {l.ambiente === 2 && (
-                      <span className="text-[10px] text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-1">
+                      <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded flex items-center gap-1">
                         <FlaskConical size={9} /> teste
                       </span>
                     )}
                   </div>
                 </div>
+
+                {/* Bandeiras: quem respondeu o quê, numa olhada */}
+                {!!l.pareceres?.length && (
+                  <div className="flex items-center gap-1.5 mt-2.5">
+                    {l.pareceres.map(p => (
+                      <BandeiraSeguradora
+                        key={p.seguradora_sigla}
+                        sigla={p.seguradora_sigla}
+                        status={p.codigo_status}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-baseline justify-between gap-2 mt-2.5 pt-2.5 border-t border-gray-50">
+                  <p className="text-[11px] text-gray-400 truncate">
+                    {new Date(l.created_at).toLocaleDateString('pt-BR')}
+                    {l.maximiza_id && <> · nº {l.maximiza_id}</>}
+                    {l.origem === 'link' && <> · via link</>}
+                    {l.finalidade === 'C' && <> · comercial</>}
+                  </p>
+                  {l.valor_aluguel != null && (
+                    <p className="text-sm font-bold text-gray-900 tabular-nums shrink-0">
+                      {formatarBRL(l.valor_aluguel)}
+                    </p>
+                  )}
+                </div>
+
+                {l.erro && (
+                  <p className="text-[11px] text-rose-600 mt-1.5 line-clamp-1">{l.erro}</p>
+                )}
               </Link>
             )
           })}

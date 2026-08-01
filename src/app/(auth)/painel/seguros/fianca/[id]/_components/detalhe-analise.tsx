@@ -1,29 +1,16 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  RefreshCw, Loader2, CheckCircle2, XCircle, Clock, AlertTriangle,
-  FileText, ScanFace, Trash2, RotateCcw, Copy, Check, FileSignature, ShieldCheck,
+  RefreshCw, Loader2, AlertTriangle, FileText, Trash2, RotateCcw,
+  ShieldCheck, Clock, CheckCircle2, XCircle,
 } from 'lucide-react'
-import { STATUS_ANALISE, STATUS_BIOMETRIA, statusAprovado, statusPendente } from '@/lib/seguros/tabelas'
+import { statusAprovado, statusPendente } from '@/lib/seguros/tabelas'
+import { marcaDe } from '@/lib/seguros/marcas'
 import { formatarBRL } from '@/lib/formatters'
 import { sincronizarAnalise, reanalisar, excluirAnalise } from '../../../actions'
-
-interface ParecerView {
-  id: string
-  seguradoraSigla: string
-  seguradoraNome: string | null
-  codigoStatus: number | null
-  descricaoStatus: string | null
-  codigoAnalise: string | null
-  limiteAprovado: number | null
-  statusBiometria: number | null
-  linkBiometria: string | null
-  msg: string | null
-  atualizadoEm: string
-}
+import { CardSeguradora, type ParecerCard } from './card-seguradora'
 
 interface ArquivoView {
   id: string
@@ -46,6 +33,7 @@ interface ContratacaoView {
   fimVigencia: string | null
   status: string
   apoliceNumero: string | null
+  propostaNumero: string | null
   erro: string | null
 }
 
@@ -54,7 +42,7 @@ interface Props {
   contratoId: string | null
   transmitida: boolean
   erro: string | null
-  pareceres: ParecerView[]
+  pareceres: ParecerCard[]
   arquivos: ArquivoView[]
   contratacao: ContratacaoView | null
 }
@@ -67,10 +55,14 @@ export function DetalheAnalise({
   const [msg, setMsg] = useState('')
   const [erroAcao, setErroAcao] = useState('')
 
-  const temPendente = pareceres.some(p => statusPendente(p.codigoStatus))
-  const recusadas = pareceres.filter(p => p.codigoStatus === 3).map(p => p.seguradoraSigla)
   const aprovadas = pareceres.filter(p => statusAprovado(p.codigoStatus))
+  const pendentes = pareceres.filter(p => statusPendente(p.codigoStatus))
+  const recusadas = pareceres.filter(p => p.codigoStatus === 3)
   const podeContratar = aprovadas.length > 0 && !contratacao
+
+  // Aprovadas primeiro: o corretor abre a tela pra saber com quem fecha.
+  const ordenados = [...aprovadas, ...pendentes, ...recusadas,
+    ...pareceres.filter(p => !aprovadas.includes(p) && !pendentes.includes(p) && !recusadas.includes(p))]
 
   const sincronizar = () => {
     setErroAcao(''); setMsg('')
@@ -85,7 +77,7 @@ export function DetalheAnalise({
   const tentarDeNovo = () => {
     setErroAcao(''); setMsg('')
     startTransition(async () => {
-      const r = await reanalisar(analiseId, recusadas)
+      const r = await reanalisar(analiseId, recusadas.map(p => p.seguradoraSigla))
       if (r.error) { setErroAcao(r.error); return }
       setMsg('Reanálise enviada.')
       router.refresh()
@@ -104,263 +96,208 @@ export function DetalheAnalise({
   return (
     <div className="space-y-4">
       {erro && (
-        <div className="bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-800 flex items-start gap-2">
+        <div className="rounded-2xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3 text-sm text-rose-800 flex items-start gap-2">
           <AlertTriangle size={15} className="shrink-0 mt-0.5" />
           <div>
-            <p className="font-semibold">Falha ao transmitir</p>
+            <p className="font-bold">Falha ao transmitir</p>
             <p className="text-xs mt-0.5">{erro}</p>
           </div>
         </div>
       )}
 
+      {/* Placar — a leitura de 1 segundo */}
+      {pareceres.length > 0 && (
+        <div className="grid grid-cols-3 gap-2">
+          <Placar n={aprovadas.length} rotulo="aprovaram" Icone={CheckCircle2}
+            cls="bg-emerald-50 text-emerald-700 ring-emerald-100" />
+          <Placar n={pendentes.length} rotulo="analisando" Icone={Clock}
+            cls="bg-amber-50 text-amber-700 ring-amber-100" />
+          <Placar n={recusadas.length} rotulo="recusaram" Icone={XCircle}
+            cls="bg-rose-50 text-rose-700 ring-rose-100" />
+        </div>
+      )}
+
+      {contratacao && <CardContratacao c={contratacao} />}
+
       {transmitida && (
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex gap-2">
           <button
             type="button"
             onClick={sincronizar}
             disabled={isPending}
-            className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-xl"
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-gray-900 hover:bg-gray-800 active:bg-black disabled:opacity-50 px-4 py-3 text-sm font-bold text-white"
           >
             {isPending ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            Atualizar status
+            Atualizar
           </button>
-          {recusadas.length > 0 && (
+          {recusadas.length > 0 && !contratacao && (
             <button
               type="button"
               onClick={tentarDeNovo}
               disabled={isPending}
-              className="flex items-center gap-1.5 border border-gray-200 hover:bg-gray-50 disabled:opacity-50 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl"
+              className="flex items-center justify-center gap-1.5 rounded-xl ring-1 ring-gray-200 hover:bg-gray-50 disabled:opacity-50 px-4 py-3 text-sm font-bold text-gray-700"
             >
-              <RotateCcw size={14} /> Tentar de novo ({recusadas.length})
+              <RotateCcw size={14} /> Reanalisar
             </button>
           )}
         </div>
       )}
 
-      {temPendente && (
-        <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 flex items-center gap-1.5">
-          <Clock size={12} /> Alguma seguradora ainda está analisando. O status chega sozinho — ou clique em atualizar.
+      {pendentes.length > 0 && (
+        <p className="text-xs text-amber-800 bg-amber-50 ring-1 ring-amber-100 rounded-xl px-3 py-2.5 flex items-start gap-1.5">
+          <Clock size={12} className="mt-0.5 shrink-0" />
+          {pendentes.length === 1 ? 'Uma seguradora ainda está analisando' : `${pendentes.length} seguradoras ainda estão analisando`}.
+          O resultado chega sozinho — ou toque em atualizar.
         </p>
       )}
 
-      {/* Aprovado e ainda não contratado: o passo que gera a apólice. */}
-      {podeContratar && (
-        <Link
-          href={`/painel/seguros/fianca/${analiseId}/contratar`}
-          className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-semibold py-3.5 rounded-xl"
-        >
-          <FileSignature size={16} />
-          Contratar seguro
-          {aprovadas.length > 1 && ` (${aprovadas.length} seguradoras aprovaram)`}
-        </Link>
-      )}
+      {msg && <p className="text-xs text-emerald-800 bg-emerald-50 ring-1 ring-emerald-100 rounded-xl px-3 py-2.5">{msg}</p>}
+      {erroAcao && <p className="text-xs text-rose-800 bg-rose-50 ring-1 ring-rose-100 rounded-xl px-3 py-2.5">{erroAcao}</p>}
 
-      {contratacao && <CardContratacao c={contratacao} />}
-
-      {msg && <p className="text-xs text-green-700 bg-green-50 border border-green-100 rounded-lg px-3 py-2">{msg}</p>}
-      {erroAcao && <p className="text-xs text-red-700 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{erroAcao}</p>}
-
-      {/* Pareceres: uma análise, N respostas independentes. */}
-      <section className="space-y-2">
-        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">
+      {/* Um card por seguradora */}
+      <section className="space-y-2.5">
+        <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 px-0.5">
           Seguradoras ({pareceres.length})
         </h2>
         {pareceres.length === 0 ? (
-          <p className="text-sm text-gray-500 bg-white border border-gray-100 rounded-2xl p-6 text-center">
+          <p className="text-sm text-gray-500 bg-white ring-1 ring-gray-100 rounded-2xl p-8 text-center">
             Nenhum parecer ainda.
           </p>
         ) : (
-          pareceres.map(p => <CardParecer key={p.id} p={p} />)
+          ordenados.map(p => (
+            <CardSeguradora key={p.id} p={p} podeContratar={podeContratar} />
+          ))
         )}
       </section>
 
       {arquivos.length > 0 && (
         <section className="space-y-2">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-gray-400">Documentos</h2>
-          <div className="bg-white border border-gray-100 rounded-2xl divide-y divide-gray-50">
-            {arquivos.map(a => (
-              <a
-                key={a.id}
-                href={a.url ?? '#'}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={`flex items-center gap-2.5 px-4 py-3 hover:bg-gray-50 ${!a.url ? 'pointer-events-none opacity-50' : ''}`}
-              >
-                <FileText size={15} className="text-violet-600 shrink-0" />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-900 truncate">{a.descricao ?? `Documento ${a.codigoTipo}`}</p>
-                  <p className="text-[11px] text-gray-400">
-                    {a.seguradoraSigla?.toUpperCase()} · {new Date(a.recebidoEm).toLocaleDateString('pt-BR')}
-                  </p>
-                </div>
-              </a>
-            ))}
+          <h2 className="text-[11px] font-bold uppercase tracking-wider text-gray-400 px-0.5">
+            Documentos
+          </h2>
+          <div className="bg-white ring-1 ring-gray-100 rounded-2xl divide-y divide-gray-50 overflow-hidden">
+            {arquivos.map(a => {
+              const marca = marcaDe(a.seguradoraSigla)
+              return (
+                <a
+                  key={a.id}
+                  href={a.url ?? '#'}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`flex items-center gap-2.5 px-4 py-3.5 active:bg-gray-50 ${!a.url ? 'pointer-events-none opacity-40' : ''}`}
+                >
+                  <span
+                    className="shrink-0 w-8 h-8 rounded-lg grid place-items-center"
+                    style={{ backgroundColor: marca.corFundo }}
+                  >
+                    <FileText size={14} style={{ color: marca.cor }} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-900 truncate">
+                      {a.descricao ?? `Documento ${a.codigoTipo}`}
+                    </p>
+                    <p className="text-[11px] text-gray-400">
+                      {a.seguradoraSigla?.toUpperCase()} · {new Date(a.recebidoEm).toLocaleDateString('pt-BR')}
+                    </p>
+                  </div>
+                </a>
+              )
+            })}
           </div>
         </section>
       )}
 
-      <div className="flex justify-end pt-2">
+      <div className="flex justify-end pt-1">
         <button
           type="button"
           onClick={excluir}
           disabled={isPending}
-          className="flex items-center gap-1.5 text-sm text-red-600 hover:text-red-700 px-3 py-1.5 rounded-lg hover:bg-red-50"
+          className="flex items-center gap-1.5 text-sm text-rose-600 active:text-rose-700 px-3 py-2 rounded-lg"
         >
-          <Trash2 size={14} /> Excluir
+          <Trash2 size={14} /> Excluir cotação
         </button>
       </div>
     </div>
   )
 }
 
-function CardContratacao({ c }: { c: ContratacaoView }) {
-  const emitida = c.status === 'emitida'
-  const falhou = c.status === 'erro'
-
-  const cor = emitida
-    ? 'border-green-200 bg-green-50'
-    : falhou ? 'border-red-200 bg-red-50'
-    : 'border-blue-200 bg-blue-50'
-
+function Placar({ n, rotulo, Icone, cls }: {
+  n: number
+  rotulo: string
+  Icone: React.ComponentType<{ size?: number; className?: string }>
+  cls: string
+}) {
   return (
-    <section className={`border rounded-2xl px-4 py-3 space-y-1.5 ${cor}`}>
-      <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
-        <ShieldCheck size={15} className={emitida ? 'text-green-600' : falhou ? 'text-red-500' : 'text-blue-600'} />
-        {emitida ? 'Apólice emitida' : falhou ? 'Falha na contratação' : 'Contratação enviada'}
-      </p>
-
-      {falhou ? (
-        <p className="text-xs text-red-800">{c.erro}</p>
-      ) : (
-        <>
-          <p className="text-sm text-gray-800">
-            {c.seguradoraSigla.toUpperCase()}
-            {c.formaPagto && <> · {c.formaPagto}</>}
-            {c.qtdParcelas && c.valorParcela != null && (
-              <> · {c.qtdParcelas}× {formatarBRL(c.valorParcela)}</>
-            )}
-          </p>
-          {c.premioTotal != null && (
-            <p className="text-base font-bold text-gray-900">{formatarBRL(c.premioTotal)}</p>
-          )}
-          {c.inicioVigencia && c.fimVigencia && (
-            <p className="text-[11px] text-gray-600">
-              vigência {new Date(c.inicioVigencia + 'T00:00:00').toLocaleDateString('pt-BR')}
-              {' '}a {new Date(c.fimVigencia + 'T00:00:00').toLocaleDateString('pt-BR')}
-            </p>
-          )}
-          {c.apoliceNumero ? (
-            <p className="text-xs font-semibold text-green-800">
-              Apólice nº {c.apoliceNumero}
-            </p>
-          ) : (
-            <p className="text-[11px] text-blue-800">
-              Aguardando a seguradora emitir. O número da apólice aparece aqui
-              assim que chegar.
-            </p>
-          )}
-        </>
-      )}
-    </section>
+    <div className={`rounded-2xl ring-1 px-2 py-2.5 text-center ${cls} ${n === 0 ? 'opacity-40' : ''}`}>
+      <Icone size={14} className="mx-auto mb-0.5" />
+      <p className="text-xl font-black leading-none tabular-nums">{n}</p>
+      <p className="text-[10px] font-semibold mt-0.5">{rotulo}</p>
+    </div>
   )
 }
 
-function CardParecer({ p }: { p: ParecerView }) {
-  const [copiado, setCopiado] = useState(false)
-  const aprovado = statusAprovado(p.codigoStatus)
-  const pendente = statusPendente(p.codigoStatus)
+function CardContratacao({ c }: { c: ContratacaoView }) {
+  const marca = marcaDe(c.seguradoraSigla)
+  const emitida = c.status === 'emitida'
+  const falhou = c.status === 'erro'
 
-  // O texto oficial vem da tabela: descricaoStatus da API é inconsistente.
-  const rotulo = p.codigoStatus != null
-    ? STATUS_ANALISE[p.codigoStatus as keyof typeof STATUS_ANALISE] ?? p.descricaoStatus
-    : p.descricaoStatus
-
-  const cor = aprovado
-    ? 'border-green-200 bg-green-50/50'
-    : pendente ? 'border-amber-200 bg-amber-50/50'
-    : 'border-red-200 bg-red-50/50'
-
-  const Icone = aprovado ? CheckCircle2 : pendente ? Clock : XCircle
-  const iconeCor = aprovado ? 'text-green-600' : pendente ? 'text-amber-600' : 'text-red-500'
-
-  // Pré-aprovado (12) só fecha depois da biometria do inquilino.
-  const precisaBiometria = p.linkBiometria && p.statusBiometria === 0
-
-  const copiarLink = async () => {
-    if (!p.linkBiometria) return
-    try {
-      await navigator.clipboard.writeText(p.linkBiometria)
-      setCopiado(true)
-      setTimeout(() => setCopiado(false), 2000)
-    } catch {/* */}
+  if (falhou) {
+    return (
+      <section className="rounded-2xl bg-rose-50 ring-1 ring-rose-200 px-4 py-3">
+        <p className="text-sm font-bold text-rose-900 flex items-center gap-1.5">
+          <AlertTriangle size={15} /> Falha na contratação
+        </p>
+        <p className="text-xs text-rose-800 mt-1">{c.erro}</p>
+      </section>
+    )
   }
 
   return (
-    <div className={`border rounded-2xl px-4 py-3 ${cor}`}>
-      <div className="flex items-start gap-2.5">
-        <Icone size={17} className={`${iconeCor} shrink-0 mt-0.5`} />
-        <div className="min-w-0 flex-1">
-          <div className="flex items-baseline gap-2 flex-wrap">
-            <p className="text-sm font-bold text-gray-900">
-              {p.seguradoraNome ?? p.seguradoraSigla.toUpperCase()}
-            </p>
-            <span className="text-xs text-gray-600">{rotulo}</span>
-          </div>
-
-          {/* Aprovação parcial: dá pra fechar renegociando o aluguel. */}
-          {p.codigoStatus === 5 && p.limiteAprovado != null && (
-            <p className="text-xs text-amber-800 mt-1 bg-amber-100/60 rounded px-2 py-1 inline-block">
-              Limite aprovado: <strong>{formatarBRL(p.limiteAprovado)}</strong> — abaixo do solicitado.
-            </p>
-          )}
-          {p.codigoStatus === 1 && p.limiteAprovado != null && (
-            <p className="text-xs text-green-800 mt-1">
-              Limite: <strong>{formatarBRL(p.limiteAprovado)}</strong>
-            </p>
-          )}
-
-          {p.msg && <p className="text-xs text-gray-600 mt-1 italic">&ldquo;{p.msg}&rdquo;</p>}
-
-          {p.statusBiometria != null && (
-            <p className="text-[11px] text-gray-500 mt-1 flex items-center gap-1">
-              <ScanFace size={11} />
-              Biometria: {STATUS_BIOMETRIA[p.statusBiometria as keyof typeof STATUS_BIOMETRIA] ?? p.statusBiometria}
-            </p>
-          )}
-
-          {precisaBiometria && (
-            <div className="mt-2 bg-white border border-amber-200 rounded-lg px-3 py-2">
-              <p className="text-[11px] font-semibold text-amber-900">
-                Falta a biometria do inquilino pra aprovar
-              </p>
-              <p className="text-[10px] text-gray-500 mb-1.5">Envie este link pra ele:</p>
-              <div className="flex gap-1.5">
-                <a
-                  href={p.linkBiometria ?? '#'}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-1 text-[11px] text-violet-700 underline truncate"
-                >
-                  {p.linkBiometria}
-                </a>
-                <button
-                  type="button"
-                  onClick={copiarLink}
-                  className="text-gray-400 hover:text-violet-700 shrink-0"
-                  aria-label="Copiar link da biometria"
-                >
-                  {copiado ? <Check size={13} className="text-green-600" /> : <Copy size={13} />}
-                </button>
-              </div>
-            </div>
-          )}
-
-          <p className="text-[10px] text-gray-400 mt-1.5">
-            {p.codigoAnalise && <>nº {p.codigoAnalise} · </>}
-            {new Date(p.atualizadoEm).toLocaleString('pt-BR')}
+    <section
+      className="relative overflow-hidden rounded-2xl px-4 py-4 text-white"
+      style={{ backgroundColor: marca.cor }}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-wider opacity-80">
+            {emitida ? 'Seguro contratado' : 'Contratação enviada'}
+          </p>
+          <p className="text-lg font-black leading-tight">
+            {c.seguradoraSigla.toUpperCase()}
           </p>
         </div>
+        <ShieldCheck size={22} className="opacity-90 shrink-0" />
       </div>
-    </div>
+
+      {c.premioTotal != null && (
+        <p className="text-2xl font-black tabular-nums mt-2">{formatarBRL(c.premioTotal)}</p>
+      )}
+      {c.qtdParcelas && c.valorParcela != null && (
+        <p className="text-sm opacity-90">
+          {c.formaPagto} · {c.qtdParcelas}× {formatarBRL(c.valorParcela)}
+        </p>
+      )}
+
+      {c.inicioVigencia && c.fimVigencia && (
+        <p className="text-[11px] opacity-75 mt-1.5 tabular-nums">
+          vigência {new Date(c.inicioVigencia + 'T00:00:00').toLocaleDateString('pt-BR')}
+          {' → '}{new Date(c.fimVigencia + 'T00:00:00').toLocaleDateString('pt-BR')}
+        </p>
+      )}
+
+      <div className="mt-3 pt-3 border-t border-white/20 space-y-0.5">
+        {c.propostaNumero && (
+          <p className="text-xs opacity-90 tabular-nums">Proposta {c.propostaNumero}</p>
+        )}
+        {c.apoliceNumero ? (
+          <p className="text-sm font-bold tabular-nums">Apólice {c.apoliceNumero}</p>
+        ) : (
+          <p className="text-[11px] opacity-80 leading-snug">
+            Aguardando a seguradora emitir. O número da apólice aparece aqui
+            assim que chegar — e desce sozinho pro contrato.
+          </p>
+        )}
+      </div>
+    </section>
   )
 }
