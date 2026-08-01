@@ -75,6 +75,14 @@ export default async function EditarContratoAdmPage({ params }: { params: Promis
           multa_rescisao_meses: contrato.multa_rescisao_meses,
           aviso_previo_dias: contrato.aviso_previo_dias,
           observacoes: contrato.observacoes ?? '',
+          seguro_incendio_modo: contrato.seguro_incendio_modo ?? null,
+          seguro_incendio_pagador: contrato.seguro_incendio_pagador ?? null,
+          seguro_incendio_seguradora: contrato.seguro_incendio_seguradora ?? null,
+          seguro_incendio_apolice: contrato.seguro_incendio_apolice ?? null,
+          seguro_incendio_vencimento: contrato.seguro_incendio_vencimento ?? null,
+          garantias_aceitas: contrato.garantias_aceitas ?? null,
+          autoriza_cotacao_seguros: contrato.autoriza_cotacao_seguros ?? null,
+          seguros_observacoes: contrato.seguros_observacoes ?? null,
         }}
         pessoas={(pessoas ?? []) as Array<{ id: string; nome: string; cpf_cnpj: string | null; tipo: string }>}
         imoveis={(imoveis ?? []) as Array<{ id: string; titulo: string; endereco_resumido: string | null }>}

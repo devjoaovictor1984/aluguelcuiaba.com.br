@@ -23,6 +23,40 @@ export interface ContratoAdminInput {
   recebimento_comissao?: 'mensal' | 'pagamento_unico'
   proprietario_representante_id?: string | null
   proprietario_representante_qualificacao?: string | null
+
+  // Seguros (v75) — o que foi combinado com o proprietário.
+  seguro_incendio_modo?: string | null
+  seguro_incendio_pagador?: string | null
+  seguro_incendio_seguradora?: string | null
+  seguro_incendio_apolice?: string | null
+  seguro_incendio_vencimento?: string | null
+  garantias_aceitas?: string[] | null
+  autoriza_cotacao_seguros?: boolean | null
+  seguros_observacoes?: string | null
+}
+
+/**
+ * Normaliza os campos de seguro pro banco.
+ *
+ * Coerções que evitam estado inconsistente:
+ *  - autorização só faz sentido se a administradora for contratar;
+ *  - seguradora/apólice/vencimento só quando o proprietário já tem.
+ */
+function normalizarSeguros(input: ContratoAdminInput): Record<string, unknown> {
+  const modo = input.seguro_incendio_modo || 'a_definir'
+  const proprietarioTem = modo === 'proprietario_possui'
+  const administradoraContrata = modo === 'administradora_contrata'
+
+  return {
+    seguro_incendio_modo: modo,
+    seguro_incendio_pagador: input.seguro_incendio_pagador || null,
+    seguro_incendio_seguradora: proprietarioTem ? (input.seguro_incendio_seguradora?.trim() || null) : null,
+    seguro_incendio_apolice: proprietarioTem ? (input.seguro_incendio_apolice?.trim() || null) : null,
+    seguro_incendio_vencimento: proprietarioTem ? (input.seguro_incendio_vencimento || null) : null,
+    garantias_aceitas: input.garantias_aceitas ?? [],
+    autoriza_cotacao_seguros: administradoraContrata ? !!input.autoriza_cotacao_seguros : false,
+    seguros_observacoes: input.seguros_observacoes?.trim() || null,
+  }
 }
 
 // Próximo código sequencial (primeiro número livre), considerando só contratos
@@ -79,6 +113,7 @@ export async function criarContratoAdmin(input: ContratoAdminInput) {
       recebimento_comissao: input.recebimento_comissao ?? 'mensal',
       proprietario_representante_id: input.proprietario_representante_id || null,
       proprietario_representante_qualificacao: input.proprietario_representante_qualificacao?.trim() || null,
+      ...normalizarSeguros(input),
       status: 'ativo',
     })
     .select('id')
@@ -93,9 +128,16 @@ export async function atualizarContratoAdmin(id: string, input: Partial<Contrato
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
+  // Só normaliza os campos de seguro quando eles vieram na edição — senão
+  // um update parcial de outro campo zeraria a preferência já registrada.
+  const patch: Record<string, unknown> = { ...input }
+  if ('seguro_incendio_modo' in input) {
+    Object.assign(patch, normalizarSeguros(input as ContratoAdminInput))
+  }
+
   const { error } = await supabase
     .from('contratos_administracao')
-    .update({ ...input })
+    .update(patch)
     .eq('id', id)
     .eq('user_id', acesso.userId)
   if (error) return { error: error.message }

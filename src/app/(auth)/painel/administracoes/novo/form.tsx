@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, AlertCircle, Save } from 'lucide-react'
 import { criarContratoAdmin } from '../actions'
+import { SecaoSeguros, SEGUROS_PADRAO, type ValoresSeguros } from '../_components/secao-seguros'
 
 const inputCls = "w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-gray-900 text-sm transition"
 
@@ -32,6 +33,7 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
   const [multaMeses, setMultaMeses] = useState('3')
   const [avisoPrevio, setAvisoPrevio] = useState('30')
   const [observacoes, setObservacoes] = useState('')
+  const [seguros, setSeguros] = useState<ValoresSeguros>(SEGUROS_PADRAO)
 
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -68,6 +70,7 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
         exclusividade,
         multa_rescisao_meses: parseInt(multaMeses, 10) || null,
         aviso_previo_dias: parseInt(avisoPrevio, 10) || 30,
+        ...seguros,
         observacoes: observacoes.trim() || null,
       })
       if (r.error || !r.id) { setErro(r.error ?? 'Falha ao criar.'); return }
@@ -206,6 +209,12 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
           </label>
         </div>
       </section>
+
+      <SecaoSeguros
+        valores={seguros}
+        onChange={p => setSeguros(s => ({ ...s, ...p }))}
+        inputCls={inputCls}
+      />
 
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Observações</h2>

@@ -1,6 +1,7 @@
 import 'server-only'
 import {
   estadoCivilParaMaximiza, indiceReajusteParaMaximiza, tipoImovelParaMaximiza,
+  normalizarSigla, seguradoraIntegrada,
 } from '../tabelas'
 import type {
   AnaliseInput, ContratacaoInput, Parecer, PlanosPreco, ResultadoAnalise,
@@ -159,8 +160,10 @@ interface ParecerBruto {
  * `seguradora`. Quando faltar, derivamos do nome pra não perder o vínculo.
  */
 function siglaDoParecer(p: ParecerBruto): string {
-  if (p.sigla) return p.sigla.toLowerCase()
-  return (p.seguradora ?? '').toLowerCase().slice(0, 3)
+  if (p.sigla) return normalizarSigla(p.sigla)
+  const nome = (p.seguradora ?? '').toLowerCase()
+  if (nome.startsWith('porto')) return 'porto'
+  return normalizarSigla(nome.slice(0, 3))
 }
 
 export function lerParecer(p: ParecerBruto): Parecer {
@@ -182,7 +185,10 @@ export function lerResultadoAnalise(bruto: unknown): ResultadoAnalise {
   const o = (bruto ?? {}) as { id?: number; analises?: ParecerBruto[] }
   return {
     idExterno: Number(o.id ?? 0),
-    pareceres: (o.analises ?? []).map(lerParecer),
+    // Só as integradas por API: a Junto aparece no painel deles mas é
+    // atendimento manual, e um parecer dela aqui só confundiria.
+    pareceres: (o.analises ?? []).map(lerParecer)
+      .filter(p => seguradoraIntegrada(p.seguradoraSigla)),
   }
 }
 
@@ -190,10 +196,10 @@ export function lerSeguradoras(bruto: unknown): Seguradora[] {
   const lista = Array.isArray(bruto) ? bruto : []
   return lista.map((s: Record<string, unknown>) => ({
     nome: String(s.seguradora ?? ''),
-    sigla: String(s.sigla ?? '').toLowerCase(),
+    sigla: normalizarSigla(String(s.sigla ?? '')),
     // Vem como "sim"/"não" — com acento, então comparamos pelo prefixo.
     aceitaAnaliseReduzida: String(s.analiseReduzida ?? '').toLowerCase().startsWith('s'),
-  })).filter(s => s.sigla)
+  })).filter(s => s.sigla && seguradoraIntegrada(s.sigla))
 }
 
 export function lerArquivos(bruto: unknown, seguradoraSigla: string | null): ArquivoRecebido[] {

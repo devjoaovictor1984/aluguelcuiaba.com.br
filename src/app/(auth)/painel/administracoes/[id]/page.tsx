@@ -1,11 +1,15 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
-import { ChevronLeft, Briefcase, User, Home, Calendar, Percent, FileDown, Eye, Pencil } from 'lucide-react'
+import { ChevronLeft, Briefcase, User, Home, Calendar, Percent, FileDown, Eye, Pencil, ShieldCheck } from 'lucide-react'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { BotaoExcluirAdm } from './_components/botao-excluir-adm'
 import { AditivosAdmSecao, type AditivoAdmRow } from './_components/aditivos-adm-secao'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import {
+  GARANTIA_LABEL, MODO_INCENDIO_LABEL, podeContratarIncendio,
+  type ModoSeguroIncendio,
+} from '@/lib/seguros/preferencia-proprietario'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -183,6 +187,60 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
           <li>· Aviso prévio: <strong>{contrato.aviso_previo_dias} dias</strong></li>
           <li>· Multa rescisória: <strong>{contrato.multa_rescisao_meses ?? '—'} meses de taxa</strong></li>
         </ul>
+      </div>
+
+      {/* Seguros — o que foi combinado com o proprietário */}
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-2">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+          <ShieldCheck size={13} className="text-violet-600" /> Seguros
+        </h2>
+        <ul className="text-sm text-gray-700 space-y-1">
+          <li>
+            · Incêndio:{' '}
+            <strong>
+              {MODO_INCENDIO_LABEL[
+                (contrato.seguro_incendio_modo ?? 'a_definir') as ModoSeguroIncendio
+              ] ?? '—'}
+            </strong>
+            {contrato.seguro_incendio_pagador && (
+              <> · paga o <strong>{contrato.seguro_incendio_pagador}</strong></>
+            )}
+          </li>
+          {contrato.seguro_incendio_apolice && (
+            <li className="text-xs text-gray-500">
+              &nbsp;&nbsp;apólice {contrato.seguro_incendio_apolice}
+              {contrato.seguro_incendio_seguradora && <> · {contrato.seguro_incendio_seguradora}</>}
+              {contrato.seguro_incendio_vencimento && (
+                <> · vence {new Date(contrato.seguro_incendio_vencimento + 'T00:00:00').toLocaleDateString('pt-BR')}</>
+              )}
+            </li>
+          )}
+          <li>
+            · Garantias aceitas:{' '}
+            <strong>
+              {contrato.garantias_aceitas?.length
+                ? contrato.garantias_aceitas
+                    .map((g: string) => GARANTIA_LABEL[g as keyof typeof GARANTIA_LABEL] ?? g)
+                    .join(', ')
+                : 'sem restrição'}
+            </strong>
+          </li>
+          <li>
+            · Autoriza a administradora a contratar:{' '}
+            <strong>{contrato.autoriza_cotacao_seguros ? 'Sim' : 'Não'}</strong>
+          </li>
+        </ul>
+        {contrato.seguros_observacoes && (
+          <p className="text-xs text-gray-600 bg-gray-50 border border-gray-100 rounded-lg px-2.5 py-2 mt-1 whitespace-pre-wrap">
+            {contrato.seguros_observacoes}
+          </p>
+        )}
+        {podeContratarIncendio(contrato) && (
+          <p className="text-[11px] text-green-800 bg-green-50 border border-green-100 rounded-lg px-2.5 py-2">
+            Autorizado — a contratação de seguro por este imóvel fica liberada
+            no sistema.
+          </p>
+        )}
       </div>
 
       {contrato.observacoes && (

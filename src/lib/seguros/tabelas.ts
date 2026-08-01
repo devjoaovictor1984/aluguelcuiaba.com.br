@@ -11,6 +11,39 @@
  * tabela. Regra geral: SEMPRE ler `codigoStatus`, nunca `descricaoStatus`.
  */
 
+/* ── Seguradoras ───────────────────────────────────────────────────── */
+
+/**
+ * As quatro seguradoras integradas por API.
+ *
+ * O painel da Maximiza também lista a Junto, mas ela aparece sem o selo
+ * "API" — é atendimento manual por lá. Filtramos aqui pra não oferecer no
+ * sistema o que a integração não consegue cotar.
+ *
+ * A lista viva continua vindo de `/seguradorasAnalise`; isto é só o
+ * crivo. Se a Junto (ou outra) entrar por API, basta somar a sigla.
+ */
+export const SEGURADORAS_API = ['too', 'tok', 'ptc', 'porto'] as const
+
+/**
+ * A sigla da Porto é inconsistente na documentação: `/seguradorasAnalise`
+ * devolve "porto", mas os exemplos de transmitirAnalise usam "por" e o
+ * retorno mostra `sigla: "por"`. Aceitamos as duas na entrada.
+ *
+ * ⚠️ Confirmar com a Maximiza qual vale no ENVIO.
+ */
+const ALIAS_SIGLA: Record<string, string> = { por: 'porto' }
+
+export function normalizarSigla(sigla: string | null | undefined): string {
+  const s = (sigla ?? '').toLowerCase().trim()
+  return ALIAS_SIGLA[s] ?? s
+}
+
+/** A seguradora é cotável pela integração? */
+export function seguradoraIntegrada(sigla: string | null | undefined): boolean {
+  return (SEGURADORAS_API as readonly string[]).includes(normalizarSigla(sigla))
+}
+
 /* ── Status da análise ─────────────────────────────────────────────── */
 
 export const STATUS_ANALISE = {

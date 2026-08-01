@@ -4,6 +4,8 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, AlertCircle, Save } from 'lucide-react'
 import { atualizarContratoAdmin } from '../../actions'
+import { SecaoSeguros, SEGUROS_PADRAO, type ValoresSeguros } from '../../_components/secao-seguros'
+import type { ModoSeguroIncendio } from '@/lib/seguros/preferencia-proprietario'
 
 const inputCls = "w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-gray-900 text-sm transition"
 
@@ -25,6 +27,16 @@ interface Inicial {
   multa_rescisao_meses: number | null
   aviso_previo_dias: number
   observacoes: string
+
+  // Seguros (v75)
+  seguro_incendio_modo: string | null
+  seguro_incendio_pagador: string | null
+  seguro_incendio_seguradora: string | null
+  seguro_incendio_apolice: string | null
+  seguro_incendio_vencimento: string | null
+  garantias_aceitas: string[] | null
+  autoriza_cotacao_seguros: boolean | null
+  seguros_observacoes: string | null
 }
 
 interface Props {
@@ -62,6 +74,17 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
   const [multaMeses, setMultaMeses] = useState(String(inicial.multa_rescisao_meses ?? ''))
   const [avisoPrevio, setAvisoPrevio] = useState(String(inicial.aviso_previo_dias))
   const [observacoes, setObservacoes] = useState(inicial.observacoes)
+  const [seguros, setSeguros] = useState<ValoresSeguros>({
+    ...SEGUROS_PADRAO,
+    seguro_incendio_modo: (inicial.seguro_incendio_modo as ModoSeguroIncendio) ?? 'a_definir',
+    seguro_incendio_pagador: (inicial.seguro_incendio_pagador as 'proprietario' | 'inquilino') ?? '',
+    seguro_incendio_seguradora: inicial.seguro_incendio_seguradora ?? '',
+    seguro_incendio_apolice: inicial.seguro_incendio_apolice ?? '',
+    seguro_incendio_vencimento: inicial.seguro_incendio_vencimento ?? '',
+    garantias_aceitas: inicial.garantias_aceitas ?? [],
+    autoriza_cotacao_seguros: inicial.autoriza_cotacao_seguros ?? false,
+    seguros_observacoes: inicial.seguros_observacoes ?? '',
+  })
 
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -92,6 +115,7 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
         multa_rescisao_meses: parseInt(multaMeses, 10) || null,
         aviso_previo_dias: parseInt(avisoPrevio, 10) || 30,
         observacoes: observacoes.trim() || null,
+        ...seguros,
       })
       if (r.error) { setErro(r.error); return }
       router.push(`/painel/administracoes/${id}`)
@@ -226,6 +250,12 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
           </label>
         </div>
       </section>
+
+      <SecaoSeguros
+        valores={seguros}
+        onChange={p => setSeguros(s => ({ ...s, ...p }))}
+        inputCls={inputCls}
+      />
 
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Observações</h2>
