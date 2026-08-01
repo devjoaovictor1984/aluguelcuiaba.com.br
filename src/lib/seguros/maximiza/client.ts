@@ -1,5 +1,6 @@
 import 'server-only'
 import { SeguroApiError } from '../tipos'
+import { simular, simuladorAtivo } from './simulador'
 
 /**
  * Cliente HTTP da API Maximiza (fiança v1).
@@ -118,6 +119,15 @@ export async function chamar<T>(
   const { metodo = 'POST', corpo } = opcoes
   const inicio = Date.now()
   let ultimoErro: unknown
+
+  // Demonstração: troca só o transporte. Mapper, persistência e telas
+  // continuam sendo os de produção — é o que faz o vídeo mostrar o
+  // sistema de verdade, e o que garante que o caminho já esteja
+  // exercitado quando a credencial chegar.
+  if (simuladorAtivo()) {
+    const dados = await simular(caminho, corpo) as T
+    return { dados, httpStatus: 200, duracaoMs: Date.now() - inicio }
+  }
 
   for (let tentativa = 1; tentativa <= TENTATIVAS; tentativa++) {
     try {

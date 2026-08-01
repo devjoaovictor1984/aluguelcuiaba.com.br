@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { GerenciadorLinks } from './_components/gerenciador-links'
+import { AvisoDemo } from '../../_components/aviso-demo'
 
 export const metadata = { title: 'Links de análise' }
 
@@ -55,6 +56,8 @@ export default async function LinksAnalisePage() {
           entra direto na sua carteira.
         </p>
       </div>
+
+      <AvisoDemo />
 
       {!perfil.pronto ? (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 flex items-start gap-2.5">

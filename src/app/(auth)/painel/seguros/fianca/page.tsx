@@ -9,6 +9,7 @@ import { formatarBRL } from '@/lib/formatters'
 import { Paginacao } from '../_components/paginacao'
 import { BuscaSeguros } from '../_components/busca-seguros'
 import { BandeiraSeguradora } from '../_components/bandeira-seguradora'
+import { AvisoDemo } from '../_components/aviso-demo'
 
 const POR_PAGINA = 20
 
@@ -112,6 +113,8 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
           </Link>
         </div>
       </div>
+
+      <AvisoDemo />
 
       {!perfil.pronto && (
         <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-start gap-2.5">

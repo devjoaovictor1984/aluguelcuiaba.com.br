@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { FormNovaAnalise } from './_components/form-nova-analise'
+import { AvisoDemo } from '../../_components/aviso-demo'
 
 interface Props {
   searchParams: Promise<{ contrato?: string }>
@@ -66,6 +67,8 @@ export default async function NovaAnalisePage({ searchParams }: Props) {
           Cota em paralelo nas seguradoras parceiras. O parecer costuma sair em minutos.
         </p>
       </div>
+
+      <AvisoDemo />
 
       {!perfil.pronto ? (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-4 flex items-start gap-2.5">
