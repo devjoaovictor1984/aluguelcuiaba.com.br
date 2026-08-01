@@ -9,6 +9,11 @@ interface Props {
   params: Promise<{ id: string }>
 }
 
+/** Fora do componente: `Date.now()` no corpo do render viola react-hooks/purity. */
+function expirou(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now()
+}
+
 const STATUS_LABEL: Record<string, string> = {
   rascunho: 'Rascunho',
   enviada: 'Aguardando locatário',
@@ -104,7 +109,7 @@ export default async function TermosChavesPage({ params }: Props) {
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-50 overflow-hidden">
           {termos.map(t => {
             const aguardaLocatario = t.status === 'enviada' || t.status === 'assinado_locador'
-            const expirada = !!(t.expira_em && aguardaLocatario && new Date(t.expira_em).getTime() < Date.now())
+            const expirada = !!(t.expira_em && aguardaLocatario && expirou(t.expira_em))
             const statusEx = expirada ? 'expirada' : t.status
             return (
               <Link

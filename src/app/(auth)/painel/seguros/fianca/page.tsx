@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ShieldCheck, Plus, Search, AlertTriangle, FlaskConical } from 'lucide-react'
+import { ShieldCheck, Plus, Search, AlertTriangle, FlaskConical, Link2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
@@ -33,7 +33,7 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
     .from('seguro_analises')
     .select(
       `id, maximiza_id, status_resumo, ambiente, tipo_analise, finalidade,
-       valor_aluguel, created_at, erro,
+       valor_aluguel, created_at, erro, origem,
        inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
        imovel:imoveis(titulo),
        contrato:contratos_locacao(codigo)`,
@@ -58,6 +58,7 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
     valor_aluguel: number | null
     created_at: string
     erro: string | null
+    origem: string
     inquilino: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null
     imovel: { titulo: string } | { titulo: string }[] | null
     contrato: { codigo: string } | { codigo: string }[] | null
@@ -93,12 +94,20 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
             Cotação em paralelo nas seguradoras parceiras.
           </p>
         </div>
-        <Link
-          href="/painel/seguros/fianca/nova"
-          className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold px-4 py-2.5 rounded-xl"
-        >
-          <Plus size={15} /> Nova cotação
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/painel/seguros/fianca/links"
+            className="flex items-center gap-1.5 border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl"
+          >
+            <Link2 size={15} /> Gerar link
+          </Link>
+          <Link
+            href="/painel/seguros/fianca/nova"
+            className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold px-4 py-2.5 rounded-xl"
+          >
+            <Plus size={15} /> Nova cotação
+          </Link>
+        </div>
       </div>
 
       {!perfil.pronto && (
@@ -150,6 +159,7 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
                       {l.maximiza_id && <> · nº {l.maximiza_id}</>}
                       {l.tipo_analise === 'reduzida' && <> · análise rápida</>}
                       {l.finalidade === 'C' && <> · comercial</>}
+                      {l.origem === 'link' && <> · preenchida pelo inquilino</>}
                     </p>
                     {l.erro && (
                       <p className="text-[11px] text-red-600 mt-1 line-clamp-1">{l.erro}</p>
