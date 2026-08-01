@@ -11,6 +11,7 @@ import {
 } from '@/lib/seguros'
 import type { AnaliseInput } from '@/lib/seguros/tipos'
 import { gravarPareceres, resumirStatus } from '@/lib/seguros/pareceres'
+import { lerEstadoAnterior, notificarMudancas } from '@/lib/seguros/notificar'
 
 /**
  * Ações do módulo de seguros.
@@ -122,6 +123,8 @@ export async function sincronizarAnalise(analiseId: string) {
   if (!analise) return { error: 'Análise não encontrada.' }
   if (!analise.maximiza_id) return { error: 'Esta análise ainda não foi transmitida.' }
 
+  const antes = await lerEstadoAnterior(admin, analiseId)
+
   try {
     const { resultado, arquivos } = await consultarAnalise(admin, analise.maximiza_id, {
       userId: acesso.userId,
@@ -129,6 +132,7 @@ export async function sincronizarAnalise(analiseId: string) {
     })
 
     await gravarPareceres(admin, analiseId, resultado.pareceres)
+    await notificarMudancas(admin, { userId: acesso.userId, analiseId }, antes, resultado.pareceres)
 
     for (const arq of arquivos) {
       await salvarArquivo(admin, arq, { userId: acesso.userId, analiseId })
@@ -142,6 +146,68 @@ export async function sincronizarAnalise(analiseId: string) {
     return { ok: true, pareceres: resultado.pareceres.length, arquivos: arquivos.length }
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Falha ao consultar a corretora.' }
+  }
+}
+
+/**
+ * Reenvia a análise com locatários solidários incluídos.
+ *
+ * Diferente de `reanalisar`: `transmitirReanalise` só aceita o código e as
+ * seguradoras — não dá pra mudar dado nenhum por lá. Pra ALTERAR a
+ * análise, a API manda usar `transmitirAnalise` com o campo `codigo`
+ * preenchido ("Id da análise caso seja uma reanálise/alteração").
+ *
+ * É a saída da aprovação com limite inferior: a própria seguradora
+ * responde que "será necessário incluir um locatário solidário".
+ */
+export async function incluirSolidarios(
+  analiseId: string,
+  solidarios: { nome: string; cpf: string; dataNascimento: string }[],
+) {
+  const acesso = await exigirAcessoCRM()
+  const admin = createAdminClient()
+
+  const analise = await checarPosseAnalise(analiseId, acesso.userId)
+  if (!analise) return { error: 'Análise não encontrada.' }
+  if (!analise.maximiza_id) return { error: 'Esta análise ainda não foi transmitida.' }
+  if (!solidarios.length) return { error: 'Inclua ao menos um locatário solidário.' }
+  if (solidarios.length > 3) return { error: 'No máximo 3 locatários solidários.' }
+
+  const { data: linha } = await admin
+    .from('seguro_analises')
+    .select('payload')
+    .eq('id', analiseId)
+    .maybeSingle()
+
+  const anterior = (linha?.payload ?? {}) as unknown as AnaliseInput
+  if (!anterior?.pretendente || !anterior?.imovel) {
+    return { error: 'Não foi possível recuperar os dados originais desta análise.' }
+  }
+
+  const dados: AnaliseInput = { ...anterior, solidarios }
+
+  const prov = await garantirImobiliaria(admin, acesso.userId)
+  if (prov.error || !prov.cnpjCpf) return { error: prov.error ?? 'Cadastro na corretora indisponível.' }
+
+  try {
+    const r = await transmitirAnalise(admin, dados, {
+      userId: acesso.userId,
+      analiseId,
+      cnpjImobiliaria: prov.cnpjCpf,
+      alterarCodigo: analise.maximiza_id,
+    })
+
+    await gravarPareceres(admin, analiseId, r.pareceres)
+    await admin.from('seguro_analises').update({
+      payload: dados as unknown as Record<string, unknown>,
+      status_resumo: resumirStatus(r.pareceres),
+      erro: null,
+    }).eq('id', analiseId)
+
+    revalidatePath(`/painel/seguros/fianca/${analiseId}`)
+    return { ok: true }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Falha ao reenviar com solidários.' }
   }
 }
 
@@ -170,6 +236,40 @@ export async function reanalisar(analiseId: string, seguradoras: string[]) {
   } catch (e) {
     return { error: e instanceof Error ? e.message : 'Falha ao reanalisar.' }
   }
+}
+
+/**
+ * Amarra uma análise ao contrato de locação.
+ *
+ * Chamado pelo wizard quando o corretor vincula uma cotação aprovada na
+ * etapa de garantia. É esse vínculo que faz o número da apólice descer
+ * sozinho pro contrato quando a seguradora emitir (webhook de arquivos).
+ */
+export async function vincularAnaliseAoContrato(analiseId: string, contratoId: string) {
+  const acesso = await exigirAcessoCRM()
+  const admin = createAdminClient()
+
+  const analise = await checarPosseAnalise(analiseId, acesso.userId)
+  if (!analise) return { error: 'Cotação não encontrada.' }
+
+  // O contrato também precisa ser do mesmo dono.
+  const { data: contrato } = await admin
+    .from('contratos_locacao')
+    .select('id')
+    .eq('id', contratoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!contrato) return { error: 'Contrato não encontrado.' }
+
+  const { error } = await admin
+    .from('seguro_analises')
+    .update({ contrato_id: contratoId })
+    .eq('id', analiseId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/seguros/fianca/${analiseId}`)
+  revalidatePath(`/painel/contratos/${contratoId}`)
+  return { ok: true }
 }
 
 export async function excluirAnalise(analiseId: string) {

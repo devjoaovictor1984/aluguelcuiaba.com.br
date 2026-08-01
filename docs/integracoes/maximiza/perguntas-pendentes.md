@@ -49,27 +49,55 @@ Está correto?
 
 ## 2. Bloqueiam o modelo comercial
 
-**2.1 Atribuição da comissão** ⚠️ *o ponto mais importante*
-Quando cadastramos uma imobiliária pela nossa integração
-(`/apiImobiliaria/cadastrarImobiliaria`), ela fica vinculada à nossa parceria?
+**O modelo que pretendemos** é de comissão sobreposta (*override*):
 
-Concretamente: **se um corretor cadastrado por nós origina uma apólice, quem
-recebe a comissão** — a imobiliária cadastrada, ou a plataforma que originou?
+- cada imobiliária que operar pela plataforma **continua recebendo a comissão
+  dela**, normalmente, como se tivesse cotado direto;
+- o AluguelCuiabá recebe **uma fatia sobre o volume originado** através da
+  plataforma;
+- vocês seguem fazendo negócio direto com quem não usa a plataforma.
 
-**2.2 O campo `corretora`**
-No webhook de análise aparece `dadosAnalise.corretora: "99"`. O que representa
-essa entidade? Nós temos ou teremos um código desses?
+As perguntas abaixo decorrem disso.
 
-**2.3 `cod_alfa` e `cod_porto`**
-O retorno de `/apiImobiliaria/consultarImobiliaria` traz esses dois campos, que
-não constam na documentação. Para que servem e quem os define?
+**2.1 Credencial de API: imobiliária ou plataforma?** ⚠️
+Hoje temos login de imobiliária no painel de vocês. Para a integração, usamos
+essa mesma credencial ou vocês emitem uma credencial de **plataforma /
+integrador**, sob a qual cadastramos as imobiliárias?
+
+Isso define a arquitetura: com credencial de imobiliária, todas as análises de
+todos os corretores apareceriam como sendo nossas.
+
+**2.2 Como a originação é marcada?** ⚠️
+A comissão do corretor sai pelo CNPJ dele — isso está claro. Mas **qual campo
+registra que a análise passou pelo AluguelCuiabá?**
+
+É o `corretora: "99"` que aparece no webhook? São os `cod_alfa` / `cod_porto`
+que voltam no `consultarImobiliaria` e não constam na documentação?
+
+Sem um identificador de canal, não temos como auditar a nossa própria
+remuneração.
+
+**2.3 Imobiliárias que já são clientes de vocês** ⚠️ *decide nossa estratégia*
+Uma imobiliária que **já tem cadastro** na Maximiza e passa a operar pela
+plataforma — a originação passa a ser nossa, ou o override só vale para
+imobiliárias novas, cadastradas via API?
+
+E o nosso próprio cadastro (IMOBILIATTO, hoje direto): migra para debaixo da
+plataforma?
+
+A resposta muda completamente quem prospectamos.
 
 **2.4 Janela de atribuição**
-Se o corretor inicia a cotação pela nossa plataforma e conclui por outro canal
-(WhatsApp com o gerente de vocês, por exemplo), a originação continua sendo
-nossa? Por quanto tempo?
+Se a cotação nasce na plataforma e a contratação é concluída por outro canal
+(WhatsApp com o gerente de vocês, por exemplo), a originação continua nossa? Por
+quantos dias?
 
-**2.5 Remuneração**
+E o inverso — cotação feita no painel de vocês e depois registrada na
+plataforma — conta?
+
+**2.5 Remuneração do override**
+- Percentual ou valor fixo por apólice originada pela plataforma?
+- Incide sobre o prêmio ou sobre a comissão da imobiliária?
 - Percentual ou valor fixo por apólice emitida, por seguradora?
 - A base de cálculo é o prêmio líquido ou bruto (IOF e custo de apólice entram)?
 - Prazo de pagamento após a emissão?

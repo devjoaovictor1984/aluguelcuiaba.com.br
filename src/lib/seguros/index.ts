@@ -184,11 +184,22 @@ export async function cadastrarImobiliaria(
 export async function transmitirAnalise(
   admin: Admin,
   input: AnaliseInput,
-  ctx: { userId: string; analiseId: string; cnpjImobiliaria: string },
+  ctx: {
+    userId: string
+    analiseId: string
+    cnpjImobiliaria: string
+    /**
+     * Id da análise na corretora, quando isto é uma ALTERAÇÃO (incluir
+     * solidário, corrigir dado). A doc: "Id da análise caso seja uma
+     * reanálise/alteração". Sem ele, cria análise nova.
+     */
+    alterarCodigo?: number
+  },
 ): Promise<ResultadoAnalise> {
   const corpo = montarAnalise(input, {
     ambiente: ambienteMaximiza(),
     cnpjImobiliaria: ctx.cnpjImobiliaria,
+    reanaliseDe: ctx.alterarCodigo,
   })
 
   const dados = await comLog<unknown>(

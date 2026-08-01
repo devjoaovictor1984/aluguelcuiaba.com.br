@@ -5,6 +5,7 @@ import { gravarPareceres, gravarParecerUnico, resumirStatus } from '@/lib/seguro
 import { salvarArquivo } from '@/lib/seguros/arquivos'
 import { lerParecer } from '@/lib/seguros/maximiza/mapper'
 import { TIPO_ARQUIVO_APOLICE } from '@/lib/seguros/tabelas'
+import { lerEstadoAnterior, notificarMudancas } from '@/lib/seguros/notificar'
 
 /**
  * Webhooks da Maximiza: análise, biometria e arquivos.
@@ -114,13 +115,16 @@ export async function POST(
   // id pode existir em homologação e produção.
   const { data: analise } = await admin
     .from('seguro_analises')
-    .select('id, user_id, ambiente')
+    .select('id, user_id, ambiente, inquilino:pessoas!inquilino_id(nome)')
     .eq('maximiza_id', idExterno)
     .order('created_at', { ascending: false })
     .limit(1)
     .maybeSingle()
 
   if (!analise) return FALHA
+
+  // Fotografa antes de escrever, pra saber o que de fato mudou.
+  const antes = await lerEstadoAnterior(admin, analise.id)
 
   try {
     if (evento === 'biometria') {
@@ -169,6 +173,14 @@ export async function POST(
       await admin.from('seguro_analises')
         .update({ status_resumo: resumirStatus(resultado.pareceres), erro: null })
         .eq('id', analise.id)
+
+      const inq = Array.isArray(analise.inquilino) ? analise.inquilino[0] : analise.inquilino
+      await notificarMudancas(
+        admin,
+        { userId: analise.user_id, analiseId: analise.id, nomeInquilino: inq?.nome ?? null },
+        antes,
+        resultado.pareceres,
+      )
     } else if (evento === 'analise') {
       // Sem retorno no GET, aproveita o aviso — melhor que perder o sinal.
       const p = lerParecer((corpo.analise ?? {}) as Record<string, never>)

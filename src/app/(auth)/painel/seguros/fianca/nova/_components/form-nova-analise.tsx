@@ -6,6 +6,9 @@ import { Loader2, Send, AlertCircle, ShieldCheck, ChevronDown } from 'lucide-rea
 import { maskCpfCnpj, maskTelefone, maskCep, maskMoney, parseMoney } from '@/lib/formatters'
 import { TIPOS_IMOVEL_RESIDENCIAL, TIPOS_IMOVEL_COMERCIAL } from '@/lib/seguros/tabelas'
 import { criarAnalise } from '../../../actions'
+import {
+  CamposSolidarios, validarSolidarios, type SolidarioCampo,
+} from '../../../_components/campos-solidarios'
 
 interface InquilinoOpcao {
   id: string
@@ -69,6 +72,7 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
   const [dataNasc, setDataNasc] = useState(inicial?.dataNascimento ?? '')
   const [sexo, setSexo] = useState<'M' | 'F' | ''>('')
 
+  const [solidarios, setSolidarios] = useState<SolidarioCampo[]>([])
   const [consentimento, setConsentimento] = useState(false)
 
   // Comercial exige análise completa — a reduzida só existe pra residencial.
@@ -99,6 +103,9 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
     if (usarCompleta && !sexo) return setErro('Informe o sexo na análise completa.')
     if (!consentimento) return setErro('É preciso confirmar o aceite do inquilino.')
 
+    const sol = validarSolidarios(solidarios)
+    if ('erro' in sol) return setErro(sol.erro)
+
     startTransition(async () => {
       const r = await criarAnalise({
         contratoId: contratoBase?.id ?? null,
@@ -117,6 +124,7 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
             dataNascimento: dataNasc || null,
             sexo: sexo || null,
           },
+          solidarios: sol.solidarios,
           imovel: {
             cep,
             aluguel: parseMoney(aluguel),
@@ -277,6 +285,16 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
           <input type="checkbox" checked={pinturaNova} onChange={e => setPinturaNova(e.target.checked)} className="accent-violet-600" />
           <span className="text-sm text-gray-700">Imóvel entregue com pintura nova</span>
         </label>
+      </section>
+
+      {/* Solidários */}
+      <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+        <CamposSolidarios
+          valores={solidarios}
+          onChange={setSolidarios}
+          inputCls={input}
+          disabled={isPending}
+        />
       </section>
 
       {/* Tipo de análise */}

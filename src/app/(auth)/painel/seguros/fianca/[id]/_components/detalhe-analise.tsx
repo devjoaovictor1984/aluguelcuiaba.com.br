@@ -4,12 +4,15 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   RefreshCw, Loader2, AlertTriangle, FileText, Trash2, RotateCcw,
-  ShieldCheck, Clock, CheckCircle2, XCircle,
+  ShieldCheck, Clock, CheckCircle2, XCircle, Users,
 } from 'lucide-react'
 import { statusAprovado, statusPendente } from '@/lib/seguros/tabelas'
 import { marcaDe } from '@/lib/seguros/marcas'
 import { formatarBRL } from '@/lib/formatters'
-import { sincronizarAnalise, reanalisar, excluirAnalise } from '../../../actions'
+import { sincronizarAnalise, reanalisar, excluirAnalise, incluirSolidarios } from '../../../actions'
+import {
+  CamposSolidarios, validarSolidarios, type SolidarioCampo,
+} from '../../../_components/campos-solidarios'
 import { CardSeguradora, type ParecerCard } from './card-seguradora'
 
 interface ArquivoView {
@@ -55,10 +58,35 @@ export function DetalheAnalise({
   const [msg, setMsg] = useState('')
   const [erroAcao, setErroAcao] = useState('')
 
+  const [solidarios, setSolidarios] = useState<SolidarioCampo[]>([])
+  const [abrirSolidarios, setAbrirSolidarios] = useState(false)
+
   const aprovadas = pareceres.filter(p => statusAprovado(p.codigoStatus))
   const pendentes = pareceres.filter(p => statusPendente(p.codigoStatus))
   const recusadas = pareceres.filter(p => p.codigoStatus === 3)
   const podeContratar = aprovadas.length > 0 && !contratacao
+
+  // Limite inferior ou recusa geral: incluir solidário aumenta o limite —
+  // é a saída que a própria seguradora sugere na mensagem de retorno.
+  const temLimiteInferior = pareceres.some(p => p.codigoStatus === 5)
+  const podeIncluirSolidario = !contratacao && transmitida
+    && (temLimiteInferior || recusadas.length > 0)
+
+  const enviarSolidarios = () => {
+    setErroAcao(''); setMsg('')
+    const sol = validarSolidarios(solidarios)
+    if ('erro' in sol) { setErroAcao(sol.erro); return }
+    if (!sol.solidarios.length) { setErroAcao('Inclua ao menos um solidário.'); return }
+
+    startTransition(async () => {
+      const r = await incluirSolidarios(analiseId, sol.solidarios)
+      if (r.error) { setErroAcao(r.error); return }
+      setMsg('Análise reenviada com os solidários.')
+      setAbrirSolidarios(false)
+      setSolidarios([])
+      router.refresh()
+    })
+  }
 
   // Aprovadas primeiro: o corretor abre a tela pra saber com quem fecha.
   const ordenados = [...aprovadas, ...pendentes, ...recusadas,
@@ -149,6 +177,54 @@ export function DetalheAnalise({
           {pendentes.length === 1 ? 'Uma seguradora ainda está analisando' : `${pendentes.length} seguradoras ainda estão analisando`}.
           O resultado chega sozinho — ou toque em atualizar.
         </p>
+      )}
+
+      {/* Aumentar o limite incluindo quem compõe renda */}
+      {podeIncluirSolidario && (
+        abrirSolidarios ? (
+          <section className="rounded-2xl bg-white ring-1 ring-violet-200 p-4 space-y-3">
+            {temLimiteInferior && (
+              <p className="text-[11px] text-violet-900 bg-violet-50 rounded-lg px-2.5 py-2 leading-snug">
+                A seguradora aprovou abaixo do pedido. Incluir quem compõe renda
+                costuma resolver — a análise é reenviada com os dados novos.
+              </p>
+            )}
+            <CamposSolidarios
+              valores={solidarios}
+              onChange={setSolidarios}
+              inputCls="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
+              disabled={isPending}
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={enviarSolidarios}
+                disabled={isPending || solidarios.length === 0}
+                className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-violet-700 hover:bg-violet-800 disabled:opacity-50 px-4 py-3 text-sm font-bold text-white"
+              >
+                {isPending ? <Loader2 size={14} className="animate-spin" /> : <Users size={14} />}
+                Reenviar com solidários
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAbrirSolidarios(false); setSolidarios([]) }}
+                disabled={isPending}
+                className="rounded-xl ring-1 ring-gray-200 px-4 py-3 text-sm font-bold text-gray-600"
+              >
+                Cancelar
+              </button>
+            </div>
+          </section>
+        ) : (
+          <button
+            type="button"
+            onClick={() => { setAbrirSolidarios(true); setSolidarios([{ nome: '', cpf: '', dataNascimento: '' }]) }}
+            className="w-full flex items-center justify-center gap-1.5 rounded-xl ring-1 ring-violet-200 bg-violet-50 hover:bg-violet-100 px-4 py-3 text-sm font-bold text-violet-800"
+          >
+            <Users size={15} />
+            {temLimiteInferior ? 'Aumentar limite com solidário' : 'Incluir locatário solidário'}
+          </button>
+        )
       )}
 
       {msg && <p className="text-xs text-emerald-800 bg-emerald-50 ring-1 ring-emerald-100 rounded-xl px-3 py-2.5">{msg}</p>}

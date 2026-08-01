@@ -122,6 +122,21 @@ export default async function NovoContratoPage({
       .is('deleted_at', null),
   ])
 
+  // Cotações de fiança já aprovadas — a etapa de garantia oferece vincular
+  // em vez de o corretor digitar seguradora e apólice na mão.
+  const { data: analisesAprovadas } = await supabase
+    .from('seguro_analises')
+    .select(`
+      id, inquilino_id, valor_aluguel, created_at,
+      pareceres:seguro_analise_pareceres(seguradora_sigla, seguradora_nome, codigo_status, limite_aprovado)
+    `)
+    .eq('user_id', acesso.userId)
+    .eq('produto', 'fianca')
+    .eq('status_resumo', 'aprovado')
+    .not('inquilino_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(50)
+
   // Mapeia imovel_id → código do contrato ativo
   const mapaOcupados = new Map<string, string>()
   for (const c of contratosAtivos ?? []) {
@@ -195,6 +210,24 @@ export default async function NovoContratoPage({
         imoveis={imoveisMarcados}
         pessoas={pessoas ?? []}
         templateDefaults={templateDefaults}
+        cotacoesFianca={(analisesAprovadas ?? []).flatMap(a => {
+          // Uma entrada por seguradora aprovada: é ela que vai pro contrato.
+          const aprovados = (a.pareceres ?? []).filter(
+            (p: { codigo_status: number | null }) => p.codigo_status === 1 || p.codigo_status === 5,
+          )
+          return aprovados.map((p: {
+            seguradora_sigla: string
+            seguradora_nome: string | null
+            limite_aprovado: number | null
+          }) => ({
+            analiseId: a.id,
+            inquilinoId: a.inquilino_id as string,
+            seguradoraSigla: p.seguradora_sigla,
+            seguradoraNome: p.seguradora_nome ?? p.seguradora_sigla.toUpperCase(),
+            limiteAprovado: p.limite_aprovado,
+            criadoEm: a.created_at,
+          }))
+        })}
       />
     </div>
   )

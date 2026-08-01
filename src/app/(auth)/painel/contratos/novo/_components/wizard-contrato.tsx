@@ -5,14 +5,25 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Home, User, Shield, DollarSign, Check, ArrowRight, ArrowLeft,
-  AlertCircle, Loader2, FileSignature, Sofa,
+  AlertCircle, Loader2, FileSignature, Sofa, ShieldCheck,
 } from 'lucide-react'
 import { criarContrato, type ContratoInput } from '../../actions'
+import { vincularAnaliseAoContrato } from '../../../seguros/actions'
 import { gerarParcelas, resumirParcelas } from '@/lib/crm/calculos'
 import { InputMoeda, InputPercentual } from '@/components/inputs/input-mascarado'
-import { parseMoney, parsePercentual } from '@/lib/formatters'
+import { parseMoney, parsePercentual, formatarBRL } from '@/lib/formatters'
 import type { ImovelLite, PessoaLite, WizardState } from './wizard-types'
 import { ESTADO_INICIAL } from './wizard-types'
+
+/** Cotação de fiança já aprovada, pronta pra vincular ao contrato. */
+export interface CotacaoFianca {
+  analiseId: string
+  inquilinoId: string
+  seguradoraSigla: string
+  seguradoraNome: string
+  limiteAprovado: number | null
+  criadoEm: string
+}
 
 interface Props {
   imoveis: ImovelLite[]
@@ -21,6 +32,7 @@ interface Props {
     tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
     garantia_tipo: 'fiador' | 'caucao' | 'seguro_fianca' | 'sem_garantia'
   } | null
+  cotacoesFianca?: CotacaoFianca[]
 }
 
 const ETAPAS = [
@@ -47,13 +59,22 @@ function formatarValorInicial(n: number | null | undefined): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
+export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFianca = [] }: Props) {
   const router = useRouter()
   const [etapa, setEtapa] = useState(1)
+  // Cotação escolhida na etapa de garantia (chave: análise + seguradora).
+  const [cotacaoVinculada, setCotacaoVinculada] = useState<string | null>(null)
   const [s, set] = useState<WizardState>(() => ({
     ...ESTADO_INICIAL,
     ...(templateDefaults ?? {}),
   }))
+
+  // Cotações aprovadas do inquilino escolhido na etapa 2.
+  const cotacoesDoInquilino = useMemo(
+    () => cotacoesFianca.filter(c => c.inquilinoId === s.inquilino_id),
+    [cotacoesFianca, s.inquilino_id],
+  )
+
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
 
@@ -151,7 +172,12 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
       if (s.garantia_tipo === 'caucao' && !parseNumero(s.caucao_valor)) return 'Informe o valor da caução.'
       if (s.garantia_tipo === 'seguro_fianca') {
         if (!s.seguro_fianca_seguradora.trim()) return 'Informe a seguradora.'
-        if (!s.seguro_fianca_apolice.trim()) return 'Informe o número da apólice.'
+        // A apólice só existe depois da emissão, que é posterior ao
+        // contrato. Com cotação aprovada vinculada, segue sem o número —
+        // o checklist do PDF cobra antes de gerar o documento final.
+        if (!s.seguro_fianca_apolice.trim() && !cotacaoVinculada) {
+          return 'Informe o número da apólice ou vincule uma cotação aprovada.'
+        }
       }
     }
     if (etapa === 5) {
@@ -226,6 +252,13 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
     startTransition(async () => {
       const r = await criarContrato(payload)
       if (r.error) { setErro(r.error); return }
+
+      // Liga a cotação ao contrato recém-criado: é o que faz o número da
+      // apólice descer sozinho quando a seguradora emitir.
+      if (cotacaoVinculada && r.id) {
+        await vincularAnaliseAoContrato(cotacaoVinculada.split(':')[0], r.id)
+      }
+
       router.push(`/painel/contratos/${r.id}`)
       router.refresh()
     })
@@ -532,14 +565,77 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults }: Props) {
           )}
 
           {s.garantia_tipo === 'seguro_fianca' && (
-            <div className="grid sm:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-gray-600 block mb-1">Seguradora *</label>
-                <input value={s.seguro_fianca_seguradora} onChange={e => setField('seguro_fianca_seguradora', e.target.value)} placeholder="Porto Seguro, etc." className={inputCls} />
-              </div>
-              <div>
-                <label className="text-xs font-medium text-gray-600 block mb-1">Nº da Apólice *</label>
-                <input value={s.seguro_fianca_apolice} onChange={e => setField('seguro_fianca_apolice', e.target.value)} className={inputCls} />
+            <div className="space-y-3">
+              {/* Cotações aprovadas deste inquilino — evita redigitar e
+                  liga o contrato à análise que já existe no sistema. */}
+              {cotacoesDoInquilino.length > 0 && (
+                <div className="rounded-xl bg-violet-50 ring-1 ring-violet-100 p-3 space-y-2">
+                  <p className="text-xs font-bold text-violet-900">
+                    {cotacoesDoInquilino.length === 1
+                      ? 'Há uma cotação aprovada para este inquilino'
+                      : `Há ${cotacoesDoInquilino.length} cotações aprovadas para este inquilino`}
+                  </p>
+                  {cotacoesDoInquilino.map(c => {
+                    const chave = `${c.analiseId}:${c.seguradoraSigla}`
+                    const ativo = cotacaoVinculada === chave
+                    return (
+                      <button
+                        key={chave}
+                        type="button"
+                        onClick={() => {
+                          if (ativo) {
+                            setCotacaoVinculada(null)
+                            setField('seguro_fianca_seguradora', '')
+                          } else {
+                            setCotacaoVinculada(chave)
+                            setField('seguro_fianca_seguradora', c.seguradoraNome)
+                          }
+                        }}
+                        className={`w-full text-left rounded-lg px-3 py-2.5 ring-2 transition-colors ${
+                          ativo ? 'ring-violet-600 bg-white' : 'ring-transparent bg-white/70 hover:ring-violet-300'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-sm font-semibold text-gray-900">{c.seguradoraNome}</span>
+                          {ativo && <Check size={15} className="text-violet-700 shrink-0" />}
+                        </div>
+                        <span className="text-[11px] text-gray-500">
+                          {c.limiteAprovado != null && <>limite {formatarBRL(c.limiteAprovado)} · </>}
+                          cotada em {new Date(c.criadoEm).toLocaleDateString('pt-BR')}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+
+              {s.inquilino_id && cotacoesDoInquilino.length === 0 && (
+                <Link
+                  href={`/painel/seguros/fianca/nova`}
+                  target="_blank"
+                  className="flex items-center justify-center gap-1.5 rounded-xl ring-1 ring-violet-200 bg-violet-50 hover:bg-violet-100 px-3 py-2.5 text-sm font-semibold text-violet-800"
+                >
+                  <ShieldCheck size={14} /> Cotar fiança agora
+                </Link>
+              )}
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Seguradora *</label>
+                  <input value={s.seguro_fianca_seguradora} onChange={e => setField('seguro_fianca_seguradora', e.target.value)} placeholder="Porto Seguro, etc." className={inputCls} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">
+                    Nº da Apólice {cotacaoVinculada ? '' : '*'}
+                  </label>
+                  <input value={s.seguro_fianca_apolice} onChange={e => setField('seguro_fianca_apolice', e.target.value)} className={inputCls} />
+                  {cotacaoVinculada && !s.seguro_fianca_apolice.trim() && (
+                    <p className="text-[11px] text-violet-700 mt-1 leading-snug">
+                      Pode deixar em branco — a apólice só é emitida depois da
+                      contratação, e o número entra sozinho quando sair.
+                    </p>
+                  )}
+                </div>
               </div>
             </div>
           )}
