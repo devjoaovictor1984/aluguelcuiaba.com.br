@@ -21,7 +21,6 @@ interface Perfil {
   cpf: string | null
   cnpj: string | null
   razao_social: string | null
-  email: string | null
   telefone: string | null
   endereco_cep: string | null
   endereco_logradouro: string | null
@@ -31,14 +30,14 @@ interface Perfil {
   endereco_uf: string | null
 }
 
+// `perfis` NÃO tem coluna email — ele vive em auth.users e é lido à parte.
 const CAMPOS_PERFIL =
-  'nome, cpf, cnpj, razao_social, email, telefone, ' +
+  'nome, cpf, cnpj, razao_social, telefone, ' +
   'endereco_cep, endereco_logradouro, endereco_numero, endereco_bairro, endereco_cidade, endereco_uf'
 
 /** Rótulos pra mensagem de erro apontar o campo que falta no perfil. */
 const OBRIGATORIOS: [keyof Perfil, string][] = [
   ['nome', 'nome'],
-  ['email', 'e-mail'],
   ['telefone', 'telefone'],
   ['endereco_cep', 'CEP'],
   ['endereco_logradouro', 'endereço'],
@@ -47,6 +46,12 @@ const OBRIGATORIOS: [keyof Perfil, string][] = [
   ['endereco_cidade', 'cidade'],
   ['endereco_uf', 'UF'],
 ]
+
+/** O e-mail do corretor vem da conta de autenticação. */
+async function emailDoUsuario(admin: Admin, userId: string): Promise<string | null> {
+  const { data } = await admin.auth.admin.getUserById(userId)
+  return data?.user?.email ?? null
+}
 
 export interface StatusProvisionamento {
   pronto: boolean
@@ -64,8 +69,12 @@ export async function verificarPerfilParaSeguros(
   admin: Admin,
   userId: string,
 ): Promise<StatusProvisionamento> {
-  const { data } = await admin
+  const { data, error } = await admin
     .from('perfis').select(CAMPOS_PERFIL).eq('id', userId).maybeSingle()
+
+  // Erro de consulta não é "perfil incompleto" — dizer isso mandaria o
+  // corretor preencher um cadastro que já está certo.
+  if (error) return { pronto: false, faltando: [`falha ao ler o perfil: ${error.message}`] }
 
   const perfil = data as unknown as Perfil | null
   if (!perfil) return { pronto: false, faltando: ['perfil não encontrado'] }
@@ -76,6 +85,8 @@ export async function verificarPerfilParaSeguros(
 
   const doc = (perfil.cnpj ?? perfil.cpf ?? '').replace(/\D/g, '')
   if (!doc) faltando.push('CPF ou CNPJ')
+
+  if (!await emailDoUsuario(admin, userId)) faltando.push('e-mail da conta')
 
   return faltando.length
     ? { pronto: false, faltando }
@@ -112,6 +123,7 @@ export async function garantirImobiliaria(
   // select() com string dinâmica não é inferido pelo supabase-js.
   const perfil = data as unknown as Perfil
 
+  const email = await emailDoUsuario(admin, userId)
   const ehPj = !!perfil.cnpj?.replace(/\D/g, '')
   const fone = separarDdd(perfil.telefone)
 
@@ -132,7 +144,7 @@ export async function garantirImobiliaria(
     uf: perfil.endereco_uf ?? '',
     ddd: fone.ddd,
     fone: fone.numero,
-    email: perfil.email ?? '',
+    email: email ?? '',
   }
 
   // Pode já existir lá de um cadastro feito fora da plataforma.
