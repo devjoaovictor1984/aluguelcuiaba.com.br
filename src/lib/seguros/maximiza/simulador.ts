@@ -167,9 +167,15 @@ type Corpo = Record<string, unknown>
  * inclusive as inconsistências (sigla `por` da Porto, valores em string
  * PT-BR), justamente pra exercitar o mapper de verdade.
  */
-export async function simular(caminho: string, corpo?: unknown): Promise<unknown> {
+export async function simular(
+  caminho: string,
+  corpo?: unknown,
+  seguradora?: string,
+): Promise<unknown> {
   await demorar()
   const c = (corpo ?? {}) as Corpo
+
+  if (caminho.startsWith('/incendioAlfaV2/')) return simularIncendio(caminho, c, seguradora)
 
   if (caminho.includes('seguradorasAnalise')) return SEGURADORAS
 
@@ -228,4 +234,141 @@ export async function simular(caminho: string, corpo?: unknown): Promise<unknown
   }
 
   throw new Error(`Simulador não cobre o endpoint ${caminho}.`)
+}
+
+/* ── Incêndio ──────────────────────────────────────────────────────── */
+
+const OCUPACOES_R = [
+  { nome: 'Apartamento habitual', rubrica: '4070', cdresp2: '1002' },
+  { nome: 'Apartamento veraneio', rubrica: '4080', cdresp2: '1002' },
+  { nome: 'Casa habitual',        rubrica: '4000', cdresp2: '1001' },
+  { nome: 'Casa veraneio',        rubrica: '4010', cdresp2: '1001' },
+]
+
+const OCUPACOES_C = [
+  { nome: 'Loja de vestuário',    rubrica: '5120', cdresp2: '2010' },
+  { nome: 'Escritório',           rubrica: '5200', cdresp2: '2020' },
+  { nome: 'Restaurante',          rubrica: '5340', cdresp2: '2035' },
+]
+
+const PACOTES = [
+  { codigo: 1, tipo: 'Sem Assistência', descricao: '' },
+  { codigo: 2, tipo: 'Assist Light', descricao: 'Chaveiro, Mão de Obra Elétrica, Mão de Obra Hidráulica, Desentupimento' },
+  { codigo: 3, tipo: 'Assist Light e Linha Branca', descricao: 'Chaveiro, Mão de Obra Elétrica, Mão de Obra Hidráulica, Desentupimento, Help Desk, Conserto de Eletrodomésticos' },
+]
+
+/** Certificado mínimo em base64 — um PDF válido de uma página em branco. */
+const PDF_DEMO =
+  'JVBERi0xLjQKMSAwIG9iago8PC9UeXBlL0NhdGFsb2cvUGFnZXMgMiAwIFI+PgplbmRvYmoKMiAw' +
+  'IG9iago8PC9UeXBlL1BhZ2VzL0tpZHNbMyAwIFJdL0NvdW50IDE+PgplbmRvYmoKMyAwIG9iago8' +
+  'PC9UeXBlL1BhZ2UvUGFyZW50IDIgMCBSL01lZGlhQm94WzAgMCA1OTUgODQyXT4+CmVuZG9iagp0' +
+  'cmFpbGVyCjw8L1Jvb3QgMSAwIFI+Pg=='
+
+function simularIncendio(caminho: string, c: Corpo, seguradora?: string): unknown {
+  if (caminho.includes('listarSeguradorasDisponiveis')) return ['Alfa', 'Porto']
+
+  if (caminho.includes('/ocupacoes/')) {
+    return caminho.endsWith('/C') ? OCUPACOES_C : OCUPACOES_R
+  }
+
+  if (caminho.includes('listaPacotesAssist24hs')) return PACOTES
+
+  if (caminho.includes('calculo')) {
+    const aluguel = moedaParaNumero(c.aluguel) || 1500
+    const lmi = moedaParaNumero(c.vl_cob_incendio) || aluguel * 80
+    // Prêmio na ordem de 0,1% do capital segurado ao ano — coerente com
+    // o exemplo da doc (LMI 120.000 → prêmio ~120).
+    const liquido = Math.round(lmi * 0.00083 * 100) / 100
+    const assist = c.cdpacote_assist && Number(c.cdpacote_assist) > 1 ? 13.56 : 0
+    const iof = Math.round((liquido + assist) * 0.0738 * 100) / 100
+    const premio = Math.round((liquido + assist + iof) * 100) / 100
+    const mensal = Number(c.tipo_vigencia) === 1
+
+    return {
+      coberturas: [
+        { cdcob: '14010', nmcobert: 'Incêndio, Raio, Explosão, Queda de Aeronave',
+          lmi: lmi.toFixed(2), premio: liquido.toFixed(2),
+          txtfranq: '10% prejuízos c/mínimo R$ 500,00 (Raio)' },
+        { cdcob: '14020', nmcobert: 'Perda ou pagamento de aluguel',
+          lmi: (aluguel * 6).toFixed(2), premio: (liquido * 0.12).toFixed(2), txtfranq: 'Sem franquia' },
+        { cdcob: '14030', nmcobert: 'Vendaval, furacão, ciclone, tornado',
+          lmi: (lmi * 0.3).toFixed(2), premio: (liquido * 0.08).toFixed(2),
+          txtfranq: '10% prejuízos c/mínimo R$ 800,00' },
+      ],
+      listaFormasPagto: mensal
+        ? [{ codigo: '11', listaParcela: [
+            { descricao: '12 x MENSALIZADO', qtdParcelas: 12, valorParcela: Math.round((premio / 12) * 100) / 100 },
+          ] }]
+        : [
+            { codigo: '11', listaParcela: [{ descricao: '1 x A VISTA NA CIA', qtdParcelas: 1, valorParcela: premio }] },
+            { codigo: '14', listaParcela: [
+              { descricao: '3 x SEM JUROS', qtdParcelas: 3, valorParcela: Math.round((premio / 3) * 100) / 100 },
+              { descricao: '6 x SEM JUROS', qtdParcelas: 6, valorParcela: Math.round((premio / 6) * 100) / 100 },
+            ] },
+          ],
+      premio: premio.toFixed(2),
+      vlassist: assist.toFixed(2),
+      vlpreliq: liquido.toFixed(2),
+      vliof: iof.toFixed(2),
+    }
+  }
+
+  if (caminho.includes('contratar')) {
+    return {
+      codigo_seguro: String(450000 + Math.floor(Math.random() * 49999)),
+      numero_proposta: String(4800000 + Math.floor(Math.random() * 99999)),
+    }
+  }
+
+  if (caminho.includes('cancelar')) {
+    return { status: '1', mensagem: 'Certificado cancelado com sucesso.' }
+  }
+
+  if (caminho.includes('imprimirProposta')) {
+    return {
+      base64Certificado: PDF_DEMO,
+      base64Proposta: PDF_DEMO,
+      nrProposta: String(c.codigo_seguro ?? ''),
+    }
+  }
+
+  if (caminho.includes('imprimirBoleto')) {
+    const venc = new Date(Date.now() + 15 * 86400000)
+    return [{
+      base64: PDF_DEMO,
+      numParcela: 1,
+      dataVencimento: venc.toLocaleDateString('pt-BR'),
+      dataPagamento: '',
+    }]
+  }
+
+  if (caminho.includes('listarFaturamento')) {
+    const cnpj = String(c.cnpj_imob ?? '')
+    const item = (i: number) => ({
+      codigo: String(70000 + i),
+      CGC_imob: cnpj,
+      cdconseg: 900000 + i,
+      cdemi: 10 + i,
+      numProposta: 4820000 + i,
+      data_cob: '01/08/2026',
+      inquilino: ['ANA PAULA SOUZA MARTINS', 'CARLOS EDUARDO PEREIRA LIMA'][i % 2],
+      proprietario: 'PROPRIETÁRIO DE DEMONSTRAÇÃO',
+      localRisco: 'RUA DE DEMONSTRAÇÃO, 100 - Cuiabá/MT',
+      parcelas: 12,
+      valorParcela: 24.9 + i,
+      premio_total: (24.9 + i) * 12,
+    })
+    return {
+      mensalizado: {
+        residencial: { lista: [item(0), item(1)], base64: PDF_DEMO },
+        comercial: { lista: [], base64: null },
+      },
+      anual: {
+        residencial: { lista: [item(2)], base64: null },
+        comercial: { lista: [], base64: null },
+      },
+    }
+  }
+
+  throw new Error(`Simulador de incêndio não cobre ${caminho} (seguradora ${seguradora ?? '—'}).`)
 }

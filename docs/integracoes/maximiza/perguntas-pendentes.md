@@ -59,13 +59,28 @@ Está correto?
 
 As perguntas abaixo decorrem disso.
 
-**2.1 Credencial de API: imobiliária ou plataforma?** ⚠️
-Hoje temos login de imobiliária no painel de vocês. Para a integração, usamos
-essa mesma credencial ou vocês emitem uma credencial de **plataforma /
-integrador**, sob a qual cadastramos as imobiliárias?
+**2.1 Credencial de API — já confirmamos que é separada** ⚠️
+Testamos autenticar em `POST https://auth.api.seguro.imb.br/auth` com o nosso
+login do painel (`administrativo@imobiliatto.com.br`) e recebemos:
 
-Isso define a arquitetura: com credencial de imobiliária, todas as análises de
-todos os corretores apareceriam como sendo nossas.
+```
+HTTP 400
+{"statusCode":400,
+ "message":"Usuário não encontrado na base de dados da Maximiza.",
+ "error":"Bad Request"}
+```
+
+Ou seja: a base de usuários da API é distinta da do painel. **Precisamos que
+vocês emitam uma credencial de API.**
+
+E, dado o modelo de override acima, ela deve ser de **plataforma /
+integrador** — sob a qual cadastramos as imobiliárias via
+`cadastrarImobiliaria` — e não de imobiliária individual. Com credencial de
+imobiliária, as análises de todos os corretores apareceriam como sendo da
+nossa, e o modelo de comissão não se sustenta.
+
+Pedimos duas: uma de **homologação** (para testes) e, depois de validado, uma
+de **produção**.
 
 **2.2 Como a originação é marcada?** ⚠️
 A comissão do corretor sai pelo CNPJ dele — isso está claro. Mas **qual campo
@@ -225,10 +240,32 @@ estado, a parceria acompanha com a mesma tabela?
 
 ## 7. Seguro incêndio
 
-Recebemos a documentação de fiança e da API de imobiliária. **Falta a
-especificação do seguro incêndio.**
+Recebemos a documentação (Incêndio V2) e a integração já está construída.
+Pontos a confirmar:
 
-Nossa estrutura já está preparada para recebê-lo. Quando podemos ter?
+**7.1** O header `seguradora` aceita exatamente `Alfa` e `Porto`, como retorna
+`listarSeguradorasDisponiveis`? Há previsão de outras?
+
+**7.2** No painel, a coluna "Pró-labore %/R$" mostra **20%** do prêmio nas
+apólices de incêndio. Esse percentual é fixo, varia por seguradora, ou é
+negociado por imobiliária? A API não devolve esse valor — hoje exibimos como
+estimativa.
+
+**7.3** A parcela mínima é **R$ 60,00**, como consta no painel? E o teto de 6
+parcelas do campo `qtpar` vale para as duas seguradoras?
+
+**7.4** O painel diferencia "Seguros com Adm. Imobiliária" de "Seguros SEM
+Administração — Estipulante Particular". Como essa distinção é feita pela API?
+
+**7.5** O `codigo_seguro` é a chave para cancelar e imprimir. Existe forma de
+recuperá-lo depois, caso se perca? Há endpoint de consulta por CPF ou por
+proposta?
+
+**7.6** Cancelamento: há prazo limite? Gera estorno proporcional do prêmio e da
+comissão?
+
+**7.7** Renovação: apólice anual vencendo — existe endpoint de renovação, ou o
+caminho é contratar uma nova?
 
 ---
 

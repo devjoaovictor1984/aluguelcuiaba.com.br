@@ -18,7 +18,18 @@ import { simular, simuladorAtivo } from './simulador'
  */
 
 const URL_AUTH = 'https://auth.api.seguro.imb.br'
-const URL_API  = 'https://fianca.api.seguro.imb.br'
+
+/**
+ * Cada produto tem host próprio. O cadastro de imobiliária mora no host
+ * da fiança mesmo quando usado pelo incêndio — está assim nos dois
+ * OpenAPI, e é por isso que o `servers` do incêndio lista os dois.
+ */
+const HOSTS = {
+  fianca:   'https://fianca.api.seguro.imb.br',
+  incendio: 'https://incendio.api.seguro.imb.br',
+} as const
+
+export type ProdutoApi = keyof typeof HOSTS
 
 const TIMEOUT_MS = 30_000
 const TENTATIVAS = 3
@@ -114,9 +125,21 @@ export interface RespostaApi<T> {
  */
 export async function chamar<T>(
   caminho: string,
-  opcoes: { metodo?: 'GET' | 'POST'; corpo?: unknown } = {},
+  opcoes: {
+    metodo?: 'GET' | 'POST'
+    corpo?: unknown
+    /** Host do produto. Default fiança, que foi o primeiro integrado. */
+    produto?: ProdutoApi
+    /**
+     * Header `seguradora` (Alfa | Porto). A API de incêndio exige em
+     * quase toda chamada — só `listarSeguradorasDisponiveis` dispensa.
+     * A de fiança não usa.
+     */
+    seguradora?: string
+  } = {},
 ): Promise<RespostaApi<T>> {
-  const { metodo = 'POST', corpo } = opcoes
+  const { metodo = 'POST', corpo, produto = 'fianca', seguradora } = opcoes
+  const base = HOSTS[produto]
   const inicio = Date.now()
   let ultimoErro: unknown
 
@@ -125,7 +148,7 @@ export async function chamar<T>(
   // sistema de verdade, e o que garante que o caminho já esteja
   // exercitado quando a credencial chegar.
   if (simuladorAtivo()) {
-    const dados = await simular(caminho, corpo) as T
+    const dados = await simular(caminho, corpo, seguradora) as T
     return { dados, httpStatus: 200, duracaoMs: Date.now() - inicio }
   }
 
@@ -133,12 +156,13 @@ export async function chamar<T>(
     try {
       const token = await obterToken()
 
-      const resp = await fetch(`${URL_API}${caminho}`, {
+      const resp = await fetch(`${base}${caminho}`, {
         method: metodo,
         headers: {
           // Sem "Bearer" — a API rejeita o formato padrão.
           Authorization: token,
           'Content-Type': 'application/json',
+          ...(seguradora ? { seguradora } : {}),
         },
         body: corpo === undefined ? undefined : JSON.stringify(corpo),
         signal: AbortSignal.timeout(TIMEOUT_MS),
