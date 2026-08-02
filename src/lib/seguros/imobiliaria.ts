@@ -118,8 +118,13 @@ export async function garantirImobiliaria(
   }
   const cnpjCpf = status.cnpjCpf
 
-  const { data } = await admin
+  const { data, error: ePerfil } = await admin
     .from('perfis').select(CAMPOS_PERFIL).eq('id', userId).maybeSingle()
+  // Sem esta checagem, uma falha de consulta viraria `perfil.cnpj` em null
+  // e derrubaria a action com TypeError.
+  if (ePerfil || !data) {
+    return { error: `Não foi possível ler o perfil: ${ePerfil?.message ?? 'não encontrado'}` }
+  }
   // select() com string dinâmica não é inferido pelo supabase-js.
   const perfil = data as unknown as Perfil
 

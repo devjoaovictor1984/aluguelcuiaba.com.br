@@ -80,7 +80,10 @@ export async function removerArquivosDaAnalise(
   analiseId: string,
 ): Promise<void> {
   const pasta = `${userId}/${analiseId}`
-  const { data } = await admin.storage.from(SEGUROS_BUCKET).list(pasta)
+  const { data, error } = await admin.storage.from(SEGUROS_BUCKET).list(pasta)
+  // Falha ao listar deixaria documento do inquilino no bucket depois da
+  // exclusão — resíduo de dado pessoal que ninguém mais vê pra apagar.
+  if (error) throw new Error(`Falha ao listar documentos: ${error.message}`)
   if (data?.length) {
     await admin.storage.from(SEGUROS_BUCKET)
       .remove(data.map(a => `${pasta}/${a.name}`))

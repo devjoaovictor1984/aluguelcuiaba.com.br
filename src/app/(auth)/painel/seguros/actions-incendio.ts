@@ -23,14 +23,16 @@ import type {
  * e depois 'contratada' — tudo na mesma sessão do corretor.
  */
 
+/** Lança em erro de consulta — null aqui significa "não é sua". */
 async function checarPosse(apoliceId: string, userId: string) {
   const admin = createAdminClient()
-  const { data } = await admin
+  const { data, error } = await admin
     .from('seguro_incendio_apolices')
     .select('id, user_id, seguradora, codigo_seguro, status, contrato_id')
     .eq('id', apoliceId)
     .eq('user_id', userId)
     .maybeSingle()
+  if (error) throw new Error(`Falha ao consultar a apólice: ${error.message}`)
   return data
 }
 

@@ -21,12 +21,17 @@ export default async function SeguroFiancaLinkPage({ params }: Props) {
   const { token } = await params
   const admin = createAdminClient()
 
-  const { data: link } = await admin
+  const { data: link, error } = await admin
     .from('seguro_analise_links')
     .select('id, user_id, dados_imovel, tipo_analise, titulo, mensagem, expira_em, preenchido_em, revogado_em, imovel:imoveis(titulo, endereco_resumido)')
     .eq('token', token)
     .maybeSingle()
 
+  // Falha de banco não pode dizer que o link é inválido — o inquilino
+  // desiste e o corretor perde o negócio.
+  if (error) {
+    return <Aviso tipo="erro" titulo="Erro ao abrir" texto="Não conseguimos carregar o formulário agora. Tente de novo em instantes." />
+  }
   if (!link) return <Aviso tipo="erro" titulo="Link inválido" texto="Esse endereço não existe ou foi removido." />
   if (link.revogado_em) return <Aviso tipo="erro" titulo="Link cancelado" texto="O corretor cancelou esta solicitação. Entre em contato com ele." />
   if (link.preenchido_em) {

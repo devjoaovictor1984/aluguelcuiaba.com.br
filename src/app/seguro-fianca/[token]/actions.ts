@@ -35,12 +35,15 @@ interface LinkAuth {
 
 async function carregarPorToken(token: string): Promise<{ link?: LinkAuth; error?: string }> {
   const admin = createAdminClient()
-  const { data } = await admin
+  const { data, error } = await admin
     .from('seguro_analise_links')
     .select('id, user_id, imovel_id, contrato_id, pessoa_id, dados_imovel, tipo_analise, expira_em, preenchido_em, revogado_em')
     .eq('token', token)
     .maybeSingle()
 
+  // Falha de banco não pode dizer ao inquilino que o link dele é inválido:
+  // ele desiste de preencher e o corretor perde o negócio.
+  if (error) return { error: 'Erro ao abrir o formulário. Tente de novo em instantes.' }
   if (!data) return { error: 'Link inválido ou não encontrado.' }
   if (data.revogado_em) return { error: 'Este link foi cancelado pelo corretor.' }
   if (data.preenchido_em) return { error: 'Este formulário já foi enviado.' }
@@ -98,7 +101,14 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
 
   // 1. O lead vira cadastro no CRM do corretor, antes de qualquer chamada
   //    externa. Mesmo que a transmissão falhe, o contato não se perde.
-  const pessoaId = await upsertPretensoInquilino(admin, link, input, doc)
+  //    Se nem isso der certo, para aqui: seguir sem o cadastro produziria
+  //    uma análise órfã e o corretor perderia o contato.
+  let pessoaId: string | null
+  try {
+    pessoaId = await upsertPretensoInquilino(admin, link, input, doc)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Falha ao registrar seus dados.' }
+  }
 
   // 2. Transmite pra corretora.
   const dadosImovel = link.dados_imovel as {
@@ -208,13 +218,16 @@ async function upsertPretensoInquilino(
   doc: string,
 ): Promise<string | null> {
   const existenteId = link.pessoa_id ?? await (async () => {
-    const { data } = await admin
+    const { data, error } = await admin
       .from('pessoas')
       .select('id')
       .eq('user_id', link.user_id)
       .eq('cpf_cnpj', doc)
       .is('deleted_at', null)
       .maybeSingle()
+    // Falha na busca não pode virar "não existe": criaria um cadastro
+    // duplicado pra quem já é cliente do corretor.
+    if (error) throw new Error(`Falha ao procurar o cadastro: ${error.message}`)
     return data?.id ?? null
   })()
 
@@ -237,7 +250,7 @@ async function upsertPretensoInquilino(
     return existenteId
   }
 
-  const { data } = await admin
+  const { data, error } = await admin
     .from('pessoas')
     .insert({
       user_id: link.user_id,
@@ -253,5 +266,10 @@ async function upsertPretensoInquilino(
     .select('id')
     .single()
 
-  return data?.id ?? null
+  // O lead é o ativo mais valioso deste fluxo. Se não deu pra gravar, a
+  // análise não pode seguir em silêncio sem inquilino vinculado.
+  if (error || !data) {
+    throw new Error(`Falha ao gravar o cadastro: ${error?.message ?? 'sem retorno'}`)
+  }
+  return data.id
 }

@@ -25,15 +25,24 @@ export interface EstadoAnterior {
   statusBiometria: number | null
 }
 
-/** Fotografa os pareceres antes da atualização, pra comparar depois. */
+/**
+ * Fotografa os pareceres antes da atualização, pra comparar depois.
+ *
+ * Devolve `null` quando a leitura falha — e é diferente de lista vazia.
+ * Lista vazia significa "não havia parecer, tudo é novidade"; null
+ * significa "não sei o que havia". Tratar os dois igual faria o corretor
+ * receber push repetido a cada webhook.
+ */
 export async function lerEstadoAnterior(
   admin: Admin,
   analiseId: string,
-): Promise<EstadoAnterior[]> {
-  const { data } = await admin
+): Promise<EstadoAnterior[] | null> {
+  const { data, error } = await admin
     .from('seguro_analise_pareceres')
     .select('seguradora_sigla, codigo_status, status_biometria')
     .eq('analise_id', analiseId)
+
+  if (error) return null
 
   return (data ?? []).map(p => ({
     seguradoraSigla: p.seguradora_sigla,
@@ -59,9 +68,13 @@ function marco(p: { codigoStatus: number | null; statusBiometria: number | null 
 export async function notificarMudancas(
   admin: Admin,
   ctx: { userId: string; analiseId: string; nomeInquilino?: string | null },
-  antes: EstadoAnterior[],
+  antes: EstadoAnterior[] | null,
   depois: Parecer[],
 ): Promise<void> {
+  // Sem saber o estado anterior, não dá pra dizer o que mudou. Ficar
+  // calado é melhor que notificar tudo de novo.
+  if (antes === null) return
+
   try {
     const anterior = new Map(antes.map(a => [a.seguradoraSigla, a]))
     const url = `/painel/seguros/fianca/${ctx.analiseId}`

@@ -66,7 +66,9 @@ export async function removerDocumentosIncendio(
   admin: Admin, userId: string, apoliceId: string,
 ): Promise<void> {
   const pasta = `${userId}/incendio/${apoliceId}`
-  const { data } = await admin.storage.from(SEGUROS_BUCKET).list(pasta)
+  const { data, error } = await admin.storage.from(SEGUROS_BUCKET).list(pasta)
+  // Ver comentário em ../arquivos.ts: resíduo de dado pessoal no bucket.
+  if (error) throw new Error(`Falha ao listar documentos: ${error.message}`)
   if (data?.length) {
     await admin.storage.from(SEGUROS_BUCKET).remove(data.map(a => `${pasta}/${a.name}`))
   }

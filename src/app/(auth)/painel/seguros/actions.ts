@@ -20,14 +20,21 @@ import { lerEstadoAnterior, notificarMudancas } from '@/lib/seguros/notificar'
  * validação e persistência.
  */
 
+/**
+ * Devolve a análise se for do usuário.
+ *
+ * Lança em erro de consulta em vez de devolver null: null aqui significa
+ * "não é sua", e uma falha de banco não deve se passar por isso.
+ */
 async function checarPosseAnalise(analiseId: string, userId: string) {
   const admin = createAdminClient()
-  const { data } = await admin
+  const { data, error } = await admin
     .from('seguro_analises')
     .select('id, user_id, maximiza_id, status_resumo')
     .eq('id', analiseId)
     .eq('user_id', userId)
     .maybeSingle()
+  if (error) throw new Error(`Falha ao consultar a análise: ${error.message}`)
   return data
 }
 
@@ -279,7 +286,14 @@ export async function excluirAnalise(analiseId: string) {
   const analise = await checarPosseAnalise(analiseId, acesso.userId)
   if (!analise) return { error: 'Análise não encontrada.' }
 
-  await removerArquivosDaAnalise(admin, acesso.userId, analiseId)
+  // Apaga os documentos ANTES da linha: sem a linha, ninguém mais sabe
+  // que aqueles PDFs existem no bucket.
+  try {
+    await removerArquivosDaAnalise(admin, acesso.userId, analiseId)
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Falha ao remover os documentos.' }
+  }
+
   const { error } = await admin.from('seguro_analises').delete().eq('id', analiseId)
   if (error) return { error: error.message }
 
