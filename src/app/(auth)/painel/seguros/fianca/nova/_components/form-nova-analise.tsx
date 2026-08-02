@@ -12,6 +12,9 @@ import {
   CamposImovelAnalise, IMOVEL_VAZIO, montarImovel, validarImovel,
   type CamposImovel,
 } from '../../../_components/campos-imovel-analise'
+import {
+  CamposEmpresa, EMPRESA_VAZIA, validarEmpresa, type CamposEmpresa as TCamposEmpresa,
+} from '../../../_components/campos-empresa'
 
 interface InquilinoOpcao {
   id: string
@@ -71,6 +74,7 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
   const [dataNasc, setDataNasc] = useState(inicial?.dataNascimento ?? '')
   const [sexo, setSexo] = useState<'M' | 'F' | ''>('')
 
+  const [empresa, setEmpresa] = useState<TCamposEmpresa>(EMPRESA_VAZIA)
   const [solidarios, setSolidarios] = useState<SolidarioCampo[]>([])
   const [consentimento, setConsentimento] = useState(false)
 
@@ -102,6 +106,11 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
     if (usarCompleta && !sexo) return setErro('Informe o sexo na análise completa.')
     if (!consentimento) return setErro('É preciso confirmar o aceite do inquilino.')
 
+    if (exigeCompleta) {
+      const eEmpresa = validarEmpresa(empresa, parseMoney)
+      if (eEmpresa) return setErro(eEmpresa)
+    }
+
     const sol = validarSolidarios(solidarios)
     if ('erro' in sol) return setErro(sol.erro)
 
@@ -122,9 +131,27 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
             celular,
             dataNascimento: dataNasc || null,
             sexo: sexo || null,
+            ...(exigeCompleta ? {
+              cnae: empresa.cnae || null,
+              capitalInicial: parseMoney(empresa.capitalInicial) || null,
+              capitalGiro: parseMoney(empresa.capitalGiro) || null,
+              capitalSocial: parseMoney(empresa.capitalSocial) || null,
+              tipoEmpresa: empresa.tipoEmpresa || null,
+              opcaoTributaria: empresa.opcaoTributaria || null,
+              empresaMais2anos: empresa.empresaMais2anos,
+            } : {}),
           },
           solidarios: sol.solidarios,
-          imovel: montarImovel(imovel, parseMoney),
+          imovel: {
+            ...montarImovel(imovel, parseMoney),
+            ...(exigeCompleta ? {
+              empresaConstituida: empresa.empresaConstituida,
+              cnpjEmpresaConstituida: empresa.cnpjEmpresaConstituida || null,
+              ramoAtividade: empresa.ramoAtividade || null,
+              ehFranquia: empresa.ehFranquia,
+              franqueadoraCodigo: empresa.franqueadoraCodigo || null,
+            } : {}),
+          },
         },
       })
 
@@ -220,6 +247,18 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
           disabled={isPending}
         />
       </section>
+
+      {/* Empresa — só em locação comercial */}
+      {exigeCompleta && (
+        <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+          <CamposEmpresa
+            valores={empresa}
+            onChange={p => setEmpresa(v => ({ ...v, ...p }))}
+            inputCls={input}
+            disabled={isPending}
+          />
+        </section>
+      )}
 
       {/* Solidários */}
       <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">

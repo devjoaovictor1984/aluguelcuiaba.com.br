@@ -108,6 +108,13 @@ export function montarAnalise(input: AnaliseInput, opcoes: {
     pret.cnae = p.cnae ?? undefined
     if (p.capitalInicial != null) pret.capital_inicial = valorPtBr(p.capitalInicial)
     if (p.capitalGiro != null) pret.capital_giro = valorPtBr(p.capitalGiro)
+
+    // Ver comentário em tipos.ts: a doc põe estes três sob "ROOT /
+    // RESIDENCIA", bloco que não existe no exemplo. Vão em `pretendente`,
+    // junto dos demais campos de empresa. Pendência 3.5.
+    if (p.tipoEmpresa) pret.tipo_empresa = p.tipoEmpresa
+    if (p.opcaoTributaria) pret.opcao_tributaria_empresa = p.opcaoTributaria
+    if (p.capitalSocial != null) pret.capital_social_empresa = valorPtBr(p.capitalSocial)
   }
 
   Object.assign(corpo.imovel as Record<string, unknown>, {
@@ -124,6 +131,19 @@ export function montarAnalise(input: AnaliseInput, opcoes: {
     agua: i.agua != null ? valorPtBr(i.agua) : undefined,
     tipo: tipoImovelParaMaximiza(i.tipo, i.finalidade) ?? undefined,
   })
+
+  if (i.finalidade === 'C') {
+    Object.assign(corpo.imovel as Record<string, unknown>, {
+      locacaoEmpresaConstituida: simNao(i.empresaConstituida),
+      // Só faz sentido com empresa já constituída.
+      cnpjEmpresaConstituida: i.empresaConstituida
+        ? (i.cnpjEmpresaConstituida ?? undefined)
+        : undefined,
+      ramoAtividadeEmpresa: i.ramoAtividade ?? undefined,
+      trataDeFranquia: simNao(i.ehFranquia),
+      nomeFranqueadora: i.ehFranquia ? (i.franqueadoraCodigo ?? undefined) : undefined,
+    })
+  }
 
   const sol = input.solidarios?.slice(0, 3) ?? []
   if (sol.length) {

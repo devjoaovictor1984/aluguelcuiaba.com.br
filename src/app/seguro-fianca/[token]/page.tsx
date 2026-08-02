@@ -1,6 +1,7 @@
 import { ShieldCheck, AlertOctagon } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { formatarBRL } from '@/lib/formatters'
+import { rendaNecessaria, totalGastos } from '@/lib/seguros/renda'
 import { FormPretendente } from './_components/form-pretendente'
 
 interface Props {
@@ -57,7 +58,21 @@ export default async function SeguroFiancaLinkPage({ params }: Props) {
   const creci = perfil?.creci_juridico ?? perfil?.creci ?? null
 
   const imovel = Array.isArray(link.imovel) ? link.imovel[0] : link.imovel
-  const dados = link.dados_imovel as { aluguel?: number; cep?: string }
+  const dados = link.dados_imovel as {
+    aluguel?: number; cep?: string; condominio?: number | null; iptu?: number | null
+    agua?: number | null; energia?: number | null; gas?: number | null
+  }
+
+  const gastos = {
+    aluguel: Number(dados.aluguel) || 0,
+    condominio: Number(dados.condominio) || 0,
+    iptu: Number(dados.iptu) || 0,
+    agua: Number(dados.agua) || 0,
+    energia: Number(dados.energia) || 0,
+    gas: Number(dados.gas) || 0,
+  }
+  const total = totalGastos(gastos)
+  const renda = rendaNecessaria(gastos)
 
   return (
     <main className="min-h-dvh bg-gray-50 py-6 px-4">
@@ -90,6 +105,25 @@ export default async function SeguroFiancaLinkPage({ params }: Props) {
               <p className="text-sm font-semibold text-violet-700 mt-1">
                 Aluguel {formatarBRL(Number(dados.aluguel))}
               </p>
+            )}
+
+            {/* O pretendente descobre aqui se qualifica, antes de preencher
+                tudo — e entende por que valeria incluir um solidário. */}
+            {renda > 0 && (
+              <div className="mt-2 pt-2 border-t border-gray-50">
+                <p className="text-xs text-gray-600">
+                  Total mensal com encargos:{' '}
+                  <strong className="text-gray-900">{formatarBRL(total)}</strong>
+                </p>
+                <p className="text-xs text-gray-600">
+                  Renda necessária:{' '}
+                  <strong className="text-violet-700">{formatarBRL(renda)}</strong>
+                </p>
+                <p className="text-[11px] text-gray-400 leading-snug mt-0.5">
+                  Pode ser a soma da sua renda com a de outra pessoa que assine
+                  junto. Quem decide o limite é a seguradora.
+                </p>
+              </div>
             )}
           </div>
         )}

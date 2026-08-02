@@ -30,6 +30,19 @@ export interface PretendenteInput {
   cnae?: string | null
   capitalInicial?: number | null
   capitalGiro?: number | null
+
+  /**
+   * Dados da empresa. A documentação lista `tipo_empresa`,
+   * `opcao_tributaria_empresa` e `capital_social_empresa` sob um bloco
+   * "ROOT / RESIDENCIA" que não existe no JSON de exemplo, e o OpenAPI
+   * não os traz. Enviamos dentro de `pretendente`, que é onde os outros
+   * campos de empresa vivem (capital_inicial, capital_giro, cnae).
+   *
+   * ⚠️ Confirmar com a Maximiza — item 3.5 do documento de pendências.
+   */
+  tipoEmpresa?: string | null
+  opcaoTributaria?: string | null
+  capitalSocial?: number | null
 }
 
 export interface SolidarioInput {
@@ -58,6 +71,16 @@ export interface ImovelSeguroInput {
   finalidade: Finalidade
   tipo?: string | null              // vocabulário do nosso cadastro
   periodoContratoMeses: number
+
+  // ── Só em imóvel comercial ──
+  /** A locação é para empresa já constituída? */
+  empresaConstituida?: boolean | null
+  cnpjEmpresaConstituida?: string | null
+  /** comércio · serviços · indústria (minúsculas, como a doc pede). */
+  ramoAtividade?: string | null
+  ehFranquia?: boolean | null
+  /** Código da tabela TIPO FRANQUEADORA. */
+  franqueadoraCodigo?: string | null
 }
 
 export interface AnaliseInput {

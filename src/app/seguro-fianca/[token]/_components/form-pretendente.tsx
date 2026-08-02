@@ -106,6 +106,12 @@ export function FormPretendente({ token, completa }: Props) {
           autoComplete="tel"
           placeholder="(65) 99999-8888"
         />
+        {/* Algumas seguradoras exigem biometria facial, e o link vai por
+            SMS pra este número. Número errado trava a aprovação. */}
+        <p className="text-[11px] text-amber-800 bg-amber-50 rounded-lg px-2.5 py-2 mt-1 leading-snug">
+          Use o seu número real. Algumas seguradoras pedem reconhecimento
+          facial, e o link chega por SMS neste celular.
+        </p>
       </div>
 
       <div>
@@ -144,10 +150,18 @@ export function FormPretendente({ token, completa }: Props) {
           onChange={e => setConsentimento(e.target.checked)}
           className="accent-violet-600 mt-1 w-4 h-4"
         />
+        {/* Redação alinhada à usada pela corretora: cita os artigos da LGPD,
+            delimita a finalidade e — o que mais importa juridicamente —
+            deixa claro que aprovar ou recusar é decisão da seguradora, não
+            do corretor. */}
         <span className="text-xs text-gray-600 leading-snug">
-          Autorizo o envio dos meus dados à corretora e às seguradoras parceiras
-          para análise do seguro fiança, incluindo consulta a órgãos de proteção
-          ao crédito.
+          Declaro estar ciente, nos termos do inciso I dos arts. 7º e 8º da Lei
+          nº 13.709/18, de que meus dados pessoais e as informações coletadas
+          neste formulário serão enviados às seguradoras com a finalidade única
+          e exclusiva de <strong>análise de cadastro</strong>. A aprovação ou
+          reprovação é de responsabilidade exclusiva das seguradoras, e estes
+          dados são tratados de forma confidencial conforme a Lei Geral de
+          Proteção de Dados.
         </span>
       </label>
 

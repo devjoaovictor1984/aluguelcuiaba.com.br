@@ -12,6 +12,7 @@ import {
 import type { AnaliseInput } from '@/lib/seguros/tipos'
 import { gravarPareceres, resumirStatus } from '@/lib/seguros/pareceres'
 import { lerEstadoAnterior, notificarMudancas } from '@/lib/seguros/notificar'
+import { buscarCnae } from '@/lib/seguros/cnae'
 
 /**
  * Ações do módulo de seguros.
@@ -277,6 +278,17 @@ export async function vincularAnaliseAoContrato(analiseId: string, contratoId: s
   revalidatePath(`/painel/seguros/fianca/${analiseId}`)
   revalidatePath(`/painel/contratos/${contratoId}`)
   return { ok: true }
+}
+
+/** Busca atividades CNAE — usada pelo seletor do formulário comercial. */
+export async function buscarAtividadesCnae(termo: string) {
+  await exigirAcessoCRM()
+  const admin = createAdminClient()
+  try {
+    return { itens: await buscarCnae(admin, termo) }
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Falha ao buscar atividades.' }
+  }
 }
 
 export async function excluirAnalise(analiseId: string) {

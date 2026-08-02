@@ -1,8 +1,9 @@
 'use client'
 
 import { ChevronDown, Info } from 'lucide-react'
-import { maskCep, maskMoney } from '@/lib/formatters'
+import { maskCep, maskMoney, parseMoney, formatarBRL } from '@/lib/formatters'
 import { TIPOS_IMOVEL_COMERCIAL, TIPOS_IMOVEL_RESIDENCIAL } from '@/lib/seguros/tabelas'
+import { COMPROMETIMENTO_MAXIMO, rendaNecessaria, totalGastos } from '@/lib/seguros/renda'
 
 export interface CamposImovel {
   cep: string
@@ -55,6 +56,30 @@ export function CamposImovelAnalise({ valores: v, onChange, inputCls, disabled }
   const tipos = v.finalidade === 'R' ? TIPOS_IMOVEL_RESIDENCIAL : TIPOS_IMOVEL_COMERCIAL
   const periodoForaDaLista = !PERIODOS.includes(v.meses)
 
+  const gastos = {
+    aluguel: parseMoney(v.aluguel),
+    condominio: parseMoney(v.condominio),
+    iptu: parseMoney(v.iptu),
+    agua: parseMoney(v.agua),
+    energia: parseMoney(v.energia),
+    gas: parseMoney(v.gas),
+  }
+  const total = totalGastos(gastos)
+  const renda = rendaNecessaria(gastos)
+
+  /** Completa logradouro pelo CEP, como o painel da corretora faz. */
+  const buscarCep = async (cep: string) => {
+    const limpo = cep.replace(/\D/g, '')
+    if (limpo.length !== 8) return
+    try {
+      const r = await fetch(`https://viacep.com.br/ws/${limpo}/json/`)
+      const d = await r.json()
+      if (d.erro || !d.logradouro) return
+      // Só preenche se estiver vazio — não sobrescreve ajuste do corretor.
+      onChange({ logradouro: v.logradouro.trim() || d.logradouro })
+    } catch {/* CEP é conveniência; falha não trava o formulário */}
+  }
+
   return (
     <div className="space-y-3">
       <div className="grid sm:grid-cols-3 gap-3">
@@ -62,7 +87,11 @@ export function CamposImovelAnalise({ valores: v, onChange, inputCls, disabled }
           <label className={label}>CEP <span className="text-red-500">*</span></label>
           <input
             value={v.cep}
-            onChange={e => onChange({ cep: maskCep(e.target.value) })}
+            onChange={e => {
+              const cep = maskCep(e.target.value)
+              onChange({ cep })
+              if (cep.replace(/\D/g, '').length === 8) void buscarCep(cep)
+            }}
             disabled={disabled}
             inputMode="numeric"
             className={inputCls}
@@ -139,6 +168,28 @@ export function CamposImovelAnalise({ valores: v, onChange, inputCls, disabled }
             </div>
           ))}
         </div>
+        {total > 0 && (
+          <div className="mt-2 rounded-xl bg-gray-50 px-3 py-2.5 space-y-1">
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-gray-600">Total de gastos mensais</span>
+              <span className="text-sm font-bold text-gray-900 tabular-nums">
+                {formatarBRL(total)}
+              </span>
+            </div>
+            <div className="flex items-baseline justify-between">
+              <span className="text-xs text-gray-600">Renda necessária</span>
+              <span className="text-base font-black text-violet-700 tabular-nums">
+                {formatarBRL(renda)}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-500 leading-snug">
+              Soma das rendas do pretendente e dos locatários solidários, no
+              limite de {Math.round(COMPROMETIMENTO_MAXIMO * 100)}% de
+              comprometimento. É orientação — quem define o limite é a análise.
+            </p>
+          </div>
+        )}
+
         <p className="text-[11px] text-gray-500 mt-1.5 flex items-start gap-1.5">
           <Info size={11} className="mt-0.5 shrink-0 text-gray-400" />
           Os encargos entram no valor que o seguro cobre. Informar a menos faz a

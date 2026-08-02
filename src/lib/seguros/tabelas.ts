@@ -188,6 +188,88 @@ export function tipoImovelParaMaximiza(
 
 /* ── Natureza de renda ─────────────────────────────────────────────── */
 
+/* ── Pessoa jurídica e imóvel comercial ────────────────────────────── */
+
+/** Tabela TIPO EMPRESA. Os valores vão como estão — a doc pede respeitar maiúsculas. */
+export const TIPOS_EMPRESA = [
+  'Ltda',
+  'Individual/ME',
+  'S.A. Capital Aberto',
+  'S.A Capital Fechado',
+  'Sem Fins Lucrativos',
+  'Pública',
+] as const
+
+/** Tabela OPÇÃO TRIBUTÁRIA. */
+export const OPCOES_TRIBUTARIAS = [
+  'Simples Nacional',
+  'Lucro Presumido',
+  'Lucro Real',
+] as const
+
+/** Tabela RAMO ATIVIDADE — em minúsculas na doc, e isso importa. */
+export const RAMOS_ATIVIDADE = ['comércio', 'serviços', 'indústria'] as const
+
+/**
+ * Tabela TIPO FRANQUEADORA.
+ *
+ * Só é exigida quando `trataDeFranquia = S` em imóvel comercial. "Outra"
+ * (21152) cobre o que não está na lista, então a ausência de uma marca
+ * não bloqueia a análise.
+ */
+export const FRANQUEADORAS: { codigo: string; nome: string }[] = [
+  { codigo: '21153', nome: '5àsec' },
+  { codigo: '21155', nome: 'Am Pm Mini Market' },
+  { codigo: '21156', nome: 'Arezzo' },
+  { codigo: '21157', nome: "Bob's" },
+  { codigo: '21158', nome: 'BR Mania' },
+  { codigo: '21159', nome: 'Cacau Show' },
+  { codigo: '21160', nome: 'Carmen Steffens' },
+  { codigo: '21161', nome: 'Casa de Bolos' },
+  { codigo: '21162', nome: 'CCAA' },
+  { codigo: '21163', nome: 'Chilli Beans' },
+  { codigo: '21164', nome: 'Chiquinho Sorvetes' },
+  { codigo: '21165', nome: 'Chocolates Brasil Cacau' },
+  { codigo: '21166', nome: 'CNA' },
+  { codigo: '21167', nome: 'Correios' },
+  { codigo: '21168', nome: 'CVC Brasil' },
+  { codigo: '21169', nome: 'Dia%' },
+  { codigo: '21170', nome: 'Drogarias Farmais' },
+  { codigo: '21171', nome: 'Farmácias FTB' },
+  { codigo: '21172', nome: 'Fisk Centro de Ensino' },
+  { codigo: '21173', nome: 'Giraffas' },
+  { codigo: '21174', nome: "Habib's" },
+  { codigo: '21175', nome: 'Havaianas' },
+  { codigo: '21176', nome: 'Hering Store' },
+  { codigo: '21177', nome: 'Igui' },
+  { codigo: '21178', nome: 'Instituto Embelleze' },
+  { codigo: '21179', nome: 'Jet Oil' },
+  { codigo: '21180', nome: 'Kopenhagen' },
+  { codigo: '21181', nome: 'Kumon' },
+  { codigo: '21182', nome: 'Localiza Rent a Car' },
+  { codigo: '21183', nome: 'Lubrax +' },
+  { codigo: '21184', nome: "McDonald's" },
+  { codigo: '21185', nome: 'Microlins' },
+  { codigo: '21186', nome: 'Morana' },
+  { codigo: '21187', nome: 'Mundo Verde' },
+  { codigo: '21188', nome: 'Não+Pêlo' },
+  { codigo: '21189', nome: 'Nosso Bar' },
+  { codigo: '21190', nome: 'O Boticário' },
+  { codigo: '21191', nome: 'Óticas Carol' },
+  { codigo: '21192', nome: 'Óticas Diniz' },
+  { codigo: '21193', nome: 'Piticas Moda Criativa' },
+  { codigo: '21194', nome: 'Prepara Cursos Profissionalizantes' },
+  { codigo: '21195', nome: 'Rei do Mate' },
+  { codigo: '21196', nome: 'Seguralta - Bolsa de Seguros' },
+  { codigo: '21197', nome: 'Sobrancelhas Design' },
+  { codigo: '21198', nome: 'Sodiê Doces' },
+  { codigo: '21199', nome: 'Spa das Sobrancelhas' },
+  { codigo: '21200', nome: 'Spoleto' },
+  { codigo: '21201', nome: 'Wizard by Pearson' },
+  { codigo: '21202', nome: 'Yázigi' },
+  { codigo: '21152', nome: 'Outra' },
+]
+
 export const NATUREZAS_RENDA = [
   'APOSENTADO/PENSIONISTA',
   'AUTONOMO',

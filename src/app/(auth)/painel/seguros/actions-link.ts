@@ -58,6 +58,13 @@ export async function criarLinkAnalise(input: CriarLinkInput) {
   if (!input.dadosImovel.cep?.replace(/\D/g, '')) return { error: 'Informe o CEP do imóvel.' }
   if (!(input.dadosImovel.aluguel > 0)) return { error: 'Informe o valor do aluguel.' }
 
+  // Locação comercial exige CNAE, capitais, ramo e tipo de empresa — dados
+  // do pretendente PJ, que o corretor levanta na negociação. Pedir isso num
+  // formulário de celular sem login é garantir abandono.
+  if (input.dadosImovel.finalidade === 'C') {
+    return { error: 'Locação comercial precisa da cotação direta — o formulário de link não coleta os dados da empresa.' }
+  }
+
   const dias = Math.max(1, Math.min(30, input.diasValidade ?? 7))
   const token = gerarToken()
 

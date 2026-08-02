@@ -92,9 +92,7 @@ export function GerenciadorLinks({ imoveis, links }: Props) {
       const r = await criarLinkAnalise({
         imovelId: imovelId || null,
         mensagem: mensagem || null,
-        // Comercial não tem análise reduzida — a API só a oferece pra
-        // residencial, então força a completa.
-        tipoAnalise: imovel.finalidade === 'C' || completa ? 'completa' : 'reduzida',
+        tipoAnalise: completa ? 'completa' : 'reduzida',
         diasValidade: parseInt(dias, 10) || 7,
         dadosImovel: montarImovel(imovel, parseMoney),
       })
@@ -174,23 +172,38 @@ export function GerenciadorLinks({ imoveis, links }: Props) {
             />
           </div>
 
-          <label className={`flex items-start gap-2 ${imovel.finalidade === 'C' ? 'opacity-60' : 'cursor-pointer'}`}>
-            <input
-              type="checkbox"
-              checked={imovel.finalidade === 'C' || completa}
-              disabled={imovel.finalidade === 'C'}
-              onChange={e => setCompleta(e.target.checked)}
-              className="accent-violet-600 mt-0.5"
-            />
-            <span>
-              <p className="text-sm text-gray-900">Análise completa</p>
-              <p className="text-[11px] text-gray-500 leading-tight">
-                {imovel.finalidade === 'C'
-                  ? 'Obrigatória para imóvel comercial.'
-                  : 'Pede nascimento e sexo, mas inclui mais seguradoras.'}
+          {imovel.finalidade === 'C' ? (
+            <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5">
+              <p className="text-xs font-bold text-amber-900">
+                Locação comercial não vai por link
               </p>
-            </span>
-          </label>
+              <p className="text-[11px] text-amber-800 leading-snug mt-0.5">
+                A seguradora exige CNAE, capitais e ramo de atividade da empresa —
+                dados que você levanta na negociação, não o inquilino no celular.
+              </p>
+              <Link
+                href="/painel/seguros/fianca/nova"
+                className="inline-block mt-1.5 text-[11px] font-bold text-amber-900 underline"
+              >
+                Fazer cotação direta →
+              </Link>
+            </div>
+          ) : (
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={completa}
+                onChange={e => setCompleta(e.target.checked)}
+                className="accent-violet-600 mt-0.5"
+              />
+              <span>
+                <p className="text-sm text-gray-900">Análise completa</p>
+                <p className="text-[11px] text-gray-500 leading-tight">
+                  Pede nascimento e sexo, mas inclui mais seguradoras.
+                </p>
+              </span>
+            </label>
+          )}
 
           {erro && (
             <div className="bg-red-50 border border-red-100 rounded-lg p-2.5 text-xs text-red-700 flex items-start gap-2">
