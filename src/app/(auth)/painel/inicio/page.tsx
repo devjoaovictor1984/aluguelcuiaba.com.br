@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
-import { STATUS_FORA_DA_COBRANCA } from '@/lib/crm/encerramento'
+import { STATUS_CANCELADA } from '@/lib/crm/encerramento'
 import { formatarBRL, formatarData } from '@/lib/formatters'
 import { TabelaMes, type LinhaParcela } from './_components/tabela-mes'
 import { SeletorMes } from './_components/seletor-mes'
@@ -150,8 +150,8 @@ export default async function InicioCRMPage({ searchParams }: Props) {
       `)
       .eq('contrato.user_id', acesso.userId)
       .is('contrato.deleted_at', null)
-      // Parcela de contrato encerrado nao entra em pendencia nem em previsao.
-      .not('status_pagamento', 'in', STATUS_FORA_DA_COBRANCA),
+      // Remove so a cancelada: a parcela PAGA e o que esta tela mostra.
+      .not('status_pagamento', 'in', STATUS_CANCELADA),
     supabase
       .from('perfis')
       .select('nome')

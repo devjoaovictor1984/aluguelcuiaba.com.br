@@ -11,13 +11,18 @@ import type { SupabaseClient } from '@supabase/supabase-js'
  */
 
 /**
- * Status que representam cobrança viva. Usado nas listagens pra excluir
- * o que foi pago e o que deixou de ser devido.
+ * Dois filtros, e confundi-los custa caro — já custou uma vez.
+ *
+ * FORA_DA_COBRANCA remove pago E cancelada. Só serve onde a tela lista
+ * o que ainda se cobra: /cobrancas e o cron de avisos.
+ *
+ * CANCELADA remove só o que deixou de ser devido. É o que vale em
+ * financeiro, comissões, início e relatórios — ali a parcela PAGA é o
+ * conteúdo principal (aluguel recebido, comissão ganha, extrato), e
+ * escondê-la faz o histórico sumir da tela.
  */
-export const STATUS_COBRANCA_ABERTA = ['pendente', 'atrasado', 'renegociado'] as const
-
-/** Filtro pronto pro PostgREST: `.not('status_pagamento', 'in', ...)`. */
 export const STATUS_FORA_DA_COBRANCA = '(pago,cancelada)'
+export const STATUS_CANCELADA = '(cancelada)'
 
 /**
  * Cancela as parcelas que vencem DEPOIS do fim do contrato.

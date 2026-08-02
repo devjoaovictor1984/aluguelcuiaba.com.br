@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ArrowLeft, TrendingUp, FileText } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
-import { STATUS_FORA_DA_COBRANCA } from '@/lib/crm/encerramento'
+import { STATUS_CANCELADA } from '@/lib/crm/encerramento'
 import { formatarBRL, formatarData } from '@/lib/formatters'
 import { FiltroMesAno, type ModoPeriodo } from '../_components/filtro-mes-ano'
 import { BotaoImprimir } from './_components/botao-imprimir'
@@ -117,8 +117,8 @@ export default async function ComissoesPage({ searchParams }: Props) {
       // de contratos soft-deletados (e de outros usuários). Mesmo filtro do início.
       .eq('contrato.user_id', acesso.userId)
       .is('contrato.deleted_at', null)
-      // Parcela cancelada nao gera comissao.
-      .not('status_pagamento', 'in', STATUS_FORA_DA_COBRANCA),
+      // Remove so a cancelada: a comissao nasce da parcela PAGA.
+      .not('status_pagamento', 'in', STATUS_CANCELADA),
   ])
 
   const contratos = (contratosRaw ?? []) as ContratoRow[]

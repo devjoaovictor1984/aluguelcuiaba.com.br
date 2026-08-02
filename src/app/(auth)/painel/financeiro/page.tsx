@@ -5,7 +5,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
-import { STATUS_FORA_DA_COBRANCA } from '@/lib/crm/encerramento'
+import { STATUS_CANCELADA } from '@/lib/crm/encerramento'
 import { formatarBRL, formatarData } from '@/lib/formatters'
 import { FiltroMesAno, type ModoPeriodo } from './_components/filtro-mes-ano'
 
@@ -144,8 +144,8 @@ export default async function FinanceiroPage({ searchParams }: Props) {
       // inflando os meses. O início já faz esse mesmo filtro.
       .eq('contrato.user_id', acesso.userId)
       .is('contrato.deleted_at', null)
-      // Cancelada nao e receita a receber nem inadimplencia.
-      .not('status_pagamento', 'in', STATUS_FORA_DA_COBRANCA),
+      // Remove so a cancelada: a parcela PAGA e a receita realizada.
+      .not('status_pagamento', 'in', STATUS_CANCELADA),
   ])
 
   const contratos = (contratosRes.data ?? []) as ContratoRow[]
