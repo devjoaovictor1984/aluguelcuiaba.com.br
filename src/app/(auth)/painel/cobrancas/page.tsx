@@ -1,6 +1,7 @@
 import { MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { STATUS_FORA_DA_COBRANCA } from '@/lib/crm/encerramento'
 import { ListaCobrancas, type CobrancaRow } from './_components/lista-cobrancas'
 import { BotaoAjuda } from '@/components/botao-ajuda'
 
@@ -52,7 +53,10 @@ export default async function CobrancasPage({ searchParams }: Props) {
       `)
       .eq('contrato.user_id', acesso.userId)
       .is('contrato.deleted_at', null)
-      .neq('status_pagamento', 'pago')
+      // 'cancelada' = contrato encerrado antes do vencimento. Não é
+      // cobrança em aberto, e era o que fazia contrato rescindido
+      // continuar aparecendo nos meses seguintes.
+      .not('status_pagamento', 'in', STATUS_FORA_DA_COBRANCA)
       .lte('vencimento', limiteVencimento)
       .order('vencimento', { ascending: true }),
     supabase

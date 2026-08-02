@@ -23,7 +23,8 @@ export interface Parcela {
   valor_total: number
   valor_comissao: number
   valor_repasse_proprietario: number
-  status_pagamento: 'pendente' | 'pago' | 'atrasado' | 'isento' | 'renegociado'
+  status_pagamento: 'pendente' | 'pago' | 'atrasado' | 'isento' | 'renegociado' | 'cancelada'
+  cancelada_motivo?: string | null
   status_repasse: 'pendente' | 'pago'
   status_seguro: 'pendente' | 'pago' | 'sem_seguro'
   boleto_enviado: boolean | null
@@ -46,7 +47,10 @@ export function ParcelaRow({ parcela, codigoContrato }: Props) {
   const [modalAberto, setModalAberto] = useState(false)
   const [isPending, startTransition] = useTransition()
 
-  const atrasada = parcela.status_pagamento !== 'pago' && new Date(parcela.vencimento) < new Date()
+  const cancelada = parcela.status_pagamento === 'cancelada'
+  // Cancelada nao esta atrasada: deixou de ser devida.
+  const atrasada = !cancelada && parcela.status_pagamento !== 'pago'
+    && new Date(parcela.vencimento) < new Date()
 
   const togglePagamento = () => {
     if (parcela.status_pagamento === 'pago') {
@@ -87,15 +91,23 @@ export function ParcelaRow({ parcela, codigoContrato }: Props) {
 
   return (
     <>
-      <tr className="border-t border-gray-50 hover:bg-gray-50">
+      <tr
+        className={`border-t border-gray-50 hover:bg-gray-50 ${cancelada ? 'opacity-45' : ''}`}
+        title={cancelada ? (parcela.cancelada_motivo ?? 'Parcela cancelada') : undefined}
+      >
         <td className="px-3 py-2 text-gray-500 font-mono text-xs">{parcela.numero}</td>
         <td className="px-3 py-2">
           <CodigoBoletoCopia codigo={codigoBoleto(codigoContrato, parcela.numero)} />
         </td>
         <td className={`px-3 py-2 text-xs ${atrasada ? 'text-red-600 font-semibold' : 'text-gray-700'}`}>
           {formatarData(parcela.vencimento)}
+          {cancelada && (
+            <span className="ml-1 text-[10px] font-bold uppercase text-gray-400">cancelada</span>
+          )}
         </td>
-        <td className="px-3 py-2 text-right text-xs font-medium">{formatarBRL(parcela.valor_total)}</td>
+        <td className={`px-3 py-2 text-right text-xs font-medium ${cancelada ? 'line-through' : ''}`}>
+          {formatarBRL(parcela.valor_total)}
+        </td>
         <td className="px-3 py-2 text-right text-xs text-violet-700">{formatarBRL(parcela.valor_comissao)}</td>
         <td className="px-3 py-2 text-right text-xs text-green-700">{formatarBRL(parcela.valor_repasse_proprietario)}</td>
 

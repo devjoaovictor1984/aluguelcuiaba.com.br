@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { STATUS_FORA_DA_COBRANCA } from '@/lib/crm/encerramento'
 import { enviarEmail } from '@/lib/email/sender'
 import { getTemplate, renderTemplate } from '@/lib/email/templates'
 
@@ -44,7 +45,11 @@ export async function GET(req: NextRequest) {
       )
     `)
     .eq('vencimento', alvoIso)
-    .neq('status_pagamento', 'pago')
+    // Sem excluir 'cancelada', o aviso ia pro ex-inquilino de contrato já
+    // rescindido — cobrança que não existe, na caixa de entrada dele.
+    // E sem `deleted_at`, ia pra contrato na lixeira.
+    .not('status_pagamento', 'in', STATUS_FORA_DA_COBRANCA)
+    .is('contrato.deleted_at', null)
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 

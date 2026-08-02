@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { gerarParcelas, montarCodigo, type InputCalculoParcelas } from '@/lib/crm/calculos'
+import { cancelarParcelasFuturas, reabrirParcelasCanceladas } from '@/lib/crm/encerramento'
 import { PLANOS } from '@/lib/constants'
 
 export type GarantiaTipo = 'fiador' | 'caucao' | 'seguro_fianca' | 'sem_garantia'
@@ -445,8 +446,33 @@ export async function atualizarContrato(id: string, dados: ContratoEditavel) {
     .eq('user_id', acesso.userId)
 
   if (error) return { error: error.message }
+
+  // A edição também muda status. Sem tratar aqui, encerrar por este
+  // caminho deixaria as parcelas futuras cobrando — foi assim que o bug
+  // sobreviveu em três lugares.
+  if (dados.status === 'encerrado' || dados.status === 'rescindido') {
+    const { data: c } = await supabase
+      .from('contratos_locacao')
+      .select('data_encerramento, data_termino')
+      .eq('id', id)
+      .maybeSingle()
+
+    await cancelarParcelasFuturas(
+      supabase, id, c?.data_encerramento ?? c?.data_termino,
+      `Contrato ${dados.status} pela edição`,
+    )
+  }
+
+  // Voltar pra ativo tem que devolver a cobrança, senão o contrato fica
+  // vigente e sem parcela nenhuma.
+  if (dados.status === 'ativo' || dados.status === 'inadimplente') {
+    await reabrirParcelasCanceladas(supabase, id)
+  }
+
   revalidatePath('/painel/contratos')
   revalidatePath(`/painel/contratos/${id}`)
+  revalidatePath('/painel/cobrancas')
+  revalidatePath('/painel/financeiro')
   return { ok: true }
 }
 
@@ -921,11 +947,21 @@ export async function encerrarContrato(id: string, input: EncerrarContratoInput)
 
   if (error) return { error: error.message }
 
+  // Parcelas que vencem depois do encerramento deixam de ser devidas. Sem
+  // isto elas seguem em cobranças, financeiro e no cron de avisos — que
+  // manda lembrete ao ex-inquilino.
+  const { canceladas, error: eParcelas } = await cancelarParcelasFuturas(
+    supabase, id, input.data_encerramento,
+    `Contrato ${novoStatus} em ${input.data_encerramento}`,
+  )
+  if (eParcelas) return { error: `Contrato encerrado, mas as parcelas futuras não foram baixadas: ${eParcelas}` }
+
   // O trigger sincronizar_status_imovel libera o imóvel se não houver outro contrato ativo.
   revalidatePath('/painel/contratos')
   revalidatePath(`/painel/contratos/${id}`)
   revalidatePath('/painel/financeiro')
-  return { ok: true }
+  revalidatePath('/painel/cobrancas')
+  return { ok: true, parcelasCanceladas: canceladas }
 }
 
 // ───────────────── Renovação ─────────────────
@@ -1054,11 +1090,19 @@ export async function renovarContrato(input: RenovarContratoInput) {
       })
       .eq('id', anterior.id)
       .eq('user_id', acesso.userId)
+
+    // Sem isto o inquilino é cobrado duas vezes pelo mesmo mês: as
+    // parcelas futuras do contrato antigo convivem com as do novo.
+    await cancelarParcelasFuturas(
+      supabase, anterior.id, input.data_inicio,
+      `Renovado pelo contrato ${codigo} em ${input.data_inicio}`,
+    )
   }
 
   revalidatePath('/painel/contratos')
   revalidatePath(`/painel/contratos/${anterior.id}`)
   revalidatePath('/painel/financeiro')
+  revalidatePath('/painel/cobrancas')
 
   return { ok: true, id: novo.id, codigo: novo.codigo }
 }

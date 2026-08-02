@@ -1,6 +1,7 @@
 import { FileText, User, Building2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { STATUS_FORA_DA_COBRANCA } from '@/lib/crm/encerramento'
 import { formatarBRL, formatarData } from '@/lib/formatters'
 import { FiltrosRelatorio } from './_components/filtros'
 
@@ -125,6 +126,8 @@ export default async function RelatoriosPage({ searchParams }: Props) {
     `)
     .eq(`contrato.${colunaPessoa}`, pessoaId)
     .is('contrato.deleted_at', null)
+    // Cancelada nao aparece no extrato do cliente.
+    .not('status_pagamento', 'in', STATUS_FORA_DA_COBRANCA)
     .gte('mes_referencia', inicioAno)
     .lte('mes_referencia', fimAno)
     .order('mes_referencia', { ascending: true })
