@@ -112,7 +112,9 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
 
   // 2. Transmite pra corretora.
   const dadosImovel = link.dados_imovel as {
-    cep: string; aluguel: number; condominio?: number | null; iptu?: number | null
+    cep: string; endereco?: string | null; aluguel: number
+    condominio?: number | null; iptu?: number | null
+    agua?: number | null; energia?: number | null; gas?: number | null
     finalidade: 'R' | 'C'; tipo?: string | null; periodoContratoMeses: number
     pinturaNova: boolean
   }
@@ -131,9 +133,13 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
     },
     imovel: {
       cep: dadosImovel.cep,
+      endereco: dadosImovel.endereco ?? null,
       aluguel: Number(dadosImovel.aluguel) || 0,
       condominio: dadosImovel.condominio ?? null,
       iptu: dadosImovel.iptu ?? null,
+      agua: dadosImovel.agua ?? null,
+      energia: dadosImovel.energia ?? null,
+      gas: dadosImovel.gas ?? null,
       finalidade: dadosImovel.finalidade ?? 'R',
       tipo: dadosImovel.tipo ?? null,
       periodoContratoMeses: Number(dadosImovel.periodoContratoMeses) || 30,

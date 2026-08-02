@@ -3,12 +3,15 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, Send, AlertCircle, ShieldCheck, ChevronDown } from 'lucide-react'
-import { maskCpfCnpj, maskTelefone, maskCep, maskMoney, parseMoney } from '@/lib/formatters'
-import { TIPOS_IMOVEL_RESIDENCIAL, TIPOS_IMOVEL_COMERCIAL } from '@/lib/seguros/tabelas'
+import { maskCpfCnpj, maskTelefone, maskMoney, parseMoney } from '@/lib/formatters'
 import { criarAnalise } from '../../../actions'
 import {
   CamposSolidarios, validarSolidarios, type SolidarioCampo,
 } from '../../../_components/campos-solidarios'
+import {
+  CamposImovelAnalise, IMOVEL_VAZIO, montarImovel, validarImovel,
+  type CamposImovel,
+} from '../../../_components/campos-imovel-analise'
 
 interface InquilinoOpcao {
   id: string
@@ -53,20 +56,16 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
   const [email, setEmail] = useState(inicial?.email ?? '')
   const [celular, setCelular] = useState(inicial?.telefone ? maskTelefone(inicial.telefone) : '')
 
-  const [cep, setCep] = useState('')
-  const [aluguel, setAluguel] = useState(
-    contratoBase ? maskMoney(String(Math.round(contratoBase.valor_aluguel * 100))) : '',
-  )
-  const [condominio, setCondominio] = useState(
-    contratoBase?.condominio_mensal ? maskMoney(String(Math.round(contratoBase.condominio_mensal * 100))) : '',
-  )
-  const [iptu, setIptu] = useState(
-    contratoBase?.iptu_mensal ? maskMoney(String(Math.round(contratoBase.iptu_mensal * 100))) : '',
-  )
-  const [meses, setMeses] = useState(String(contratoBase?.duracao_meses ?? 30))
-  const [pinturaNova, setPinturaNova] = useState(true)
-  const [finalidade, setFinalidade] = useState<'R' | 'C'>('R')
-  const [tipoImovel, setTipoImovel] = useState('')
+  const cent = (n: number | null | undefined) =>
+    n ? maskMoney(String(Math.round(n * 100))) : ''
+
+  const [imovel, setImovel] = useState<CamposImovel>({
+    ...IMOVEL_VAZIO,
+    aluguel: cent(contratoBase?.valor_aluguel),
+    condominio: cent(contratoBase?.condominio_mensal),
+    iptu: cent(contratoBase?.iptu_mensal),
+    meses: String(contratoBase?.duracao_meses ?? 30),
+  })
 
   const [completa, setCompleta] = useState(false)
   const [dataNasc, setDataNasc] = useState(inicial?.dataNascimento ?? '')
@@ -76,7 +75,7 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
   const [consentimento, setConsentimento] = useState(false)
 
   // Comercial exige análise completa — a reduzida só existe pra residencial.
-  const exigeCompleta = finalidade === 'C'
+  const exigeCompleta = imovel.finalidade === 'C'
   const usarCompleta = completa || exigeCompleta
 
   const escolherInquilino = (id: string) => {
@@ -97,8 +96,8 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
     if (cpf.replace(/\D/g, '').length < 11) return setErro('CPF/CNPJ incompleto.')
     if (!email.includes('@')) return setErro('E-mail inválido.')
     if (celular.replace(/\D/g, '').length < 10) return setErro('Celular incompleto (com DDD).')
-    if (cep.replace(/\D/g, '').length !== 8) return setErro('CEP inválido.')
-    if (parseMoney(aluguel) <= 0) return setErro('Informe o valor do aluguel.')
+    const eImovel = validarImovel(imovel, parseMoney)
+    if (eImovel) return setErro(eImovel)
     if (usarCompleta && !dataNasc) return setErro('Data de nascimento é obrigatória na análise completa.')
     if (usarCompleta && !sexo) return setErro('Informe o sexo na análise completa.')
     if (!consentimento) return setErro('É preciso confirmar o aceite do inquilino.')
@@ -125,16 +124,7 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
             sexo: sexo || null,
           },
           solidarios: sol.solidarios,
-          imovel: {
-            cep,
-            aluguel: parseMoney(aluguel),
-            condominio: parseMoney(condominio) || null,
-            iptu: parseMoney(iptu) || null,
-            pinturaNova,
-            finalidade,
-            tipo: tipoImovel || null,
-            periodoContratoMeses: parseInt(meses, 10) || 30,
-          },
+          imovel: montarImovel(imovel, parseMoney),
         },
       })
 
@@ -148,8 +138,6 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
       router.push(`/painel/seguros/fianca/${r.id}`)
     })
   }
-
-  const tipos = finalidade === 'R' ? TIPOS_IMOVEL_RESIDENCIAL : TIPOS_IMOVEL_COMERCIAL
 
   return (
     <div className="space-y-4">
@@ -225,66 +213,12 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
       {/* Imóvel */}
       <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 space-y-3">
         <h2 className="text-sm font-bold text-gray-900">Imóvel pretendido</h2>
-
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <label className={label}>CEP <span className="text-red-500">*</span></label>
-            <input value={cep} onChange={e => setCep(maskCep(e.target.value))} className={input} inputMode="numeric" />
-          </div>
-          <div>
-            <label className={label}>Finalidade</label>
-            <div className="relative">
-              <select
-                value={finalidade}
-                onChange={e => { setFinalidade(e.target.value as 'R' | 'C'); setTipoImovel('') }}
-                className={`${input} appearance-none pr-8`}
-              >
-                <option value="R">Residencial</option>
-                <option value="C">Comercial</option>
-              </select>
-              <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
-          </div>
-        </div>
-
-        <div className="grid sm:grid-cols-3 gap-3">
-          <div>
-            <label className={label}>Aluguel <span className="text-red-500">*</span></label>
-            <input value={aluguel} onChange={e => setAluguel(maskMoney(e.target.value))} className={input} inputMode="numeric" />
-          </div>
-          <div>
-            <label className={label}>Condomínio</label>
-            <input value={condominio} onChange={e => setCondominio(maskMoney(e.target.value))} className={input} inputMode="numeric" />
-          </div>
-          <div>
-            <label className={label}>IPTU</label>
-            <input value={iptu} onChange={e => setIptu(maskMoney(e.target.value))} className={input} inputMode="numeric" />
-          </div>
-        </div>
-
-        <div className="grid sm:grid-cols-2 gap-3">
-          <div>
-            <label className={label}>Duração do contrato (meses)</label>
-            <input value={meses} onChange={e => setMeses(e.target.value.replace(/\D/g, ''))} className={input} inputMode="numeric" />
-          </div>
-          {usarCompleta && (
-            <div>
-              <label className={label}>Tipo do imóvel</label>
-              <div className="relative">
-                <select value={tipoImovel} onChange={e => setTipoImovel(e.target.value)} className={`${input} appearance-none pr-8`}>
-                  <option value="">—</option>
-                  {tipos.map(t => <option key={t} value={t}>{t}</option>)}
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-          )}
-        </div>
-
-        <label className="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" checked={pinturaNova} onChange={e => setPinturaNova(e.target.checked)} className="accent-violet-600" />
-          <span className="text-sm text-gray-700">Imóvel entregue com pintura nova</span>
-        </label>
+        <CamposImovelAnalise
+          valores={imovel}
+          onChange={p => setImovel(v => ({ ...v, ...p }))}
+          inputCls={input}
+          disabled={isPending}
+        />
       </section>
 
       {/* Solidários */}

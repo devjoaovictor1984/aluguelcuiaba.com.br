@@ -28,9 +28,15 @@ export interface CriarLinkInput {
   diasValidade?: number
   dadosImovel: {
     cep: string
+    endereco?: string | null
     aluguel: number
     condominio?: number | null
     iptu?: number | null
+    // Compõem o valor coberto: sem eles a seguradora aprova um limite
+    // que não cobre a obrigação real do inquilino.
+    agua?: number | null
+    energia?: number | null
+    gas?: number | null
     finalidade: 'R' | 'C'
     tipo?: string | null
     periodoContratoMeses: number

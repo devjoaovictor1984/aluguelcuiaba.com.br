@@ -7,9 +7,12 @@ import {
   Link2, Loader2, Copy, Check, MessageCircle, Plus, X, AlertCircle,
   Eye, CheckCircle2, Clock, Ban, ChevronDown, Trash2,
 } from 'lucide-react'
-import { maskCep, maskMoney, parseMoney } from '@/lib/formatters'
-import { formatarBRL } from '@/lib/formatters'
+import { maskCep, maskMoney, parseMoney, formatarBRL } from '@/lib/formatters'
 import { criarLinkAnalise, revogarLinkAnalise, excluirLinkAnalise } from '../../../actions-link'
+import {
+  CamposImovelAnalise, IMOVEL_VAZIO, montarImovel, validarImovel,
+  type CamposImovel,
+} from '../../../_components/campos-imovel-analise'
 
 interface ImovelOpcao {
   id: string
@@ -59,47 +62,41 @@ export function GerenciadorLinks({ imoveis, links }: Props) {
   const [novoLink, setNovoLink] = useState<{ url: string; expira: string } | null>(null)
 
   const [imovelId, setImovelId] = useState('')
-  const [cep, setCep] = useState('')
-  const [aluguel, setAluguel] = useState('')
-  const [condominio, setCondominio] = useState('')
-  const [iptu, setIptu] = useState('')
-  const [meses, setMeses] = useState('30')
-  const [finalidade, setFinalidade] = useState<'R' | 'C'>('R')
+  const [imovel, setImovel] = useState<CamposImovel>(IMOVEL_VAZIO)
   const [completa, setCompleta] = useState(false)
   const [mensagem, setMensagem] = useState('')
   const [dias, setDias] = useState('7')
+
+  const cent = (n: number | null) => (n ? maskMoney(String(Math.round(n * 100))) : '')
 
   const escolherImovel = (id: string) => {
     setImovelId(id)
     const i = imoveis.find(x => x.id === id)
     if (!i) return
-    if (i.cep) setCep(maskCep(i.cep))
-    setAluguel(maskMoney(String(Math.round(i.preco * 100))))
-    setCondominio(i.condominio ? maskMoney(String(Math.round(i.condominio * 100))) : '')
-    setIptu(i.iptu ? maskMoney(String(Math.round(i.iptu * 100))) : '')
+    setImovel(v => ({
+      ...v,
+      cep: i.cep ? maskCep(i.cep) : v.cep,
+      aluguel: cent(i.preco),
+      condominio: cent(i.condominio),
+      iptu: cent(i.iptu),
+      tipo: i.tipo ?? v.tipo,
+    }))
   }
 
   const gerar = () => {
     setErro('')
-    if (cep.replace(/\D/g, '').length !== 8) return setErro('Informe o CEP do imóvel.')
-    if (parseMoney(aluguel) <= 0) return setErro('Informe o valor do aluguel.')
+    const e = validarImovel(imovel, parseMoney)
+    if (e) return setErro(e)
 
     startTransition(async () => {
       const r = await criarLinkAnalise({
         imovelId: imovelId || null,
         mensagem: mensagem || null,
-        tipoAnalise: finalidade === 'C' || completa ? 'completa' : 'reduzida',
+        // Comercial não tem análise reduzida — a API só a oferece pra
+        // residencial, então força a completa.
+        tipoAnalise: imovel.finalidade === 'C' || completa ? 'completa' : 'reduzida',
         diasValidade: parseInt(dias, 10) || 7,
-        dadosImovel: {
-          cep,
-          aluguel: parseMoney(aluguel),
-          condominio: parseMoney(condominio) || null,
-          iptu: parseMoney(iptu) || null,
-          finalidade,
-          tipo: imoveis.find(i => i.id === imovelId)?.tipo ?? null,
-          periodoContratoMeses: parseInt(meses, 10) || 30,
-          pinturaNova: true,
-        },
+        dadosImovel: montarImovel(imovel, parseMoney),
       })
       if (r.error) { setErro(r.error); return }
       setNovoLink({ url: r.url ?? '', expira: r.expiraEm ?? '' })
@@ -149,47 +146,21 @@ export function GerenciadorLinks({ imoveis, links }: Props) {
             </div>
           )}
 
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className={label}>CEP <span className="text-red-500">*</span></label>
-              <input value={cep} onChange={e => setCep(maskCep(e.target.value))} className={input} inputMode="numeric" />
-            </div>
-            <div>
-              <label className={label}>Finalidade</label>
-              <div className="relative">
-                <select value={finalidade} onChange={e => setFinalidade(e.target.value as 'R' | 'C')} className={`${input} appearance-none pr-8`}>
-                  <option value="R">Residencial</option>
-                  <option value="C">Comercial</option>
-                </select>
-                <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-              </div>
-            </div>
-          </div>
+          <CamposImovelAnalise
+            valores={imovel}
+            onChange={p => setImovel(v => ({ ...v, ...p }))}
+            inputCls={input}
+            disabled={isPending}
+          />
 
-          <div className="grid sm:grid-cols-3 gap-3">
-            <div>
-              <label className={label}>Aluguel <span className="text-red-500">*</span></label>
-              <input value={aluguel} onChange={e => setAluguel(maskMoney(e.target.value))} className={input} inputMode="numeric" />
-            </div>
-            <div>
-              <label className={label}>Condomínio</label>
-              <input value={condominio} onChange={e => setCondominio(maskMoney(e.target.value))} className={input} inputMode="numeric" />
-            </div>
-            <div>
-              <label className={label}>IPTU</label>
-              <input value={iptu} onChange={e => setIptu(maskMoney(e.target.value))} className={input} inputMode="numeric" />
-            </div>
-          </div>
-
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className={label}>Duração (meses)</label>
-              <input value={meses} onChange={e => setMeses(e.target.value.replace(/\D/g, ''))} className={input} inputMode="numeric" />
-            </div>
-            <div>
-              <label className={label}>Link válido por (dias)</label>
-              <input value={dias} onChange={e => setDias(e.target.value.replace(/\D/g, ''))} className={input} inputMode="numeric" />
-            </div>
+          <div className="pt-1 border-t border-gray-50">
+            <label className={label}>Link válido por (dias)</label>
+            <input
+              value={dias}
+              onChange={e => setDias(e.target.value.replace(/\D/g, ''))}
+              className={`${input} sm:max-w-[10rem]`}
+              inputMode="numeric"
+            />
           </div>
 
           <div>
@@ -203,18 +174,18 @@ export function GerenciadorLinks({ imoveis, links }: Props) {
             />
           </div>
 
-          <label className={`flex items-start gap-2 ${finalidade === 'C' ? 'opacity-60' : 'cursor-pointer'}`}>
+          <label className={`flex items-start gap-2 ${imovel.finalidade === 'C' ? 'opacity-60' : 'cursor-pointer'}`}>
             <input
               type="checkbox"
-              checked={finalidade === 'C' || completa}
-              disabled={finalidade === 'C'}
+              checked={imovel.finalidade === 'C' || completa}
+              disabled={imovel.finalidade === 'C'}
               onChange={e => setCompleta(e.target.checked)}
               className="accent-violet-600 mt-0.5"
             />
             <span>
               <p className="text-sm text-gray-900">Análise completa</p>
               <p className="text-[11px] text-gray-500 leading-tight">
-                {finalidade === 'C'
+                {imovel.finalidade === 'C'
                   ? 'Obrigatória para imóvel comercial.'
                   : 'Pede nascimento e sexo, mas inclui mais seguradoras.'}
               </p>
