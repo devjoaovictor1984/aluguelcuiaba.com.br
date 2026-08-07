@@ -33,6 +33,8 @@ interface Props {
     garantia_tipo: 'fiador' | 'caucao' | 'seguro_fianca' | 'sem_garantia'
   } | null
   cotacoesFianca?: CotacaoFianca[]
+  /** Módulo de seguros liberado (hoje só admin). Esconde o atalho de cotar. */
+  segurosHabilitado?: boolean
 }
 
 const ETAPAS = [
@@ -59,7 +61,7 @@ function formatarValorInicial(n: number | null | undefined): string {
   return n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFianca = [] }: Props) {
+export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFianca = [], segurosHabilitado = false }: Props) {
   const router = useRouter()
   const [etapa, setEtapa] = useState(1)
   // Cotação escolhida na etapa de garantia (chave: análise + seguradora).
@@ -609,7 +611,7 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
                 </div>
               )}
 
-              {s.inquilino_id && cotacoesDoInquilino.length === 0 && (
+              {segurosHabilitado && s.inquilino_id && cotacoesDoInquilino.length === 0 && (
                 <Link
                   href={`/painel/seguros/fianca/nova`}
                   target="_blank"

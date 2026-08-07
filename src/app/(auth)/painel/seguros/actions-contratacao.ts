@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { consultarPrecos, contratar } from '@/lib/seguros'
 import { statusAprovado } from '@/lib/seguros/tabelas'
 import type { Coberturas, OpcaoPagamento, PlanosPreco } from '@/lib/seguros/tipos'
@@ -75,7 +75,7 @@ export async function consultarPrecosAnalise(
   seguradoraSigla: string,
   encargos: EncargosInput,
 ): Promise<{ planos?: PlanosPreco; error?: string }> {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const ctx = await carregarParaContratacao(analiseId, seguradoraSigla, acesso.userId)
   if ('error' in ctx) return { error: ctx.error }
 
@@ -117,7 +117,7 @@ export async function consultarPrecosAnalise(
  * cada abertura de tela viraria dezenas de chamadas por minuto.
  */
 export async function buscarPrecosDoParecer(analiseId: string, seguradoraSigla: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const ctx = await carregarParaContratacao(analiseId, seguradoraSigla, acesso.userId)
   if ('error' in ctx) return { error: ctx.error }
 
@@ -192,7 +192,7 @@ export interface ContratarInput {
  * nasce 'enviada', não 'emitida'.
  */
 export async function contratarSeguro(input: ContratarInput) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const ctx = await carregarParaContratacao(input.analiseId, input.seguradoraSigla, acesso.userId)
   if ('error' in ctx) return { error: ctx.error }
 
@@ -288,7 +288,7 @@ export async function contratarSeguro(input: ContratarInput) {
 }
 
 export async function cancelarContratacao(contratacaoId: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const { data: c } = await admin

@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft, FileSignature, AlertOctagon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { statusAprovado } from '@/lib/seguros/tabelas'
 import { FormContratacao } from './_components/form-contratacao'
 
@@ -15,7 +15,7 @@ export const metadata = { title: 'Contratar seguro fiança' }
 export default async function ContratarPage({ params, searchParams }: Props) {
   const { id } = await params
   const { seguradora } = await searchParams
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const supabase = await createClient()
 
   const { data: analise } = await supabase

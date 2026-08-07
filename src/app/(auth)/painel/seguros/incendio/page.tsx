@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Flame, Plus, Search, AlertTriangle, FlaskConical, Receipt } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { formatarBRL } from '@/lib/formatters'
 import { VIGENCIA_LABEL, type TipoVigencia } from '@/lib/seguros/incendio/tipos'
@@ -34,7 +34,7 @@ function venceEmDias(iso: string | null): number | null {
 }
 
 export default async function SeguroIncendioPage({ searchParams }: Props) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const { q, status, p } = await searchParams
   const pagina = Math.max(1, parseInt(p ?? '1', 10) || 1)
 

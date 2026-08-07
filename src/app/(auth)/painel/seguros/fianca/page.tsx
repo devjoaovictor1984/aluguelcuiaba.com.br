@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ShieldCheck, Plus, Search, AlertTriangle, FlaskConical, Link2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { STATUS_RESUMO_COR, STATUS_RESUMO_LABEL } from '@/lib/seguros/status-ui'
 import { formatarBRL } from '@/lib/formatters'
@@ -20,7 +20,7 @@ interface Props {
 export const metadata = { title: 'Seguro fiança' }
 
 export default async function SeguroFiancaPage({ searchParams }: Props) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const { q, status, p } = await searchParams
   const pagina = Math.max(1, parseInt(p ?? '1', 10) || 1)
 

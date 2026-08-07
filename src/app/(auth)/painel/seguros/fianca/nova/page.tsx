@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ArrowLeft, ShieldCheck, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { FormNovaAnalise } from './_components/form-nova-analise'
 import { AvisoDemo } from '../../_components/aviso-demo'
@@ -15,7 +15,7 @@ export const metadata = { title: 'Nova cotação de fiança' }
 
 export default async function NovaAnalisePage({ searchParams }: Props) {
   const { contrato } = await searchParams
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const supabase = await createClient()
   const admin = createAdminClient()
 

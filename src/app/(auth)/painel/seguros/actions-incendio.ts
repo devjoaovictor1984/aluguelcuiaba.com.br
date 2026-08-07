@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
 import { ambienteMaximiza } from '@/lib/seguros'
 import { salvarArquivoIncendio } from '@/lib/seguros/incendio/arquivos'
@@ -43,7 +43,7 @@ export async function carregarCatalogoIncendio(
   tipoSeguro: TipoSeguro,
   tipoVigencia: TipoVigencia,
 ) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   try {
@@ -58,7 +58,7 @@ export async function carregarCatalogoIncendio(
 }
 
 export async function listarSeguradorasDoIncendio() {
-  await exigirAcessoCRM()
+  await exigirAcessoSeguros()
   const admin = createAdminClient()
   try {
     return { seguradoras: await listarSeguradorasIncendio(admin) }
@@ -85,7 +85,7 @@ export interface NovaApoliceInput {
  * teria que redigitar tudo.
  */
 export async function calcularApoliceIncendio(input: NovaApoliceInput) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const prov = await garantirImobiliaria(admin, acesso.userId)
@@ -165,7 +165,7 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
   qtdParcelas: number
   valorParcela: number
 }) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const apolice = await checarPosse(apoliceId, acesso.userId)
@@ -229,7 +229,7 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
 /* ── Pós-contratação ───────────────────────────────────────────────── */
 
 export async function cancelarApoliceIncendio(apoliceId: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const apolice = await checarPosse(apoliceId, acesso.userId)
@@ -261,7 +261,7 @@ export async function cancelarApoliceIncendio(apoliceId: string) {
  * no bucket pra não repetir a chamada a cada visualização.
  */
 export async function baixarDocumentosIncendio(apoliceId: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const apolice = await checarPosse(apoliceId, acesso.userId)
@@ -303,7 +303,7 @@ export async function baixarDocumentosIncendio(apoliceId: string) {
 }
 
 export async function excluirApoliceIncendio(apoliceId: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const apolice = await checarPosse(apoliceId, acesso.userId)
@@ -331,7 +331,7 @@ export async function sincronizarFaturamento(
   seguradora: string,
   competencia?: { mes: number; ano: number },
 ) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const prov = await garantirImobiliaria(admin, acesso.userId)

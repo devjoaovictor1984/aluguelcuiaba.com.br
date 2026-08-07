@@ -3,7 +3,7 @@
 import { randomBytes } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 
 /**
@@ -45,7 +45,7 @@ export interface CriarLinkInput {
 }
 
 export async function criarLinkAnalise(input: CriarLinkInput) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   // Falha cedo: sem perfil completo a análise não transmite depois, e o
@@ -99,7 +99,7 @@ export async function criarLinkAnalise(input: CriarLinkInput) {
 }
 
 export async function revogarLinkAnalise(linkId: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const { data: link } = await admin
@@ -123,7 +123,7 @@ export async function revogarLinkAnalise(linkId: string) {
 }
 
 export async function excluirLinkAnalise(linkId: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const { error } = await admin

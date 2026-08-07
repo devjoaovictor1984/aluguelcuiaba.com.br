@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { ArrowLeft, Receipt } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { AvisoDemo } from '../../_components/aviso-demo'
 import { PainelFaturamento } from './_components/painel-faturamento'
 
@@ -13,7 +13,7 @@ export const metadata = { title: 'Faturamento do incêndio' }
 
 export default async function FaturamentoPage({ searchParams }: Props) {
   const { mes, ano } = await searchParams
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const supabase = await createClient()
 
   let query = supabase

@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ArrowLeft, ShieldCheck, AlertOctagon, FlaskConical } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { assinarUrlArquivo } from '@/lib/seguros/arquivos'
 import { formatarBRL } from '@/lib/formatters'
 import { DetalheAnalise } from './_components/detalhe-analise'
@@ -13,7 +13,7 @@ interface Props {
 
 export default async function AnalisePage({ params }: Props) {
   const { id } = await params
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const supabase = await createClient()
   const admin = createAdminClient()
 

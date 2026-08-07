@@ -228,6 +228,7 @@ export default async function NovoContratoPage({
             criadoEm: a.created_at,
           }))
         })}
+        segurosHabilitado={acesso.role === 'admin'}
       />
     </div>
   )

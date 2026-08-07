@@ -115,7 +115,9 @@ export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, lo
       {/* Navegação */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
         {renderGrupo('CRM Locação', GRUPO_CRM)}
-        {renderGrupo('Seguros', GRUPO_SEGUROS)}
+        {/* Seguros só para admin enquanto a integração com a corretora não
+            está ligada — ver exigirAcessoSeguros(). */}
+        {isAdmin && renderGrupo('Seguros', GRUPO_SEGUROS)}
         {renderGrupo('Anúncios', GRUPO_ANUNCIOS)}
         {renderGrupo('Conta', GRUPO_CONTA)}
       </nav>

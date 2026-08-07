@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ArrowLeft, Link2, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { GerenciadorLinks } from './_components/gerenciador-links'
 import { AvisoDemo } from '../../_components/aviso-demo'
@@ -10,7 +10,7 @@ import { AvisoDemo } from '../../_components/aviso-demo'
 export const metadata = { title: 'Links de análise' }
 
 export default async function LinksAnalisePage() {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const supabase = await createClient()
   const admin = createAdminClient()
 

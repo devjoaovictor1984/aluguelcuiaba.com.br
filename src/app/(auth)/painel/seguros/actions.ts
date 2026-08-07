@@ -3,7 +3,7 @@
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
 import { salvarArquivo, removerArquivosDaAnalise } from '@/lib/seguros/arquivos'
 import {
@@ -55,7 +55,7 @@ export interface NovaAnaliseInput {
  * o erro no histórico em vez de a solicitação sumir sem rastro.
  */
 export async function criarAnalise(input: NovaAnaliseInput) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   if (!input.consentimento) {
@@ -124,7 +124,7 @@ export async function criarAnalise(input: NovaAnaliseInput) {
  * autenticado, ele serve só de aviso e a verdade vem daqui.
  */
 export async function sincronizarAnalise(analiseId: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const analise = await checarPosseAnalise(analiseId, acesso.userId)
@@ -172,7 +172,7 @@ export async function incluirSolidarios(
   analiseId: string,
   solidarios: { nome: string; cpf: string; dataNascimento: string }[],
 ) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const analise = await checarPosseAnalise(analiseId, acesso.userId)
@@ -221,7 +221,7 @@ export async function incluirSolidarios(
 
 /** Nova tentativa — recusa não é fim de linha. */
 export async function reanalisar(analiseId: string, seguradoras: string[]) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const analise = await checarPosseAnalise(analiseId, acesso.userId)
@@ -254,7 +254,7 @@ export async function reanalisar(analiseId: string, seguradoras: string[]) {
  * sozinho pro contrato quando a seguradora emitir (webhook de arquivos).
  */
 export async function vincularAnaliseAoContrato(analiseId: string, contratoId: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const analise = await checarPosseAnalise(analiseId, acesso.userId)
@@ -282,7 +282,7 @@ export async function vincularAnaliseAoContrato(analiseId: string, contratoId: s
 
 /** Busca atividades CNAE — usada pelo seletor do formulário comercial. */
 export async function buscarAtividadesCnae(termo: string) {
-  await exigirAcessoCRM()
+  await exigirAcessoSeguros()
   const admin = createAdminClient()
   try {
     return { itens: await buscarCnae(admin, termo) }
@@ -292,7 +292,7 @@ export async function buscarAtividadesCnae(termo: string) {
 }
 
 export async function excluirAnalise(analiseId: string) {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
 
   const analise = await checarPosseAnalise(analiseId, acesso.userId)
