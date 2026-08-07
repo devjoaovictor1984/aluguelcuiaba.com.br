@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { TermoEntregaDocument, type TermoEntregaPDFData } from '@/lib/crm/termo-entrega-pdf'
 import { assinarUrlSelfie } from '@/lib/storage/selfies'
+import { montarEnderecoImovel, type ImovelParaEndereco } from '@/lib/crm/endereco-imovel'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -30,7 +31,8 @@ export async function GET(
       contrato:contratos_locacao(
         codigo,
         inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
-        imovel:imoveis(titulo, endereco_resumido, bairro:bairros(nome))
+        imovel:imoveis(titulo, endereco_resumido, endereco_completo,
+          endereco_numero, endereco_complemento, bairro:bairros(nome))
       )
     `)
     .eq('id', termoId)
@@ -70,7 +72,7 @@ export async function GET(
   type ContratoRel = {
     codigo: string
     inquilino: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null
-    imovel: { titulo: string; endereco_resumido: string | null; bairro: { nome: string } | { nome: string }[] | null } | null
+    imovel: ({ titulo: string; bairro: { nome: string } | { nome: string }[] | null } & ImovelParaEndereco) | null
   }
   const contratoRaw = termo.contrato as unknown as ContratoRel | ContratoRel[]
   const contrato = Array.isArray(contratoRaw) ? contratoRaw[0] : contratoRaw
@@ -79,9 +81,9 @@ export async function GET(
   const imovelRaw = contrato.imovel
   const imovel = Array.isArray(imovelRaw) ? imovelRaw[0] : imovelRaw
   const bairro = imovel && (Array.isArray(imovel.bairro) ? imovel.bairro[0] : imovel.bairro)
-  const enderecoImovel = imovel?.endereco_resumido
-    ? `${imovel.endereco_resumido}${bairro?.nome ? ` - ${bairro.nome}` : ''}`
-    : null
+  const enderecoImovel = montarEnderecoImovel(
+    imovel ? { ...imovel, bairro_nome: bairro?.nome ?? null } : null,
+  )
 
   const semCache = (u: string | null) => (u ? u.split('?')[0] : null)
 

@@ -8,6 +8,7 @@ import { aplicarPlaceholders, limparTituloDuplicado, type DadosContrato } from '
 import { rodarChecklist, bloqueiaGeracao, type DadosChecklist } from '@/lib/contratos/checklist'
 import { validarTokenRevisao } from '@/lib/crm/revisao-token'
 import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
+import { montarEnderecoImovel } from '@/lib/crm/endereco-imovel'
 import React from 'react'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
@@ -185,13 +186,7 @@ function montarResumoCapa(
   imovel_descricao: string
 } {
   const im = dados.imovel
-  let endereco = ''
-  if (im?.endereco_completo) {
-    endereco = [im.endereco_completo, im.endereco_numero ? `nº ${im.endereco_numero}` : null,
-      im.endereco_complemento, im.endereco_bairro ?? im.bairro_nome].filter(Boolean).join(', ')
-  } else if (im?.endereco_resumido) {
-    endereco = `${im.endereco_resumido}${im.bairro_nome ? `, ${im.bairro_nome}` : ''}`
-  }
+  const endereco = montarEnderecoImovel(im) ?? ''
 
   // Descrição: prioriza descricao_real, fallback descricao do anúncio (sem HTML).
   // Limite generoso pra não cortar descrições reais; reticências só se passar.
@@ -251,21 +246,7 @@ function montarTermoChaves(
   },
   recebedores: Array<{ nome: string; cpf: string | null }>,
 ): { endereco_imovel: string; data_entrega: string; qtd_chaves: number; qtd_controles: number; qtd_tags: number; recebedores: Array<{ nome: string; cpf: string | null }> } {
-  const im = dados.imovel
-  // Mesma lógica do IMOVEL_ENDERECO em montar.ts: monta endereço completo
-  // com logradouro + número + complemento + bairro.
-  let endereco = '[ENDEREÇO DO IMÓVEL]'
-  if (im?.endereco_completo) {
-    const partes = [
-      im.endereco_completo,
-      im.endereco_numero ? `nº ${im.endereco_numero}` : null,
-      im.endereco_complemento,
-      im.endereco_bairro ?? im.bairro_nome,
-    ].filter(Boolean)
-    endereco = partes.join(', ')
-  } else if (im?.endereco_resumido) {
-    endereco = `${im.endereco_resumido}${im.bairro_nome ? `, ${im.bairro_nome}` : ''}`
-  }
+  const endereco = montarEnderecoImovel(dados.imovel) ?? '[ENDEREÇO DO IMÓVEL]'
   return {
     endereco_imovel: endereco,
     data_entrega: fmtData(c.data_inicio ?? null),

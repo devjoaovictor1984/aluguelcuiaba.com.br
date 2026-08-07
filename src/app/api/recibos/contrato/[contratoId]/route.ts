@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ReciboDocument, type ReciboData } from '@/lib/crm/recibo-pdf'
 import { montarEmitenteRecibo } from '@/lib/crm/recibo-emitente'
+import { montarEnderecoImovel, type ImovelParaEndereco } from '@/lib/crm/endereco-imovel'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -31,7 +32,8 @@ export async function GET(
     .select(`
       id, codigo, user_id, pagamento_antecipado, data_pagamento_antecipado, recibo_avista_numero,
       inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
-      imovel:imoveis(titulo, endereco_resumido, bairro:bairros(nome))
+      imovel:imoveis(titulo, endereco_resumido, endereco_completo,
+        endereco_numero, endereco_complemento, bairro:bairros(nome))
     `)
     .eq('id', contratoId)
     .single()
@@ -92,12 +94,12 @@ export async function GET(
   const inquilinoRaw = (contrato as unknown as { inquilino: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] }).inquilino
   const inquilino = Array.isArray(inquilinoRaw) ? inquilinoRaw[0] : inquilinoRaw
 
-  const imovelRaw = (contrato as unknown as { imovel: { titulo: string; endereco_resumido: string | null; bairro: { nome: string } | { nome: string }[] | null } | null }).imovel
+  const imovelRaw = (contrato as unknown as { imovel: ({ titulo: string; bairro: { nome: string } | { nome: string }[] | null } & ImovelParaEndereco) | null }).imovel
   const imovel = Array.isArray(imovelRaw) ? imovelRaw[0] : imovelRaw
   const bairro = imovel && (Array.isArray(imovel.bairro) ? imovel.bairro[0] : imovel.bairro)
-  const enderecoImovel = imovel?.endereco_resumido
-    ? `${imovel.endereco_resumido}${bairro?.nome ? ` - ${bairro.nome}` : ''}`
-    : null
+  const enderecoImovel = montarEnderecoImovel(
+    imovel ? { ...imovel, bairro_nome: bairro?.nome ?? null } : null,
+  )
 
   const dataPagamento = (contrato.data_pagamento_antecipado as string | null) ?? new Date().toISOString().slice(0, 10)
 

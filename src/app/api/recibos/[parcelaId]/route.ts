@@ -3,6 +3,7 @@ import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ReciboDocument, type ReciboData } from '@/lib/crm/recibo-pdf'
+import { montarEnderecoImovel, type ImovelParaEndereco } from '@/lib/crm/endereco-imovel'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -29,7 +30,8 @@ export async function GET(
       contrato:contratos_locacao!inner(
         id, codigo, user_id,
         inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
-        imovel:imoveis(titulo, endereco_resumido, bairro:bairros(nome))
+        imovel:imoveis(titulo, endereco_resumido, endereco_completo,
+          endereco_numero, endereco_complemento, bairro:bairros(nome))
       )
     `)
     .eq('id', parcelaId)
@@ -113,12 +115,12 @@ export async function GET(
   const inquilinoRaw = (contratoRaw as unknown as { inquilino: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] }).inquilino
   const inquilino = Array.isArray(inquilinoRaw) ? inquilinoRaw[0] : inquilinoRaw
 
-  const imovelRaw = (contratoRaw as unknown as { imovel: { titulo: string; endereco_resumido: string | null; bairro: { nome: string } | { nome: string }[] | null } | null }).imovel
+  const imovelRaw = (contratoRaw as unknown as { imovel: ({ titulo: string; bairro: { nome: string } | { nome: string }[] | null } & ImovelParaEndereco) | null }).imovel
   const imovel = Array.isArray(imovelRaw) ? imovelRaw[0] : imovelRaw
   const bairro = imovel && (Array.isArray(imovel.bairro) ? imovel.bairro[0] : imovel.bairro)
-  const enderecoImovel = imovel?.endereco_resumido
-    ? `${imovel.endereco_resumido}${bairro?.nome ? ` - ${bairro.nome}` : ''}`
-    : null
+  const enderecoImovel = montarEnderecoImovel(
+    imovel ? { ...imovel, bairro_nome: bairro?.nome ?? null } : null,
+  )
 
   // Cache-buster (?v=...) na URL pode confundir @react-pdf/renderer em
   // algumas situações. Limpa para ter URL canônica.
