@@ -1,6 +1,7 @@
 import 'server-only'
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { cadastrarImobiliaria, consultarImobiliaria, type ImobiliariaDados } from './index'
+import { ambienteMaximiza } from './maximiza/client'
 import { separarDdd } from './maximiza/mapper'
 
 /**
@@ -51,6 +52,24 @@ const OBRIGATORIOS: [keyof Perfil, string][] = [
 async function emailDoUsuario(admin: Admin, userId: string): Promise<string | null> {
   const { data } = await admin.auth.admin.getUserById(userId)
   return data?.user?.email ?? null
+}
+
+/**
+ * CNPJ de imobiliária que a Maximiza liberou para os nossos testes
+ * (`MAXIMIZA_CNPJ_TESTE`). Em homologação a base deles é outra: o CNPJ real
+ * do corretor não existe lá, e a análise voltaria com erro de imobiliária
+ * não encontrada antes mesmo de exercitar o fluxo.
+ *
+ * Só vale em ambiente 2 — em produção, cada corretor responde pelo próprio
+ * CNPJ, e uma análise emitida sob o CNPJ de teste seria apólice no nome de
+ * outra empresa. Por isso a checagem de ambiente vem primeiro e o resultado
+ * NÃO é gravado em `seguro_imobiliarias`: o vínculo real do corretor não
+ * pode ser contaminado por uma sessão de teste.
+ */
+function cnpjDeTeste(): string | null {
+  const cnpj = (process.env.MAXIMIZA_CNPJ_TESTE ?? '').replace(/\D/g, '')
+  if (!cnpj) return null
+  return ambienteMaximiza() === 2 ? cnpj : null
 }
 
 export interface StatusProvisionamento {
@@ -104,6 +123,9 @@ export async function garantirImobiliaria(
   admin: Admin,
   userId: string,
 ): Promise<{ cnpjCpf?: string; error?: string }> {
+  const teste = cnpjDeTeste()
+  if (teste) return { cnpjCpf: teste }
+
   const { data: vinculo } = await admin
     .from('seguro_imobiliarias')
     .select('cnpj_cpf, maximiza_id')

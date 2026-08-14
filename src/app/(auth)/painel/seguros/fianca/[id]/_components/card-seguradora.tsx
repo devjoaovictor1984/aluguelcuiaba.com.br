@@ -7,7 +7,10 @@ import {
   CheckCircle2, XCircle, Clock, ScanFace, Copy, Check, Loader2,
   Tag, RefreshCw, ArrowRight, AlertTriangle,
 } from 'lucide-react'
-import { STATUS_ANALISE, STATUS_BIOMETRIA, statusAprovado, statusPendente } from '@/lib/seguros/tabelas'
+import {
+  STATUS_ANALISE, STATUS_BIOMETRIA,
+  statusAprovado, statusPendente, statusPreAprovado,
+} from '@/lib/seguros/tabelas'
 import { marcaDe } from '@/lib/seguros/marcas'
 import { resumirPrecos } from '@/lib/seguros/resumo-precos'
 import type { PlanosPreco } from '@/lib/seguros/tipos'
@@ -57,6 +60,7 @@ export function CardSeguradora({ p, podeContratar }: Props) {
 
   const marca = marcaDe(p.seguradoraSigla)
   const aprovado = statusAprovado(p.codigoStatus)
+  const preAprovado = statusPreAprovado(p.codigoStatus)
   const pendente = statusPendente(p.codigoStatus)
   const limiteInferior = p.codigoStatus === 5
 
@@ -64,13 +68,24 @@ export function CardSeguradora({ p, podeContratar }: Props) {
     ? STATUS_ANALISE[p.codigoStatus as keyof typeof STATUS_ANALISE] ?? p.descricaoStatus
     : p.descricaoStatus ?? '—'
 
+  // Pré-aprovado é seu próprio selo. Passa por "Aguardando" e o corretor
+  // lê como fila normal; passa por verde e ele promete uma aprovação que
+  // a biometria ainda pode derrubar.
   const situacao = aprovado
     ? { Icone: CheckCircle2, cls: 'bg-emerald-50 text-emerald-700 ring-emerald-200' }
-    : pendente
-      ? { Icone: Clock, cls: 'bg-amber-50 text-amber-700 ring-amber-200' }
-      : { Icone: XCircle, cls: 'bg-rose-50 text-rose-700 ring-rose-200' }
+    : preAprovado
+      ? { Icone: ScanFace, cls: 'bg-violet-50 text-violet-700 ring-violet-200' }
+      : pendente
+        ? { Icone: Clock, cls: 'bg-amber-50 text-amber-700 ring-amber-200' }
+        : { Icone: XCircle, cls: 'bg-rose-50 text-rose-700 ring-rose-200' }
 
-  const precisaBiometria = !!p.linkBiometria && p.statusBiometria === 0
+  const selo = aprovado
+    ? (limiteInferior ? 'Parcial' : 'Aprovado')
+    : preAprovado ? 'Pré-aprovado' : pendente ? 'Aguardando' : 'Recusado'
+
+  // O link nem sempre chega junto com o status: o webhook de biometria vem
+  // separado. Sem link, ainda assim avisamos que a biometria é o que falta.
+  const precisaBiometria = p.statusBiometria === 0 || (preAprovado && p.statusBiometria == null)
   const resumo = resumirPrecos(p.precos)
 
   const copiarLink = async () => {
@@ -121,11 +136,28 @@ export function CardSeguradora({ p, podeContratar }: Props) {
 
           <span className={`shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ring-1 ${situacao.cls}`}>
             <situacao.Icone size={11} />
-            {aprovado ? (limiteInferior ? 'Parcial' : 'Aprovado') : pendente ? 'Aguardando' : 'Recusado'}
+            {selo}
           </span>
         </header>
 
         <p className="text-xs text-gray-600 leading-snug">{rotulo}</p>
+
+        {/* A regra que a corretora pediu para ficar explícita: pré-aprovado
+            NÃO é aprovado, e daqui ainda dá pra voltar pra recusa. */}
+        {preAprovado && (
+          <div className="rounded-xl bg-violet-50 ring-1 ring-violet-100 px-3 py-2.5">
+            <p className="text-[11px] font-bold text-violet-900 flex items-center gap-1.5">
+              <AlertTriangle size={11} className="shrink-0" />
+              Ainda não dá pra contratar
+            </p>
+            <p className="text-[11px] text-violet-900 leading-snug mt-1">
+              A parte financeira passou, mas a identidade do pretendente não
+              foi conferida. A contratação só abre quando a biometria concluir
+              e o parecer virar <strong>Aprovado</strong> — e ela pode voltar
+              para recusado se a biometria não bater.
+            </p>
+          </div>
+        )}
 
         {/* Limite — o número que decide se dá pra fechar */}
         {p.limiteAprovado != null && (
@@ -152,26 +184,33 @@ export function CardSeguradora({ p, podeContratar }: Props) {
         )}
 
         {/* Biometria */}
-        {p.statusBiometria != null && (
+        {(p.statusBiometria != null || preAprovado) && (
           <div className={`rounded-xl px-3 py-2.5 ${precisaBiometria ? 'bg-violet-50 ring-1 ring-violet-100' : 'bg-gray-50'}`}>
             <p className="text-[11px] font-semibold text-gray-700 flex items-center gap-1.5">
               <ScanFace size={12} className={precisaBiometria ? 'text-violet-600' : 'text-gray-400'} />
-              Biometria: {STATUS_BIOMETRIA[p.statusBiometria as keyof typeof STATUS_BIOMETRIA] ?? p.statusBiometria}
+              Biometria: {p.statusBiometria != null
+                ? STATUS_BIOMETRIA[p.statusBiometria as keyof typeof STATUS_BIOMETRIA] ?? p.statusBiometria
+                : 'Aguardando'}
             </p>
             {precisaBiometria && (
               <>
                 <p className="text-[11px] text-violet-900 mt-1 leading-snug">
                   A aprovação só fecha depois que o inquilino fizer o
-                  reconhecimento facial. Mande o link pra ele:
+                  reconhecimento facial.{' '}
+                  {p.linkBiometria
+                    ? 'Mande o link pra ele:'
+                    : 'O link chega da corretora em instantes — toque em atualizar se demorar.'}
                 </p>
-                <button
-                  type="button"
-                  onClick={copiarLink}
-                  className="mt-1.5 w-full flex items-center justify-center gap-1.5 rounded-lg bg-violet-700 hover:bg-violet-800 active:bg-violet-900 px-3 py-2.5 text-xs font-bold text-white"
-                >
-                  {copiado ? <Check size={13} /> : <Copy size={13} />}
-                  {copiado ? 'Link copiado' : 'Copiar link da biometria'}
-                </button>
+                {p.linkBiometria && (
+                  <button
+                    type="button"
+                    onClick={copiarLink}
+                    className="mt-1.5 w-full flex items-center justify-center gap-1.5 rounded-lg bg-violet-700 hover:bg-violet-800 active:bg-violet-900 px-3 py-2.5 text-xs font-bold text-white"
+                  >
+                    {copiado ? <Check size={13} /> : <Copy size={13} />}
+                    {copiado ? 'Link copiado' : 'Copiar link da biometria'}
+                  </button>
+                )}
               </>
             )}
           </div>

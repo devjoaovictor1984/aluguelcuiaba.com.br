@@ -10,9 +10,11 @@ import { simular, simuladorAtivo } from './simulador'
  *  1. O header é `Authorization: <token>` — SEM o prefixo "Bearer". Quase
  *     todo cliente HTTP assume Bearer e a chamada falha com 401 sem dizer
  *     por quê.
- *  2. A credencial é e-mail/senha (não API key) e o token vale ~7 dias.
- *     Autenticar a cada request é desperdício e convida a rate limit, então
- *     cacheamos até 5 min antes do `exp` do JWT.
+ *  2. A credencial é e-mail/senha (não API key) e o token é CURTO: medido
+ *     contra a API em 14/08/2026, `exp - iat` = 1800s (30 min), não os
+ *     dias que a documentação sugere. Autenticar a cada request convida a
+ *     rate limit, então cacheamos até 5 min antes do `exp` do JWT — e é
+ *     por isso que a margem se lê do token, nunca de constante nossa.
  *  3. Produção e homologação usam a MESMA URL — o que separa as duas é o
  *     campo `ambiente` no corpo. Ver `ambienteMaximiza()`.
  */
@@ -94,11 +96,13 @@ async function obterToken(): Promise<string> {
   }
 
   // Margem de 5 min pra não usar token que expira no meio da requisição.
-  // Se o JWT não trouxer `exp`, cai num TTL curto e conservador.
+  // Sem `exp` no JWT, 20 min: o token observado dura 30, e um fallback
+  // maior que a validade real faria toda chamada gastar um 401 antes de
+  // renovar.
   const exp = expiracaoDoJwt(accessToken)
   cache = {
     token: accessToken,
-    expiraEm: exp ? exp - 5 * 60_000 : Date.now() + 60 * 60_000,
+    expiraEm: exp ? exp - 5 * 60_000 : Date.now() + 20 * 60_000,
   }
   return accessToken
 }

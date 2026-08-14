@@ -11,7 +11,10 @@ interface Props {
   base: string
 }
 
-const FILTROS = ['analisando', 'aprovado', 'recusado'] as const
+// Pré-aprovado tem chip próprio porque é a fila que o corretor precisa
+// trabalhar: são as cotações paradas esperando o inquilino fazer a
+// biometria, e cada dia parado é negócio que esfria.
+const FILTROS = ['analisando', 'pre_aprovado', 'aprovado', 'recusado'] as const
 
 export function BuscaSeguros({ q, status, base }: Props) {
   const router = useRouter()

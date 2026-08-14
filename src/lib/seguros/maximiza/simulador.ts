@@ -35,10 +35,12 @@ function demorar(min = 500, max = 1100): Promise<void> {
 }
 
 const SEGURADORAS = [
-  { seguradora: 'Porto Seguro', sigla: 'porto', analiseReduzida: 'sim' },
-  { seguradora: 'Too Seguros',  sigla: 'too',   analiseReduzida: 'sim' },
-  { seguradora: 'Pottencial',   sigla: 'ptc',   analiseReduzida: 'sim' },
-  { seguradora: 'Tokio Marine', sigla: 'tok',   analiseReduzida: 'não' },
+  // Nomes e siglas conferidos contra o retorno real de
+  // `/seguradorasAnalise` em 14/08/2026 — inclusive `por` pra Porto.
+  { seguradora: 'Porto',      sigla: 'por', analiseReduzida: 'sim' },
+  { seguradora: 'Too',        sigla: 'too', analiseReduzida: 'sim' },
+  { seguradora: 'Pottencial', sigla: 'ptc', analiseReduzida: 'sim' },
+  { seguradora: 'Tokio',      sigla: 'tok', analiseReduzida: 'não' },
 ]
 
 /**
@@ -112,6 +114,8 @@ function pareceres(cpf: string, aluguel: number, siglas: string[]): ParecerSimul
       const limite = Math.round(aluguel * 0.8)
       return i % 2 === 0
         ? { ...base, codigoStatus: 5, descricaoStatus: 'Aprovado com limite inferior ao solicitado',
+            // 5 é estado pós-biometria: só existe com a identidade conferida.
+            statusBiometria: 1,
             limiteAprovado: limite,
             msg: 'O cadastro foi aprovado, mas com limite insuficiente para cobertura total do aluguel e encargos. Será necessário incluir um locatário solidário para aumento de limite.' }
         : { ...base, codigoStatus: 3, descricaoStatus: 'Recusado' }
@@ -122,7 +126,15 @@ function pareceres(cpf: string, aluguel: number, siglas: string[]): ParecerSimul
     if (i === alvo.length - 1) {
       return { ...base, codigoStatus: 2, descricaoStatus: 'Em análise' }
     }
-    return { ...base, codigoStatus: 1, descricaoStatus: 'Aprovado', limiteAprovado: aluguel }
+    // Aprovado de verdade — o que a API só devolve DEPOIS da biometria.
+    // O passo anterior (pré-aprovado) é o cenário do CPF final 8.
+    return {
+      ...base,
+      codigoStatus: 1,
+      descricaoStatus: 'Aprovado',
+      statusBiometria: 1,
+      limiteAprovado: aluguel,
+    }
   })
 }
 

@@ -4,9 +4,9 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   RefreshCw, Loader2, AlertTriangle, FileText, Trash2, RotateCcw,
-  ShieldCheck, Clock, CheckCircle2, XCircle, Users,
+  ShieldCheck, Clock, CheckCircle2, XCircle, Users, ScanFace,
 } from 'lucide-react'
-import { statusAprovado, statusPendente } from '@/lib/seguros/tabelas'
+import { statusAprovado, statusPendente, statusPreAprovado } from '@/lib/seguros/tabelas'
 import { marcaDe } from '@/lib/seguros/marcas'
 import { formatarBRL } from '@/lib/formatters'
 import { sincronizarAnalise, reanalisar, excluirAnalise, incluirSolidarios } from '../../../actions'
@@ -62,7 +62,10 @@ export function DetalheAnalise({
   const [abrirSolidarios, setAbrirSolidarios] = useState(false)
 
   const aprovadas = pareceres.filter(p => statusAprovado(p.codigoStatus))
-  const pendentes = pareceres.filter(p => statusPendente(p.codigoStatus))
+  const preAprovadas = pareceres.filter(p => statusPreAprovado(p.codigoStatus))
+  // "Analisando" exclui as pré-aprovadas: elas não estão esperando a
+  // seguradora, estão esperando o inquilino — e isso é ação do corretor.
+  const pendentes = pareceres.filter(p => statusPendente(p.codigoStatus) && !statusPreAprovado(p.codigoStatus))
   const recusadas = pareceres.filter(p => p.codigoStatus === 3)
   const podeContratar = aprovadas.length > 0 && !contratacao
 
@@ -89,8 +92,10 @@ export function DetalheAnalise({
   }
 
   // Aprovadas primeiro: o corretor abre a tela pra saber com quem fecha.
-  const ordenados = [...aprovadas, ...pendentes, ...recusadas,
-    ...pareceres.filter(p => !aprovadas.includes(p) && !pendentes.includes(p) && !recusadas.includes(p))]
+  // Pré-aprovadas logo atrás — são as que dependem de uma ação dele.
+  const ordenados = [...aprovadas, ...preAprovadas, ...pendentes, ...recusadas,
+    ...pareceres.filter(p => !aprovadas.includes(p) && !preAprovadas.includes(p)
+      && !pendentes.includes(p) && !recusadas.includes(p))]
 
   const sincronizar = () => {
     setErroAcao(''); setMsg('')
@@ -135,14 +140,32 @@ export function DetalheAnalise({
 
       {/* Placar — a leitura de 1 segundo */}
       {pareceres.length > 0 && (
-        <div className="grid grid-cols-3 gap-2">
+        <div className={`grid gap-2 ${preAprovadas.length > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
           <Placar n={aprovadas.length} rotulo="aprovaram" Icone={CheckCircle2}
             cls="bg-emerald-50 text-emerald-700 ring-emerald-100" />
+          {preAprovadas.length > 0 && (
+            <Placar n={preAprovadas.length} rotulo="pré-aprov." Icone={ScanFace}
+              cls="bg-violet-50 text-violet-700 ring-violet-100" />
+          )}
           <Placar n={pendentes.length} rotulo="analisando" Icone={Clock}
             cls="bg-amber-50 text-amber-700 ring-amber-100" />
           <Placar n={recusadas.length} rotulo="recusaram" Icone={XCircle}
             cls="bg-rose-50 text-rose-700 ring-rose-100" />
         </div>
+      )}
+
+      {/* A fila que depende do corretor, não da seguradora. */}
+      {preAprovadas.length > 0 && (
+        <p className="text-xs text-violet-900 bg-violet-50 ring-1 ring-violet-100 rounded-xl px-3 py-2.5 flex items-start gap-1.5">
+          <ScanFace size={12} className="mt-0.5 shrink-0" />
+          <span>
+            {preAprovadas.length === 1
+              ? 'Uma seguradora pré-aprovou'
+              : `${preAprovadas.length} seguradoras pré-aprovaram`}
+            {' '}— falta a biometria do pretendente. A contratação só libera
+            quando o parecer virar aprovado.
+          </span>
+        </p>
       )}
 
       {contratacao && <CardContratacao c={contratacao} />}

@@ -1,7 +1,7 @@
 import 'server-only'
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { enviarPushParaUser } from '@/lib/push/sender'
-import { statusAprovado } from './tabelas'
+import { statusAprovado, statusPreAprovado } from './tabelas'
 import { marcaDe } from './marcas'
 import type { Parecer } from './tipos'
 
@@ -51,11 +51,17 @@ export async function lerEstadoAnterior(
   }))
 }
 
-/** Estado terminal e relevante — o que vale interromper o corretor. */
+/**
+ * Estado relevante — o que vale interromper o corretor.
+ *
+ * Pré-aprovado entra mesmo sem `statusBiometria` preenchido: o webhook de
+ * biometria vem SEPARADO do de análise, então exigir `=== 0` deixaria o
+ * corretor sem aviso justamente no estado em que a bola está com ele.
+ */
 function marco(p: { codigoStatus: number | null; statusBiometria: number | null }): string | null {
   if (statusAprovado(p.codigoStatus)) return 'aprovado'
   if (p.codigoStatus === 3) return 'recusado'
-  if (p.codigoStatus === 12 && p.statusBiometria === 0) return 'biometria'
+  if (statusPreAprovado(p.codigoStatus) && p.statusBiometria !== 1) return 'biometria'
   return null
 }
 

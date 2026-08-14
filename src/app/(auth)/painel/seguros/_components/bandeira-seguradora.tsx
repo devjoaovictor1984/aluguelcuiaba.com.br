@@ -1,5 +1,5 @@
 import { marcaDe } from '@/lib/seguros/marcas'
-import { statusAprovado, statusPendente } from '@/lib/seguros/tabelas'
+import { statusAprovado, statusPendente, statusPreAprovado } from '@/lib/seguros/tabelas'
 
 interface Props {
   sigla: string
@@ -11,31 +11,40 @@ interface Props {
  *
  * Duas informações no mesmo elemento, sem competir:
  *  · a COR é da marca — identifica a seguradora à distância;
- *  · o ANEL é semântico — verde aprovou, âmbar analisa, vermelho recusou.
+ *  · o ANEL é semântico — verde aprovou, violeta pré-aprovou (falta
+ *    biometria), âmbar analisa, vermelho recusou.
  *
  * Quem ainda não respondeu fica esmaecido, então quatro selos contam a
- * história da análise inteira sem uma palavra.
+ * história da análise inteira sem uma palavra. O pré-aprovado NÃO fica
+ * esmaecido: ele pede ação do corretor.
  */
 export function BandeiraSeguradora({ sigla, status }: Props) {
   const marca = marcaDe(sigla)
   const aprovado = statusAprovado(status)
+  const preAprovado = statusPreAprovado(status)
   const pendente = statusPendente(status)
 
   const anel = aprovado
     ? 'ring-2 ring-emerald-400'
-    : pendente
-      ? 'ring-2 ring-amber-300'
-      : status === null
-        ? 'ring-1 ring-gray-200'
-        : 'ring-2 ring-rose-300'
+    : preAprovado
+      ? 'ring-2 ring-violet-400'
+      : pendente
+        ? 'ring-2 ring-amber-300'
+        : status === null
+          ? 'ring-1 ring-gray-200'
+          : 'ring-2 ring-rose-300'
 
-  const titulo = aprovado ? 'aprovou' : pendente ? 'analisando' : status === null ? 'sem parecer' : 'recusou'
+  const titulo = aprovado
+    ? 'aprovou'
+    : preAprovado ? 'pré-aprovou, falta biometria'
+      : pendente ? 'analisando'
+        : status === null ? 'sem parecer' : 'recusou'
 
   return (
     <span
       title={`${marca.nome} — ${titulo}`}
       className={`inline-grid place-items-center w-8 h-8 rounded-lg text-[10px] font-black ${anel} ${
-        pendente || status === null ? 'opacity-55' : ''
+        (pendente && !preAprovado) || status === null ? 'opacity-55' : ''
       }`}
       style={{ backgroundColor: marca.corFundo, color: marca.cor }}
     >

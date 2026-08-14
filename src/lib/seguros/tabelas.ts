@@ -23,16 +23,18 @@
  * A lista viva continua vindo de `/seguradorasAnalise`; isto é só o
  * crivo. Se a Junto (ou outra) entrar por API, basta somar a sigla.
  */
-export const SEGURADORAS_API = ['too', 'tok', 'ptc', 'porto'] as const
+export const SEGURADORAS_API = ['too', 'tok', 'ptc', 'por'] as const
 
 /**
- * A sigla da Porto é inconsistente na documentação: `/seguradorasAnalise`
- * devolve "porto", mas os exemplos de transmitirAnalise usam "por" e o
- * retorno mostra `sigla: "por"`. Aceitamos as duas na entrada.
+ * A sigla da Porto é `por` — resolvido contra a API viva em 14/08/2026,
+ * não pela documentação (que se contradizia entre "porto" e "por"):
+ * `GET /apiFiancaAnalise/seguradorasAnalise` devolve
+ * `{"seguradora":"Porto","sigla":"por"}`.
  *
- * ⚠️ Confirmar com a Maximiza qual vale no ENVIO.
+ * Canônico é o que a API fala. "porto" fica como alias de entrada porque
+ * pareceres gravados antes desta correção usavam essa forma.
  */
-const ALIAS_SIGLA: Record<string, string> = { por: 'porto' }
+const ALIAS_SIGLA: Record<string, string> = { porto: 'por' }
 
 export function normalizarSigla(sigla: string | null | undefined): string {
   const s = (sigla ?? '').toLowerCase().trim()
@@ -61,9 +63,29 @@ export const STATUS_ANALISE = {
 
 export type CodigoStatus = keyof typeof STATUS_ANALISE
 
-/** Dá pra seguir pra contratação? Inclui o limite inferior — é aprovação parcial. */
+/**
+ * Dá pra CONTRATAR? Inclui o limite inferior — é aprovação parcial.
+ *
+ * ⚠️ Regra da Maximiza (13/08/2026): a análise de crédito não devolve
+ * "aprovado" — ela para em PRÉ-APROVADO (12). O 1/5 só aparece depois que
+ * a biometria confirma que o pretendente é quem diz ser. Pré-aprovado é
+ * financeiro OK e identidade não verificada, e é exatamente aí que mora a
+ * fraude que a biometria existe pra pegar: contratar antes disso é fechar
+ * apólice em cima de aprovação que ainda pode virar recusa.
+ *
+ * Por isso 12 NÃO entra aqui, e nenhuma tela deve tratá-lo como aprovação.
+ */
 export function statusAprovado(codigo: number | null | undefined): boolean {
   return codigo === 1 || codigo === 5
+}
+
+/**
+ * Financeiro aprovado, biometria pendente. Estado intermediário e
+ * reversível: daqui vai pra aprovado (1) ou pra recusado (3) — a Maximiza
+ * confirmou que o caminho de volta acontece, por golpe ou erro de sistema.
+ */
+export function statusPreAprovado(codigo: number | null | undefined): boolean {
+  return codigo === 12
 }
 
 /** Acabou e não deu — só reanálise resolve. */

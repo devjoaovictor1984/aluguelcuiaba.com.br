@@ -27,14 +27,19 @@ const PADRAO: MarcaSeguradora = {
   corFundo: '#f1f5f9',
 }
 
+const PORTO: MarcaSeguradora = {
+  nome: 'Porto Seguro',
+  curto: 'PS',
+  cor: '#0B4EA2',        // azul Porto
+  corTexto: '#ffffff',
+  corFundo: '#e8f0fb',
+}
+
 const MARCAS: Record<string, MarcaSeguradora> = {
-  porto: {
-    nome: 'Porto Seguro',
-    curto: 'PS',
-    cor: '#0B4EA2',      // azul Porto
-    corTexto: '#ffffff',
-    corFundo: '#e8f0fb',
-  },
+  // `por` é a sigla que a API usa. `porto` sobrevive porque pareceres
+  // gravados antes da correção de 14/08/2026 carregam essa forma.
+  por: PORTO,
+  porto: PORTO,
   ptc: {
     nome: 'Pottencial',
     curto: 'Pt',

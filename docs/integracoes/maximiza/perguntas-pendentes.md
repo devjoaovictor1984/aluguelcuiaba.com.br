@@ -1,20 +1,40 @@
 # Integração AluguelCuiabá × Maximiza — pontos em aberto
 
-**Situação:** a integração de **seguro fiança** está construída e funcionando de
-ponta a ponta no nosso ambiente — provisionamento da imobiliária, transmissão da
-análise, leitura dos pareceres das quatro seguradoras, biometria, documentos e os
-três webhooks. Falta ligar na API de vocês.
+**Situação (14/08/2026):** recebemos a credencial de API e **estamos conectados**.
+Autenticação, `seguradorasAnalise`, `consultarImobiliaria` e
+`listarSeguradorasDisponiveis` (incêndio) já respondem. O bloco 1 saiu do
+caminho; o que trava agora é o **bloco 2 (modelo comercial)**.
 
-Os pontos abaixo estão agrupados por urgência. Os do bloco 1 estão **parando
-trabalho hoje**.
+Os pontos abaixo estão agrupados por urgência. Itens marcados ✅ foram
+respondidos — ficam registrados porque a resposta virou decisão de código.
+
+---
+
+## 0. Respondido em 13–14/08/2026
+
+**Credencial** — `api.aluguelcuiaba@maximizaseguros.com.br` autentica em
+`POST https://auth.api.seguro.imb.br/auth` (HTTP 201). Uma observação para o
+time técnico de vocês: o JWT devolvido dura **30 minutos** (`exp - iat` = 1800s),
+não os prazos longos que a documentação sugere. Ajustamos o cache do token para
+renovar 5 minutos antes do vencimento.
+
+**Status da análise** — vocês esclareceram que a análise de crédito devolve
+apenas **recusado**, **em análise** e **pré-aprovado**; o **aprovado só sai
+depois da biometria**, e o pré-aprovado pode voltar a recusado se a biometria
+não confirmar a identidade. Implementamos assim: a contratação fica **bloqueada**
+enquanto o parecer não estiver aprovado (códigos 1 ou 5), o pré-aprovado (12)
+ganhou estado próprio na interface e o corretor vê explicitamente que ainda não
+dá para fechar. Ver 3.4 para a confirmação dos códigos.
+
+**CNPJ de testes** — `10.961.528/0001-80` (MAXIMIZA IMOB TEMP - DF) responde no
+`consultarImobiliaria`. Usamos apenas em homologação.
 
 ---
 
 ## 1. Bloqueiam o início dos testes
 
-**1.1 Credencial de homologação**
-Precisamos do e-mail e senha de teste para `POST https://auth.api.seguro.imb.br/auth`.
-Quando podemos ter?
+**1.1 Credencial de homologação** ✅ **resolvido**
+Recebida em 13/08/2026 e testada com sucesso.
 
 **1.2 Autenticação dos webhooks**
 A documentação lista apenas `Content-Type: application/json` nos webhooks de
@@ -29,21 +49,41 @@ Ainda assim, gostaríamos de fechar mais:
 - Qual a faixa de IPs de origem dos webhooks, para restringirmos?
 - Qual a política de retentativa? Quantas vezes e em que intervalo?
 
-**1.3 Sigla da Porto Seguro**
-Há divergência na documentação:
-
-| Onde | Valor |
-|---|---|
-| Retorno de `/seguradorasAnalise` | `porto` |
-| Exemplo de `transmitirAnalise` (PDF, pág. 3) | `por` |
-| Campo `sigla` no retorno da análise (pág. 9) | `por` |
-
-**Qual valor devemos enviar em `seguradorasAnalise`?**
+**1.3 Sigla da Porto Seguro** ✅ **resolvido pela própria API**
+`GET /apiFiancaAnalise/seguradorasAnalise` devolve
+`{"seguradora":"Porto","sigla":"por"}`. Adotamos **`por`** como valor canônico e
+migramos os registros antigos. Continuamos aceitando `porto` na entrada, por
+segurança.
 
 **1.4 Ambiente**
 Confirmamos o entendimento: produção e homologação usam a **mesma URL**, e o que
 separa as duas é o campo `ambiente` no corpo (1 = produção, 2 = homologação).
 Está correto?
+
+**1.5 Habilitação por seguradora** ⚠️ *novo*
+O `consultarImobiliaria` do CNPJ de teste devolve, além do cadastro:
+
+```json
+"porto_fianca": true,  "too_fianca": false,
+"tokio_fianca": false, "pottencial_fianca": false,
+"porto_incendio": true, "alfa_incendio": true, "yelum_incendio": false
+```
+
+Esses campos não constam na documentação. Entendemos que indicam **em quais
+seguradoras aquela imobiliária está habilitada a cotar** — o que muda o
+comportamento da nossa tela.
+
+- O entendimento está certo?
+- Se transmitirmos uma análise para uma seguradora **não habilitada**, o que
+  acontece: erro, ou a análise simplesmente não volta parecer daquela?
+- **Devemos filtrar a lista de seguradoras oferecidas ao corretor por esses
+  campos?** Se sim, passamos a fazer — mas preferimos confirmar antes de
+  esconder seguradora de quem talvez pudesse cotar.
+- Uma imobiliária nova, cadastrada via `cadastrarImobiliaria`, nasce habilitada
+  em quais? Quem liga as demais, e como pedimos?
+
+*(No `yelum_incendio` aparece uma seguradora — Yelum — que não está em nenhuma
+das listas de disponíveis. Ela entra em algum momento?)*
 
 ---
 
@@ -59,28 +99,19 @@ Está correto?
 
 As perguntas abaixo decorrem disso.
 
-**2.1 Credencial de API — já confirmamos que é separada** ⚠️
-Testamos autenticar em `POST https://auth.api.seguro.imb.br/auth` com o nosso
-login do painel (`administrativo@imobiliatto.com.br`) e recebemos:
+**2.1 A credencial recebida é de plataforma ou de imobiliária?** ⚠️
+Recebemos `api.aluguelcuiaba@maximizaseguros.com.br` e ela autentica — o JWT traz
+`{"id":"101","typeUser":1}`. **O que `typeUser: 1` significa?**
 
-```
-HTTP 400
-{"statusCode":400,
- "message":"Usuário não encontrado na base de dados da Maximiza.",
- "error":"Bad Request"}
-```
+O que precisamos saber é se ela nos permite **cadastrar e operar várias
+imobiliárias** via `cadastrarImobiliaria` (credencial de plataforma /
+integrador), ou se é uma credencial de imobiliária única. Dado o modelo de
+override acima, ela precisa ser de plataforma: com credencial de imobiliária, as
+análises de todos os corretores apareceriam como sendo da nossa e o modelo de
+comissão não se sustenta.
 
-Ou seja: a base de usuários da API é distinta da do painel. **Precisamos que
-vocês emitam uma credencial de API.**
-
-E, dado o modelo de override acima, ela deve ser de **plataforma /
-integrador** — sob a qual cadastramos as imobiliárias via
-`cadastrarImobiliaria` — e não de imobiliária individual. Com credencial de
-imobiliária, as análises de todos os corretores apareceriam como sendo da
-nossa, e o modelo de comissão não se sustenta.
-
-Pedimos duas: uma de **homologação** (para testes) e, depois de validado, uma
-de **produção**.
+Confirmem também se esta é de **homologação**, e como pedimos a de **produção**
+quando os testes fecharem.
 
 **2.2 Como a originação é marcada?** ⚠️
 A comissão do corretor sai pelo CNPJ dele — isso está claro. Mas **qual campo
@@ -144,11 +175,30 @@ não", mas o exemplo de JSON envia ambos como valores numéricos junto a
 O que o corretor deve fazer quando recebe esse status? Existe ação do lado dele
 ou é resolvido internamente por vocês?
 
-**3.4 Contradição na descrição dos status**
+**3.4 Contradição na descrição dos status** ⚠️ *confirmação final*
 As páginas 9 e 10 do PDF dizem "Aprovado(1), Reprovado(2), Em Análise(3)", mas a
 tabela oficial da página 23 (e o OpenAPI) dizem `2 = Em Análise` e
 `3 = Recusado`. Estamos seguindo a tabela e lendo sempre o `codigoStatus`, nunca
-o `descricaoStatus`. Confirmam?
+o `descricaoStatus`.
+
+Com a regra da biometria que vocês passaram, o mapa que implementamos é este —
+**confirmem os códigos**, já que é ele que decide quando a contratação abre:
+
+| Código | Significado | Contratação |
+|---|---|---|
+| 2 | Em análise | bloqueada |
+| 12 | Pré-aprovado (falta biometria) | **bloqueada** |
+| 1 | Aprovado (pós-biometria) | liberada |
+| 5 | Aprovado com limite inferior | liberada |
+| 3 | Recusado | bloqueada |
+
+**Pergunta:** o `5` (limite inferior) também só aparece depois da biometria, ou
+ele pode sair já na análise financeira?
+
+**3.4.1 Como sabemos que a biometria terminou?**
+O webhook de biometria avisa a mudança, mas o parecer novo (12 → 1) chega no
+webhook de análise ou precisamos consultar? Hoje reconsultamos a análise a cada
+webhook, então funciona nos dois casos — é só para sabermos o esperado.
 
 **3.5 Campos de empresa**
 `tipo_empresa`, `opcao_tributaria_empresa` e `capital_social_empresa` aparecem no
@@ -243,8 +293,8 @@ estado, a parceria acompanha com a mesma tabela?
 Recebemos a documentação (Incêndio V2) e a integração já está construída.
 Pontos a confirmar:
 
-**7.1** O header `seguradora` aceita exatamente `Alfa` e `Porto`, como retorna
-`listarSeguradorasDisponiveis`? Há previsão de outras?
+**7.1** ✅ Confirmado contra a API: `listarSeguradorasDisponiveis` devolve
+exatamente `["Alfa","Porto"]`. Há previsão de outras?
 
 **7.2** No painel, a coluna "Pró-labore %/R$" mostra **20%** do prêmio nas
 apólices de incêndio. Esse percentual é fixo, varia por seguradora, ou é
@@ -273,6 +323,7 @@ caminho é contratar uma nova?
 
 Checklist do que precisamos de vocês para ligar:
 
+- [x] Credencial de **homologação** — recebida em 13/08/2026 e testada
 - [ ] Credencial de **produção** (separada da de homologação)
 - [ ] URLs de webhook cadastradas do lado de vocês (análise, biometria, arquivos)
 - [ ] Contrato de parceria assinado
@@ -285,3 +336,6 @@ Checklist do que precisamos de vocês para ligar:
 
 *Documento gerado a partir da análise de `api.fianca.pdf` (v1, 24 páginas),
 `api.imobiliaria.pdf` (v1) e da especificação OpenAPI 3.0 fornecida.*
+
+*Atualizado em 14/08/2026 com o que a API respondeu depois da credencial chegar
+e com a regra de biometria passada por vocês em 13/08/2026.*

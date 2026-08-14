@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { ArrowLeft, FileSignature, AlertOctagon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
-import { statusAprovado } from '@/lib/seguros/tabelas'
+import { statusAprovado, statusPreAprovado } from '@/lib/seguros/tabelas'
 import { FormContratacao } from './_components/form-contratacao'
 
 interface Props {
@@ -44,7 +44,15 @@ export default async function ContratarPage({ params, searchParams }: Props) {
 
   const aprovados = (pareceres ?? []).filter(p => statusAprovado(p.codigo_status))
   if (aprovados.length === 0) {
-    return <Erro id={id} texto="Nenhuma seguradora aprovou esta análise ainda. A contratação só é liberada após aprovação." />
+    const preAprovados = (pareceres ?? []).filter(p => statusPreAprovado(p.codigo_status))
+    return (
+      <Erro
+        id={id}
+        texto={preAprovados.length > 0
+          ? 'A análise está pré-aprovada: a parte financeira passou, mas a identidade do pretendente ainda não foi conferida. Mande o link da biometria para ele — quando o parecer virar aprovado, a contratação abre aqui. Enquanto isso, a análise ainda pode ser recusada.'
+          : 'Nenhuma seguradora aprovou esta análise ainda. A contratação só é liberada após aprovação.'}
+      />
+    )
   }
 
   // Já existe contratação em andamento?

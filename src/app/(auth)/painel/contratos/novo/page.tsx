@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { statusAprovado } from '@/lib/seguros/tabelas'
 import { PLANOS } from '@/lib/constants'
 import { WizardContrato } from './_components/wizard-contrato'
 
@@ -212,8 +213,11 @@ export default async function NovoContratoPage({
         templateDefaults={templateDefaults}
         cotacoesFianca={(analisesAprovadas ?? []).flatMap(a => {
           // Uma entrada por seguradora aprovada: é ela que vai pro contrato.
+          // A regra do que conta como aprovado mora em statusAprovado —
+          // repetir "1 || 5" aqui deixaria este ponto pra trás no dia em que
+          // ela mudar, e é ela que impede vincular um pré-aprovado.
           const aprovados = (a.pareceres ?? []).filter(
-            (p: { codigo_status: number | null }) => p.codigo_status === 1 || p.codigo_status === 5,
+            (p: { codigo_status: number | null }) => statusAprovado(p.codigo_status),
           )
           return aprovados.map((p: {
             seguradora_sigla: string

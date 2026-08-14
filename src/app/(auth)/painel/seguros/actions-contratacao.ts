@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { consultarPrecos, contratar } from '@/lib/seguros'
-import { statusAprovado } from '@/lib/seguros/tabelas'
+import { statusAprovado, statusPreAprovado } from '@/lib/seguros/tabelas'
 import type { Coberturas, OpcaoPagamento, PlanosPreco } from '@/lib/seguros/tipos'
 
 /**
@@ -13,7 +13,9 @@ import type { Coberturas, OpcaoPagamento, PlanosPreco } from '@/lib/seguros/tipo
  * Duas travas que valem notar:
  *  · só parecer aprovado (1) ou aprovado com limite inferior (5) pode
  *    seguir. Os demais nem chegam aqui pela UI, mas server action é
- *    endpoint público;
+ *    endpoint público. Pré-aprovado (12) NÃO passa: é aprovação financeira
+ *    com identidade ainda não conferida, e a corretora é explícita em que
+ *    ela pode virar recusa depois da biometria;
  *  · nada de cartão de crédito. Trafegar PAN pelo nosso servidor nos
  *    coloca no escopo do PCI-DSS; fatura, boleto e ficha cobrem o caso.
  */
@@ -45,7 +47,13 @@ async function carregarParaContratacao(
 
   if (!parecer) return { error: 'Parecer não encontrado para esta seguradora.' }
   if (!statusAprovado(parecer.codigo_status)) {
-    return { error: 'Só dá pra contratar em seguradora que aprovou a análise.' }
+    // Pré-aprovado merece mensagem própria: é o caso em que o corretor
+    // acha que está aprovado e não entende por que a tela recusa.
+    return {
+      error: statusPreAprovado(parecer.codigo_status)
+        ? 'Esta seguradora pré-aprovou, mas a contratação só libera depois da biometria do pretendente — o parecer precisa virar aprovado.'
+        : 'Só dá pra contratar em seguradora que aprovou a análise.',
+    }
   }
 
   return { admin, analise, parecer }

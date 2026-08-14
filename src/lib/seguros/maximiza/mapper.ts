@@ -182,7 +182,7 @@ interface ParecerBruto {
 function siglaDoParecer(p: ParecerBruto): string {
   if (p.sigla) return normalizarSigla(p.sigla)
   const nome = (p.seguradora ?? '').toLowerCase()
-  if (nome.startsWith('porto')) return 'porto'
+  if (nome.startsWith('porto')) return 'por'
   return normalizarSigla(nome.slice(0, 3))
 }
 
