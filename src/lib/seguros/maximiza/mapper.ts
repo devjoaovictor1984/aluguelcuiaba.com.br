@@ -32,6 +32,27 @@ export function dataPtBr(iso: string | null | undefined): string | undefined {
   return y && m && d ? `${d}/${m}/${y}` : undefined
 }
 
+/**
+ * Número vindo da API — o mesmo campo muda de tipo conforme o endpoint.
+ *
+ * Medido contra a API viva em 15/08/2026: `codigoStatus` volta `3`
+ * (número) no `/transmitirAnalise` e `"3"` (string) no
+ * `GET /apiFiancaAnalise/{id}`. Como todo o mapa de status compara com
+ * `===` contra número, a string não dá erro — ela some. O parecer certo
+ * vira "erro" no resumo, e uma aprovação lida por esse caminho deixaria
+ * de contar como aprovação.
+ *
+ * Aceita também o formato PT-BR ("1.500,00"), que é o que eles usam para
+ * dinheiro na análise.
+ */
+export function numeroDaApi(v: unknown): number | null {
+  if (v == null || v === '') return null
+  if (typeof v === 'number') return Number.isFinite(v) ? v : null
+  const t = String(v).trim()
+  const n = Number(t.includes(',') ? t.replace(/\./g, '').replace(',', '.') : t)
+  return Number.isFinite(n) ? n : null
+}
+
 export function simNao(v: boolean | null | undefined): 'S' | 'N' {
   return v ? 'S' : 'N'
 }
@@ -163,14 +184,16 @@ export function montarAnalise(input: AnaliseInput, opcoes: {
 
 /* ── Análise (entrada) ─────────────────────────────────────────────── */
 
+// Os numéricos são `number | string` de propósito: é assim que a API
+// responde, e o tipo mentir aqui foi o que escondeu o bug do codigoStatus.
 interface ParecerBruto {
   seguradora?: string
   sigla?: string
-  codigoStatus?: number
+  codigoStatus?: number | string
   descricaoStatus?: string
   codigoAnalise?: number | string
-  limiteAprovado?: number
-  statusBiometria?: number
+  limiteAprovado?: number | string
+  statusBiometria?: number | string
   linkBiometria?: string
   msg?: string
 }
@@ -190,12 +213,12 @@ export function lerParecer(p: ParecerBruto): Parecer {
   return {
     seguradoraSigla: siglaDoParecer(p),
     seguradoraNome: p.seguradora ?? null,
-    codigoStatus: p.codigoStatus ?? null,
+    codigoStatus: numeroDaApi(p.codigoStatus),
     descricaoStatus: p.descricaoStatus ?? null,
     // Chega como número grande (909999999299): string evita perda de precisão.
     codigoAnalise: p.codigoAnalise != null ? String(p.codigoAnalise) : null,
-    limiteAprovado: p.limiteAprovado ?? null,
-    statusBiometria: p.statusBiometria ?? null,
+    limiteAprovado: numeroDaApi(p.limiteAprovado),
+    statusBiometria: numeroDaApi(p.statusBiometria),
     linkBiometria: p.linkBiometria ?? null,
     msg: p.msg?.trim() || null,
   }
@@ -237,11 +260,11 @@ export function lerArquivos(bruto: unknown, seguradoraSigla: string | null): Arq
 /* ── Preços ────────────────────────────────────────────────────────── */
 
 interface OpcaoBruta {
-  entrada_pagto?: number
+  entrada_pagto?: number | string
   forma_pagto_descricao?: string
   tipo_plano?: string
-  qtd_parcelas?: number
-  valor_parcela?: number
+  qtd_parcelas?: number | string
+  valor_parcela?: number | string
 }
 
 function lerOpcoes(plano: unknown): OpcaoPagamento[] {
@@ -252,13 +275,14 @@ function lerOpcoes(plano: unknown): OpcaoPagamento[] {
   for (const grupo of Object.values(plano as Record<string, unknown>)) {
     if (!Array.isArray(grupo)) continue
     for (const o of grupo as OpcaoBruta[]) {
-      if (o?.valor_parcela == null) continue
+      const valorParcela = numeroDaApi(o?.valor_parcela)
+      if (valorParcela == null) continue
       saida.push({
         formaPagamento: o.forma_pagto_descricao ?? '',
         tipoPlano: o.tipo_plano ?? '',
-        qtdParcelas: o.qtd_parcelas ?? 1,
-        valorParcela: o.valor_parcela,
-        comEntrada: o.entrada_pagto === 1,
+        qtdParcelas: numeroDaApi(o.qtd_parcelas) ?? 1,
+        valorParcela,
+        comEntrada: numeroDaApi(o.entrada_pagto) === 1,
       })
     }
   }

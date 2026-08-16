@@ -1,9 +1,10 @@
 # Integração AluguelCuiabá × Maximiza — pontos em aberto
 
-**Situação (14/08/2026):** recebemos a credencial de API e **estamos conectados**.
-Autenticação, `seguradorasAnalise`, `consultarImobiliaria` e
-`listarSeguradorasDisponiveis` (incêndio) já respondem. O bloco 1 saiu do
-caminho; o que trava agora é o **bloco 2 (modelo comercial)**.
+**Situação (15/08/2026):** rodamos o **fluxo completo de fiança em
+homologação** — `transmitirAnalise` e `GET /apiFiancaAnalise/{id}` respondem e
+o parecer chega. Autenticação, `seguradorasAnalise`, `consultarImobiliaria` e
+`listarSeguradorasDisponiveis` (incêndio) também. O bloco 1 saiu do caminho; o
+que trava agora é o **bloco 2 (modelo comercial)**.
 
 Os pontos abaixo estão agrupados por urgência. Itens marcados ✅ foram
 respondidos — ficam registrados porque a resposta virou decisão de código.
@@ -28,6 +29,18 @@ dá para fechar. Ver 3.4 para a confirmação dos códigos.
 
 **CNPJ de testes** — `10.961.528/0001-80` (MAXIMIZA IMOB TEMP - DF) responde no
 `consultarImobiliaria`. Usamos apenas em homologação.
+
+**Análise ponta a ponta (15/08/2026)** — transmitimos duas análises reduzidas
+de teste em homologação (ids `215527` e `215528`). A primeira, na Porto, voltou
+parecer normalmente. O que a segunda revelou está em 1.5.
+
+**Observação técnica: o tipo do `codigoStatus` muda conforme o endpoint.**
+`POST /apiFiancaAnalise/transmitirAnalise` devolve `"codigoStatus": 3` (número);
+`GET /apiFiancaAnalise/{id}` devolve `"codigoStatus": "3"` (string), para a
+mesma análise. O mesmo vale para `statusBiometria`. Já tratamos os dois casos
+do nosso lado, mas vale o alerta ao time de vocês: quem comparar o código com
+igualdade estrita vai ler uma aprovação como estado desconhecido. Se houver
+intenção de padronizar, preferimos número — e avisem, porque aceitamos ambos.
 
 ---
 
@@ -73,12 +86,23 @@ Esses campos não constam na documentação. Entendemos que indicam **em quais
 seguradoras aquela imobiliária está habilitada a cotar** — o que muda o
 comportamento da nossa tela.
 
-- O entendimento está certo?
-- Se transmitirmos uma análise para uma seguradora **não habilitada**, o que
-  acontece: erro, ou a análise simplesmente não volta parecer daquela?
-- **Devemos filtrar a lista de seguradoras oferecidas ao corretor por esses
-  campos?** Se sim, passamos a fazer — mas preferimos confirmar antes de
-  esconder seguradora de quem talvez pudesse cotar.
+**Testamos em 15/08/2026 (análise `215528`).** Transmitimos para a **Too**, que
+o CNPJ de teste tem como `too_fianca: false`. O resultado preocupa:
+
+- a análise **foi aceita** — recebeu id e ocupou numeração;
+- o retorno veio com `"codigoStatus": 0` e `descricaoStatus` **vazio**;
+- o `GET /apiFiancaAnalise/215528` devolve a análise com **zero pareceres**.
+
+Ou seja: não há erro, e também não há resposta. Do lado do corretor isso é uma
+análise que fica parada para sempre, sem nada que explique o motivo — e ele não
+tem como saber que a seguradora não estava habilitada.
+
+- O entendimento sobre os campos está certo?
+- **Confirmam que devemos filtrar** a lista de seguradoras oferecidas por esses
+  campos? Pelo que medimos, é o que evita a análise natimorta — só queremos o
+  aval de vocês antes de esconder seguradora de quem talvez pudesse cotar.
+- O `codigoStatus: 0` nesse caso significa especificamente "seguradora não
+  habilitada", ou é o código genérico de erro sem detalhe?
 - Uma imobiliária nova, cadastrada via `cadastrarImobiliaria`, nasce habilitada
   em quais? Quem liga as demais, e como pedimos?
 
@@ -337,5 +361,5 @@ Checklist do que precisamos de vocês para ligar:
 *Documento gerado a partir da análise de `api.fianca.pdf` (v1, 24 páginas),
 `api.imobiliaria.pdf` (v1) e da especificação OpenAPI 3.0 fornecida.*
 
-*Atualizado em 14/08/2026 com o que a API respondeu depois da credencial chegar
-e com a regra de biometria passada por vocês em 13/08/2026.*
+*Atualizado em 15/08/2026 com o resultado do primeiro fluxo de fiança rodado
+ponta a ponta em homologação (ver 0 e 1.5).*
