@@ -31,6 +31,7 @@ async function comLog<T>(
   ctx: { userId?: string | null; endpoint: string; request?: unknown },
   fn: () => Promise<{ dados: T; httpStatus: number; duracaoMs: number }>,
 ): Promise<T> {
+  const inicio = Date.now()
   try {
     const r = await fn()
     await registrarEvento(admin, {
@@ -41,7 +42,12 @@ async function comLog<T>(
   } catch (e) {
     const erro = e instanceof Error ? e.message : String(e)
     const httpStatus = (e as { httpStatus?: number })?.httpStatus ?? null
-    await registrarEvento(admin, { ...ctx, direcao: 'saida', httpStatus, erro })
+    // Mesma razão da fiança: sem o corpo, o log não diz o que foi recusado.
+    await registrarEvento(admin, {
+      ...ctx, direcao: 'saida', httpStatus, erro,
+      response: (e as { corpo?: unknown })?.corpo ?? null,
+      duracaoMs: Date.now() - inicio,
+    })
     throw e
   }
 }

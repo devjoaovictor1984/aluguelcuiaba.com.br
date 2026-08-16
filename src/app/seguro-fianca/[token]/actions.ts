@@ -2,6 +2,7 @@
 
 import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { mensagemDeErro } from '@/lib/seguros/erros'
 import { limitePorIp } from '@/lib/rate-limit'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
 import { segurosConfigurado } from '@/lib/seguros/acesso'
@@ -116,7 +117,7 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
   try {
     pessoaId = await upsertPretensoInquilino(admin, link, input, doc)
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao registrar seus dados.' }
+    return { error: mensagemDeErro(e, 'Falha ao registrar seus dados.') }
   }
 
   // 2. Transmite pra corretora.
@@ -207,7 +208,7 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
 
     return { ok: true }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Falha ao enviar para a seguradora.'
+    const msg = mensagemDeErro(e, 'Falha ao enviar para a seguradora.')
     await admin.from('seguro_analises')
       .update({ status_resumo: 'erro', erro: msg })
       .eq('id', analise.id)

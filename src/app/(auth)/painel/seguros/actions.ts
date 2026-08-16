@@ -3,6 +3,7 @@
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { mensagemDeErro } from '@/lib/seguros/erros'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
 import { salvarArquivo, removerArquivosDaAnalise } from '@/lib/seguros/arquivos'
@@ -108,7 +109,7 @@ export async function criarAnalise(input: NovaAnaliseInput) {
     revalidatePath('/painel/seguros/fianca')
     return { ok: true, id: analise.id }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Falha ao transmitir análise.'
+    const msg = mensagemDeErro(e, 'Falha ao transmitir análise.')
     await admin.from('seguro_analises')
       .update({ status_resumo: 'erro', erro: msg })
       .eq('id', analise.id)
@@ -153,7 +154,7 @@ export async function sincronizarAnalise(analiseId: string) {
     revalidatePath(`/painel/seguros/fianca/${analiseId}`)
     return { ok: true, pareceres: resultado.pareceres.length, arquivos: arquivos.length }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao consultar a corretora.' }
+    return { error: mensagemDeErro(e, 'Falha ao consultar a corretora.') }
   }
 }
 
@@ -215,7 +216,7 @@ export async function incluirSolidarios(
     revalidatePath(`/painel/seguros/fianca/${analiseId}`)
     return { ok: true }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao reenviar com solidários.' }
+    return { error: mensagemDeErro(e, 'Falha ao reenviar com solidários.') }
   }
 }
 
@@ -242,7 +243,7 @@ export async function reanalisar(analiseId: string, seguradoras: string[]) {
     revalidatePath(`/painel/seguros/fianca/${analiseId}`)
     return { ok: true }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao reanalisar.' }
+    return { error: mensagemDeErro(e, 'Falha ao reanalisar.') }
   }
 }
 
@@ -287,7 +288,7 @@ export async function buscarAtividadesCnae(termo: string) {
   try {
     return { itens: await buscarCnae(admin, termo) }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao buscar atividades.' }
+    return { error: mensagemDeErro(e, 'Falha ao buscar atividades.') }
   }
 }
 
@@ -303,7 +304,7 @@ export async function excluirAnalise(analiseId: string) {
   try {
     await removerArquivosDaAnalise(admin, acesso.userId, analiseId)
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao remover os documentos.' }
+    return { error: mensagemDeErro(e, 'Falha ao remover os documentos.') }
   }
 
   const { error } = await admin.from('seguro_analises').delete().eq('id', analiseId)

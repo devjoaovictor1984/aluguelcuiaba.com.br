@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { mensagemDeErro } from '@/lib/seguros/erros'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
 import { ambienteMaximiza } from '@/lib/seguros'
@@ -53,7 +54,7 @@ export async function carregarCatalogoIncendio(
     ])
     return { ocupacoes, pacotes }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao carregar opções da seguradora.' }
+    return { error: mensagemDeErro(e, 'Falha ao carregar opções da seguradora.') }
   }
 }
 
@@ -63,7 +64,7 @@ export async function listarSeguradorasDoIncendio() {
   try {
     return { seguradoras: await listarSeguradorasIncendio(admin) }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao listar seguradoras.' }
+    return { error: mensagemDeErro(e, 'Falha ao listar seguradoras.') }
   }
 }
 
@@ -149,7 +150,7 @@ export async function calcularApoliceIncendio(input: NovaApoliceInput) {
     revalidatePath('/painel/seguros/incendio')
     return { ok: true, id: apolice.id, calculo }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Falha ao calcular.'
+    const msg = mensagemDeErro(e, 'Falha ao calcular.')
     await admin.from('seguro_incendio_apolices')
       .update({ status: 'erro', erro: msg }).eq('id', apolice.id)
     revalidatePath('/painel/seguros/incendio')
@@ -220,7 +221,7 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
     revalidatePath(`/painel/seguros/incendio/${apoliceId}`)
     return { ok: true, ...r }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Falha ao contratar.'
+    const msg = mensagemDeErro(e, 'Falha ao contratar.')
     await admin.from('seguro_incendio_apolices').update({ erro: msg }).eq('id', apoliceId)
     return { error: msg }
   }
@@ -250,7 +251,7 @@ export async function cancelarApoliceIncendio(apoliceId: string) {
     revalidatePath(`/painel/seguros/incendio/${apoliceId}`)
     return { ok: true, mensagem: r.mensagem }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao cancelar.' }
+    return { error: mensagemDeErro(e, 'Falha ao cancelar.') }
   }
 }
 
@@ -298,7 +299,7 @@ export async function baixarDocumentosIncendio(apoliceId: string) {
     revalidatePath(`/painel/seguros/incendio/${apoliceId}`)
     return { ok: true, baixados }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao baixar documentos.' }
+    return { error: mensagemDeErro(e, 'Falha ao baixar documentos.') }
   }
 }
 
@@ -375,6 +376,6 @@ export async function sincronizarFaturamento(
     revalidatePath('/painel/seguros/incendio/faturamento')
     return { ok: true, itens: linhas.length }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao consultar faturamento.' }
+    return { error: mensagemDeErro(e, 'Falha ao consultar faturamento.') }
   }
 }

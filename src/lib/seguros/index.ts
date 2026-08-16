@@ -62,6 +62,7 @@ async function comLog<T>(
   ctx: { userId?: string | null; analiseId?: string | null; endpoint: string; request?: unknown },
   fn: () => Promise<{ dados: T; httpStatus: number; duracaoMs: number }>,
 ): Promise<T> {
+  const inicio = Date.now()
   try {
     const r = await fn()
     await registrarEvento(admin, {
@@ -72,7 +73,17 @@ async function comLog<T>(
   } catch (e) {
     const erro = e instanceof Error ? e.message : String(e)
     const httpStatus = (e as { httpStatus?: number })?.httpStatus ?? null
-    await registrarEvento(admin, { ...ctx, direcao: 'saida', httpStatus, erro })
+    await registrarEvento(admin, {
+      ...ctx, direcao: 'saida', httpStatus, erro,
+      // O corpo do erro é a ÚNICA coisa que diz o que eles recusaram — um
+      // 400 volta com "pretendente.dataNascimento não informado ou
+      // inválido". Descartá-lo deixava no log só "respondeu 400", e o
+      // motivo morria com a requisição.
+      response: (e as { corpo?: unknown })?.corpo ?? null,
+      // O tempo do erro importa tanto quanto o do sucesso: distingue
+      // recusa imediata de timeout.
+      duracaoMs: Date.now() - inicio,
+    })
     throw e
   }
 }

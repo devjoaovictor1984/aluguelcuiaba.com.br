@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { mensagemDeErro } from '@/lib/seguros/erros'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { consultarPrecos, contratar } from '@/lib/seguros'
 import { statusAprovado, statusPreAprovado } from '@/lib/seguros/tabelas'
@@ -109,7 +110,7 @@ export async function consultarPrecosAnalise(
     )
     return { planos }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'Falha ao consultar preços.' }
+    return { error: mensagemDeErro(e, 'Falha ao consultar preços.') }
   }
 }
 
@@ -157,7 +158,7 @@ export async function buscarPrecosDoParecer(analiseId: string, seguradoraSigla: 
     revalidatePath(`/painel/seguros/fianca/${analiseId}`)
     return { ok: true, planos }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Falha ao consultar preços.'
+    const msg = mensagemDeErro(e, 'Falha ao consultar preços.')
     await admin.from('seguro_analise_pareceres')
       .update({ precos_erro: msg, precos_em: new Date().toISOString() })
       .eq('analise_id', analiseId).eq('seguradora_sigla', seguradoraSigla)
@@ -286,7 +287,7 @@ export async function contratarSeguro(input: ContratarInput) {
     revalidatePath(`/painel/seguros/fianca/${input.analiseId}`)
     return { ok: true, id: contratacao.id, msg: r.msg }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Falha ao contratar.'
+    const msg = mensagemDeErro(e, 'Falha ao contratar.')
     await admin.from('seguro_contratacoes')
       .update({ status: 'erro', erro: msg })
       .eq('id', contratacao.id)
