@@ -70,7 +70,10 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
     meses: String(contratoBase?.duracao_meses ?? 30),
   })
 
-  const [completa, setCompleta] = useState(false)
+  // Completa por padrão: é a que dá à seguradora o que ela precisa pra
+  // avaliar, e a única que algumas aceitam. A rápida continua a um clique,
+  // pra quando o corretor só quer uma noção antes de pedir documento.
+  const [completa, setCompleta] = useState(true)
   const [dataNasc, setDataNasc] = useState(inicial?.dataNascimento ?? '')
   const [sexo, setSexo] = useState<'M' | 'F' | ''>('')
 
@@ -174,6 +177,49 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
         </p>
       )}
 
+      {/* Tipo de análise — primeira decisão porque define quais campos o
+          resto do formulário pede e quem pode cotar. Escolher isso no fim,
+          como era antes, obrigava a voltar e preencher o que faltou. */}
+      <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
+        <h2 className="text-sm font-bold text-gray-900">Tipo de análise</h2>
+        <p className="text-[11px] text-gray-500 leading-tight mt-0.5 mb-3">
+          {exigeCompleta
+            ? 'Imóvel comercial exige análise completa — a rápida não cobre esse caso.'
+            : 'Define os campos que serão pedidos abaixo e quais seguradoras conseguem cotar.'}
+        </p>
+
+        <div className="grid grid-cols-2 gap-2">
+          {([
+            [true,  'Completa', 'Recomendada — todas as seguradoras'],
+            [false, 'Rápida',   'Menos campos, menos seguradoras'],
+          ] as const).map(([valor, titulo, ajuda]) => {
+            const ativo = usarCompleta === valor
+            const travado = exigeCompleta && !valor
+            return (
+              <button
+                key={titulo}
+                type="button"
+                aria-pressed={ativo}
+                disabled={travado || isPending}
+                onClick={() => setCompleta(valor)}
+                className={`text-left rounded-xl border px-3 py-2.5 transition ${
+                  ativo
+                    ? 'border-violet-300 bg-violet-50 ring-1 ring-violet-200'
+                    : 'border-gray-200 bg-white hover:bg-gray-50'
+                } ${travado ? 'opacity-40 cursor-not-allowed' : ''}`}
+              >
+                <span className={`block text-sm font-semibold ${ativo ? 'text-violet-900' : 'text-gray-900'}`}>
+                  {titulo}
+                </span>
+                <span className={`block text-[11px] leading-tight mt-0.5 ${ativo ? 'text-violet-700' : 'text-gray-500'}`}>
+                  {ajuda}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </section>
+
       {/* Pretendente */}
       <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4 space-y-3">
         <h2 className="text-sm font-bold text-gray-900">Pretendente (inquilino)</h2>
@@ -268,27 +314,6 @@ export function FormNovaAnalise({ inquilinos, contratoBase }: Props) {
           inputCls={input}
           disabled={isPending}
         />
-      </section>
-
-      {/* Tipo de análise */}
-      <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-4">
-        <label className={`flex items-start gap-2 ${exigeCompleta ? 'opacity-60' : 'cursor-pointer'}`}>
-          <input
-            type="checkbox"
-            checked={usarCompleta}
-            disabled={exigeCompleta}
-            onChange={e => setCompleta(e.target.checked)}
-            className="accent-violet-600 mt-0.5"
-          />
-          <span>
-            <p className="text-sm font-semibold text-gray-900">Análise completa</p>
-            <p className="text-[11px] text-gray-500 leading-tight">
-              {exigeCompleta
-                ? 'Obrigatória para imóvel comercial.'
-                : 'Pede mais dados, mas inclui as seguradoras que não aceitam análise rápida.'}
-            </p>
-          </span>
-        </label>
       </section>
 
       {/* Consentimento — LGPD */}

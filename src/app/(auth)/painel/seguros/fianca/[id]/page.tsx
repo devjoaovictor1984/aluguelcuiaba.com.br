@@ -6,6 +6,7 @@ import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { assinarUrlArquivo } from '@/lib/seguros/arquivos'
 import { formatarBRL } from '@/lib/formatters'
 import { DetalheAnalise } from './_components/detalhe-analise'
+import { HistoricoIntegracao } from './_components/historico-integracao'
 
 interface Props {
   params: Promise<{ id: string }>
@@ -65,6 +66,16 @@ export default async function AnalisePage({ params }: Props) {
       .limit(1)
       .maybeSingle(),
   ])
+
+  // A conversa com a corretora. Vem pelo admin porque `seguro_eventos` é
+  // trilha de auditoria e não é exposta por RLS ao usuário — a posse já foi
+  // conferida na consulta da análise acima.
+  const { data: eventos } = await admin
+    .from('seguro_eventos')
+    .select('id, created_at, endpoint, direcao, http_status, duracao_ms, erro, request, response')
+    .eq('analise_id', id)
+    .order('created_at', { ascending: false })
+    .limit(40)
 
   // Bucket privado: assina na hora de exibir, como as selfies (v53).
   const arquivosComUrl = await Promise.all(
@@ -147,6 +158,20 @@ export default async function AnalisePage({ params }: Props) {
           propostaNumero: contratacao.proposta_numero,
           erro: contratacao.erro,
         } : null}
+      />
+
+      <HistoricoIntegracao
+        eventos={(eventos ?? []).map(e => ({
+          id: e.id,
+          criadoEm: e.created_at,
+          endpoint: e.endpoint,
+          direcao: e.direcao,
+          httpStatus: e.http_status,
+          duracaoMs: e.duracao_ms,
+          erro: e.erro,
+          request: e.request,
+          response: e.response,
+        }))}
       />
     </div>
   )
