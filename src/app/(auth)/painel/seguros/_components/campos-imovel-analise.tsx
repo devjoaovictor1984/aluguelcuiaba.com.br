@@ -8,6 +8,11 @@ import { COMPROMETIMENTO_MAXIMO, rendaNecessaria, totalGastos } from '@/lib/segu
 export interface CamposImovel {
   cep: string
   logradouro: string
+  numero: string
+  complemento: string
+  bairro: string
+  cidade: string
+  uf: string
   aluguel: string
   condominio: string
   iptu: string
@@ -21,7 +26,9 @@ export interface CamposImovel {
 }
 
 export const IMOVEL_VAZIO: CamposImovel = {
-  cep: '', logradouro: '', aluguel: '', condominio: '', iptu: '',
+  cep: '', logradouro: '', numero: '', complemento: '',
+  bairro: '', cidade: '', uf: '',
+  aluguel: '', condominio: '', iptu: '',
   agua: '', energia: '', gas: '',
   finalidade: 'R', tipo: '', meses: '30', pinturaNova: true,
 }
@@ -74,9 +81,16 @@ export function CamposImovelAnalise({ valores: v, onChange, inputCls, disabled }
     try {
       const r = await fetch(`https://viacep.com.br/ws/${limpo}/json/`)
       const d = await r.json()
-      if (d.erro || !d.logradouro) return
-      // Só preenche se estiver vazio — não sobrescreve ajuste do corretor.
-      onChange({ logradouro: v.logradouro.trim() || d.logradouro })
+      if (d.erro) return
+      // Só preenche o que estiver vazio — não sobrescreve ajuste do corretor.
+      // Bairro, cidade e UF vêm no mesmo retorno e a análise completa os
+      // envia à corretora; deixá-los de fora era mandar endereço pela metade.
+      onChange({
+        logradouro: v.logradouro.trim() || d.logradouro || '',
+        bairro: v.bairro.trim() || d.bairro || '',
+        cidade: v.cidade.trim() || d.localidade || '',
+        uf: v.uf.trim() || d.uf || '',
+      })
     } catch {/* CEP é conveniência; falha não trava o formulário */}
   }
 
@@ -104,6 +118,61 @@ export function CamposImovelAnalise({ valores: v, onChange, inputCls, disabled }
             onChange={e => onChange({ logradouro: e.target.value })}
             disabled={disabled}
             placeholder="Rua, avenida…"
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div>
+          <label className={label}>Número</label>
+          <input
+            value={v.numero}
+            onChange={e => onChange({ numero: e.target.value })}
+            disabled={disabled}
+            className={inputCls}
+          />
+        </div>
+        <div className="sm:col-span-2">
+          <label className={label}>Complemento</label>
+          <input
+            value={v.complemento}
+            onChange={e => onChange({ complemento: e.target.value })}
+            disabled={disabled}
+            placeholder="Apto, bloco, sala…"
+            className={inputCls}
+          />
+        </div>
+      </div>
+
+      {/* Preenchidos pelo CEP; ficam editáveis porque o ViaCEP erra em
+          loteamento novo, que é justamente onde mais se aluga em Cuiabá. */}
+      <div className="grid sm:grid-cols-3 gap-3">
+        <div>
+          <label className={label}>Bairro</label>
+          <input
+            value={v.bairro}
+            onChange={e => onChange({ bairro: e.target.value })}
+            disabled={disabled}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className={label}>Cidade</label>
+          <input
+            value={v.cidade}
+            onChange={e => onChange({ cidade: e.target.value })}
+            disabled={disabled}
+            className={inputCls}
+          />
+        </div>
+        <div>
+          <label className={label}>UF</label>
+          <input
+            value={v.uf}
+            onChange={e => onChange({ uf: e.target.value.toUpperCase().slice(0, 2) })}
+            disabled={disabled}
+            maxLength={2}
             className={inputCls}
           />
         </div>
@@ -251,6 +320,11 @@ export function montarImovel(v: CamposImovel, parseMoney: (s: string) => number)
   return {
     cep: v.cep,
     endereco: v.logradouro.trim() || null,
+    numero: v.numero.trim() || null,
+    complemento: v.complemento.trim() || null,
+    bairro: v.bairro.trim() || null,
+    cidade: v.cidade.trim() || null,
+    estado: v.uf.trim() || null,
     aluguel: parseMoney(v.aluguel),
     condominio: parseMoney(v.condominio) || null,
     iptu: parseMoney(v.iptu) || null,

@@ -124,6 +124,8 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
   // 2. Transmite pra corretora.
   const dadosImovel = link.dados_imovel as {
     cep: string; endereco?: string | null; aluguel: number
+    numero?: string | null; complemento?: string | null
+    bairro?: string | null; cidade?: string | null; estado?: string | null
     condominio?: number | null; iptu?: number | null
     agua?: number | null; energia?: number | null; gas?: number | null
     finalidade: 'R' | 'C'; tipo?: string | null; periodoContratoMeses: number
@@ -145,6 +147,13 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
     imovel: {
       cep: dadosImovel.cep,
       endereco: dadosImovel.endereco ?? null,
+      // Endereço completo: a análise completa manda estes campos, e o
+      // corretor já os preencheu na hora de gerar o link.
+      numero: dadosImovel.numero ?? null,
+      complemento: dadosImovel.complemento ?? null,
+      bairro: dadosImovel.bairro ?? null,
+      cidade: dadosImovel.cidade ?? null,
+      estado: dadosImovel.estado ?? null,
       aluguel: Number(dadosImovel.aluguel) || 0,
       condominio: dadosImovel.condominio ?? null,
       iptu: dadosImovel.iptu ?? null,

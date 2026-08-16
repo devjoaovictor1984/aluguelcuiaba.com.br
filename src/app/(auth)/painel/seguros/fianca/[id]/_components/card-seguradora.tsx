@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import {
   STATUS_ANALISE, STATUS_BIOMETRIA,
-  statusAprovado, statusPendente, statusPreAprovado,
+  statusAprovado, statusPendente, statusPreAprovado, statusTerminalNegativo,
 } from '@/lib/seguros/tabelas'
 import { marcaDe } from '@/lib/seguros/marcas'
 import { resumirPrecos } from '@/lib/seguros/resumo-precos'
@@ -83,9 +83,18 @@ export function CardSeguradora({ p, podeContratar }: Props) {
     ? (limiteInferior ? 'Parcial' : 'Aprovado')
     : preAprovado ? 'Pré-aprovado' : pendente ? 'Aguardando' : 'Recusado'
 
+  // A Porto devolve `statusBiometria: 0` ("Aguardando") mesmo quando
+  // RECUSA a análise — verificado ao vivo em 16/08/2026. Sem esta guarda o
+  // card recusado pedia reconhecimento facial e dizia que "a aprovação só
+  // fecha depois", mandando o corretor atrás do inquilino por uma análise
+  // que já acabou. Em parecer terminal negativo a biometria não existe
+  // mais como assunto.
+  const terminalNegativo = statusTerminalNegativo(p.codigoStatus)
+
   // O link nem sempre chega junto com o status: o webhook de biometria vem
   // separado. Sem link, ainda assim avisamos que a biometria é o que falta.
-  const precisaBiometria = p.statusBiometria === 0 || (preAprovado && p.statusBiometria == null)
+  const precisaBiometria = !terminalNegativo
+    && (p.statusBiometria === 0 || (preAprovado && p.statusBiometria == null))
   const resumo = resumirPrecos(p.precos)
 
   const copiarLink = async () => {
@@ -183,8 +192,8 @@ export function CardSeguradora({ p, podeContratar }: Props) {
           </p>
         )}
 
-        {/* Biometria */}
-        {(p.statusBiometria != null || preAprovado) && (
+        {/* Biometria — some por inteiro quando o parecer já é terminal. */}
+        {!terminalNegativo && (p.statusBiometria != null || preAprovado) && (
           <div className={`rounded-xl px-3 py-2.5 ${precisaBiometria ? 'bg-violet-50 ring-1 ring-violet-100' : 'bg-gray-50'}`}>
             <p className="text-[11px] font-semibold text-gray-700 flex items-center gap-1.5">
               <ScanFace size={12} className={precisaBiometria ? 'text-violet-600' : 'text-gray-400'} />
