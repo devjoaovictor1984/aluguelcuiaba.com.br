@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { segurosConfigurado } from '@/lib/seguros/acesso'
 import { SidebarPainel } from './_components/sidebar-painel'
 import { BotaoSugestao } from './_components/botao-sugestao'
 
@@ -33,6 +34,8 @@ export default async function PainelLayout({ children }: { children: React.React
         fotoUrl={perfil?.foto_url ?? null}
         plano={perfil?.plano ?? 'free'}
         isAdmin={perfil?.role === 'admin'}
+        // Server component lê a env; o menu recebe só o booleano.
+        segurosLigado={segurosConfigurado()}
         logoutAction={logoutAction}
       />
       <div className="lg:pl-60">

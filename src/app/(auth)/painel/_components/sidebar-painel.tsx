@@ -52,10 +52,12 @@ interface Props {
   fotoUrl: string | null
   plano: string
   isAdmin: boolean
+  /** Ambiente tem credencial da corretora? Sem ela o módulo não abre. */
+  segurosLigado: boolean
   logoutAction: () => void  // server action
 }
 
-export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, logoutAction }: Props) {
+export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, segurosLigado, logoutAction }: Props) {
   const pathname = usePathname()
   const [drawerAberto, setDrawerAberto] = useState(false)
 
@@ -117,7 +119,7 @@ export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, lo
         {renderGrupo('CRM Locação', GRUPO_CRM)}
         {/* Seguros só para admin enquanto a integração com a corretora não
             está ligada — ver exigirAcessoSeguros(). */}
-        {isAdmin && renderGrupo('Seguros', GRUPO_SEGUROS)}
+        {isAdmin && segurosLigado && renderGrupo('Seguros', GRUPO_SEGUROS)}
         {renderGrupo('Anúncios', GRUPO_ANUNCIOS)}
         {renderGrupo('Conta', GRUPO_CONTA)}
       </nav>

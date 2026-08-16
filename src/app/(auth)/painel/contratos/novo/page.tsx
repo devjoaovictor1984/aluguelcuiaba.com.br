@@ -6,6 +6,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { statusAprovado } from '@/lib/seguros/tabelas'
+import { segurosConfigurado } from '@/lib/seguros/acesso'
 import { PLANOS } from '@/lib/constants'
 import { WizardContrato } from './_components/wizard-contrato'
 
@@ -232,7 +233,7 @@ export default async function NovoContratoPage({
             criadoEm: a.created_at,
           }))
         })}
-        segurosHabilitado={acesso.role === 'admin'}
+        segurosHabilitado={acesso.role === 'admin' && segurosConfigurado()}
       />
     </div>
   )

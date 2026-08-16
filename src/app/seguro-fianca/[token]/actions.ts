@@ -4,6 +4,7 @@ import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { limitePorIp } from '@/lib/rate-limit'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
+import { segurosConfigurado } from '@/lib/seguros/acesso'
 import { ambienteMaximiza, transmitirAnalise } from '@/lib/seguros'
 import { gravarPareceres } from '@/lib/seguros/pareceres'
 import { resumirStatus } from '@/lib/seguros/status-ui'
@@ -82,6 +83,14 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
 
   const { link, error } = await carregarPorToken(token)
   if (!link || error) return { error: error ?? 'Erro.' }
+
+  // Ambiente sem credencial: `ambienteMaximiza()` mais abaixo é chamado
+  // fora do try/catch e derrubaria a página, e o erro que sobe daqui cita
+  // endpoint e variável de ambiente — coisas que um inquilino não pode
+  // ver. Recado curto e nenhum dado gravado.
+  if (!segurosConfigurado()) {
+    return { error: 'Este formulário está indisponível no momento. Procure quem enviou o link.' }
+  }
 
   if (!input.consentimento) return { error: 'É preciso aceitar o envio dos dados.' }
   if (!input.nome?.trim()) return { error: 'Informe seu nome completo.' }
