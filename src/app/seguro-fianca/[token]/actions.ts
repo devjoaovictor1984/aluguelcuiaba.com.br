@@ -6,6 +6,7 @@ import { mensagemDeErro } from '@/lib/seguros/erros'
 import { limitePorIp } from '@/lib/rate-limit'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
 import { segurosConfigurado } from '@/lib/seguros/acesso'
+import { seguradorasElegiveis, motivoDeNenhumaElegivel } from '@/lib/seguros/elegiveis'
 import { ambienteMaximiza, transmitirAnalise } from '@/lib/seguros'
 import { gravarPareceres } from '@/lib/seguros/pareceres'
 import { resumirStatus } from '@/lib/seguros/status-ui'
@@ -194,6 +195,17 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
     const prov = await garantirImobiliaria(admin, link.user_id)
     if (prov.error || !prov.cnpjCpf) throw new Error(prov.error ?? 'Cadastro do corretor indisponível.')
 
+    // Mesma trava do painel: lista vazia significa "todas" pra API, e
+    // "todas" inclui seguradora que não aceita este tipo de análise —
+    // 500 genérico, aqui na cara do inquilino.
+    const eleg = await seguradorasElegiveis(admin, {
+      tipoAnalise: dados.tipoAnalise,
+      cnpjImobiliaria: prov.cnpjCpf,
+      userId: link.user_id,
+    })
+    if (!eleg.siglas.length) throw new Error(motivoDeNenhumaElegivel(eleg, dados.tipoAnalise))
+    dados.seguradoras = eleg.siglas
+
     const r = await transmitirAnalise(admin, dados, {
       userId: link.user_id,
       analiseId: analise.id,
@@ -204,6 +216,9 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
     await admin.from('seguro_analises').update({
       maximiza_id: r.idExterno || null,
       status_resumo: resumirStatus(r.pareceres),
+      // Regrava com a lista resolvida — é este payload que o
+      // `incluirSolidarios` reenvia depois.
+      payload: dados as unknown as Record<string, unknown>,
     }).eq('id', analise.id)
 
     return { ok: true }

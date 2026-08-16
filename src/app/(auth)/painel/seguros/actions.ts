@@ -4,13 +4,14 @@ import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { mensagemDeErro } from '@/lib/seguros/erros'
+import { seguradorasElegiveis, motivoDeNenhumaElegivel } from '@/lib/seguros/elegiveis'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
 import { salvarArquivo, removerArquivosDaAnalise } from '@/lib/seguros/arquivos'
 import {
   ambienteMaximiza, consultarAnalise, transmitirAnalise, transmitirReanalise,
 } from '@/lib/seguros'
-import type { AnaliseInput } from '@/lib/seguros/tipos'
+import type { AnaliseInput, TipoAnalise } from '@/lib/seguros/tipos'
 import { gravarPareceres, resumirStatus } from '@/lib/seguros/pareceres'
 import { lerEstadoAnterior, notificarMudancas } from '@/lib/seguros/notificar'
 import { buscarCnae } from '@/lib/seguros/cnae'
@@ -32,7 +33,7 @@ async function checarPosseAnalise(analiseId: string, userId: string) {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('seguro_analises')
-    .select('id, user_id, maximiza_id, status_resumo')
+    .select('id, user_id, maximiza_id, status_resumo, tipo_analise')
     .eq('id', analiseId)
     .eq('user_id', userId)
     .maybeSingle()
@@ -93,7 +94,22 @@ export async function criarAnalise(input: NovaAnaliseInput) {
   if (eIns || !analise) return { error: eIns?.message ?? 'Falha ao criar análise.' }
 
   try {
-    const r = await transmitirAnalise(admin, input.dados, {
+    // A lista NUNCA vai vazia: vazio significa "todas" pra API, e "todas"
+    // inclui seguradora que não aceita este tipo de análise — o que volta
+    // como 500 genérico e derruba as outras junto.
+    const eleg = await seguradorasElegiveis(admin, {
+      tipoAnalise: input.dados.tipoAnalise,
+      cnpjImobiliaria: prov.cnpjCpf,
+      escolhidas: input.seguradoras ?? input.dados.seguradoras,
+      userId: acesso.userId,
+    })
+    if (!eleg.siglas.length) {
+      throw new Error(motivoDeNenhumaElegivel(eleg, input.dados.tipoAnalise))
+    }
+
+    const dados = { ...input.dados, seguradoras: eleg.siglas }
+
+    const r = await transmitirAnalise(admin, dados, {
       userId: acesso.userId,
       analiseId: analise.id,
       cnpjImobiliaria: prov.cnpjCpf,
@@ -104,6 +120,8 @@ export async function criarAnalise(input: NovaAnaliseInput) {
       maximiza_id: r.idExterno || null,
       status_resumo: resumirStatus(r.pareceres),
       erro: null,
+      // Guarda a lista resolvida: é ela que `incluirSolidarios` reenvia.
+      payload: dados as unknown as Record<string, unknown>,
     }).eq('id', analise.id)
 
     revalidatePath('/painel/seguros/fianca')
@@ -230,8 +248,22 @@ export async function reanalisar(analiseId: string, seguradoras: string[]) {
   if (!analise.maximiza_id) return { error: 'Esta análise ainda não foi transmitida.' }
   if (!seguradoras.length) return { error: 'Escolha ao menos uma seguradora.' }
 
+  // A escolha vem da tela, então pode incluir seguradora que não aceita
+  // este tipo de análise. Mesma trava do envio inicial, pelo mesmo motivo.
+  const prov = await garantirImobiliaria(admin, acesso.userId)
+  if (prov.error || !prov.cnpjCpf) return { error: prov.error ?? 'Cadastro na corretora indisponível.' }
+
+  const tipoAnalise: TipoAnalise = analise.tipo_analise === 'completa' ? 'completa' : 'reduzida'
+  const eleg = await seguradorasElegiveis(admin, {
+    tipoAnalise,
+    cnpjImobiliaria: prov.cnpjCpf,
+    escolhidas: seguradoras,
+    userId: acesso.userId,
+  })
+  if (!eleg.siglas.length) return { error: motivoDeNenhumaElegivel(eleg, tipoAnalise) }
+
   try {
-    const r = await transmitirReanalise(admin, analise.maximiza_id, seguradoras, {
+    const r = await transmitirReanalise(admin, analise.maximiza_id, eleg.siglas, {
       userId: acesso.userId,
       analiseId,
     })
