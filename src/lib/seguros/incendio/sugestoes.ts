@@ -38,7 +38,20 @@ export function sugerirValores(aluguel: number, cobertura: TipoCobertura): Valor
     incendio: predio,
     // Perda de aluguel: 6 meses é o padrão de contrato de locação.
     perdaAluguel: Math.round(aluguel * 6),
-    vendaval: Math.round(predio * 0.30),
+    /**
+     * 25%, e não os 30% que usávamos.
+     *
+     * Medido em 17/08/2026 num imóvel comercial com LMI de incêndio de
+     * R$ 700.000: 30% volta 400 "IS da Cobertura: Vendaval, Granizo,
+     * Queda de Aeronave e F fora do limite", e 25% passa. Em residencial
+     * os mesmos 30% eram aceitos — ou seja, o teto varia com a ocupação,
+     * e a documentação não diz qual é.
+     *
+     * Como isto é ponto de partida e não regra, o valor que passa nos dois
+     * casos vale mais que o valor maior que quebra num deles. Está
+     * perguntado à corretora.
+     */
+    vendaval: Math.round(predio * 0.25),
     danosEletricos: Math.round(predio * 0.05),
     vazamento: Math.round(predio * 0.05),
     respCivil: Math.round(predio * 0.10),

@@ -195,6 +195,7 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
   }
 
   const ehPorto = seguradora.toLowerCase().startsWith('porto')
+  const inqEhPJ = inqDoc.replace(/\D/g, '').length > 11
 
   const calcular = () => {
     setErro('')
@@ -210,6 +211,14 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
     // Segurado Inválido" — que não diz o que corrigir. Barramos antes.
     if (!nomeCompleto(inqNome)) return setErro('Informe o nome COMPLETO do inquilino — a seguradora recusa só o primeiro nome.')
     if (inqDoc.replace(/\D/g, '').length < 11) return setErro('CPF/CNPJ do inquilino incompleto.')
+    // A seguradora exige a data para PF e PJ. Medido: sem ela, ou com ela
+    // vazia, o cálculo volta 400 "data_inquilino não informado" — inclusive
+    // para empresa, onde a data não tem significado óbvio.
+    if (!inqNasc) {
+      return setErro(inqEhPJ
+        ? 'Informe a data de abertura da empresa — a seguradora exige a data também para PJ.'
+        : 'Informe a data de nascimento do inquilino.')
+    }
     if (!propNome.trim()) return setErro('Informe o nome do proprietário.')
     if (!nomeCompleto(propNome)) return setErro('Informe o nome COMPLETO do proprietário — a seguradora recusa só o primeiro nome.')
     if (propDoc.replace(/\D/g, '').length < 11) return setErro('CPF/CNPJ do proprietário incompleto.')
@@ -525,8 +534,15 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
             <input value={inqFone} onChange={e => setInqFone(maskTelefone(e.target.value))} className={input} inputMode="tel" />
           </div>
           <div>
-            <label className={label}>Nascimento</label>
+            <label className={label}>
+              {inqEhPJ ? 'Abertura da empresa' : 'Nascimento'} <span className="text-red-500">*</span>
+            </label>
             <input type="date" value={inqNasc} onChange={e => setInqNasc(e.target.value)} className={input} />
+            {inqEhPJ && (
+              <p className="text-[10px] text-gray-400 mt-0.5 leading-snug">
+                A seguradora exige a data também para empresa.
+              </p>
+            )}
           </div>
           <div>
             <label className={label}>Sexo</label>
