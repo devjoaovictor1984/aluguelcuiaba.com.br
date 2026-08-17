@@ -128,7 +128,7 @@ export async function contratarIncendio(
   const dados = await comLog<unknown>(
     admin,
     { userId, endpoint: '/incendioAlfaV2/contratar', request: corpo },
-    () => chamar('/incendioAlfaV2/contratar', { corpo, produto: P, seguradora: input.seguradora }),
+    () => chamar('/incendioAlfaV2/contratar', { corpo, produto: P, seguradora: input.seguradora, criaRegistro: true }),
   )
   return lerContratacaoIncendio(dados)
 }
@@ -142,7 +142,7 @@ export async function cancelarIncendio(
   const dados = await comLog<{ status?: string; mensagem?: string }>(
     admin,
     { userId, endpoint: '/incendioAlfaV2/cancelar', request: corpo },
-    () => chamar('/incendioAlfaV2/cancelar', { corpo, produto: P, seguradora }),
+    () => chamar('/incendioAlfaV2/cancelar', { corpo, produto: P, seguradora, criaRegistro: true }),
   )
   return {
     ok: String(dados?.status ?? '') === '1',

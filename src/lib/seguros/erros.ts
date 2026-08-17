@@ -31,10 +31,28 @@ function mensagemDaCorretora(corpo: unknown): string | null {
  * "message":"Internal server error"}`. Repetir isso na tela não informa
  * nada — em 5xx a mensagem própria vale mais que a deles.
  */
-export function mensagemDeErro(e: unknown, fallback = 'Não foi possível concluir o envio para a corretora.'): string {
+export function mensagemDeErro(
+  e: unknown,
+  fallback = 'Não foi possível concluir o envio para a corretora.',
+  opcoes: {
+    /**
+     * A chamada que falhou cria registro lá dentro (análise, apólice)?
+     *
+     * Muda o conselho, e o conselho é o que evita estrago: num timeout a
+     * requisição já foi entregue e pode ter criado a análise mesmo sem
+     * resposta. "Tente de novo" aí produz duplicata na corretora.
+     */
+    podeTerCriado?: boolean
+  } = {},
+): string {
+  const semResposta = opcoes.podeTerCriado
+    ? 'A corretora recebeu o pedido mas não respondeu a tempo. Antes de enviar de novo, '
+      + 'confira no painel dela se a solicitação já entrou — reenviar pode duplicar.'
+    : 'Não foi possível falar com a corretora agora. Tente de novo em alguns minutos.'
+
   if (!(e instanceof SeguroApiError)) {
     if (e instanceof Error && /timeout|aborted|fetch failed|network/i.test(e.message)) {
-      return 'A corretora não respondeu a tempo. Tente de novo em alguns minutos.'
+      return semResposta
     }
     return fallback
   }
@@ -42,11 +60,13 @@ export function mensagemDeErro(e: unknown, fallback = 'Não foi possível conclu
   const status = e.httpStatus ?? 0
 
   // Sem status: nem chegou a falar com eles (rede, timeout, credencial ausente).
-  if (status === 0) {
-    return 'Não foi possível falar com a corretora agora. Tente de novo em alguns minutos.'
-  }
+  if (status === 0) return semResposta
+
   if (status >= 500) {
-    return 'A corretora está instável e não concluiu o pedido. O registro ficou salvo aqui — tente de novo em alguns minutos.'
+    return opcoes.podeTerCriado
+      ? 'A corretora falhou ao processar o pedido. O registro ficou salvo aqui, mas confira '
+        + 'no painel dela antes de reenviar — a falha pode ter acontecido depois de criar.'
+      : 'A corretora está instável e não concluiu o pedido. O registro ficou salvo aqui — tente de novo em alguns minutos.'
   }
   if (status === 401 || status === 403) {
     return 'A corretora recusou nossa credencial de acesso. Isso é configuração da integração, não o cadastro do cliente.'

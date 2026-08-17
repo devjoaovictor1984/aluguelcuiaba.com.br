@@ -287,7 +287,7 @@ export async function contratarSeguro(input: ContratarInput) {
     revalidatePath(`/painel/seguros/fianca/${input.analiseId}`)
     return { ok: true, id: contratacao.id, msg: r.msg }
   } catch (e) {
-    const msg = mensagemDeErro(e, 'Falha ao contratar.')
+    const msg = mensagemDeErro(e, 'Falha ao contratar.', { podeTerCriado: true })
     await admin.from('seguro_contratacoes')
       .update({ status: 'erro', erro: msg })
       .eq('id', contratacao.id)

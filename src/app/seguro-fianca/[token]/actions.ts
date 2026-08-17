@@ -232,7 +232,7 @@ export async function enviarAnalisePeloLink(token: string, input: PreenchimentoI
 
     return { ok: true }
   } catch (e) {
-    const msg = mensagemDeErro(e, 'Falha ao enviar para a seguradora.')
+    const msg = mensagemDeErro(e, 'Falha ao enviar para a seguradora.', { podeTerCriado: true })
     await admin.from('seguro_analises')
       .update({ status_resumo: 'erro', erro: msg })
       .eq('id', analise.id)

@@ -1,6 +1,8 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { ambienteMaximiza, chamar, sanitizarParaLog } from './maximiza/client'
+import {
+  ambienteMaximiza, chamar, sanitizarParaLog, TIMEOUT_TRANSMISSAO,
+} from './maximiza/client'
 import {
   lerArquivos, lerPlanos, lerResultadoAnalise, lerSeguradoras,
   montarAnalise, montarContratacao,
@@ -185,7 +187,7 @@ export async function cadastrarImobiliaria(
   const dados = await comLog<{ id?: number; msg?: string }>(
     admin,
     { userId, endpoint: '/apiImobiliaria/cadastrarImobiliaria', request: corpo },
-    () => chamar('/apiImobiliaria/cadastrarImobiliaria', { corpo }),
+    () => chamar('/apiImobiliaria/cadastrarImobiliaria', { corpo, criaRegistro: true }),
   )
   return { id: Number(dados?.id ?? 0), msg: String(dados?.msg ?? '') }
 }
@@ -216,7 +218,9 @@ export async function transmitirAnalise(
   const dados = await comLog<unknown>(
     admin,
     { userId: ctx.userId, analiseId: ctx.analiseId, endpoint: '/apiFiancaAnalise/transmitirAnalise', request: corpo },
-    () => chamar('/apiFiancaAnalise/transmitirAnalise', { corpo }),
+    // Cria análise numerada lá dentro, e é lenta (56s medidos): as duas
+    // razões pelas quais não pode repetir sozinha.
+    () => chamar('/apiFiancaAnalise/transmitirAnalise', { corpo, criaRegistro: true, timeoutMs: TIMEOUT_TRANSMISSAO }),
   )
   return lerResultadoAnalise(dados)
 }
@@ -237,7 +241,7 @@ export async function transmitirReanalise(
   const dados = await comLog<unknown>(
     admin,
     { ...ctx, endpoint: '/apiFiancaAnalise/transmitirReanalise', request: corpo },
-    () => chamar('/apiFiancaAnalise/transmitirReanalise', { corpo }),
+    () => chamar('/apiFiancaAnalise/transmitirReanalise', { corpo, criaRegistro: true, timeoutMs: TIMEOUT_TRANSMISSAO }),
   )
   return lerResultadoAnalise(dados)
 }
@@ -307,7 +311,8 @@ export async function contratar(
   const dados = await comLog<{ msg?: string }>(
     admin,
     { ...ctx, endpoint: '/apiFiancaAnalise/contratar', request: corpo },
-    () => chamar('/apiFiancaAnalise/contratar', { corpo }),
+    // Emite apólice: repetir cobra duas vezes o mesmo cliente.
+    () => chamar('/apiFiancaAnalise/contratar', { corpo, criaRegistro: true, timeoutMs: TIMEOUT_TRANSMISSAO }),
   )
   return { msg: String(dados?.msg ?? '') }
 }

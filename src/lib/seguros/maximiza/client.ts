@@ -37,6 +37,19 @@ const TIMEOUT_MS = 30_000
 const TENTATIVAS = 3
 
 /**
+ * Teto para as chamadas lentas deles.
+ *
+ * Medido em 16/08/2026: `transmitirAnalise` de uma análise reduzida levou
+ * 56,2s no total — impossível numa tentativa só, porque o timeout é de 30s
+ * por tentativa. Ou seja, a primeira foi abortada e a segunda é que
+ * respondeu. Ver `criaRegistro` abaixo para o que isso significa.
+ *
+ * 55s porque o plano Hobby da Vercel mata a função em 60s: passar disso
+ * troca um erro nosso, explicável, por um 504 da plataforma.
+ */
+export const TIMEOUT_TRANSMISSAO = 55_000
+
+/**
  * 1 = Produção (emite seguro de verdade) · 2 = Homologação.
  *
  * Deriva de MAXIMIZA_AMBIENTE, e nunca de parâmetro ou input do usuário:
@@ -140,9 +153,28 @@ export async function chamar<T>(
      * A de fiança não usa.
      */
     seguradora?: string
+    /**
+     * A chamada CRIA algo do lado deles (análise, apólice, cadastro)?
+     *
+     * Se cria, repetir não é reparo — é duplicata. Um POST que estoura o
+     * timeout já foi entregue e está sendo processado; a segunda tentativa
+     * gera uma segunda análise, com id próprio, que a gente nem fica
+     * sabendo que existe. Foi o que aconteceu na transmissão de 56,2s de
+     * 16/08/2026: existe uma análise órfã na corretora, criada pela
+     * tentativa abortada.
+     *
+     * Com isto ligado, só o 401 repete — esse é seguro, porque credencial
+     * recusada significa que nada foi processado.
+     */
+    criaRegistro?: boolean
+    timeoutMs?: number
   } = {},
 ): Promise<RespostaApi<T>> {
-  const { metodo = 'POST', corpo, produto = 'fianca', seguradora } = opcoes
+  const {
+    metodo = 'POST', corpo, produto = 'fianca', seguradora,
+    criaRegistro = false, timeoutMs = TIMEOUT_MS,
+  } = opcoes
+  const podeRepetir = !criaRegistro
   const base = HOSTS[produto]
   const inicio = Date.now()
   let ultimoErro: unknown
@@ -169,7 +201,7 @@ export async function chamar<T>(
           ...(seguradora ? { seguradora } : {}),
         },
         body: corpo === undefined ? undefined : JSON.stringify(corpo),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       })
 
       if (resp.status === 401 && tentativa < TENTATIVAS) {
@@ -184,7 +216,9 @@ export async function chamar<T>(
       }
 
       if (!resp.ok) {
-        const transitorio = resp.status >= 500 || resp.status === 429
+        // 5xx numa chamada que cria registro não é repetível: o erro pode
+        // ter vindo DEPOIS de o registro nascer.
+        const transitorio = (resp.status >= 500 || resp.status === 429) && podeRepetir
         if (transitorio && tentativa < TENTATIVAS) {
           await espera(tentativa)
           continue
@@ -204,6 +238,9 @@ export async function chamar<T>(
       if (e instanceof SeguroApiError && e.httpStatus && e.httpStatus < 500 && e.httpStatus !== 429) {
         throw e
       }
+      // Timeout e queda de rede entram aqui. Numa chamada que cria
+      // registro, a requisição já saiu — insistir duplica.
+      if (!podeRepetir) break
       if (tentativa < TENTATIVAS) {
         await espera(tentativa)
         continue

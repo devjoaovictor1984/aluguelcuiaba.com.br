@@ -221,7 +221,7 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
     revalidatePath(`/painel/seguros/incendio/${apoliceId}`)
     return { ok: true, ...r }
   } catch (e) {
-    const msg = mensagemDeErro(e, 'Falha ao contratar.')
+    const msg = mensagemDeErro(e, 'Falha ao contratar.', { podeTerCriado: true })
     await admin.from('seguro_incendio_apolices').update({ erro: msg }).eq('id', apoliceId)
     return { error: msg }
   }
@@ -251,7 +251,7 @@ export async function cancelarApoliceIncendio(apoliceId: string) {
     revalidatePath(`/painel/seguros/incendio/${apoliceId}`)
     return { ok: true, mensagem: r.mensagem }
   } catch (e) {
-    return { error: mensagemDeErro(e, 'Falha ao cancelar.') }
+    return { error: mensagemDeErro(e, 'Falha ao cancelar.', { podeTerCriado: true }) }
   }
 }
 

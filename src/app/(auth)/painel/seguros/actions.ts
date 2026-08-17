@@ -127,7 +127,7 @@ export async function criarAnalise(input: NovaAnaliseInput) {
     revalidatePath('/painel/seguros/fianca')
     return { ok: true, id: analise.id }
   } catch (e) {
-    const msg = mensagemDeErro(e, 'Falha ao transmitir análise.')
+    const msg = mensagemDeErro(e, 'Falha ao transmitir análise.', { podeTerCriado: true })
     await admin.from('seguro_analises')
       .update({ status_resumo: 'erro', erro: msg })
       .eq('id', analise.id)
@@ -234,7 +234,7 @@ export async function incluirSolidarios(
     revalidatePath(`/painel/seguros/fianca/${analiseId}`)
     return { ok: true }
   } catch (e) {
-    return { error: mensagemDeErro(e, 'Falha ao reenviar com solidários.') }
+    return { error: mensagemDeErro(e, 'Falha ao reenviar com solidários.', { podeTerCriado: true }) }
   }
 }
 
@@ -275,7 +275,7 @@ export async function reanalisar(analiseId: string, seguradoras: string[]) {
     revalidatePath(`/painel/seguros/fianca/${analiseId}`)
     return { ok: true }
   } catch (e) {
-    return { error: mensagemDeErro(e, 'Falha ao reanalisar.') }
+    return { error: mensagemDeErro(e, 'Falha ao reanalisar.', { podeTerCriado: true }) }
   }
 }
 
