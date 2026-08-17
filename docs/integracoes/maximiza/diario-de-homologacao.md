@@ -11,7 +11,7 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 
 ---
 
-## Estado atual — 17/08/2026
+## Estado atual — 17/08/2026 (fim do dia)
 
 | Frente | Onde está |
 |---|---|
@@ -19,7 +19,10 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 | Fiança — biometria | ⏳ sem caminho: o link só vem por webhook, que não está cadastrado |
 | Fiança — contratação | ⏳ bloqueada pela biometria; nunca exercitada |
 | Incêndio — cálculo | ✅ funciona na Alfa e na Porto |
-| Incêndio — contratação | ⚠️ desbloqueada hoje; falta rodar |
+| Incêndio — contratação | ✅ apólice 607773 emitida em homologação |
+| Incêndio — documentos | ✅ certificado e proposta; boleto sai depois do lote |
+| Incêndio — cancelamento | ⚠️ único passo do fluxo que nunca rodou |
+| Comissões | ✅ registradas na venda; percentuais dependem da corretora |
 | Modelo comercial | ⏳ nada definido — ver `perguntas-pendentes.md`, bloco 2 |
 
 **Ambiente:** homologação (`MAXIMIZA_AMBIENTE=2`), local e na Vercel.
@@ -234,12 +237,113 @@ quais códigos valem, a lista da API volta a ter preferência. ⏳ *perguntado*
 
 ---
 
+## 17/08/2026 (tarde) — a primeira apólice, e o que ela revelou
+
+Apólice de incêndio contratada na Alfa: `codigo_seguro 607773`,
+`numero_proposta 1659097`. Primeira contratação de verdade da integração.
+
+### g) O header `seguradora` impede baixar os documentos ✅
+
+O download logo em seguida voltou 400 `"Seguro informado não pertence a
+seguradora Alfa"` — sobre uma apólice criada na Alfa minutos antes, pela
+própria API.
+
+```
+header seguradora "Alfa"  →  400  "não pertence à seguradora Alfa"
+header "ALFA"             →  400  mesma mensagem
+SEM o header              →  201  certificado + proposta
+```
+
+O mesmo 400 acontece com um código real de Alfa tirado do painel deles, o que
+descarta erro nosso na contratação. E o `codigo_seguro` é chave global: pedir
+um inexistente responde *"não foi encontrado um registro"* — mensagem
+diferente. Ou seja, a busca não precisa do header, e com ele quebra.
+
+`imprimirProposta` e `imprimirBoleto` deixaram de mandar o header.
+**Confirmado depois:** o download voltou 201 com PDF real de 281 mil caracteres.
+
+O `cancelar` é o terceiro endpoint chaveado por `codigo_seguro` e continua
+mandando o header, com comentário no código. **Não medido — cancelamento não é
+chamada que se dispara pra experimentar.** ⚠️
+
+### h) O boleto atrasa em relação ao certificado ⏳
+
+Mesmo momento, mesmo código: `imprimirProposta` devolve o certificado e
+`imprimirBoleto` responde *"Falha ao imprimir o boleto: Fatura não
+encontrada."* A fatura da imobiliária só existe depois do fechamento do lote
+deles — o que bate com o "Nº Remessa em Lote" das telas do painel.
+
+Os dois estavam no mesmo `try`: esse erro **esperado** descartava o certificado
+já salvo e a tela dizia "falha ao baixar documentos" com dois documentos no
+banco. Separados. ✅
+
+E o painel de saúde parou de contar essa recusa como erro de integração —
+senão exibiria pra sempre um "último erro" que ninguém precisa investigar,
+escondendo atrás dele o que importa. ✅
+
+### i) `data_inquilino` é obrigatória, inclusive para PJ ⏳
+
+Cotar uma ótica (PJ, comercial) voltou `"data_inquilino não informado"`. O
+formulário tratava o campo como opcional, e cliente pré-cadastrado sem data é
+o normal em empresa.
+
+```
+vazia ou ausente  →  400, tanto em PF quanto em PJ
+qualquer data     →  passa
+```
+
+Campo virou obrigatório, com rótulo **"Abertura da empresa"** quando o
+documento é CNPJ. O que a seguradora espera ali numa PJ não dá pra saber daqui
+— ela aceita qualquer data. Perguntado.
+
+### j) O limite do vendaval varia com a ocupação ⏳
+
+Sugeríamos 30% do LMI de incêndio.
+
+```
+comercial, LMI 700.000:  30%  →  400 "IS da Cobertura ... fora do limite"
+                         25%  →  201
+residencial, LMI 128.000: 30% →  201
+```
+
+Baixado para 25%, que passa nos dois. É chute calibrado — a regra real não está
+documentada. Perguntado.
+
+### k) 500 intermitentes ⚠️ *deles*
+
+O mesmo payload, enviado duas vezes seguidas, voltou 500 e depois 201. Repetiu
+em dois valores diferentes e sumiu na segunda rodada. Não é bloqueio — o
+cliente já repete chamada que não cria registro —, mas está registrado no PDF
+como observação ao time deles.
+
+---
+
+## 17/08/2026 — duas coisas construídas em cima disso
+
+**Sessão de homologação (v80).** Link temporário para a equipe técnica da
+corretora cotar aqui dentro, com apontamentos que capturam contexto e chamadas
+de API sozinhos. Não é acesso de admin: entra como usuário próprio de role
+`homologacao`, que alcança o módulo de seguros e mais nada. Detalhe que quase
+passou: o painel montava o link com `NEXT_PUBLIC_APP_URL` e gerava
+`localhost:3000` pronto pra ser mandado à corretora.
+
+**Comissão de seguros (v81).** Duas comissões independentes por venda — a do
+corretor, paga direto pela corretora a ele, e o override da plataforma. Estados
+separados, percentual congelado na venda. O percentual do corretor só é
+preenchido no incêndio: os 20% vêm da coluna "Pró-labore" do painel deles, que
+não existe para fiança. Para fiança fica **"a definir"** — número inventado que
+o corretor possa levar para uma conversa com a corretora é pior que campo
+vazio.
+
+---
+
 ## O que ainda não foi exercitado nenhuma vez
 
 - **Contratação de fiança** (`/contratar`) — bloqueada pela biometria.
 - **Webhooks** — nenhum recebido desde 13/08; as URLs não estão cadastradas.
-- **Contratação de incêndio** — desbloqueada em 17/08, falta rodar.
-- **Certificado, boleto e cancelamento de incêndio** — dependem da contratação.
+- **Cancelamento de incêndio** — é o único passo do fluxo que falta, e o
+  suspeito do header (item g) só se confirma nele.
+- **Boleto de incêndio** — depende do fechamento do lote da seguradora.
 - **Faturamento de incêndio** (`listarFaturamento`).
 - **Qualquer seguradora de fiança que não seja a Porto** — sem habilitação.
 
