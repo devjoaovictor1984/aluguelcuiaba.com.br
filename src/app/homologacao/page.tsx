@@ -2,8 +2,15 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
   ShieldCheck, Flame, FlaskConical, PenLine, ArrowRight, AlertTriangle, Terminal,
+  History,
 } from 'lucide-react'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { sessaoAtual } from '@/lib/homologacao/sessao'
+
+/** Fora do componente: `Date.now()` no corpo do render viola react-hooks/purity. */
+function diasAte(iso: string): number {
+  return Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400_000))
+}
 
 export const metadata = {
   title: 'Homologação — AluguelCuiabá × Maximiza',
@@ -26,7 +33,33 @@ export default async function HomologacaoPage() {
   const sessao = await sessaoAtual()
   if (!sessao) redirect('/homologacao/encerrada?motivo=expirada')
 
-  const dias = Math.max(0, Math.ceil((new Date(sessao.expiraEm).getTime() - Date.now()) / 86400_000))
+  const dias = diasAte(sessao.expiraEm)
+
+  /**
+   * O que a sessão já produziu.
+   *
+   * Sem isto, quem volta dias depois cai num roteiro idêntico ao do
+   * primeiro dia e não tem como saber que o trabalho anterior continua
+   * ali — a tendência é refazer tudo. Como a sessão sempre encarna o
+   * mesmo usuário, o histórico é naturalmente o dela e de mais ninguém.
+   */
+  const admin = createAdminClient()
+  const [{ data: fiancas }, { data: incendios }] = await Promise.all([
+    admin
+      .from('seguro_analises')
+      .select('id, maximiza_id, status_resumo, created_at, payload')
+      .eq('user_id', sessao.usuarioId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+    admin
+      .from('seguro_incendio_apolices')
+      .select('id, seguradora, status, premio_total, created_at')
+      .eq('user_id', sessao.usuarioId)
+      .order('created_at', { ascending: false })
+      .limit(5),
+  ])
+
+  const jaTestou = (fiancas?.length ?? 0) + (incendios?.length ?? 0) > 0
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -43,6 +76,58 @@ export default async function HomologacaoPage() {
             só abre o módulo de seguros.
           </p>
         </header>
+
+        {jaTestou && (
+          <section className="rounded-2xl bg-white ring-1 ring-gray-100 shadow-sm p-4">
+            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+              <History size={14} className="text-gray-400" /> De onde você parou
+            </h2>
+            <p className="text-[11px] text-gray-500 mt-0.5 mb-2.5">
+              O que você já cotou continua aqui — este link te devolve à mesma
+              sessão, sem precisar refazer nada.
+            </p>
+
+            <div className="space-y-1.5">
+              {(fiancas ?? []).map(f => {
+                const p = (f.payload ?? {}) as { pretendente?: { nome?: string } }
+                return (
+                  <Link
+                    key={f.id}
+                    href={`/painel/seguros/fianca/${f.id}`}
+                    className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-gray-100 px-3 py-2.5 hover:ring-violet-200"
+                  >
+                    <span className="text-sm text-gray-900 truncate flex items-center gap-1.5 min-w-0">
+                      <ShieldCheck size={13} className="text-violet-600 shrink-0" />
+                      <span className="truncate">{p.pretendente?.nome ?? 'Análise de fiança'}</span>
+                      {f.maximiza_id && (
+                        <span className="text-[11px] text-gray-400 shrink-0">nº {f.maximiza_id}</span>
+                      )}
+                    </span>
+                    <span className="text-[11px] font-semibold text-gray-500 shrink-0">
+                      {f.status_resumo}
+                    </span>
+                  </Link>
+                )
+              })}
+
+              {(incendios ?? []).map(i => (
+                <Link
+                  key={i.id}
+                  href={`/painel/seguros/incendio/${i.id}`}
+                  className="flex items-center justify-between gap-3 rounded-xl ring-1 ring-gray-100 px-3 py-2.5 hover:ring-orange-200"
+                >
+                  <span className="text-sm text-gray-900 truncate flex items-center gap-1.5 min-w-0">
+                    <Flame size={13} className="text-orange-600 shrink-0" />
+                    <span className="truncate">Incêndio · {i.seguradora}</span>
+                  </span>
+                  <span className="text-[11px] font-semibold text-gray-500 shrink-0">
+                    {i.status}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
 
         <section className="rounded-2xl bg-white ring-1 ring-gray-100 shadow-sm p-4 space-y-2.5">
           <h2 className="text-sm font-bold text-gray-900">O que isto é</h2>
