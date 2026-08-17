@@ -158,12 +158,20 @@ export default async function AdminSegurosPage() {
               ? `Última atividade em ${new Date(saude.ultimoEvento).toLocaleString('pt-BR')}`
               : 'Nenhuma atividade registrada'}
           </p>
-          <Link
-            href="/admin/seguros/eventos"
-            className="text-xs font-semibold text-violet-700 hover:text-violet-800 flex items-center gap-1"
-          >
-            Ver log <ArrowRight size={12} />
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin/seguros/comissoes"
+              className="text-xs font-semibold text-violet-700 hover:text-violet-800 flex items-center gap-1"
+            >
+              Comissões <ArrowRight size={12} />
+            </Link>
+            <Link
+              href="/admin/seguros/eventos"
+              className="text-xs font-semibold text-violet-700 hover:text-violet-800 flex items-center gap-1"
+            >
+              Ver log <ArrowRight size={12} />
+            </Link>
+          </div>
         </div>
       </section>
 

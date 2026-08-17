@@ -7,6 +7,7 @@ import { formatarBRL, formatarData } from '@/lib/formatters'
 import { FiltroMesAno, type ModoPeriodo } from '../_components/filtro-mes-ano'
 import { BotaoImprimir } from './_components/botao-imprimir'
 import { BotaoNfProprietario } from './_components/botao-nf'
+import { ComissaoSeguros, type ComissaoSeguroView } from './_components/comissao-seguros'
 
 interface ParcelaRow {
   id: string
@@ -96,6 +97,55 @@ export default async function ComissoesPage({ searchParams }: Props) {
     modo === 'mensal' ? `${MESES_NOMES[mesAlvoNum - 1]} de ${anoAlvo}`
     : modo === 'anual' ? `${anoAlvo}`
     : 'todo o período'
+
+  /**
+   * Comissão de seguros do mesmo período.
+   *
+   * Filtra por `competencia`, e não por data de criação: um acerto
+   * lançado em outubro sobre venda de agosto pertence a agosto. A RLS
+   * garante que cada um vê só as suas — a consulta não precisa filtrar
+   * por usuário.
+   */
+  let qSeguros = supabase
+    .from('seguro_comissoes')
+    .select(`
+      id, produto, seguradora_sigla, apolice_numero, premio_total, competencia,
+      percentual_corretor, valor_corretor, status_corretor,
+      recebido_corretor_em, valor_recebido_corretor, contrato_id,
+      cliente:pessoas!pessoa_id(nome),
+      contrato:contratos_locacao(codigo)
+    `)
+    .order('competencia', { ascending: false })
+    .limit(200)
+
+  if (inicioRange && fimRange) {
+    qSeguros = qSeguros
+      .gte('competencia', inicioRange.toISOString().slice(0, 10))
+      .lte('competencia', fimRange.toISOString().slice(0, 10))
+  }
+
+  const { data: seguros } = await qSeguros
+
+  const comissoesSeguro: ComissaoSeguroView[] = (seguros ?? []).map(s => {
+    const cliente = Array.isArray(s.cliente) ? s.cliente[0] : s.cliente
+    const contrato = Array.isArray(s.contrato) ? s.contrato[0] : s.contrato
+    return {
+      id: s.id,
+      produto: s.produto as 'fianca' | 'incendio',
+      seguradoraSigla: s.seguradora_sigla,
+      apoliceNumero: s.apolice_numero,
+      cliente: cliente?.nome ?? null,
+      contratoCodigo: contrato?.codigo ?? null,
+      contratoId: s.contrato_id,
+      premioTotal: Number(s.premio_total) || 0,
+      percentual: s.percentual_corretor != null ? Number(s.percentual_corretor) : null,
+      valor: s.valor_corretor != null ? Number(s.valor_corretor) : null,
+      status: s.status_corretor,
+      recebidoEm: s.recebido_corretor_em,
+      valorRecebido: s.valor_recebido_corretor != null ? Number(s.valor_recebido_corretor) : null,
+      competencia: s.competencia,
+    }
+  })
 
   const [{ data: contratosRaw }, { data: parcelasRaw }] = await Promise.all([
     supabase.from('contratos_locacao').select(`
@@ -276,6 +326,11 @@ export default async function ComissoesPage({ searchParams }: Props) {
           cor={proprietariosPendentes === 0 && listaGrupos.length > 0 ? 'text-green-700' : 'text-amber-700'}
           bg={proprietariosPendentes === 0 && listaGrupos.length > 0 ? 'bg-green-50' : 'bg-amber-50'}
         />
+      </div>
+
+      {/* Seguros: mesma tela, número separado — ver o componente. */}
+      <div className="print:hidden">
+        <ComissaoSeguros linhas={comissoesSeguro} rotuloPeriodo={rotuloPeriodo} />
       </div>
 
       {/* Tabela agrupada */}

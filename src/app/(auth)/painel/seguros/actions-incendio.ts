@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { mensagemDeErro } from '@/lib/seguros/erros'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
+import { cancelarComissao, registrarComissao } from '@/lib/seguros/comissoes'
 import { ambienteMaximiza } from '@/lib/seguros'
 import { salvarArquivoIncendio } from '@/lib/seguros/incendio/arquivos'
 import {
@@ -29,7 +30,7 @@ async function checarPosse(apoliceId: string, userId: string) {
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('seguro_incendio_apolices')
-    .select('id, user_id, seguradora, codigo_seguro, status, contrato_id')
+    .select('id, user_id, seguradora, codigo_seguro, status, contrato_id, inquilino_id')
     .eq('id', apoliceId)
     .eq('user_id', userId)
     .maybeSingle()
@@ -207,6 +208,19 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
       erro: null,
     }).eq('id', apoliceId)
 
+    // A venda aconteceu: registra a comissão. Nunca lança — comissão que
+    // derruba a contratação que deveria remunerar é troca ruim.
+    await registrarComissao(admin, {
+      userId: acesso.userId,
+      produto: 'incendio',
+      apoliceIncendioId: apoliceId,
+      pessoaId: apolice.inquilino_id ?? null,
+      contratoId: apolice.contrato_id ?? null,
+      seguradoraSigla: base.seguradora,
+      apoliceNumero: r.codigoSeguro,
+      premioTotal: escolha.valorParcela * escolha.qtdParcelas,
+    })
+
     // Registra no contrato de locação, se houver vínculo.
     if (apolice.contrato_id) {
       const anual = base.tipoVigencia === 0
@@ -247,6 +261,10 @@ export async function cancelarApoliceIncendio(apoliceId: string) {
       cancelada_em: new Date().toISOString(),
       cancelamento_msg: r.mensagem,
     }).eq('id', apoliceId)
+
+    // A apólice caiu: a comissão deixa de ser esperada. O que já constava
+    // como recebido é preservado — aí é estorno, e alguém precisa olhar.
+    await cancelarComissao(admin, { apoliceIncendioId: apoliceId })
 
     revalidatePath(`/painel/seguros/incendio/${apoliceId}`)
     return { ok: true, mensagem: r.mensagem }

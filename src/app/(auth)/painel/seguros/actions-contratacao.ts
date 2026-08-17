@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { mensagemDeErro } from '@/lib/seguros/erros'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
+import { cancelarComissao, registrarComissao } from '@/lib/seguros/comissoes'
 import { consultarPrecos, contratar } from '@/lib/seguros'
 import { statusAprovado, statusPreAprovado } from '@/lib/seguros/tabelas'
 import type { Coberturas, OpcaoPagamento, PlanosPreco } from '@/lib/seguros/tipos'
@@ -31,7 +32,7 @@ async function carregarParaContratacao(
 
   const { data: analise } = await admin
     .from('seguro_analises')
-    .select('id, user_id, maximiza_id, contrato_id, imovel_id, payload')
+    .select('id, user_id, maximiza_id, contrato_id, imovel_id, inquilino_id, payload')
     .eq('id', analiseId)
     .eq('user_id', userId)
     .maybeSingle()
@@ -275,6 +276,18 @@ export async function contratarSeguro(input: ContratarInput) {
       .update({ retorno_msg: r.msg, erro: null })
       .eq('id', contratacao.id)
 
+    // A venda aconteceu: registra a comissão. A apólice ainda não tem
+    // número — ele chega pelo webhook de arquivos — e por isso vai nula.
+    await registrarComissao(admin, {
+      userId: acesso.userId,
+      produto: 'fianca',
+      contratacaoId: contratacao.id,
+      pessoaId: analise.inquilino_id ?? null,
+      contratoId: analise.contrato_id ?? null,
+      seguradoraSigla: input.seguradoraSigla,
+      premioTotal,
+    })
+
     // Marca a garantia no contrato de locação, se houver vínculo. O número
     // da apólice entra depois, quando o webhook trouxer.
     if (analise.contrato_id) {
@@ -318,6 +331,8 @@ export async function cancelarContratacao(contratacaoId: string) {
     .update({ status: 'cancelada' })
     .eq('id', contratacaoId)
   if (error) return { error: error.message }
+
+  await cancelarComissao(admin, { contratacaoId })
 
   revalidatePath(`/painel/seguros/fianca/${c.analise_id}`)
   return { ok: true }
