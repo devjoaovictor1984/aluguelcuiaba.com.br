@@ -273,7 +273,7 @@ export async function baixarDocumentosIncendio(apoliceId: string) {
   let baixados = 0
 
   try {
-    const docs = await imprimirProposta(admin, apolice.seguradora, apolice.codigo_seguro, acesso.userId)
+    const docs = await imprimirProposta(admin, apolice.codigo_seguro, acesso.userId)
 
     if (docs.certificadoBase64) {
       await salvarArquivoIncendio(admin, ctx, { tipo: 'certificado', base64: docs.certificadoBase64 })
@@ -283,8 +283,23 @@ export async function baixarDocumentosIncendio(apoliceId: string) {
       await salvarArquivoIncendio(admin, ctx, { tipo: 'proposta', base64: docs.propostaBase64 })
       baixados++
     }
+  } catch (e) {
+    return { error: mensagemDeErro(e, 'Falha ao baixar o certificado.') }
+  }
 
-    const boletos = await imprimirBoletos(admin, apolice.seguradora, apolice.codigo_seguro, acesso.userId)
+  /**
+   * O boleto tem try próprio porque ele ATRASA em relação ao certificado.
+   * Medido: minutos depois da contratação, `imprimirProposta` devolve o
+   * certificado e `imprimirBoleto` responde "Fatura não encontrada" — a
+   * fatura da imobiliária só existe depois do fechamento do lote deles.
+   *
+   * Num try só, esse erro esperado descartava o certificado que já tinha
+   * sido salvo e a tela dizia "falha ao baixar documentos", quando dois
+   * documentos estavam ali.
+   */
+  let avisoBoleto: string | null = null
+  try {
+    const boletos = await imprimirBoletos(admin, apolice.codigo_seguro, acesso.userId)
     for (const b of boletos) {
       await salvarArquivoIncendio(admin, ctx, {
         tipo: 'boleto',
@@ -295,12 +310,17 @@ export async function baixarDocumentosIncendio(apoliceId: string) {
       })
       baixados++
     }
-
-    revalidatePath(`/painel/seguros/incendio/${apoliceId}`)
-    return { ok: true, baixados }
   } catch (e) {
-    return { error: mensagemDeErro(e, 'Falha ao baixar documentos.') }
+    // A frase da corretora chega traduzida por mensagemDeErro, que já
+    // repassa o corpo do 4xx — é nela que "Fatura não encontrada" aparece.
+    const msg = mensagemDeErro(e, 'O boleto não pôde ser baixado agora.')
+    avisoBoleto = /fatura n[aã]o encontrada/i.test(msg)
+      ? 'O certificado foi baixado. O boleto ainda não foi gerado pela seguradora — tente de novo mais tarde.'
+      : msg
   }
+
+  revalidatePath(`/painel/seguros/incendio/${apoliceId}`)
+  return { ok: true, baixados, aviso: avisoBoleto }
 }
 
 export async function excluirApoliceIncendio(apoliceId: string) {

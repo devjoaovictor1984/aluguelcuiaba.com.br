@@ -107,6 +107,9 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
       const r = await baixarDocumentosIncendio(a.id)
       if (r.error) { setErro(r.error); return }
       setMsg(`${r.baixados} documento(s) baixado(s).`)
+      // Baixa parcial é o caso normal logo após contratar: o certificado
+      // sai na hora, o boleto depende do lote da seguradora.
+      if (r.aviso) setErro(r.aviso)
       router.refresh()
     })
   }

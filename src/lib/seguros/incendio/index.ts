@@ -142,6 +142,12 @@ export async function cancelarIncendio(
   const dados = await comLog<{ status?: string; mensagem?: string }>(
     admin,
     { userId, endpoint: '/incendioAlfaV2/cancelar', request: corpo },
+    // ⚠️ Este ainda manda o header, e talvez não devesse: os outros dois
+    // endpoints chaveados por `codigo_seguro` recusam quando ele vai
+    // (ver `imprimirProposta`). Aqui não foi medido — cancelar não é
+    // chamada que se dispara pra experimentar. Se aparecer o mesmo
+    // "Seguro informado não pertence a seguradora X", é isto: tirar o
+    // `seguradora` da linha abaixo resolve.
     () => chamar('/incendioAlfaV2/cancelar', { corpo, produto: P, seguradora, criaRegistro: true }),
   )
   return {
@@ -152,28 +158,44 @@ export async function cancelarIncendio(
 
 /* ── Documentos ────────────────────────────────────────────────────── */
 
-/** Certificado e proposta em base64. Sob demanda, não por webhook. */
+/**
+ * Certificado e proposta em base64. Sob demanda, não por webhook.
+ *
+ * ⚠️ ESTES DOIS ENDPOINTS NÃO LEVAM O HEADER `seguradora`. Medido em
+ * 17/08/2026 contra a apólice 607773, contratada na Alfa minutos antes
+ * pela própria API:
+ *
+ *   com header "Alfa"  →  400 "Seguro informado não pertence a
+ *                             seguradora Alfa"
+ *   sem header         →  201 certificado + proposta
+ *
+ * O mesmo 400 acontece com um código real de Alfa tirado do painel deles,
+ * o que descarta erro nosso na contratação. O código é chave global:
+ * pedir um inexistente responde "não foi encontrado um registro", e não a
+ * mensagem de seguradora. Então a busca não precisa do header — e com
+ * ele, quebra.
+ */
 export async function imprimirProposta(
-  admin: Admin, seguradora: string, codigoSeguro: string, userId?: string,
+  admin: Admin, codigoSeguro: string, userId?: string,
 ): Promise<DocumentosProposta> {
   const corpo = { ambiente: String(ambienteMaximiza()), codigo_seguro: codigoSeguro }
   const dados = await comLog<unknown>(
     admin,
     { userId, endpoint: '/incendioAlfaV2/imprimirProposta', request: corpo },
-    () => chamar('/incendioAlfaV2/imprimirProposta', { corpo, produto: P, seguradora }),
+    () => chamar('/incendioAlfaV2/imprimirProposta', { corpo, produto: P }),
   )
   return lerDocumentos(dados)
 }
 
-/** Um boleto por parcela, com vencimento e pagamento. */
+/** Um boleto por parcela, com vencimento e pagamento. Mesma regra do header. */
 export async function imprimirBoletos(
-  admin: Admin, seguradora: string, codigoSeguro: string, userId?: string,
+  admin: Admin, codigoSeguro: string, userId?: string,
 ): Promise<BoletoParcela[]> {
   const corpo = { ambiente: String(ambienteMaximiza()), codigo_seguro: codigoSeguro }
   const dados = await comLog<unknown>(
     admin,
     { userId, endpoint: '/incendioAlfaV2/imprimirBoleto', request: corpo },
-    () => chamar('/incendioAlfaV2/imprimirBoleto', { corpo, produto: P, seguradora }),
+    () => chamar('/incendioAlfaV2/imprimirBoleto', { corpo, produto: P }),
   )
   return lerBoletos(dados)
 }
