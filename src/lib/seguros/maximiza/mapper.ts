@@ -113,6 +113,25 @@ export function montarAnalise(input: AnaliseInput, opcoes: {
   if (input.seguradoras?.length) corpo.seguradorasAnalise = input.seguradoras
   if (opcoes.reanaliseDe) corpo.codigo = opcoes.reanaliseDe
 
+  // Solidários valem nos dois tipos de análise — e é justamente na
+  // reduzida que a seguradora costuma pedir ("aprovado com limite
+  // inferior, inclua um locatário solidário"). Enquanto este bloco ficava
+  // depois do retorno da reduzida, "Reenviar com solidários" transmitia o
+  // MESMO payload de antes, sem ninguém: o limite voltava igual e parecia
+  // que compor renda não adiantava.
+  const sol = input.solidarios?.slice(0, 3) ?? []
+  if (sol.length) {
+    const pessoal: Record<string, unknown> = { numSolidarios: sol.length }
+    sol.forEach((s, idx) => {
+      pessoal[`solidario${idx + 1}`] = {
+        nome: s.nome,
+        cpf: s.cpf,
+        dataNascimento: dataPtBr(s.dataNascimento),
+      }
+    })
+    corpo.pessoal = pessoal
+  }
+
   // A análise reduzida para por aqui — é o formulário de 2 minutos.
   if (!completa && i.finalidade === 'R') return corpo
 
@@ -164,19 +183,6 @@ export function montarAnalise(input: AnaliseInput, opcoes: {
       trataDeFranquia: simNao(i.ehFranquia),
       nomeFranqueadora: i.ehFranquia ? (i.franqueadoraCodigo ?? undefined) : undefined,
     })
-  }
-
-  const sol = input.solidarios?.slice(0, 3) ?? []
-  if (sol.length) {
-    const pessoal: Record<string, unknown> = { numSolidarios: sol.length }
-    sol.forEach((s, idx) => {
-      pessoal[`solidario${idx + 1}`] = {
-        nome: s.nome,
-        cpf: s.cpf,
-        dataNascimento: dataPtBr(s.dataNascimento),
-      }
-    })
-    corpo.pessoal = pessoal
   }
 
   return corpo
