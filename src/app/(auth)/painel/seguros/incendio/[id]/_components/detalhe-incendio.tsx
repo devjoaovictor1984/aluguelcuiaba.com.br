@@ -12,7 +12,7 @@ import {
   type ResultadoCalculo, type TipoCobertura, type TipoVigencia,
 } from '@/lib/seguros/incendio/tipos'
 import {
-  estimarProLabore, PARCELA_MINIMA, PRO_LABORE_PADRAO,
+  estimarProLabore, opcoesParcelamento, PARCELA_MINIMA, PRO_LABORE_PADRAO,
 } from '@/lib/seguros/incendio/sugestoes'
 import {
   baixarDocumentosIncendio, cancelarApoliceIncendio,
@@ -72,6 +72,18 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
   const podeContratar = a.status === 'calculada'
 
   const proLabore = estimarProLabore(a.premioTotal ?? 0)
+
+  /**
+   * As opções de pagamento: as da corretora quando ela manda, as nossas
+   * quando não manda. A Alfa devolve `listaFormasPagto` vazia, e sem esta
+   * queda a cotação calculava sem ter como ser contratada.
+   */
+  const formasApi = a.calculo?.formasPagamento ?? []
+  const derivado = formasApi.length === 0
+  const opcoes = derivado
+    ? opcoesParcelamento(a.calculo?.premio ?? a.premioTotal ?? 0)
+        .map(p => ({ codigo: '', ...p }))
+    : formasApi.flatMap(f => f.parcelas.map(p => ({ codigo: f.codigo, ...p })))
 
   const contratar = () => {
     setErro(''); setMsg('')
@@ -244,53 +256,60 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
       )}
 
       {/* Escolha do pagamento */}
-      {podeContratar && a.calculo?.formasPagamento.length ? (
+      {podeContratar && opcoes.length ? (
         <section className="rounded-2xl bg-white ring-1 ring-gray-100 shadow-sm p-4 space-y-3">
           <h2 className="text-sm font-bold text-gray-900">Forma de pagamento</h2>
 
-          {a.calculo.formasPagamento.map(f =>
-            f.parcelas.map((p, i) => {
-              const chave = `${f.codigo}-${i}`
-              const ativo = escolha?.codigo === f.codigo && escolha.qtd === p.qtdParcelas
-              // A seguradora recusa parcela abaixo do mínimo — melhor
-              // desabilitar do que deixar o corretor levar erro depois.
-              const abaixoMinimo = p.qtdParcelas > 1 && p.valorParcela < PARCELA_MINIMA
-              const cartao = /cart[aã]o/i.test(p.descricao)
+          {opcoes.map((p, i) => {
+            const ativo = escolha?.codigo === p.codigo && escolha.qtd === p.qtdParcelas
+            // A seguradora recusa parcela abaixo do mínimo — melhor
+            // desabilitar do que deixar o corretor levar erro depois.
+            const abaixoMinimo = p.qtdParcelas > 1 && p.valorParcela < PARCELA_MINIMA
+            const cartao = /cart[aã]o/i.test(p.descricao)
 
-              return (
-                <button
-                  key={chave}
-                  type="button"
-                  disabled={abaixoMinimo || cartao}
-                  onClick={() => setEscolha({
-                    codigo: f.codigo, descricao: p.descricao,
-                    qtd: p.qtdParcelas, valor: p.valorParcela,
-                  })}
-                  className={`w-full text-left rounded-xl border-2 px-3 py-2.5 transition-colors ${
-                    abaixoMinimo || cartao
-                      ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
-                      : ativo
-                        ? 'border-orange-600 bg-orange-50'
-                        : 'border-gray-100 hover:border-orange-300'
-                  }`}
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                      {cartao && <CreditCard size={12} className="text-gray-400" />}
-                      {p.descricao}
-                    </span>
-                    <span className="text-sm font-bold text-orange-700 tabular-nums shrink-0">
-                      {p.qtdParcelas}× {formatarBRL(p.valorParcela)}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-500">
-                    total {formatarBRL(p.qtdParcelas * p.valorParcela)}
-                    {abaixoMinimo && <> · abaixo da parcela mínima de {formatarBRL(PARCELA_MINIMA)}</>}
-                    {cartao && <> · cartão não é feito pela plataforma</>}
-                  </p>
-                </button>
-              )
-            }),
+            return (
+              <button
+                key={`${p.codigo}-${i}`}
+                type="button"
+                disabled={abaixoMinimo || cartao}
+                onClick={() => setEscolha({
+                  codigo: p.codigo, descricao: p.descricao,
+                  qtd: p.qtdParcelas, valor: p.valorParcela,
+                })}
+                className={`w-full text-left rounded-xl border-2 px-3 py-2.5 transition-colors ${
+                  abaixoMinimo || cartao
+                    ? 'border-gray-100 bg-gray-50 opacity-60 cursor-not-allowed'
+                    : ativo
+                      ? 'border-orange-600 bg-orange-50'
+                      : 'border-gray-100 hover:border-orange-300'
+                }`}
+              >
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
+                    {cartao && <CreditCard size={12} className="text-gray-400" />}
+                    {p.descricao}
+                  </span>
+                  <span className="text-sm font-bold text-orange-700 tabular-nums shrink-0">
+                    {p.qtdParcelas}× {formatarBRL(p.valorParcela)}
+                  </span>
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  total {formatarBRL(p.qtdParcelas * p.valorParcela)}
+                  {abaixoMinimo && <> · abaixo da parcela mínima de {formatarBRL(PARCELA_MINIMA)}</>}
+                  {cartao && <> · cartão não é feito pela plataforma</>}
+                </p>
+              </button>
+            )
+          })}
+
+          {derivado && (
+            <p className="text-[11px] text-gray-500 flex items-start gap-1.5">
+              <Info size={11} className="mt-0.5 shrink-0 text-gray-400" />
+              A seguradora não devolveu as formas de pagamento nesta cotação.
+              O parcelamento acima é calculado sobre o prêmio, respeitando a
+              parcela mínima de {formatarBRL(PARCELA_MINIMA)} — a mesma conta
+              que o painel da corretora faz.
+            </p>
           )}
 
           <p className="text-[11px] text-gray-500 flex items-start gap-1.5">

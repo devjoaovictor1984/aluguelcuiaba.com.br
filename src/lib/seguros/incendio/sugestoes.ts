@@ -58,6 +58,43 @@ export function parcelasPossiveis(premio: number): number {
   return Math.max(1, Math.min(6, Math.floor(premio / PARCELA_MINIMA)))
 }
 
+export interface OpcaoParcelamento {
+  descricao: string
+  qtdParcelas: number
+  valorParcela: number
+}
+
+/**
+ * O parcelamento, quando a API não manda nenhum.
+ *
+ * Medido em 16/08/2026: o `/calculo` da Alfa devolve `listaFormasPagto`
+ * VAZIA — nas duas vigências, com e sem assistência. Como a nossa tela só
+ * oferecia o que vinha nessa lista, a cotação calculava e não dava pra
+ * contratar: não havia o que escolher.
+ *
+ * O painel da corretora não depende dela. Ele deriva do prêmio e da
+ * parcela mínima: prêmio de R$ 210,83 vira 1× 210,83, 2× 105,41 e
+ * 3× 70,28 — para em 3 porque a quarta cairia abaixo de R$ 60. É a mesma
+ * conta daqui.
+ *
+ * A escolha derivada vai sem `cod_forma_pagto`, campo que o `/contratar`
+ * trata como opcional. Se a corretora confirmar quais códigos valem, a
+ * lista da API volta a ter preferência.
+ */
+export function opcoesParcelamento(premio: number): OpcaoParcelamento[] {
+  if (!(premio > 0)) return []
+  const maximo = parcelasPossiveis(premio)
+  return Array.from({ length: maximo }, (_, i) => {
+    const n = i + 1
+    return {
+      descricao: n === 1 ? 'À vista' : `${n}× sem juros`,
+      qtdParcelas: n,
+      // Centavos para baixo: a soma das parcelas nunca pode passar do prêmio.
+      valorParcela: Math.floor((premio / n) * 100) / 100,
+    }
+  })
+}
+
 /**
  * Percentual de pró-labore padrão sobre o prêmio.
  *
