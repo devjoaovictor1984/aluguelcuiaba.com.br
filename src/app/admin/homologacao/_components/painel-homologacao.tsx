@@ -52,10 +52,13 @@ function jaVenceu(iso: string): boolean {
   return new Date(iso).getTime() < Date.now()
 }
 
-export function PainelHomologacao({ sessoes, apontamentos, baseUrl }: {
+export function PainelHomologacao({ sessoes, apontamentos, baseUrl, baseUrlLocal }: {
   sessoes: Sessao[]
   apontamentos: Apontamento[]
+  /** Domínio público — é este que vai para a corretora. */
   baseUrl: string
+  /** Endereço local, só quando se está rodando em desenvolvimento. */
+  baseUrlLocal?: string | null
 }) {
   const [criando, setCriando] = useState(false)
   const [filtro, setFiltro] = useState<'abertos' | 'todos'>('abertos')
@@ -89,7 +92,7 @@ export function PainelHomologacao({ sessoes, apontamentos, baseUrl }: {
 
       {erro && <p className="text-sm text-rose-700 bg-rose-50 rounded-xl px-4 py-3">{erro}</p>}
 
-      {criando && <FormNovoAcesso baseUrl={baseUrl} onErro={setErro} onPronto={() => setCriando(false)} />}
+      {criando && <FormNovoAcesso baseUrl={baseUrl} baseUrlLocal={baseUrlLocal} onErro={setErro} onPronto={() => setCriando(false)} />}
 
       {/* Sessões */}
       <section className="space-y-2">
@@ -99,7 +102,7 @@ export function PainelHomologacao({ sessoes, apontamentos, baseUrl }: {
             <p className="text-sm text-gray-500">Nenhum acesso criado ainda.</p>
           </div>
         ) : (
-          sessoes.map(s => <CartaoSessao key={s.id} sessao={s} baseUrl={baseUrl} onErro={setErro} />)
+          sessoes.map(s => <CartaoSessao key={s.id} sessao={s} baseUrl={baseUrl} baseUrlLocal={baseUrlLocal} onErro={setErro} />)
         )}
       </section>
 
@@ -148,8 +151,9 @@ export function PainelHomologacao({ sessoes, apontamentos, baseUrl }: {
 
 /* ── Novo acesso ───────────────────────────────────────────────────── */
 
-function FormNovoAcesso({ baseUrl, onErro, onPronto }: {
+function FormNovoAcesso({ baseUrl, baseUrlLocal, onErro, onPronto }: {
   baseUrl: string
+  baseUrlLocal?: string | null
   onErro: (e: string) => void
   onPronto: () => void
 }) {
@@ -157,7 +161,7 @@ function FormNovoAcesso({ baseUrl, onErro, onPronto }: {
   const [organizacao, setOrganizacao] = useState('Maximiza Seguros')
   const [observacao, setObservacao] = useState('')
   const [dias, setDias] = useState(14)
-  const [link, setLink] = useState('')
+  const [token, setToken] = useState('')
   const [isPending, startTransition] = useTransition()
 
   const input = 'w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900'
@@ -167,20 +171,19 @@ function FormNovoAcesso({ baseUrl, onErro, onPronto }: {
     startTransition(async () => {
       const r = await abrirSessaoHomologacao({ nome, organizacao, observacao, dias })
       if (r.error) { onErro(r.error); return }
-      setLink(`${baseUrl}/homologacao/${r.token}`)
+      setToken(r.token ?? '')
     })
   }
 
-  if (link) {
+  if (token) {
     return (
       <section className="rounded-2xl bg-emerald-50 ring-1 ring-emerald-200 p-4 space-y-2.5">
         <h3 className="text-sm font-bold text-emerald-900">Acesso criado</h3>
         <p className="text-xs text-emerald-800">
-          Este link aparece <strong>uma vez</strong> em destaque, mas continua
-          disponível no cartão do acesso abaixo. Quem abrir entra direto — trate
-          como senha.
+          Quem abrir entra direto — trate como senha. O link continua disponível
+          no cartão do acesso abaixo.
         </p>
-        <CopiarLink link={link} />
+        <LinksDoAcesso token={token} baseUrl={baseUrl} baseUrlLocal={baseUrlLocal} />
         <button
           type="button"
           onClick={onPronto}
@@ -255,11 +258,50 @@ function CopiarLink({ link }: { link: string }) {
   )
 }
 
+/**
+ * Os endereços do acesso.
+ *
+ * O de PRODUÇÃO vem primeiro e é o único rotulado como "enviar": o token
+ * vive no mesmo banco nos dois ambientes, então ele já funciona lá — o
+ * que muda é só o prefixo. Antes o painel montava o link com
+ * NEXT_PUBLIC_APP_URL, e gerar o acesso da máquina de desenvolvimento
+ * produzia um `localhost:3000` pronto para ser mandado à corretora.
+ *
+ * O local só aparece quando se está rodando em desenvolvimento, para
+ * testar na janela anônima sem reescrever o endereço na mão.
+ */
+function LinksDoAcesso({ token, baseUrl, baseUrlLocal }: {
+  token: string
+  baseUrl: string
+  baseUrlLocal?: string | null
+}) {
+  return (
+    <div className="space-y-2">
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-700 mb-1">
+          Para enviar à corretora
+        </p>
+        <CopiarLink link={`${baseUrl}/homologacao/${token}`} />
+      </div>
+
+      {baseUrlLocal && (
+        <div>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mb-1">
+            Para testar nesta máquina
+          </p>
+          <CopiarLink link={`${baseUrlLocal}/homologacao/${token}`} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 /* ── Sessão ────────────────────────────────────────────────────────── */
 
-function CartaoSessao({ sessao: s, baseUrl, onErro }: {
+function CartaoSessao({ sessao: s, baseUrl, baseUrlLocal, onErro }: {
   sessao: Sessao
   baseUrl: string
+  baseUrlLocal?: string | null
   onErro: (e: string) => void
 }) {
   const [isPending, startTransition] = useTransition()
@@ -308,7 +350,7 @@ function CartaoSessao({ sessao: s, baseUrl, onErro }: {
           >
             {aberto ? <ChevronDown size={12} /> : <ChevronRight size={12} />} Ver o link
           </button>
-          {aberto && <CopiarLink link={`${baseUrl}/homologacao/${s.token}`} />}
+          {aberto && <LinksDoAcesso token={s.token} baseUrl={baseUrl} baseUrlLocal={baseUrlLocal} />}
           <button
             type="button"
             onClick={revogar}

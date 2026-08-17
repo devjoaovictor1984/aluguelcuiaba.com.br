@@ -204,6 +204,30 @@ export async function volumePorCorretor(admin: Admin): Promise<ResumoCorretor[]>
  * Se a corretora mudar a API ou derrubar o ambiente, é aqui que aparece
  * antes de virar reclamação de corretor.
  */
+/**
+ * Recusas que são resposta de negócio, não falha de integração.
+ *
+ * O caso que motivou a lista: pedir o boleto logo depois de contratar
+ * incêndio volta 400 "Fatura não encontrada" — a fatura da imobiliária
+ * só existe depois do fechamento do lote da seguradora. É o
+ * comportamento correto dela e a tela do corretor já explica isso.
+ *
+ * Contar essa recusa como erro de integração faz o painel de saúde
+ * exibir para sempre um "último erro" que ninguém precisa investigar —
+ * e, pior, esconder atrás dele o erro que importa. O evento continua
+ * inteiro em `seguro_eventos`: quem some é o alarme, não o registro.
+ */
+const RECUSAS_ESPERADAS = [
+  'fatura não encontrada',
+  'fatura nao encontrada',
+]
+
+function ehEsperada(erro: string | null, resposta: unknown): boolean {
+  const texto = `${erro ?? ''} ${typeof resposta === 'string' ? resposta : JSON.stringify(resposta ?? '')}`
+    .toLowerCase()
+  return RECUSAS_ESPERADAS.some(p => texto.includes(p))
+}
+
 export async function saudeIntegracao(admin: Admin): Promise<SaudeIntegracao> {
   const desde = new Date(Date.now() - 86400000).toISOString()
 
@@ -211,12 +235,14 @@ export async function saudeIntegracao(admin: Admin): Promise<SaudeIntegracao> {
     admin.from('seguro_eventos')
       .select('id', { count: 'exact', head: true })
       .gte('created_at', desde),
+    // Traz um punhado e filtra aqui: a checagem depende do corpo da
+    // resposta, que não dá pra expressar no filtro do PostgREST.
     admin.from('seguro_eventos')
-      .select('endpoint, erro, created_at')
+      .select('endpoint, erro, response, created_at')
       .not('erro', 'is', null)
       .gte('created_at', desde)
       .order('created_at', { ascending: false })
-      .limit(1),
+      .limit(50),
     admin.from('seguro_eventos')
       .select('created_at')
       .order('created_at', { ascending: false })
@@ -228,16 +254,12 @@ export async function saudeIntegracao(admin: Admin): Promise<SaudeIntegracao> {
       .gte('created_at', desde),
   ])
 
-  const { count: erros } = await admin.from('seguro_eventos')
-    .select('id', { count: 'exact', head: true })
-    .not('erro', 'is', null)
-    .gte('created_at', desde)
-
-  const e = comErro.data?.[0]
+  const reais = (comErro.data ?? []).filter(e => !ehEsperada(e.erro, e.response))
+  const e = reais[0]
 
   return {
     chamadas24h: total.count ?? 0,
-    erros24h: erros ?? 0,
+    erros24h: reais.length,
     ultimoErro: e ? { endpoint: e.endpoint, erro: e.erro ?? '', em: e.created_at } : null,
     ultimoEvento: ultimo.data?.created_at ?? null,
     webhooks24h: entradas.count ?? 0,

@@ -4,6 +4,9 @@ import { PainelHomologacao } from './_components/painel-homologacao'
 export const metadata = { title: 'Homologação — admin' }
 export const dynamic = 'force-dynamic'
 
+/** O endereço que a corretora vai abrir, independente de onde o link nasceu. */
+const DOMINIO_PUBLICO = 'https://www.aluguelcuiaba.com.br'
+
 /**
  * Onde a sessão de homologação vira trabalho.
  *
@@ -55,7 +58,22 @@ export default async function AdminHomologacaoPage() {
         resolucao: a.resolucao,
         criadoEm: a.created_at,
       }))}
-      baseUrl={process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.aluguelcuiaba.com.br'}
+      /**
+       * O link a ENVIAR é sempre o de produção, mesmo gerado daqui.
+       *
+       * O token vive no mesmo banco nos dois ambientes, então ele já
+       * funciona lá — o que muda é só o prefixo. Montar com
+       * NEXT_PUBLIC_APP_URL fazia o admin copiar um `localhost:3000` e
+       * mandar pra corretora, que veria uma página que não abre.
+       */
+      baseUrl={DOMINIO_PUBLICO}
+      // Só aparece quando se está rodando local, para testar na janela
+      // anônima sem precisar editar o endereço na mão.
+      baseUrlLocal={
+        process.env.NEXT_PUBLIC_APP_URL?.includes('localhost')
+          ? process.env.NEXT_PUBLIC_APP_URL
+          : null
+      }
     />
   )
 }
