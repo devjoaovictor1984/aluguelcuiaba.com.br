@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { exigirAcessoCRM, type AcessoCRM } from '@/lib/crm/acesso'
+import { checarAcessoCRM, type AcessoCRM } from '@/lib/crm/acesso'
+import { sessaoAtual } from '@/lib/homologacao/sessao'
 
 /**
  * O módulo tem como funcionar neste ambiente?
@@ -39,7 +40,30 @@ export function segurosConfigurado(): boolean {
  * URL direta.
  */
 export async function exigirAcessoSeguros(): Promise<AcessoCRM> {
-  const acesso = await exigirAcessoCRM()
+  const acesso = await checarAcessoCRM()
+  if (!acesso) redirect('/entrar?next=/painel/seguros/fianca')
+
+  /**
+   * Convidado de homologação (equipe técnica da corretora).
+   *
+   * Alcança este módulo e mais nada: `exigirAcessoCRM` continua barrando
+   * o resto do CRM, e todo /admin exige role 'admin'. A sessão é
+   * reconferida no banco a cada chamada — é o que faz "Revogar" cortar o
+   * acesso na hora, em vez de esperar o cookie vencer.
+   *
+   * A comparação de usuarioId fecha a última brecha: cookie de sessão de
+   * um convidado não serve para outra conta.
+   */
+  if (acesso.role === 'homologacao') {
+    const sessao = await sessaoAtual()
+    if (!sessao || sessao.usuarioId !== acesso.userId) {
+      redirect('/homologacao/encerrada?motivo=expirada')
+    }
+    if (!segurosConfigurado()) redirect('/homologacao/encerrada?motivo=falha')
+    return acesso
+  }
+
+  if (!acesso.liberado) redirect('/painel?upgrade=crm')
   if (acesso.role !== 'admin') redirect('/painel')
   // Mesmo destino do não-admin: num ambiente sem credencial o módulo não
   // existe de fato, e deixá-lo abrir só para falhar lá na frente é pior

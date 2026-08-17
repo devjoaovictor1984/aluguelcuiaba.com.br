@@ -54,10 +54,14 @@ interface Props {
   isAdmin: boolean
   /** Ambiente tem credencial da corretora? Sem ela o módulo não abre. */
   segurosLigado: boolean
+  /** Convidado da corretora: menu reduzido ao que ele pode abrir. */
+  homologacao?: boolean
   logoutAction: () => void  // server action
 }
 
-export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, segurosLigado, logoutAction }: Props) {
+export function SidebarPainel({
+  userNome, userEmail, fotoUrl, plano, isAdmin, segurosLigado, homologacao, logoutAction,
+}: Props) {
   const pathname = usePathname()
   const [drawerAberto, setDrawerAberto] = useState(false)
 
@@ -116,18 +120,39 @@ export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, se
 
       {/* Navegação */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
-        {renderGrupo('CRM Locação', GRUPO_CRM)}
-        {/* Seguros só para admin enquanto a integração com a corretora não
-            está ligada — ver exigirAcessoSeguros(). */}
-        {isAdmin && segurosLigado && renderGrupo('Seguros', GRUPO_SEGUROS)}
-        {renderGrupo('Anúncios', GRUPO_ANUNCIOS)}
-        {renderGrupo('Conta', GRUPO_CONTA)}
+        {/* Sessão de homologação: só o que ela pode abrir. Mostrar menu
+            que leva a redirecionamento faria a corretora achar que a
+            plataforma está quebrada. */}
+        {homologacao ? (
+          <>
+            <Link
+              href="/homologacao"
+              onClick={() => setDrawerAberto(false)}
+              className="block rounded-xl bg-violet-50 ring-1 ring-violet-100 px-3 py-2.5"
+            >
+              <p className="text-xs font-bold text-violet-900">Roteiro de testes</p>
+              <p className="text-[11px] text-violet-700 mt-0.5">o que abrir e em que ordem</p>
+            </Link>
+            {renderGrupo('Seguros', GRUPO_SEGUROS)}
+          </>
+        ) : (
+          <>
+            {renderGrupo('CRM Locação', GRUPO_CRM)}
+            {/* Seguros só para admin enquanto a integração com a corretora
+                não está ligada — ver exigirAcessoSeguros(). */}
+            {isAdmin && segurosLigado && renderGrupo('Seguros', GRUPO_SEGUROS)}
+            {renderGrupo('Anúncios', GRUPO_ANUNCIOS)}
+            {renderGrupo('Conta', GRUPO_CONTA)}
+          </>
+        )}
       </nav>
 
       {/* Rodapé com usuário */}
       <div className="border-t border-gray-100 p-3">
         <Link
-          href="/painel/perfil"
+          // O convidado não tem perfil para editar, e mandá-lo a uma
+          // página que redireciona parece defeito da plataforma.
+          href={homologacao ? '/homologacao' : '/painel/perfil'}
           onClick={() => setDrawerAberto(false)}
           className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 transition-colors"
         >
@@ -145,7 +170,7 @@ export function SidebarPainel({ userNome, userEmail, fotoUrl, plano, isAdmin, se
               {userNome ?? 'Sem nome'}
             </p>
             <p className="text-[10px] text-gray-500 truncate">
-              {isAdmin ? '👑 Admin' : `Plano ${plano}`}
+              {homologacao ? '🧪 Homologação' : isAdmin ? '👑 Admin' : `Plano ${plano}`}
             </p>
           </div>
         </Link>
