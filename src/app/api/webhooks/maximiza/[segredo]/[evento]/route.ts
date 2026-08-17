@@ -6,6 +6,7 @@ import { salvarArquivo } from '@/lib/seguros/arquivos'
 import { lerParecer } from '@/lib/seguros/maximiza/mapper'
 import { TIPO_ARQUIVO_APOLICE } from '@/lib/seguros/tabelas'
 import { lerEstadoAnterior, notificarMudancas } from '@/lib/seguros/notificar'
+import { identificarPretendente } from '@/lib/seguros/pretendente'
 
 /**
  * Webhooks da Maximiza: análise, biometria e arquivos.
@@ -115,7 +116,7 @@ export async function POST(
   // id pode existir em homologação e produção.
   const { data: analise } = await admin
     .from('seguro_analises')
-    .select('id, user_id, ambiente, inquilino:pessoas!inquilino_id(nome)')
+    .select('id, user_id, ambiente, payload, inquilino:pessoas!inquilino_id(nome)')
     .eq('maximiza_id', idExterno)
     .order('created_at', { ascending: false })
     .limit(1)
@@ -175,9 +176,12 @@ export async function POST(
         .eq('id', analise.id)
 
       const inq = Array.isArray(analise.inquilino) ? analise.inquilino[0] : analise.inquilino
+      // Quem cotou sem cadastro só tem nome no payload — sem isso a
+      // notificação chega falando "o pretendente".
+      const quem = identificarPretendente(inq ?? null, analise.payload)
       await notificarMudancas(
         admin,
-        { userId: analise.user_id, analiseId: analise.id, nomeInquilino: inq?.nome ?? null },
+        { userId: analise.user_id, analiseId: analise.id, nomeInquilino: quem.nome },
         antes,
         resultado.pareceres,
       )

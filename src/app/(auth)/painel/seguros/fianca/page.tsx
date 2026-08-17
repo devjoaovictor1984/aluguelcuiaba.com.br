@@ -5,7 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { STATUS_RESUMO_COR, STATUS_RESUMO_LABEL } from '@/lib/seguros/status-ui'
-import { formatarBRL } from '@/lib/formatters'
+import { identificarPretendente } from '@/lib/seguros/pretendente'
+import { formatarBRL, maskCpfCnpj } from '@/lib/formatters'
 import { Paginacao } from '../_components/paginacao'
 import { BuscaSeguros } from '../_components/busca-seguros'
 import { BandeiraSeguradora } from '../_components/bandeira-seguradora'
@@ -35,7 +36,7 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
     .from('seguro_analises')
     .select(
       `id, maximiza_id, status_resumo, ambiente, tipo_analise, finalidade,
-       valor_aluguel, created_at, erro, origem,
+       valor_aluguel, created_at, erro, origem, payload,
        inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
        imovel:imoveis(titulo),
        contrato:contratos_locacao(codigo),
@@ -62,6 +63,7 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
     created_at: string
     erro: string | null
     origem: string
+    payload: unknown
     inquilino: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null
     imovel: { titulo: string } | { titulo: string }[] | null
     contrato: { codigo: string } | { codigo: string }[] | null
@@ -76,9 +78,11 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
   const termo = q?.trim().toLowerCase() ?? ''
   const lista = ((data ?? []) as Linha[]).filter(l => {
     if (!termo) return true
-    const inq = um(l.inquilino)
+    // Busca pelo mesmo nome que a tela mostra: quem cotou sem cadastro
+    // também precisa ser encontrável.
+    const pret = identificarPretendente(um(l.inquilino), l.payload)
     const alvo = [
-      inq?.nome, inq?.cpf_cnpj, um(l.contrato)?.codigo,
+      pret.nome, pret.cpfCnpj, um(l.contrato)?.codigo,
       um(l.imovel)?.titulo, l.maximiza_id,
     ].filter(Boolean).join(' ').toLowerCase()
     return alvo.includes(termo)
@@ -141,7 +145,7 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
       ) : (
         <div className="space-y-2">
           {lista.map(l => {
-            const inq = um(l.inquilino)
+            const pret = identificarPretendente(um(l.inquilino), l.payload)
             const contrato = um(l.contrato)
             const imovel = um(l.imovel)
             return (
@@ -153,10 +157,10 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="text-[15px] font-bold text-gray-900 truncate leading-tight">
-                      {inq?.nome ?? 'Sem inquilino vinculado'}
+                      {pret.nome ?? 'Cotação sem nome'}
                     </p>
                     <p className="text-xs text-gray-500 truncate mt-0.5">
-                      {imovel?.titulo ?? '—'}
+                      {imovel?.titulo ?? (pret.cpfCnpj ? maskCpfCnpj(pret.cpfCnpj) : '—')}
                       {contrato?.codigo && <> · {contrato.codigo}</>}
                     </p>
                   </div>

@@ -4,7 +4,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { assinarUrlArquivo } from '@/lib/seguros/arquivos'
-import { formatarBRL } from '@/lib/formatters'
+import { identificarPretendente } from '@/lib/seguros/pretendente'
+import { formatarBRL, maskCpfCnpj } from '@/lib/formatters'
 import { DetalheAnalise } from './_components/detalhe-analise'
 import { HistoricoIntegracao } from './_components/historico-integracao'
 
@@ -22,7 +23,7 @@ export default async function AnalisePage({ params }: Props) {
     .from('seguro_analises')
     .select(`
       id, maximiza_id, status_resumo, ambiente, tipo_analise, finalidade,
-      valor_aluguel, created_at, erro, contrato_id,
+      valor_aluguel, created_at, erro, contrato_id, payload,
       inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
       imovel:imoveis(titulo),
       contrato:contratos_locacao(codigo)
@@ -97,6 +98,9 @@ export default async function AnalisePage({ params }: Props) {
   const imovel = um<{ titulo: string }>(analise.imovel)
   const contrato = um<{ codigo: string }>(analise.contrato)
 
+  // Cotação de quem ainda não é cadastro tem o nome só no payload.
+  const pretendente = identificarPretendente(inq, analise.payload)
+
   return (
     <div className="p-4 sm:p-6 space-y-4 max-w-3xl mx-auto pb-32">
       <div>
@@ -105,7 +109,7 @@ export default async function AnalisePage({ params }: Props) {
         </Link>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <ShieldCheck size={20} className="text-violet-600" />
-          {inq?.nome ?? 'Cotação'}
+          {pretendente.nome ?? 'Cotação'}
           {analise.ambiente === 2 && (
             <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full flex items-center gap-1">
               <FlaskConical size={10} /> homologação
@@ -113,7 +117,8 @@ export default async function AnalisePage({ params }: Props) {
           )}
         </h1>
         <p className="text-sm text-gray-500">
-          {imovel?.titulo ?? '—'}
+          {/* Sem imóvel vinculado, o CPF identifica melhor que um travessão. */}
+          {imovel?.titulo ?? (pretendente.cpfCnpj ? maskCpfCnpj(pretendente.cpfCnpj) : '—')}
           {contrato?.codigo && <> · Contrato {contrato.codigo}</>}
           {analise.valor_aluguel != null && <> · {formatarBRL(analise.valor_aluguel)}</>}
           {analise.maximiza_id && <> · nº {analise.maximiza_id}</>}
