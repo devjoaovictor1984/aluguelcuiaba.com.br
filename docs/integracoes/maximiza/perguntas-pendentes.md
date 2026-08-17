@@ -435,6 +435,44 @@ Pontos a confirmar:
 **7.1** ✅ Confirmado contra a API: `listarSeguradorasDisponiveis` devolve
 exatamente `["Alfa","Porto"]`. Há previsão de outras?
 
+**7.0 O que medimos no `/calculo` em 16/08/2026** ⚠️ *novo*
+
+Rodamos o cálculo nas duas seguradoras, variando um campo por vez. As
+diferenças entre elas não estão documentadas e cada uma derrubava a cotação de
+um jeito:
+
+**a) `ambiente` precisa ser texto no incêndio.** Na fiança número funciona;
+aqui a Alfa recusa.
+
+```
+"ambiente": 2     ->  400  "ambiente inválido"
+"ambiente": "2"   ->  201  cotação normal
+campo ausente     ->  201  cotação normal
+```
+
+O terceiro caso é o que incomoda: **sem o campo a cotação também passa**, e não
+há como saber em que ambiente ela foi processada. Qual é o padrão quando
+`ambiente` não é informado? Passamos a enviar sempre, explícito. A Porto não
+valida o campo em nenhum formato.
+
+**b) A Alfa exige nome e sobrenome** de segurado e beneficiário. Nome de uma
+palavra volta `"Nome Segurado Inválido<br/>Nome Beneficiário Inválido<br/>"`.
+Passamos a barrar no formulário, com mensagem que diz o que corrigir.
+
+**c) A Porto exige o endereço já no cálculo** (`endereco_seguro não
+informado`), enquanto a Alfa calcula só com CEP e UF. Passamos a mandar o
+endereço completo nas duas.
+
+**d) A Porto exige `vl_cob_conteudo` maior que zero mesmo com
+`tipo_cobertura: 3`** (somente prédio), e trata zero como campo não informado.
+**Isso é esperado?** Que valor devemos enviar quando o seguro não cobre
+conteúdo?
+
+**e)** Confirmado que os catálogos de ocupação e de assistência são **por
+seguradora** e não se misturam — `4070/1002` (Apartamento habitual, Alfa) é
+inválido na Porto, que usa `1/6` (APARTAMENTOS). Já tratávamos assim; fica
+registrado porque não está escrito em lugar nenhum.
+
 **7.2** No painel, a coluna "Pró-labore %/R$" mostra **20%** do prêmio nas
 apólices de incêndio. Esse percentual é fixo, varia por seguradora, ou é
 negociado por imobiliária? A API não devolve esse valor — hoje exibimos como
