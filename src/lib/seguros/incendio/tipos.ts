@@ -68,6 +68,19 @@ export interface EnderecoSeguro {
   cep: string
   endereco?: string | null
   numero?: string | null
+  /**
+   * Apartamento, bloco, sala. O painel da corretora tem o campo; a
+   * documentação da API não cita nenhum equivalente.
+   *
+   * Enviamos como `complemento_endereco_seguro`, seguindo o padrão dos
+   * vizinhos (`numero_endereco_seguro`, `bairro_endereco_seguro`). O nome
+   * está INFERIDO, não confirmado — a API aceita campo desconhecido sem
+   * reclamar, então o 201 não prova que chegou. Perguntado à corretora.
+   *
+   * Sem ele, apartamento em prédio sai do jeito errado no certificado, e
+   * é o caso mais comum de locação em Cuiabá.
+   */
+  complemento?: string | null
   bairro?: string | null
   cidade?: string | null
   uf: string

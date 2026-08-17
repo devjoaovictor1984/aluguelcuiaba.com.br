@@ -28,7 +28,7 @@ export default async function NovaIncendioPage({ searchParams }: Props) {
     .select(`
       id, codigo, valor_aluguel, data_inicio, data_termino,
       imovel_id,
-      imovel:imoveis(titulo, endereco_completo, endereco_resumido, endereco_numero, endereco_cep, bairro:bairros(nome)),
+      imovel:imoveis(titulo, endereco_completo, endereco_resumido, endereco_numero, endereco_complemento, endereco_cep, bairro:bairros(nome)),
       inquilino:pessoas!inquilino_id(id, nome, cpf_cnpj, email, telefone, whatsapp, data_nascimento),
       proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj)
     `)
@@ -47,6 +47,7 @@ export default async function NovaIncendioPage({ searchParams }: Props) {
       endereco_completo: string | null
       endereco_resumido: string | null
       endereco_numero: string | null
+      endereco_complemento: string | null
       endereco_cep: string | null
       bairro: unknown
     }>(c.imovel)
@@ -68,6 +69,7 @@ export default async function NovaIncendioPage({ searchParams }: Props) {
         cep: imovel?.endereco_cep ?? '',
         endereco: imovel?.endereco_completo ?? imovel?.endereco_resumido ?? '',
         numero: imovel?.endereco_numero ?? '',
+        complemento: imovel?.endereco_complemento ?? '',
         bairro: um<{ nome: string }>(imovel?.bairro)?.nome ?? '',
         cidade: 'Cuiabá',
         uf: 'MT',

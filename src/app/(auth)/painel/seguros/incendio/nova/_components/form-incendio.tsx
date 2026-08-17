@@ -23,7 +23,7 @@ interface ContratoOpcao {
   dataInicio: string
   dataTermino: string | null
   imovelId: string | null
-  endereco: { cep: string; endereco: string; numero: string; bairro: string; cidade: string; uf: string }
+  endereco: { cep: string; endereco: string; numero: string; complemento: string; bairro: string; cidade: string; uf: string }
   inquilino: { id: string; nome: string; cpfCnpj: string; email: string; telefone: string; dataNascimento: string } | null
   proprietario: { id: string; nome: string; cpfCnpj: string } | null
 }
@@ -75,6 +75,7 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
   const [cep, setCep] = useState('')
   const [endereco, setEndereco] = useState('')
   const [numero, setNumero] = useState('')
+  const [complemento, setComplemento] = useState('')
   const [bairro, setBairro] = useState('')
   const [cidade, setCidade] = useState('Cuiabá')
   const [uf, setUf] = useState('MT')
@@ -167,6 +168,7 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
     setCep(c.endereco.cep ? maskCep(c.endereco.cep) : '')
     setEndereco(c.endereco.endereco)
     setNumero(c.endereco.numero)
+    setComplemento(c.endereco.complemento)
     setBairro(c.endereco.bairro)
     setCidade(c.endereco.cidade)
     setUf(c.endereco.uf)
@@ -247,7 +249,7 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
             nome: propNome.trim(),
             cpfCnpj: propDoc,
           },
-          endereco: { cep, endereco, numero, bairro, cidade, uf },
+          endereco: { cep, endereco, numero, complemento, bairro, cidade, uf },
           inicioVigencia: inicio,
           fimVigencia: fim,
           valores: {
@@ -477,6 +479,15 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
           <div>
             <label className={label}>Número</label>
             <input value={numero} onChange={e => setNumero(e.target.value)} className={input} inputMode="numeric" />
+          </div>
+          <div>
+            <label className={label}>Complemento</label>
+            <input
+              value={complemento}
+              onChange={e => setComplemento(e.target.value)}
+              placeholder="Apto 302, bloco B"
+              className={input}
+            />
           </div>
           <div>
             <label className={label}>Bairro</label>

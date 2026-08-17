@@ -68,6 +68,10 @@ function corpoBase(i: CalculoIncendioInput, ambiente: 1 | 2): Record<string, unk
     cep_endereco_seguro: i.endereco.cep,
     endereco_seguro: i.endereco.endereco ?? '',
     numero_endereco_seguro: Number(String(i.endereco.numero ?? '').replace(/\D/g, '')) || 0,
+    // Nome inferido do padrão dos vizinhos — ver EnderecoSeguro em tipos.ts.
+    ...(i.endereco.complemento
+      ? { complemento_endereco_seguro: i.endereco.complemento }
+      : {}),
     bairro_endereco_seguro: i.endereco.bairro ?? '',
     cidade_endereco_seguro: i.endereco.cidade ?? '',
     inicio_vigencia_seguro: dataPtBr(i.inicioVigencia),
