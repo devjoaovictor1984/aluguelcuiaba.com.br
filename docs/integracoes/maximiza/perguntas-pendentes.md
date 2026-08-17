@@ -1,10 +1,17 @@
 # Integração AluguelCuiabá × Maximiza — pontos em aberto
 
-**Situação (15/08/2026):** rodamos o **fluxo completo de fiança em
-homologação** — `transmitirAnalise` e `GET /apiFiancaAnalise/{id}` respondem e
-o parecer chega. Autenticação, `seguradorasAnalise`, `consultarImobiliaria` e
-`listarSeguradorasDisponiveis` (incêndio) também. O bloco 1 saiu do caminho; o
-que trava agora é o **bloco 2 (modelo comercial)**.
+**Situação (16/08/2026):** a integração está de pé e chegou até onde a
+homologação permite. `transmitirAnalise` e `GET /apiFiancaAnalise/{id}`
+respondem, o parecer chega, e a análise para em **pré-aprovado** — como vocês
+descreveram. Daí não sai.
+
+Três coisas travam a continuação dos testes, e as três dependem de vocês:
+**habilitação das outras seguradoras no CNPJ de teste** (1.6), **cadastro das
+URLs de webhook** (1.2) e **como concluir uma biometria em homologação**
+(3.4.1). Sem a segunda, nenhuma análise passa de pré-aprovado, e a contratação
+nunca chega a ser exercitada.
+
+Em paralelo segue aberto o **bloco 2 (modelo comercial)**.
 
 Os pontos abaixo estão agrupados por urgência. Itens marcados ✅ foram
 respondidos — ficam registrados porque a resposta virou decisão de código.
@@ -42,6 +49,12 @@ do nosso lado, mas vale o alerta ao time de vocês: quem comparar o código com
 igualdade estrita vai ler uma aprovação como estado desconhecido. Se houver
 intenção de padronizar, preferimos número — e avisem, porque aceitamos ambos.
 
+**Análise 215549 (16/08/2026)** — fiança reduzida, residencial, Cuiabá/MT,
+aluguel R$ 2.000,00, 30 meses, transmitida só para a Porto. Voltou
+`codigoStatus 12`, "Pre-Aprovado", `msg: "Necessária biometria facial para
+contratação"`, `codigoAnalise 000000018577766`. É a análise a que os itens
+1.6, 3.4.1 e 4.8 se referem.
+
 ---
 
 ## 1. Bloqueiam o início dos testes
@@ -49,9 +62,32 @@ intenção de padronizar, preferimos número — e avisem, porque aceitamos ambo
 **1.1 Credencial de homologação** ✅ **resolvido**
 Recebida em 13/08/2026 e testada com sucesso.
 
-**1.2 Autenticação dos webhooks**
-A documentação lista apenas `Content-Type: application/json` nos webhooks de
-análise, biometria e arquivos — sem assinatura, HMAC ou token.
+**1.2 Webhooks** ⚠️ *virou bloqueio*
+Duas coisas aqui: o **cadastro** das URLs do nosso lado, que é o que trava
+hoje, e a **autenticação** delas, que é a discussão de segurança.
+
+*Cadastro — é o que precisamos primeiro.* Nenhum webhook nosso foi acionado
+até agora (zero recebidos desde 13/08). Precisamos que estas três URLs sejam
+cadastradas para a nossa integração:
+
+```
+https://www.aluguelcuiaba.com.br/api/webhooks/maximiza/<segredo>/analise
+https://www.aluguelcuiaba.com.br/api/webhooks/maximiza/<segredo>/biometria
+https://www.aluguelcuiaba.com.br/api/webhooks/maximiza/<segredo>/arquivos
+```
+
+O `<segredo>` vai por canal separado — ver a pergunta sobre segredo no
+caminho, logo abaixo. As três respondem `{"success":"1"}`, como a
+documentação pede.
+
+Por que isso virou bloqueio: **o link da biometria só existe no webhook**.
+Medimos — o `GET /apiFiancaAnalise/{id}` devolve `statusBiometria` mas nunca
+`linkBiometria` (ver 3.4.1). Sem o webhook cadastrado não há caminho para o
+link chegar até o corretor, a análise fica parada em pré-aprovado e a
+contratação não chega a ser testada.
+
+*Autenticação.* A documentação lista apenas `Content-Type: application/json`
+nos webhooks de análise, biometria e arquivos — sem assinatura, HMAC ou token.
 
 Do nosso lado tratamos isso não confiando no corpo da requisição: usamos o
 webhook apenas como aviso de mudança e reconsultamos o estado com nosso token.
@@ -97,6 +133,17 @@ Ou seja: não há erro, e também não há resposta. Do lado do corretor isso é
 análise que fica parada para sempre, sem nada que explique o motivo — e ele não
 tem como saber que a seguradora não estava habilitada.
 
+**Já implementamos o filtro** (16/08): a lista de seguradoras é resolvida no
+servidor e nunca vai vazia, cruzando essas flags com o campo `analiseReduzida`
+do `seguradorasAnalise`. Descobrimos o segundo critério do jeito difícil —
+omitir `seguradorasAnalise` significa "todas" para a API, e "todas" inclui a
+Tokio, que não aceita análise reduzida; a validação dela estoura em **500
+genérico e derruba junto as outras três**, que teriam cotado. Pedida sozinha,
+a Tokio recusa corretamente, com motivo. Vale conferir esse tratamento do lado
+de vocês.
+
+Restam as perguntas:
+
 - O entendimento sobre os campos está certo?
 - **Confirmam que devemos filtrar** a lista de seguradoras oferecidas por esses
   campos? Pelo que medimos, é o que evita a análise natimorta — só queremos o
@@ -108,6 +155,20 @@ tem como saber que a seguradora não estava habilitada.
 
 *(No `yelum_incendio` aparece uma seguradora — Yelum — que não está em nenhuma
 das listas de disponíveis. Ela entra em algum momento?)*
+
+**1.6 Habilitar as demais seguradoras no CNPJ de teste** ⚠️ *novo — pedido*
+Consequência direta do 1.5: com `porto_fianca` como única habilitação ativa, o
+CNPJ de teste só permite exercitar **uma** das quatro seguradoras. Três quartos
+da integração de fiança seguem sem cobertura de teste — e o comportamento
+delas hoje, se insistirmos, é análise natimorta, sem erro.
+
+**Pedido:** habilitar `too_fianca`, `tokio_fianca` e `pottencial_fianca` no
+CNPJ `10.961.528/0001-80`, em homologação.
+
+O que isso destrava do nosso lado: comparação de pareceres entre seguradoras na
+mesma análise (que é o produto que estamos construindo), o caminho da Tokio com
+análise completa, e a validação de que o filtro do 1.5 está correto — hoje não
+temos como distinguir "filtrou certo" de "só existe uma opção".
 
 ---
 
@@ -219,10 +280,36 @@ Com a regra da biometria que vocês passaram, o mapa que implementamos é este �
 **Pergunta:** o `5` (limite inferior) também só aparece depois da biometria, ou
 ele pode sair já na análise financeira?
 
-**3.4.1 Como sabemos que a biometria terminou?**
-O webhook de biometria avisa a mudança, mas o parecer novo (12 → 1) chega no
-webhook de análise ou precisamos consultar? Hoje reconsultamos a análise a cada
-webhook, então funciona nos dois casos — é só para sabermos o esperado.
+**3.4.1 A biometria: o link e o fim dela** ⚠️ *bloqueia o teste de contratação*
+
+*O link.* Medimos na análise 215549: o `GET /apiFiancaAnalise/{id}` devolve
+`"statusBiometria": 0` e a mensagem "Necessária biometria facial para
+contratação", mas **não devolve `linkBiometria`**. Entendemos, então, que o
+link só trafega no webhook de biometria. Confirmam? Se houver outro endpoint
+que o recupere, é o que precisamos — hoje o corretor vê que falta biometria e
+não tem o que mandar para o inquilino.
+
+*Concluir a biometria em homologação.* Existe algum caminho de teste? Um CPF
+que conclua automaticamente, um endpoint que force o resultado, ou o link de
+homologação abre um fluxo real que dá para percorrer? **É o que trava o teste
+de `/contratar`** — sem chegar ao status 1, a contratação nunca abre e não
+conseguimos exercitar emissão, webhook de arquivos nem número de apólice.
+
+*O fim dela.* O webhook de biometria avisa a mudança, mas o parecer novo
+(12 → 1) chega no webhook de análise ou precisamos consultar? Hoje
+reconsultamos a análise a cada webhook, então funciona nos dois casos — é só
+para sabermos o esperado.
+
+**3.9 O campo `corretor` no eco da análise** ⚠️ *novo*
+O `GET /apiFiancaAnalise/215549` devolve, dentro de `dadosAnalise`:
+
+```json
+"imobiliaria": { "cnpj": "10.961.528/0001-80", "corretor": "10" }
+```
+
+O `corretor` não é campo que enviamos e não consta na documentação. O que ele
+identifica? Perguntamos porque pode ser justamente o marcador de canal que
+falta para o item 2.2 — o que registra que a análise passou pelo AluguelCuiabá.
 
 **3.5 Campos de empresa**
 `tipo_empresa`, `opcao_tributaria_empresa` e `capital_social_empresa` aparecem no
@@ -266,6 +353,34 @@ proprietário receber?** Essa é a primeira pergunta que todo proprietário faz,
 precisamos saber responder.
 
 **4.6** Rate limit da API — quantas requisições por minuto?
+
+**4.8** ⚠️ **Tempo de resposta do `transmitirAnalise`, e uma análise órfã.**
+*novo, e tem uma parte que é pedido*
+
+Na análise 215549 a chamada levou **56,2 segundos** até responder. Nosso
+cliente tinha teto de 30s por tentativa, então a primeira tentativa foi
+abortada e a **segunda** é que trouxe o resultado.
+
+O problema é que a primeira não morreu no caminho: ela chegou até vocês e foi
+processada. Ou seja, é bem provável que exista uma **análise órfã** criada por
+ela, poucos minutos antes da 215549, no CNPJ `10.961.528/0001-80` — com número
+próprio, que nós nunca soubemos qual é.
+
+- **Pedido:** localizar e descartar essa análise, para não poluir a base de
+  homologação nem a contagem de vocês.
+- Qual é o tempo **esperado** de resposta do `transmitirAnalise`? Existe teto?
+- Existe **modo assíncrono** — responder o id imediatamente e mandar o parecer
+  pelo webhook de análise? É o desenho que resolveria isto de vez.
+
+Por que perguntamos: nossa aplicação roda em plataforma com limite de **60
+segundos** por requisição. Uma transmissão de 56s passa raspando; qualquer
+análise mais lenta que isso é interrompida pela plataforma antes de vocês
+responderem, e nem o corretor nem nós saberíamos o que houve.
+
+Do nosso lado já tratamos: chamadas que criam registro (`transmitirAnalise`,
+`transmitirReanalise`, `contratar`, `cadastrarImobiliaria`, `cancelar`) não são
+mais repetidas automaticamente — repetir, nesses casos, produz duplicata em vez
+de reparo.
 
 **4.7** Existe SLA de disponibilidade? Quem é o contato técnico em caso de
 indisponibilidade?
@@ -348,8 +463,12 @@ caminho é contratar uma nova?
 Checklist do que precisamos de vocês para ligar:
 
 - [x] Credencial de **homologação** — recebida em 13/08/2026 e testada
+- [ ] **Habilitar Too, Tokio e Pottencial** no CNPJ de teste (1.6) — *destrava
+      3 das 4 seguradoras*
+- [ ] **URLs de webhook cadastradas** do lado de vocês (1.2) — *destrava a
+      biometria e, com ela, a contratação*
+- [ ] **Caminho para concluir biometria em homologação** (3.4.1)
 - [ ] Credencial de **produção** (separada da de homologação)
-- [ ] URLs de webhook cadastradas do lado de vocês (análise, biometria, arquivos)
 - [ ] Contrato de parceria assinado
 - [ ] Tabela de comissionamento definida
 - [ ] DPA / acordo de tratamento de dados
@@ -361,5 +480,7 @@ Checklist do que precisamos de vocês para ligar:
 *Documento gerado a partir da análise de `api.fianca.pdf` (v1, 24 páginas),
 `api.imobiliaria.pdf` (v1) e da especificação OpenAPI 3.0 fornecida.*
 
-*Atualizado em 15/08/2026 com o resultado do primeiro fluxo de fiança rodado
-ponta a ponta em homologação (ver 0 e 1.5).*
+*Atualizado em 16/08/2026 com a análise 215549 e o que ela mediu: o link da
+biometria não vem no GET (3.4.1), o tempo de 56s na transmissão e a provável
+análise órfã (4.8), o campo `corretor` no eco (3.9) e o pedido de habilitação
+das demais seguradoras no CNPJ de teste (1.6).*
