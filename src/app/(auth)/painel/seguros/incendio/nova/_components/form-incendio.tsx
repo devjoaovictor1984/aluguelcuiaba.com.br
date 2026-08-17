@@ -36,6 +36,10 @@ interface Props {
 const input = 'w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-gray-900'
 const label = 'text-xs font-medium text-gray-600 block mb-1'
 
+/** Nome e sobrenome — é o que a Alfa exige de segurado e beneficiário. */
+const nomeCompleto = (v: string) =>
+  v.trim().split(/\s+/).filter(p => p.length > 1).length >= 2
+
 /** Soma meses a uma data ISO. */
 function somarMeses(iso: string, meses: number): string {
   if (!iso) return ''
@@ -188,6 +192,8 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
     aplicarSugestao(c.aluguel, tipoCobertura, true)
   }
 
+  const ehPorto = seguradora.toLowerCase().startsWith('porto')
+
   const calcular = () => {
     setErro('')
     const oc = ocupacoes.find(o => o.rubrica === ocupacao)
@@ -198,11 +204,20 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
     if (parseMoney(aluguel) <= 0) return setErro('Informe o valor do aluguel.')
     if (cep.replace(/\D/g, '').length !== 8) return setErro('CEP inválido.')
     if (!inqNome.trim()) return setErro('Informe o nome do inquilino.')
+    // A Alfa recusa nome de uma palavra só, e a mensagem dela é "Nome
+    // Segurado Inválido" — que não diz o que corrigir. Barramos antes.
+    if (!nomeCompleto(inqNome)) return setErro('Informe o nome COMPLETO do inquilino — a seguradora recusa só o primeiro nome.')
     if (inqDoc.replace(/\D/g, '').length < 11) return setErro('CPF/CNPJ do inquilino incompleto.')
     if (!propNome.trim()) return setErro('Informe o nome do proprietário.')
+    if (!nomeCompleto(propNome)) return setErro('Informe o nome COMPLETO do proprietário — a seguradora recusa só o primeiro nome.')
     if (propDoc.replace(/\D/g, '').length < 11) return setErro('CPF/CNPJ do proprietário incompleto.')
     if (!inicio || !fim) return setErro('Informe a vigência.')
     if (parseMoney(vIncendio) <= 0) return setErro('Informe o valor da cobertura de incêndio.')
+    // A Porto exige conteúdo mesmo quando a cobertura é "somente prédio", e
+    // trata zero como não informado.
+    if (ehPorto && parseMoney(vConteudo) <= 0) {
+      return setErro('A Porto exige um valor para a cobertura de conteúdo, mesmo em "somente prédio".')
+    }
 
     startTransition(async () => {
       const r = await calcularApoliceIncendio({

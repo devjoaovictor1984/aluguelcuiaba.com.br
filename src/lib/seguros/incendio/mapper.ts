@@ -12,17 +12,33 @@ import type {
  * Convenções diferentes das de fiança, ainda que na mesma corretora:
  *  · valores vão como number (a fiança usa string PT-BR na análise);
  *  · alguns campos numéricos voltam como STRING ("120000.00", "100.01");
- *  · `ambiente` é number no cálculo e string no cancelar/imprimir.
+ *  · `ambiente` vai como STRING em toda chamada de incêndio.
  *
  * Tudo isso fica preso aqui.
  */
 
-/** Campos comuns a cálculo e contratação — a contratação só acrescenta. */
+/**
+ * Campos comuns a cálculo e contratação — a contratação só acrescenta.
+ *
+ * O endereço mora aqui, e não só na contratação, porque a Porto o exige já
+ * no cálculo: sem ele responde 400 "endereco_seguro não informado". A Alfa
+ * calcula sem, mas mandar nas duas não custa nada e evita a divergência.
+ */
 function corpoBase(i: CalculoIncendioInput, ambiente: 1 | 2): Record<string, unknown> {
   const foneInq = separarDdd(i.inquilino.telefone)
 
   return {
-    ambiente,
+    /**
+     * String, não número.
+     *
+     * Medido em 16/08/2026: a Alfa responde 400 "ambiente inválido" para
+     * `2` e aceita `"2"`. A Porto não valida o campo em nenhum dos dois
+     * formatos. Era o que derrubava toda cotação de incêndio na Alfa.
+     *
+     * Atenção: omitir o campo também passa na Alfa — e aí não sabemos em
+     * que ambiente ela processa. Por isso vai sempre, explícito.
+     */
+    ambiente: String(ambiente),
     cpfcnpj_imob: i.cnpjImobiliaria,
     aluguel: i.aluguel,
 
@@ -50,6 +66,10 @@ function corpoBase(i: CalculoIncendioInput, ambiente: 1 | 2): Record<string, unk
 
     uf_endereco_seguro: i.endereco.uf,
     cep_endereco_seguro: i.endereco.cep,
+    endereco_seguro: i.endereco.endereco ?? '',
+    numero_endereco_seguro: Number(String(i.endereco.numero ?? '').replace(/\D/g, '')) || 0,
+    bairro_endereco_seguro: i.endereco.bairro ?? '',
+    cidade_endereco_seguro: i.endereco.cidade ?? '',
     inicio_vigencia_seguro: dataPtBr(i.inicioVigencia),
     fim_vigencia_seguro: dataPtBr(i.fimVigencia),
 
@@ -59,7 +79,11 @@ function corpoBase(i: CalculoIncendioInput, ambiente: 1 | 2): Record<string, unk
     vl_cob_resp_civil: i.valores.respCivil ?? 0,
     vl_cob_danos_eletrico: i.valores.danosEletricos ?? 0,
     vl_cob_vazamento: i.valores.vazamento ?? 0,
-    ...(i.valores.conteudo ? { vl_cob_conteudo: i.valores.conteudo } : {}),
+    // Sempre presente: a Porto exige o campo mesmo em "somente prédio", e
+    // trata ausente e zero do mesmo jeito ("vl_cob_conteudo não
+    // informado"). Quem barra o zero antes do envio é o formulário, com
+    // mensagem que diz o que fazer.
+    vl_cob_conteudo: i.valores.conteudo ?? 0,
     ...(i.valores.impactoVeiculo ? { vl_cob_impacto_veiculo: i.valores.impactoVeiculo } : {}),
   }
 }
@@ -69,8 +93,8 @@ export function montarCalculo(i: CalculoIncendioInput, ambiente: 1 | 2): Record<
 }
 
 /**
- * A contratação exige o que o cálculo dispensa: sexo do inquilino,
- * endereço completo e quantidade de parcelas.
+ * A contratação exige o que o cálculo dispensa: sexo do inquilino e
+ * quantidade de parcelas. O endereço já vai no corpo base.
  */
 export function montarContratacaoIncendio(
   i: ContratacaoIncendioInput,
@@ -79,10 +103,6 @@ export function montarContratacaoIncendio(
   return {
     ...corpoBase(i, ambiente),
     sexo_inquilino: i.inquilino.sexo ?? 'M',
-    endereco_seguro: i.endereco.endereco ?? '',
-    numero_endereco_seguro: Number(String(i.endereco.numero ?? '').replace(/\D/g, '')) || 0,
-    bairro_endereco_seguro: i.endereco.bairro ?? '',
-    cidade_endereco_seguro: i.endereco.cidade ?? '',
     qtpar: Math.max(1, Math.min(6, i.qtdParcelas)),
     ...(i.formaPagtoCodigo ? { cod_forma_pagto: i.formaPagtoCodigo } : {}),
     ...(i.formaPagtoDescricao ? { desc_forma_pagto: i.formaPagtoDescricao } : {}),
