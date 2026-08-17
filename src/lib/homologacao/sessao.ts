@@ -66,18 +66,33 @@ async function garantirUsuarioConvidado(
     const { data: lista } = await admin.auth.admin.listUsers()
     const existente = lista?.users.find(u => u.email === EMAIL_CONVIDADO)
     if (!existente) return { error: error?.message ?? 'Não foi possível criar o usuário de homologação.' }
-    await admin.from('perfis').upsert({ id: existente.id, nome: 'Homologação — corretora', role: 'homologacao' })
+    await admin.from('perfis').upsert(perfilConvidado(existente.id))
     return { id: existente.id }
   }
 
-  const { error: ePerfil } = await admin.from('perfis').upsert({
-    id: criado.user.id,
-    nome: 'Homologação — corretora',
-    role: 'homologacao',
-  })
+  const { error: ePerfil } = await admin.from('perfis').upsert(perfilConvidado(criado.user.id))
   if (ePerfil) return { error: `Usuário criado, mas o perfil falhou: ${ePerfil.message}` }
 
   return { id: criado.user.id }
+}
+
+/**
+ * O perfil do convidado, explícito de ponta a ponta.
+ *
+ * `plano: 'free'` e `crm_ativo: false` não são detalhe: é o par que faz
+ * `exigirAcessoCRM` continuar barrando o resto do CRM. Deixar em branco
+ * para o banco resolver funcionaria hoje e viraria brecha no dia em que
+ * o default mudasse.
+ */
+function perfilConvidado(id: string) {
+  return {
+    id,
+    nome: 'Homologação — corretora',
+    tipo: 'corretor',
+    plano: 'free',
+    crm_ativo: false,
+    role: 'homologacao',
+  }
 }
 
 export async function criarSessao(input: {
