@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download, MessageCircle, Pencil, Mail } from 'lucide-react'
 import { criarProcessoAssinatura, cancelarProcessoAssinatura, atualizarEmailSignatario, reenviarConviteSignatario } from '../assinatura-actions'
+import { ConfirmarEnvioAssinatura } from './confirmar-envio-assinatura'
 
 interface Sugestao { nome: string; email: string; papel: string }
 interface SignatarioStatus { id: string; nome: string; email: string; papel: string | null; status: string; token: string }
@@ -34,6 +35,8 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
   const [editId, setEditId] = useState<string | null>(null)
   const [editVal, setEditVal] = useState('')
   const [reenviado, setReenviado] = useState<string | null>(null)
+  // Signatários já validados, esperando a confirmação do corretor.
+  const [confirmando, setConfirmando] = useState<Linha[] | null>(null)
 
   const salvarEmail = (id: string) => {
     startTransition(async () => {
@@ -67,9 +70,18 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
     }
     const signatarios = linhas.filter(l => l.nome.trim() && /\S+@\S+\.\S+/.test(l.email))
     if (signatarios.length === 0) { setErro('Adicione ao menos 1 signatário com nome e e-mail válido.'); return }
+    // A validação já passou; quem decide agora é o corretor, vendo pra
+    // quem vai. Ver ConfirmarEnvioAssinatura.
+    setConfirmando(signatarios)
+  }
+
+  const confirmarEnvio = () => {
+    const signatarios = confirmando
+    if (!signatarios) return
     startTransition(async () => {
       const r = await criarProcessoAssinatura({ tipo_contrato: tipoContrato, contrato_id: contratoId, titulo, signatarios, exigirOtp })
-      if (r.error) { setErro(r.error); return }
+      if (r.error) { setErro(r.error); setConfirmando(null); return }
+      setConfirmando(null)
       setLinhas([{ nome: '', email: '', papel: '' }])
       router.refresh()
     })
@@ -100,6 +112,16 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
 
   return (
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-4">
+      {confirmando && (
+        <ConfirmarEnvioAssinatura
+          signatarios={confirmando}
+          exigirOtp={exigirOtp}
+          enviando={isPending}
+          onConfirmar={confirmarEnvio}
+          onCancelar={() => setConfirmando(null)}
+        />
+      )}
+
       <div className="mb-3">
         <h2 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
           <PenLine size={15} className="text-violet-600" /> Assinar pela plataforma
