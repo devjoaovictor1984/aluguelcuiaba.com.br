@@ -1,6 +1,6 @@
 import 'server-only'
 import type { createAdminClient } from '@/lib/supabase/admin'
-import { ambienteMaximiza, chamar } from '../maximiza/client'
+import { ambienteMaximiza, chamar, TIMEOUT_TRANSMISSAO } from '../maximiza/client'
 import { registrarEvento } from '../index'
 import {
   lerBoletos, lerCalculo, lerContratacaoIncendio, lerDocumentos,
@@ -128,27 +128,40 @@ export async function contratarIncendio(
   const dados = await comLog<unknown>(
     admin,
     { userId, endpoint: '/incendioAlfaV2/contratar', request: corpo },
-    () => chamar('/incendioAlfaV2/contratar', { corpo, produto: P, seguradora: input.seguradora, criaRegistro: true }),
+    () => chamar('/incendioAlfaV2/contratar', {
+      corpo, produto: P, seguradora: input.seguradora,
+      criaRegistro: true, timeoutMs: TIMEOUT_TRANSMISSAO,
+    }),
   )
   return lerContratacaoIncendio(dados)
 }
 
-/** Cancela a apólice. A fiança não tem equivalente na API. */
+/**
+ * Cancela a apólice. A fiança não tem equivalente na API.
+ *
+ * NÃO leva o header `seguradora` — a regra vale para os três endpoints
+ * chaveados por `codigo_seguro`, e este foi o último a ser medido:
+ * 17/08/2026, apólice 607773, contratada na Alfa pela própria API,
+ * cancelamento com o header devolveu 400 "Seguro informado não pertence a
+ * seguradora Alfa". Sem o header, funciona.
+ *
+ * A seguradora saiu da assinatura junto com o header: não sobrou uso para
+ * ela aqui, e mantê-la só faria parecer que ainda é enviada.
+ */
 export async function cancelarIncendio(
-  admin: Admin, seguradora: string, codigoSeguro: string, userId?: string,
+  admin: Admin, codigoSeguro: string, userId?: string,
 ): Promise<{ ok: boolean; mensagem: string }> {
   // Aqui `ambiente` vai como STRING; no cálculo vai como number.
   const corpo = { ambiente: String(ambienteMaximiza()), codigo_seguro: codigoSeguro }
   const dados = await comLog<{ status?: string; mensagem?: string }>(
     admin,
     { userId, endpoint: '/incendioAlfaV2/cancelar', request: corpo },
-    // ⚠️ Este ainda manda o header, e talvez não devesse: os outros dois
-    // endpoints chaveados por `codigo_seguro` recusam quando ele vai
-    // (ver `imprimirProposta`). Aqui não foi medido — cancelar não é
-    // chamada que se dispara pra experimentar. Se aparecer o mesmo
-    // "Seguro informado não pertence a seguradora X", é isto: tirar o
-    // `seguradora` da linha abaixo resolve.
-    () => chamar('/incendioAlfaV2/cancelar', { corpo, produto: P, seguradora, criaRegistro: true }),
+    // O teto de tempo é o das chamadas lentas: a primeira tentativa foi
+    // abortada aos 30s sem resposta, e o `contratar` deste mesmo produto
+    // já tinha levado 14,5s num dia bom.
+    () => chamar('/incendioAlfaV2/cancelar', {
+      corpo, produto: P, criaRegistro: true, timeoutMs: TIMEOUT_TRANSMISSAO,
+    }),
   )
   return {
     ok: String(dados?.status ?? '') === '1',
@@ -161,9 +174,9 @@ export async function cancelarIncendio(
 /**
  * Certificado e proposta em base64. Sob demanda, não por webhook.
  *
- * ⚠️ ESTES DOIS ENDPOINTS NÃO LEVAM O HEADER `seguradora`. Medido em
- * 17/08/2026 contra a apólice 607773, contratada na Alfa minutos antes
- * pela própria API:
+ * ⚠️ OS TRÊS ENDPOINTS CHAVEADOS POR `codigo_seguro` — este, o boleto e o
+ * cancelar — NÃO LEVAM O HEADER `seguradora`. Medido em 17/08/2026 contra
+ * a apólice 607773, contratada na Alfa minutos antes pela própria API:
  *
  *   com header "Alfa"  →  400 "Seguro informado não pertence a
  *                             seguradora Alfa"

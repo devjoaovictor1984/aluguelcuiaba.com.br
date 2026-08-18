@@ -21,7 +21,7 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 | Incêndio — cálculo | ✅ funciona na Alfa e na Porto |
 | Incêndio — contratação | ✅ apólice 607773 emitida em homologação |
 | Incêndio — documentos | ✅ certificado e proposta; boleto sai depois do lote |
-| Incêndio — cancelamento | ⚠️ único passo do fluxo que nunca rodou |
+| Incêndio — cancelamento | ⚠️ header removido; falta o clique que confirma |
 | Comissões | ✅ registradas na venda; percentuais dependem da corretora |
 | Modelo comercial | ⏳ nada definido — ver `perguntas-pendentes.md`, bloco 2 |
 
@@ -262,9 +262,17 @@ diferente. Ou seja, a busca não precisa do header, e com ele quebra.
 `imprimirProposta` e `imprimirBoleto` deixaram de mandar o header.
 **Confirmado depois:** o download voltou 201 com PDF real de 281 mil caracteres.
 
-O `cancelar` é o terceiro endpoint chaveado por `codigo_seguro` e continua
-mandando o header, com comentário no código. **Não medido — cancelamento não é
-chamada que se dispara pra experimentar.** ⚠️
+**Medido em seguida, na mesma apólice:** o `cancelar` faz igual. Com o header,
+400 `"Seguro informado não pertence a seguradora Alfa"`; sem ele, passa. A
+regra vale para os **três** endpoints chaveados por `codigo_seguro`. Os três
+deixaram de mandar o header. ✅
+
+A primeira tentativa de cancelar nem chegou a esse ponto: foi abortada aos 30s.
+Descobrimos aí que o teto maior de tempo tinha ficado só nas chamadas de
+fiança — o incêndio seguia em 30s. Corrigido. E logo depois veio o motivo real
+da demora: **entre ~18h10 e ~18h25 todos os endpoints do host de incêndio
+responderam `504 Gateway Time-out`**, inclusive um que havia respondido 201 uma
+hora antes. A autenticação seguia normal. Voltou sozinho. ⚠️ *deles*
 
 ### h) O boleto atrasa em relação ao certificado ⏳
 
@@ -341,8 +349,8 @@ vazio.
 
 - **Contratação de fiança** (`/contratar`) — bloqueada pela biometria.
 - **Webhooks** — nenhum recebido desde 13/08; as URLs não estão cadastradas.
-- **Cancelamento de incêndio** — é o único passo do fluxo que falta, e o
-  suspeito do header (item g) só se confirma nele.
+- **Cancelamento de incêndio** — a causa foi encontrada e corrigida (header),
+  falta o clique que confirma o fim do fluxo.
 - **Boleto de incêndio** — depende do fechamento do lote da seguradora.
 - **Faturamento de incêndio** (`listarFaturamento`).
 - **Qualquer seguradora de fiança que não seja a Porto** — sem habilitação.

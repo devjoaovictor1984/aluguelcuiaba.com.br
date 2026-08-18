@@ -253,7 +253,7 @@ export async function cancelarApoliceIncendio(apoliceId: string) {
   if (!apolice.codigo_seguro) return { error: 'Apólice sem código na seguradora.' }
 
   try {
-    const r = await cancelarIncendio(admin, apolice.seguradora, apolice.codigo_seguro, acesso.userId)
+    const r = await cancelarIncendio(admin, apolice.codigo_seguro, acesso.userId)
     if (!r.ok) return { error: r.mensagem || 'A seguradora recusou o cancelamento.' }
 
     await admin.from('seguro_incendio_apolices').update({
