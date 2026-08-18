@@ -65,6 +65,13 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
   const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState('')
   const [msg, setMsg] = useState('')
+  // Separado do erro de propósito: "o boleto ainda não saiu" é o curso
+  // normal das coisas, e pintar isso de vermelho faz o corretor achar que
+  // a operação falhou quando ela deu certo pela metade combinada.
+  const [aviso, setAviso] = useState('')
+
+  /** Toda ação começa limpando o que sobrou da anterior. */
+  const limpar = () => { setErro(''); setMsg(''); setAviso('') }
   const [escolha, setEscolha] = useState<{ codigo: string; descricao: string; qtd: number; valor: number } | null>(null)
 
   const contratada = a.status === 'contratada'
@@ -86,7 +93,7 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
     : formasApi.flatMap(f => f.parcelas.map(p => ({ codigo: f.codigo, ...p })))
 
   const contratar = () => {
-    setErro(''); setMsg('')
+    limpar()
     if (!escolha) { setErro('Escolha a forma de pagamento.'); return }
     startTransition(async () => {
       const r = await contratarApoliceIncendio(a.id, {
@@ -102,20 +109,21 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
   }
 
   const baixar = () => {
-    setErro(''); setMsg('')
+    limpar()
     startTransition(async () => {
       const r = await baixarDocumentosIncendio(a.id)
       if (r.error) { setErro(r.error); return }
       setMsg(`${r.baixados} documento(s) baixado(s).`)
       // Baixa parcial é o caso normal logo após contratar: o certificado
       // sai na hora, o boleto depende do lote da seguradora.
-      if (r.aviso) setErro(r.aviso)
+      if (r.aviso) setAviso(r.aviso)
       router.refresh()
     })
   }
 
   const cancelar = () => {
     if (!confirm('Cancelar esta apólice na seguradora? A operação é registrada lá.')) return
+    limpar()
     startTransition(async () => {
       const r = await cancelarApoliceIncendio(a.id)
       if (r.error) { setErro(r.error); return }
@@ -126,6 +134,7 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
 
   const excluir = () => {
     if (!confirm('Excluir esta cotação? Não dá pra desfazer.')) return
+    limpar()
     startTransition(async () => {
       const r = await excluirApoliceIncendio(a.id)
       if (r.error) { setErro(r.error); return }
@@ -334,6 +343,7 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
       ) : null}
 
       {msg && <p className="text-xs text-emerald-800 bg-emerald-50 ring-1 ring-emerald-100 rounded-xl px-3 py-2.5">{msg}</p>}
+      {aviso && <p className="text-xs text-amber-900 bg-amber-50 ring-1 ring-amber-100 rounded-xl px-3 py-2.5">{aviso}</p>}
       {erro && <p className="text-xs text-rose-800 bg-rose-50 ring-1 ring-rose-100 rounded-xl px-3 py-2.5">{erro}</p>}
 
       {a.cancelamentoMsg && (

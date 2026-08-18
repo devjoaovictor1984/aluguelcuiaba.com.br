@@ -21,7 +21,7 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 | Incêndio — cálculo | ✅ funciona na Alfa e na Porto |
 | Incêndio — contratação | ✅ apólice 607773 emitida em homologação |
 | Incêndio — documentos | ✅ certificado e proposta; boleto sai depois do lote |
-| Incêndio — cancelamento | ⚠️ header removido; falta o clique que confirma |
+| Incêndio — cancelamento | ✅ "Certificado cancelado com sucesso" |
 | Comissões | ✅ registradas na venda; percentuais dependem da corretora |
 | Modelo comercial | ⏳ nada definido — ver `perguntas-pendentes.md`, bloco 2 |
 
@@ -345,12 +345,33 @@ vazio.
 
 ---
 
+## 18/08/2026 — fluxo de incêndio fechado
+
+`cancelar` sem o header devolveu **"Certificado cancelado com sucesso."** na
+apólice 607773. Com isso o incêndio está percorrido de ponta a ponta:
+
+```
+cálculo → contratação → certificado e proposta → cancelamento
+```
+
+Sobra o **boleto**, que não depende de nós: a fatura da imobiliária só existe
+depois do fechamento do lote da seguradora.
+
+Dois defeitos nossos que só apareceram porque a primeira tentativa falhou:
+
+- **`cancelar` e `excluir` não limpavam as mensagens anteriores.** O erro do
+  timeout ficou na tela ao lado do "cancelado com sucesso" — o corretor lê as
+  duas e não sabe no que acreditar. Toda ação agora começa limpando. ✅
+- **O aviso do boleto era pintado de vermelho.** "O boleto ainda não foi
+  gerado" é o curso normal das coisas, não falha; virou estado próprio, em
+  âmbar. ✅
+
+---
+
 ## O que ainda não foi exercitado nenhuma vez
 
 - **Contratação de fiança** (`/contratar`) — bloqueada pela biometria.
 - **Webhooks** — nenhum recebido desde 13/08; as URLs não estão cadastradas.
-- **Cancelamento de incêndio** — a causa foi encontrada e corrigida (header),
-  falta o clique que confirma o fim do fluxo.
 - **Boleto de incêndio** — depende do fechamento do lote da seguradora.
 - **Faturamento de incêndio** (`listarFaturamento`).
 - **Qualquer seguradora de fiança que não seja a Porto** — sem habilitação.
