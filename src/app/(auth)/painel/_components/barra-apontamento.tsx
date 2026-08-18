@@ -66,25 +66,26 @@ export function BarraApontamento({ expiraEm }: { expiraEm: string }) {
 
   return (
     <>
-      {/* Faixa fixa: lembra que é ambiente de teste e dá o botão de anotar */}
-      <div className="fixed bottom-0 inset-x-0 z-40 bg-violet-900 text-white px-4 py-2.5 flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <p className="text-xs font-bold leading-tight">Ambiente de homologação</p>
-          <p className="text-[11px] text-violet-200 truncate">
-            Nada aqui vira apólice de verdade · acesso por mais {diasRestantes} dia{diasRestantes === 1 ? '' : 's'}
-          </p>
-        </div>
+      {/*
+        Encostado na borda direita, na altura do meio da tela.
+        
+        Era uma faixa no rodapé, e ela cobria o botão "Salvar" das telas que
+        têm ação no fim do formulário — que são quase todas. Rodapé fixo
+        disputa espaço com rodapé de página; a lateral, não.
+      */}
+      <div className="fixed right-0 top-1/2 -translate-y-1/2 z-40 flex flex-col items-end gap-1.5">
+        <span className="rounded-l-lg bg-amber-100 text-amber-900 text-[10px] font-bold px-2 py-1 ring-1 ring-amber-200">
+          homologação · {diasRestantes}d
+        </span>
         <button
           type="button"
           onClick={() => setAberto(true)}
-          className="shrink-0 flex items-center gap-1.5 rounded-xl bg-white text-violet-900 px-3.5 py-2 text-xs font-bold hover:bg-violet-50"
+          title={`Ambiente de teste — nada aqui vira apólice de verdade. Acesso por mais ${diasRestantes} dia(s).`}
+          className="flex items-center gap-1.5 rounded-l-xl bg-violet-900 hover:bg-violet-800 text-white pl-3 pr-3.5 py-3 text-xs font-bold shadow-lg"
         >
-          <PenLine size={13} /> Anotar
+          <PenLine size={14} /> Anotar
         </button>
       </div>
-
-      {/* Espaço para a faixa não cobrir o fim da página */}
-      <div className="h-16" aria-hidden />
 
       {aberto && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">

@@ -43,9 +43,24 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(new URL('/painel', request.url))
     }
 
-    if (pathname.startsWith('/painel') && !pathname.startsWith('/painel/perfil')) {
+    /**
+     * Convidado de homologação não tem perfil pra completar.
+     *
+     * Sem esta saída, a equipe técnica da corretora abria o link e caía
+     * num formulário pedindo CPF, telefone e endereço antes de alcançar
+     * qualquer tela — travando o teste e, pior, pedindo dado pessoal de
+     * terceiro que não queremos guardar nem precisamos.
+     */
+    const ehConvidado = perfil?.role === 'homologacao'
+
+    if (!ehConvidado && pathname.startsWith('/painel') && !pathname.startsWith('/painel/perfil')) {
       const completo = perfil?.nome && perfil?.cpf && perfil?.telefone && perfil?.endereco_logradouro
       if (!completo) return NextResponse.redirect(new URL('/painel/perfil?novo=1', request.url))
+    }
+
+    // E não tem o que fazer no perfil: manda de volta ao roteiro.
+    if (ehConvidado && pathname.startsWith('/painel/perfil')) {
+      return NextResponse.redirect(new URL('/homologacao', request.url))
     }
   }
 
