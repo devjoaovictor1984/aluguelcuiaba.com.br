@@ -88,6 +88,25 @@ export async function verificarPerfilParaSeguros(
   admin: Admin,
   userId: string,
 ): Promise<StatusProvisionamento> {
+  /**
+   * Mesma primeira linha de `garantirImobiliaria`, e pela mesma razão.
+   *
+   * Em homologação a cotação sai sob o CNPJ de teste: o perfil do usuário
+   * não é lido nem enviado. Dizer "complete seu perfil antes de cotar"
+   * seria pedir uma coisa que não muda nada e bloquear uma tela que
+   * funcionaria.
+   *
+   * Foi o que aconteceu com o convidado da corretora: ele abria "Nova
+   * cotação" e, em vez do formulário, recebia um aviso para completar um
+   * cadastro que ele não tem como completar. Vale para o corretor também
+   * — em ambiente 2 o aviso mentia para todo mundo.
+   *
+   * Em produção `cnpjDeTeste()` devolve null e a exigência volta inteira,
+   * que é quando ela passa a ser verdade.
+   */
+  const teste = cnpjDeTeste()
+  if (teste) return { pronto: true, cnpjCpf: teste }
+
   const { data, error } = await admin
     .from('perfis').select(CAMPOS_PERFIL).eq('id', userId).maybeSingle()
 
