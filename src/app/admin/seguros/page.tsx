@@ -9,6 +9,7 @@ import {
 } from '@/lib/seguros/admin/metricas'
 import { formatarBRL } from '@/lib/formatters'
 import { PRO_LABORE_PADRAO } from '@/lib/seguros/incendio/sugestoes'
+import { UrlsWebhook } from './_components/urls-webhook'
 
 export const metadata = { title: 'Seguros — admin' }
 export const dynamic = 'force-dynamic'
@@ -31,7 +32,18 @@ export default async function AdminSegurosPage() {
   const ambiente = process.env.MAXIMIZA_AMBIENTE
   const demo = process.env.MAXIMIZA_DEMO === '1'
   const temCredencial = !!process.env.MAXIMIZA_EMAIL && !!process.env.MAXIMIZA_SENHA
-  const temWebhook = !!process.env.MAXIMIZA_WEBHOOK_SEGREDO
+  const segredoWebhook = process.env.MAXIMIZA_WEBHOOK_SEGREDO
+  const temWebhook = !!segredoWebhook
+
+  /**
+   * O domínio é fixo, e não `NEXT_PUBLIC_APP_URL`, porque a URL que a
+   * corretora cadastra é sempre a pública — mesmo que esta página esteja
+   * sendo aberta de uma máquina de desenvolvimento.
+   */
+  const urlsWebhook = ['analise', 'biometria', 'arquivos'].map(evento => ({
+    evento,
+    url: `https://www.aluguelcuiaba.com.br/api/webhooks/maximiza/${segredoWebhook}/${evento}`,
+  }))
 
   const ativos = corretores.filter(c => c.premioTotal > 0 || c.fiancaAnalises > 0)
 
@@ -249,6 +261,9 @@ export default async function AdminSegurosPage() {
           originado aqui.
         </p>
       </section>
+
+      {/* O que a corretora precisa cadastrar do lado dela */}
+      {temWebhook && <UrlsWebhook urls={urlsWebhook} />}
 
       {/* Configuração — leitura, porque vive em variável de ambiente */}
       <section className="rounded-2xl bg-white ring-1 ring-gray-100 shadow-sm p-4">
