@@ -76,6 +76,28 @@ export async function registrarApontamento(input: {
     eventos = evs ?? null
   }
 
+  /**
+   * Sem id na URL, cai nas últimas chamadas da própria sessão.
+   *
+   * A tela de NOVA cotação não tem id — o registro ainda não existe. E é
+   * exatamente onde uma cotação recusada acontece: a pessoa preenche,
+   * toma erro da seguradora e anota ali mesmo. Sem esta queda, justamente
+   * a anotação mais útil chegaria sem nenhuma chamada anexada.
+   *
+   * Filtra por usuário para não misturar com o que outra pessoa estava
+   * fazendo no mesmo minuto.
+   */
+  if (!registroId) {
+    const { data: evs } = await admin
+      .from('seguro_eventos')
+      .select('created_at, endpoint, direcao, http_status, duracao_ms, erro, request, response')
+      .eq('user_id', sessao.usuarioId)
+      .order('created_at', { ascending: false })
+      .limit(6)
+    eventos = evs ?? null
+    contexto.origemDosEventos = 'ultimas-da-sessao'
+  }
+
   if (registroId && produto === 'incendio') {
     const { data: apolice } = await admin
       .from('seguro_incendio_apolices')
