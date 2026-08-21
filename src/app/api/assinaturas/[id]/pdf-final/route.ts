@@ -5,6 +5,7 @@ import { createHash } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CertificadoAssinaturaDocument, type CertificadoData } from '@/lib/crm/certificado-assinatura-pdf'
+import { assinarUrlSelfie } from '@/lib/storage/selfies'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: signatarios } = await admin
       .from('contrato_assinatura_signatarios')
-      .select('nome, email, celular, papel, assinado_em, otp_verificado_em, ip, geo, selfie_b64, assinatura_b64, token')
+      .select('nome, email, celular, papel, assinado_em, otp_verificado_em, ip, geo, selfie_path, selfie_b64, assinatura_b64, token')
       .eq('assinatura_id', proc.id)
       .order('ordem', { ascending: true })
 
@@ -73,16 +74,24 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { data: perfil } = await admin.from('perfis').select('razao_social, nome').eq('id', proc.user_id).maybeSingle()
     const emitente = perfil?.razao_social || perfil?.nome || 'AluguelCuiabá'
 
+    // Selfies no bucket privado → URL assinada curta, só pro render.
+    // Assinaturas anteriores à v82 têm a imagem em base64: usa como fallback.
+    const selfiesUrl = await Promise.all(
+      (signatarios ?? []).map(async s =>
+        (await assinarUrlSelfie(admin, s.selfie_path, 300)) ?? s.selfie_b64 ?? null,
+      ),
+    )
+
     const certData: CertificadoData = {
       titulo: proc.titulo ?? 'Contrato',
       tipo_contrato: proc.tipo_contrato as 'locacao' | 'administracao',
       emitente_nome: emitente,
       concluido_em: null,
       hash,
-      signatarios: (signatarios ?? []).map(s => ({
+      signatarios: (signatarios ?? []).map((s, i) => ({
         nome: s.nome, email: s.email, celular: s.celular, papel: s.papel,
         assinado_em: s.assinado_em, otp_usado: !!s.otp_verificado_em, ip: s.ip, geo: s.geo,
-        selfie_b64: s.selfie_b64, assinatura_b64: s.assinatura_b64,
+        selfie_url: selfiesUrl[i], assinatura_b64: s.assinatura_b64,
       })),
     }
 

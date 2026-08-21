@@ -4,12 +4,14 @@ import { createHash, randomInt } from 'crypto'
 import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { enviarEmail } from '@/lib/email/sender'
+import { subirSelfieBase64 } from '@/lib/storage/selfies'
 
 function hashOtp(code: string): string {
   return createHash('sha256').update(code).digest('hex')
 }
 
 interface ProcRow {
+  user_id: string
   status: string
   titulo: string | null
   exigir_otp: boolean | null
@@ -33,7 +35,7 @@ async function carregar(token: string): Promise<{ sig?: SignatarioRow; proc?: Pr
   const admin = createAdminClient()
   const { data } = await admin
     .from('contrato_assinatura_signatarios')
-    .select('id, assinatura_id, nome, email, celular, status, otp_hash, otp_expira_em, assinatura:contrato_assinaturas!inner(status, titulo, exigir_otp, tipo_contrato, contrato_id)')
+    .select('id, assinatura_id, nome, email, celular, status, otp_hash, otp_expira_em, assinatura:contrato_assinaturas!inner(user_id, status, titulo, exigir_otp, tipo_contrato, contrato_id)')
     .eq('token', token)
     .maybeSingle()
   if (!data) return { error: 'Link inválido ou não encontrado.' }
@@ -129,11 +131,21 @@ export async function confirmarAssinatura(token: string, payload: {
   const ua = hdrs.get('user-agent') ?? null
   const agora = new Date().toISOString()
 
+  // Selfie é dado biométrico: vai pro bucket privado 'selfies' e o banco
+  // guarda só o caminho. A URL é assinada na hora de renderizar o
+  // certificado. Mesmo tratamento da vistoria e do termo de chaves (v53).
+  const selfie = await subirSelfieBase64(
+    admin,
+    payload.selfie_b64,
+    `${proc.user_id}/assinaturas/${sig.assinatura_id}/${sig.id}`,
+  )
+  if (selfie.error || !selfie.path) return { error: selfie.error ?? 'Falha ao salvar a selfie.' }
+
   const { error: upErr } = await admin
     .from('contrato_assinatura_signatarios')
     .update({
       status: 'assinado',
-      selfie_b64: payload.selfie_b64,
+      selfie_path: selfie.path,
       assinatura_b64: payload.assinatura_b64,
       consentimento_em: agora,
       assinado_em: agora,

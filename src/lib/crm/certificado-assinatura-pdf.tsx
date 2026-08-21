@@ -10,7 +10,8 @@ export interface CertificadoSignatario {
   otp_usado: boolean
   ip: string | null
   geo: string | null
-  selfie_b64: string | null
+  /** URL assinada do bucket privado (ou data URL legada, pré-v82). */
+  selfie_url: string | null
   assinatura_b64: string | null
 }
 
@@ -74,7 +75,7 @@ export function CertificadoAssinaturaDocument({ data }: { data: CertificadoData 
             <Text style={styles.campo}><Text style={styles.label}>Assinado em: </Text>{fmt(s.assinado_em)}</Text>
             <Text style={styles.campo}><Text style={styles.label}>IP: </Text>{s.ip ?? '—'}   <Text style={styles.label}>Localização: </Text>{s.geo ?? '—'}</Text>
             <View style={styles.imgRow}>
-              {s.selfie_b64 && <Image src={s.selfie_b64} style={styles.selfie} />}
+              {s.selfie_url && <Image src={s.selfie_url} style={styles.selfie} />}
               {s.assinatura_b64 && <Image src={s.assinatura_b64} style={styles.assinatura} />}
             </View>
           </View>
