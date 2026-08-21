@@ -29,6 +29,9 @@ export function CapturaSelfie({ value, onChange, consentimento = CONSENT_PADRAO,
   const fileRef = useRef<HTMLInputElement>(null)
 
   const [camAtiva, setCamAtiva] = useState(false)
+  // A câmera só entrega pixel depois do 1º frame decodificado. Antes disso o
+  // vídeo já tem videoWidth, mas o canvas sai preto — daí a trava aqui.
+  const [pronta, setPronta] = useState(false)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
 
@@ -37,8 +40,21 @@ export function CapturaSelfie({ value, onChange, consentimento = CONSENT_PADRAO,
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
     setCamAtiva(false)
+    setPronta(false)
   }
   useEffect(() => () => pararCamera(), [])
+
+  // Liga o stream no <video> DEPOIS que o React montou o elemento. Com
+  // requestAnimationFrame isso corria junto do commit e o ref podia estar
+  // null: o stream nunca era atribuído e o vídeo ficava preto até a pessoa
+  // cancelar e abrir de novo.
+  useEffect(() => {
+    const v = videoRef.current
+    const stream = streamRef.current
+    if (!camAtiva || !v || !stream) return
+    v.srcObject = stream
+    v.play().catch(() => {})
+  }, [camAtiva])
 
   const abrirCamera = async () => {
     setErro('')
@@ -52,14 +68,8 @@ export function CapturaSelfie({ value, onChange, consentimento = CONSENT_PADRAO,
         audio: false,
       })
       streamRef.current = stream
-      setCamAtiva(true)
-      // Espera o React renderizar o <video> antes de atribuir o stream.
-      requestAnimationFrame(() => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream
-          videoRef.current.play().catch(() => {})
-        }
-      })
+      setPronta(false)
+      setCamAtiva(true) // o efeito acima atribui o stream após a montagem
     } catch (e) {
       const msg = e instanceof Error ? e.message : ''
       // Sem permissão ou sem suporte → usa o fallback de upload (câmera nativa).
@@ -76,7 +86,12 @@ export function CapturaSelfie({ value, onChange, consentimento = CONSENT_PADRAO,
 
   const capturar = () => {
     const v = videoRef.current
-    if (!v || !v.videoWidth) return
+    // HAVE_CURRENT_DATA (2) = já existe frame pra desenhar. Sem isso o
+    // drawImage copia um quadro vazio e a selfie sai preta.
+    if (!v || !v.videoWidth || v.readyState < 2) {
+      setErro('A câmera ainda está abrindo. Tente de novo em 1 segundo.')
+      return
+    }
     const lado = Math.min(v.videoWidth, v.videoHeight)
     const canvas = document.createElement('canvas')
     canvas.width = lado
@@ -130,13 +145,26 @@ export function CapturaSelfie({ value, onChange, consentimento = CONSENT_PADRAO,
         <div className="space-y-2">
           <div className="relative w-full max-w-[280px] mx-auto aspect-square rounded-2xl overflow-hidden bg-black">
             {/* espelhado pra parecer espelho */}
-            <video ref={videoRef} playsInline muted className="w-full h-full object-cover scale-x-[-1]" />
+            <video
+              ref={videoRef}
+              playsInline
+              muted
+              onLoadedData={() => setPronta(true)}
+              onPlaying={() => setPronta(true)}
+              className="w-full h-full object-cover scale-x-[-1]"
+            />
+            {!pronta && (
+              <div className="absolute inset-0 flex items-center justify-center text-white/80 text-xs gap-2">
+                <Loader2 size={14} className="animate-spin" /> Preparando câmera…
+              </div>
+            )}
           </div>
           <div className="flex justify-center gap-2">
             <button
               type="button"
               onClick={capturar}
-              className="flex items-center gap-2 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold px-5 py-2.5 rounded-xl"
+              disabled={!pronta}
+              className="flex items-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2.5 rounded-xl"
             >
               <Camera size={15} /> Capturar
             </button>
