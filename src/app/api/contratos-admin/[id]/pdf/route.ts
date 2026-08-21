@@ -107,21 +107,25 @@ export async function GET(
     const { id } = await params
     const admin = createAdminClient()
 
-    // Autoriza por login OU por token de revisão (?rt=), pro cliente ver sem conta.
+    // Autoriza por token de revisão (?rt=) / assinatura (?st=) OU por login.
+    // O TOKEN VEM PRIMEIRO: quem abre o link pode estar logado no portal com a
+    // própria conta. Se a sessão mandasse, o dono do contrato não bateria e a
+    // resposta seria 403 mesmo com link válido. Os tokens são amarrados a este
+    // contrato, então não ampliam acesso.
     // viaRevisao = aberto pelo link de revisão → força os destaques de modificação.
-    let ownerId: string | null = user?.id ?? null
+    const url = new URL(request.url)
+    const rt = url.searchParams.get('rt')
+    const st = url.searchParams.get('st')
+    let ownerId: string | null = null
     let viaRevisao = false
-    if (!ownerId) {
-      const url = new URL(request.url)
-      const rt = url.searchParams.get('rt')
-      const st = url.searchParams.get('st')
-      if (rt) {
-        ownerId = await validarTokenRevisao(admin, rt, 'administracao', id)
-        viaRevisao = !!ownerId
-      } else if (st) {
-        ownerId = await validarTokenAssinatura(admin, st, 'administracao', id)
-      }
+    if (rt) {
+      ownerId = await validarTokenRevisao(admin, rt, 'administracao', id)
+      viaRevisao = !!ownerId
+    } else if (st) {
+      ownerId = await validarTokenAssinatura(admin, st, 'administracao', id)
     }
+    // Token ausente, expirado ou revogado → cai pro login (dono no painel).
+    if (!ownerId) ownerId = user?.id ?? null
     if (!ownerId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
     // 1. Carrega contrato de administração + proprietário + imóvel

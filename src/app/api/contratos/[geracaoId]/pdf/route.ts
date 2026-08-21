@@ -367,21 +367,25 @@ export async function GET(
   const { geracaoId } = await params
   const admin = createAdminClient()
 
-  // Autoriza por login OU por token de revisão (?rt=), pro cliente ver sem conta.
+  // Autoriza por token de revisão (?rt=) / assinatura (?st=) OU por login.
+  // O TOKEN VEM PRIMEIRO: quem abre o link pode estar logado no portal com a
+  // própria conta (inquilino, proprietário). Se a sessão mandasse, o dono da
+  // geração não bateria e a resposta seria 404 mesmo com link válido.
+  // Os dois tokens são amarrados a esta geração, então não ampliam acesso.
   // viaRevisao = aberto pelo link de revisão → força os destaques de modificação.
-  let ownerId: string | null = user?.id ?? null
+  const url = new URL(request.url)
+  const rt = url.searchParams.get('rt')
+  const st = url.searchParams.get('st')
+  let ownerId: string | null = null
   let viaRevisao = false
-  if (!ownerId) {
-    const url = new URL(request.url)
-    const rt = url.searchParams.get('rt')
-    const st = url.searchParams.get('st')
-    if (rt) {
-      ownerId = await validarTokenRevisao(admin, rt, 'locacao', geracaoId)
-      viaRevisao = !!ownerId
-    } else if (st) {
-      ownerId = await validarTokenAssinatura(admin, st, 'locacao', geracaoId)
-    }
+  if (rt) {
+    ownerId = await validarTokenRevisao(admin, rt, 'locacao', geracaoId)
+    viaRevisao = !!ownerId
+  } else if (st) {
+    ownerId = await validarTokenAssinatura(admin, st, 'locacao', geracaoId)
   }
+  // Token ausente, expirado ou revogado → cai pro login (dono no painel).
+  if (!ownerId) ownerId = user?.id ?? null
   if (!ownerId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
   // 1. Carrega a geração
