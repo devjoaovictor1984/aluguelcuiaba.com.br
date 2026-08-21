@@ -479,8 +479,16 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
   // Assinaturas desenhadas (plataforma) — casadas com o bloco pela palavra-chave do papel.
   const assinaturasPartes = data.assinaturas_partes ?? []
-  const sigDe = (...kws: string[]): string | null =>
-    assinaturasPartes.find(a => kws.some(kw => (a.papel ?? '').toLowerCase().includes(kw)))?.imagem ?? null
+  // Casa pela ORDEM das palavras-chave, não pela ordem dos signatários: em
+  // contrato com administração quem assina o bloco é a administradora, e um
+  // "Locador(a)" avulso na lista não pode roubar o lugar dela.
+  const sigDe = (...kws: string[]): string | null => {
+    for (const kw of kws) {
+      const achou = assinaturasPartes.find(a => (a.papel ?? '').toLowerCase().includes(kw))
+      if (achou) return achou.imagem
+    }
+    return null
+  }
   const sigsTestemunha = assinaturasPartes.filter(a => (a.papel ?? '').toLowerCase().includes('testemunh'))
   const ASSIN_IMG = { width: 150, height: 40, objectFit: 'contain' as const, marginBottom: 1 }
   const subtituloContrato = isAdmin

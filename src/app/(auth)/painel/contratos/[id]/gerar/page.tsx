@@ -85,7 +85,7 @@ async function renderizarEditor(contratoId: string) {
     .select(`
       id, codigo, garantia_tipo, valor_aluguel, data_inicio, data_termino,
       qtd_chaves, qtd_controles, qtd_tags, conjuge_inquilino_papel, anotacoes_corretor,
-      imovel_id,
+      imovel_id, tipo_atuacao, taxa_admin_valor,
       inquilino:pessoas!inquilino_id(id, nome, conjuge_nome, email),
       proprietario:pessoas!proprietario_id(id, nome, email),
       imovel:imoveis(
@@ -210,9 +210,30 @@ async function renderizarEditor(contratoId: string) {
   const { data: testPessoasAss } = testIdsAss.length > 0
     ? await supabase.from('pessoas').select('nome, email').in('id', testIdsAss).eq('user_id', acesso.userId)
     : { data: [] }
+  // Quem assina pelo lado do locador depende da atuação. Com administração
+  // imobiliária a folha de assinatura traz "LOCADOR / ADMINISTRADORA" com o
+  // nome e o CRECI da administradora representando o proprietário (ver
+  // contrato-pdf.tsx) — então o link tem que ir pra administradora, não pro
+  // proprietário. Sem administração, o bloco é "LOCADOR" e quem assina é ele.
+  const temAdministracaoAss =
+    (contrato.tipo_atuacao ?? 'administracao') === 'administracao' &&
+    (contrato.taxa_admin_valor ?? 0) > 0
+
+  const { data: { user } } = await supabase.auth.getUser()
+  const { data: perfilAss } = await supabase
+    .from('perfis')
+    .select('nome, razao_social')
+    .eq('id', acesso.userId)
+    .maybeSingle()
+  // O bloco do PDF mostra a PESSOA responsável (perfil.nome) + CRECI, então o
+  // signatário tem que ser a mesma pessoa — não a razão social.
+  const adminNomeAss = perfilAss?.nome || perfilAss?.razao_social || 'Administradora'
+
   const sugestoesAss = [
     inqEmail?.email ? { nome: inqEmail.nome, email: inqEmail.email, papel: 'Locatário(a)' } : null,
-    propEmail?.email ? { nome: propEmail.nome, email: propEmail.email, papel: 'Locador(a)' } : null,
+    temAdministracaoAss
+      ? (user?.email ? { nome: adminNomeAss, email: user.email, papel: 'Administradora (responsável)' } : null)
+      : (propEmail?.email ? { nome: propEmail.nome, email: propEmail.email, papel: 'Locador(a)' } : null),
     ...((testPessoasAss ?? []) as Array<{ nome: string; email: string | null }>)
       .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' })),
   ].filter((s): s is { nome: string; email: string; papel: string } => !!s)
