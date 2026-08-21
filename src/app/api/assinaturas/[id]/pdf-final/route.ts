@@ -4,8 +4,8 @@ import { PDFDocument } from 'pdf-lib'
 import { createHash } from 'crypto'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { CertificadoAssinaturaDocument, type CertificadoData } from '@/lib/crm/certificado-assinatura-pdf'
-import { assinarUrlSelfie } from '@/lib/storage/selfies'
+import { CertificadoAssinaturaDocument } from '@/lib/crm/certificado-assinatura-pdf'
+import { montarCertificado } from '@/lib/crm/certificado-dados'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: proc } = await admin
       .from('contrato_assinaturas')
-      .select('id, user_id, tipo_contrato, contrato_id, titulo, status, pdf_hash')
+      .select('id, user_id, tipo_contrato, contrato_id, titulo, status, pdf_hash, concluido_em')
       .eq('id', id)
       .maybeSingle()
     if (!proc) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
@@ -43,13 +43,15 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'O contrato ainda não foi assinado por todas as partes.' }, { status: 400 })
     }
 
-    const { data: signatarios } = await admin
-      .from('contrato_assinatura_signatarios')
-      .select('nome, email, celular, papel, assinado_em, otp_verificado_em, ip, geo, user_agent, selfie_path, selfie_b64, assinatura_b64, token')
-      .eq('assinatura_id', proc.id)
-      .order('ordem', { ascending: true })
-
-    const tokenInterno = (signatarios ?? [])[0]?.token
+    // Mesma montagem usada na prévia do certificado — uma fonte só pra trilha.
+    // O hash só existe depois de carregar o contrato, então entra logo abaixo.
+    const { cert, tokenInterno } = await montarCertificado(admin, {
+      id: proc.id,
+      user_id: proc.user_id,
+      tipo_contrato: proc.tipo_contrato as 'locacao' | 'administracao',
+      titulo: proc.titulo,
+      concluido_em: proc.concluido_em,
+    }, { hash: null, parcial: false })
     if (!tokenInterno) return NextResponse.json({ error: 'Sem signatários.' }, { status: 400 })
 
     // Base URL da requisição (mesmo host, evita redirect apex/www)
@@ -70,32 +72,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       await admin.from('contrato_assinaturas').update({ pdf_hash: hash }).eq('id', proc.id)
     }
 
-    // Emitente
-    const { data: perfil } = await admin.from('perfis').select('razao_social, nome').eq('id', proc.user_id).maybeSingle()
-    const emitente = perfil?.razao_social || perfil?.nome || 'AluguelCuiabá'
+    cert.hash = hash
 
-    // Selfies no bucket privado → URL assinada curta, só pro render.
-    // Assinaturas anteriores à v82 têm a imagem em base64: usa como fallback.
-    const selfiesUrl = await Promise.all(
-      (signatarios ?? []).map(async s =>
-        (await assinarUrlSelfie(admin, s.selfie_path, 300)) ?? s.selfie_b64 ?? null,
-      ),
-    )
-
-    const certData: CertificadoData = {
-      titulo: proc.titulo ?? 'Contrato',
-      tipo_contrato: proc.tipo_contrato as 'locacao' | 'administracao',
-      emitente_nome: emitente,
-      concluido_em: null,
-      hash,
-      signatarios: (signatarios ?? []).map((s, i) => ({
-        nome: s.nome, email: s.email, celular: s.celular, papel: s.papel,
-        assinado_em: s.assinado_em, otp_usado: !!s.otp_verificado_em, ip: s.ip, geo: s.geo,
-        selfie_url: selfiesUrl[i], assinatura_b64: s.assinatura_b64, user_agent: s.user_agent,
-      })),
-    }
-
-    const element = React.createElement(CertificadoAssinaturaDocument, { data: certData }) as unknown as React.ReactElement<DocumentProps>
+    const element = React.createElement(CertificadoAssinaturaDocument, { data: cert }) as unknown as React.ReactElement<DocumentProps>
     const certBuffer = await renderToBuffer(element)
 
     // Merge: contrato + certificado

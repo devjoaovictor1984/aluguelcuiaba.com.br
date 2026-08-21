@@ -14,6 +14,8 @@ export interface CertificadoSignatario {
   selfie_url: string | null
   assinatura_b64: string | null
   user_agent: string | null
+  /** Ainda nao assinou — so aparece na previa, com o bloco vazio. */
+  pendente?: boolean
 }
 
 /** User-agent cru é ruído no certificado: vira "Navegador · Sistema". */
@@ -49,6 +51,8 @@ export interface CertificadoData {
   concluido_em: string | null
   hash: string | null
   signatarios: CertificadoSignatario[]
+  /** Previa emitida com o processo em andamento (nem todos assinaram). */
+  parcial?: boolean
 }
 
 const styles = StyleSheet.create({
@@ -66,6 +70,11 @@ const styles = StyleSheet.create({
   selfie: { width: 64, height: 64, objectFit: 'cover', borderRadius: 4 },
   assinatura: { width: 160, height: 54, objectFit: 'contain' },
   hashBox: { backgroundColor: '#f9fafb', borderRadius: 4, padding: 8, marginTop: 6 },
+  avisoParcial: {
+    backgroundColor: '#fffbeb', borderWidth: 1, borderColor: '#fde68a', borderStyle: 'solid',
+    borderRadius: 6, padding: 8, marginBottom: 14, fontSize: 8.5, color: '#92400e',
+  },
+  aguardando: { fontSize: 8.5, color: '#b45309', marginTop: 2 },
   rodape: { marginTop: 16, fontSize: 7.5, color: '#9ca3af', textAlign: 'justify', lineHeight: 1.5 },
 })
 
@@ -82,22 +91,46 @@ export function CertificadoAssinaturaDocument({ data }: { data: CertificadoData 
         <Text style={styles.selo}>ASSINATURA ELETRÔNICA</Text>
         <Text style={styles.titulo}>Certificado de Assinatura</Text>
         <Text style={styles.sub}>{data.titulo} · {data.tipo_contrato === 'administracao' ? 'Contrato de Administração' : 'Contrato de Locação'}</Text>
-        <Text style={styles.sub}>Concluído em {fmt(data.concluido_em)} · Emitente: {data.emitente_nome}</Text>
+        <Text style={styles.sub}>
+          {data.parcial
+            ? `Emitido em ${fmt(new Date().toISOString())}`
+            : `Concluído em ${fmt(data.concluido_em)}`} · Emitente: {data.emitente_nome}
+        </Text>
         <View style={styles.linha} />
+
+        {data.parcial && (
+          <View style={styles.avisoParcial}>
+            <Text>
+              PRÉVIA — processo em andamento. Faltam assinaturas, então este documento
+              registra apenas as já coletadas até o momento e não vale como certificado
+              final. O certificado definitivo sai anexo ao contrato quando todas as partes
+              assinarem.
+            </Text>
+          </View>
+        )}
 
         {data.signatarios.map((s, i) => (
           <View key={i} style={styles.bloco} wrap={false}>
             {s.papel && <Text style={styles.papel}>{s.papel}</Text>}
             <Text style={styles.nome}>{s.nome}</Text>
-            <Text style={styles.campo}><Text style={styles.label}>E-mail{s.otp_usado ? ' (OTP confirmado)' : ''}: </Text>{s.email}</Text>
-            <Text style={styles.campo}><Text style={styles.label}>Celular: </Text>{fmtCel(s.celular)}</Text>
-            <Text style={styles.campo}><Text style={styles.label}>Assinado em: </Text>{fmt(s.assinado_em)}</Text>
-            <Text style={styles.campo}><Text style={styles.label}>IP: </Text>{s.ip ?? '—'}   <Text style={styles.label}>Localização: </Text>{s.geo ?? '—'}</Text>
-            <Text style={styles.campo}><Text style={styles.label}>Dispositivo: </Text>{fmtDispositivo(s.user_agent)}</Text>
-            <View style={styles.imgRow}>
-              {s.selfie_url && <Image src={s.selfie_url} style={styles.selfie} />}
-              {s.assinatura_b64 && <Image src={s.assinatura_b64} style={styles.assinatura} />}
-            </View>
+            {s.pendente ? (
+              <>
+                <Text style={styles.campo}><Text style={styles.label}>E-mail: </Text>{s.email}</Text>
+                <Text style={styles.aguardando}>Aguardando assinatura.</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.campo}><Text style={styles.label}>E-mail{s.otp_usado ? ' (OTP confirmado)' : ''}: </Text>{s.email}</Text>
+                <Text style={styles.campo}><Text style={styles.label}>Celular: </Text>{fmtCel(s.celular)}</Text>
+                <Text style={styles.campo}><Text style={styles.label}>Assinado em: </Text>{fmt(s.assinado_em)}</Text>
+                <Text style={styles.campo}><Text style={styles.label}>IP: </Text>{s.ip ?? '—'}   <Text style={styles.label}>Localização: </Text>{s.geo ?? '—'}</Text>
+                <Text style={styles.campo}><Text style={styles.label}>Dispositivo: </Text>{fmtDispositivo(s.user_agent)}</Text>
+                <View style={styles.imgRow}>
+                  {s.selfie_url && <Image src={s.selfie_url} style={styles.selfie} />}
+                  {s.assinatura_b64 && <Image src={s.assinatura_b64} style={styles.assinatura} />}
+                </View>
+              </>
+            )}
           </View>
         ))}
 
@@ -113,9 +146,9 @@ export function CertificadoAssinaturaDocument({ data }: { data: CertificadoData 
           celular, registro de selfie, assinatura manuscrita digital, trilha de auditoria (data, hora, IP e
           localização) e, quando exigido, confirmação de código enviado por e-mail (OTP), nos termos da
           Medida Provisória nº 2.200-2/2001 (ICP-Brasil),
-          do art. 10, §2º, e da Lei nº 13.709/2018 (LGPD). O código hash acima garante a integridade do
-          documento contratual ao qual este certificado se anexa: qualquer alteração no contrato resultará
-          em hash diferente.
+          do art. 10, §2º, e da Lei nº 13.709/2018 (LGPD).
+          {data.hash ? ' O código hash acima garante a integridade do documento contratual ao qual este '
+            + 'certificado se anexa: qualquer alteração no contrato resultará em hash diferente.' : ''}
         </Text>
       </Page>
     </Document>

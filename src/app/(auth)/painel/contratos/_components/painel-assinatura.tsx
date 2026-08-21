@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download, MessageCircle, Pencil, Mail } from 'lucide-react'
+import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download, MessageCircle, Pencil, Mail, ShieldCheck } from 'lucide-react'
 import { criarProcessoAssinatura, cancelarProcessoAssinatura, atualizarEmailSignatario, reenviarConviteSignatario } from '../assinatura-actions'
 import { ConfirmarEnvioAssinatura } from './confirmar-envio-assinatura'
 
@@ -216,11 +216,24 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
                 </span>
                 <span className="text-[10px] text-gray-400 flex-1">{new Date(p.created_at).toLocaleDateString('pt-BR')}</span>
                 {p.status === 'concluido' ? (
-                  <a href={`/api/assinaturas/${p.id}/pdf-final`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] font-semibold text-green-700 hover:text-green-800">
-                    <Download size={12} /> Baixar assinado
-                  </a>
+                  <>
+                    <a href={`/api/assinaturas/${p.id}/certificado`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] font-semibold text-violet-700 hover:text-violet-800" title="Só o certificado de assinatura, sem o contrato">
+                      <ShieldCheck size={12} /> Certificado
+                    </a>
+                    <a href={`/api/assinaturas/${p.id}/pdf-final`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] font-semibold text-green-700 hover:text-green-800">
+                      <Download size={12} /> Baixar assinado
+                    </a>
+                  </>
                 ) : (
-                  <button type="button" onClick={() => cancelar(p.id)} className="text-red-400 hover:text-red-600 p-1" title="Cancelar"><X size={13} /></button>
+                  <>
+                    {/* Prévia: dá pra provar quem já assinou sem esperar o processo fechar. */}
+                    {p.signatarios.some(s => s.status === 'assinado') && (
+                      <a href={`/api/assinaturas/${p.id}/certificado`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[11px] font-semibold text-violet-700 hover:text-violet-800" title="Prévia com as assinaturas coletadas até agora">
+                        <ShieldCheck size={12} /> Prévia do certificado
+                      </a>
+                    )}
+                    <button type="button" onClick={() => cancelar(p.id)} className="text-red-400 hover:text-red-600 p-1" title="Cancelar"><X size={13} /></button>
+                  </>
                 )}
               </div>
               <ul className="space-y-1.5">
