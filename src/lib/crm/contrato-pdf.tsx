@@ -98,7 +98,7 @@ export interface ContratoPDFData {
   proprietario_representante_cpf?: string | null
   proprietario_representante_qualificacao?: string | null
   /** Assinaturas desenhadas (base64) por papel — sobrepostas na linha de cada parte quando assinado pela plataforma. */
-  assinaturas_partes?: Array<{ papel: string; imagem: string }>
+  assinaturas_partes?: Array<{ papel: string; nome: string; imagem: string }>
   /** True quando há administração imobiliária — quem assina é o admin/corretor representando o locador. */
   tem_administracao: boolean
   admin_responsavel_nome: string | null   // nome do corretor (ex: João Victor Vieira)
@@ -490,6 +490,12 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
     return null
   }
   const sigsTestemunha = assinaturasPartes.filter(a => (a.papel ?? '').toLowerCase().includes('testemunh'))
+  // Pro termo de chaves, onde os recebedores são vários: casa pelo nome.
+  const sigDeNome = (nome: string | null | undefined): string | null => {
+    const alvo = (nome ?? '').trim().toLowerCase()
+    if (!alvo) return null
+    return assinaturasPartes.find(a => (a.nome ?? '').trim().toLowerCase() === alvo)?.imagem ?? null
+  }
   const ASSIN_IMG = { width: 150, height: 40, objectFit: 'contain' as const, marginBottom: 1 }
   const subtituloContrato = isAdmin
     ? 'com Exclusividade'
@@ -1416,7 +1422,9 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             {cidadeUf}, {dataExtenso}.
           </Text>
 
-          {/* Assinaturas do termo */}
+          {/* Assinaturas do termo — mesmas imagens da folha de assinatura:
+             quem assinou pela plataforma assinou o contrato inteiro, e o termo
+             de entrega faz parte dele. */}
           {data.tem_administracao ? (
             <View style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>LOCADOR / ADMINISTRADORA</Text>
@@ -1424,12 +1432,14 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               {data.admin_responsavel_creci && (
                 <Text style={blocoSecundario}>CRECI {data.admin_responsavel_creci}</Text>
               )}
+              {sigDe('administrador', 'locador') && <Image src={sigDe('administrador', 'locador')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
           ) : (
             <View style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>LOCADOR</Text>
               <Text style={blocoNome}>{data.locador_nome}</Text>
+              {sigDe('locador') && <Image src={sigDe('locador')!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
           )}
@@ -1446,6 +1456,10 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               </Text>
               <Text style={blocoNome}>{r.nome}</Text>
               {r.cpf && <Text style={blocoSecundario}>{docLabel(r.cpf)} {r.cpf}</Text>}
+              {/* Casa pelo nome; no caso de um recebedor só, cai no papel. */}
+              {(sigDeNome(r.nome) ?? (arr.length === 1 ? sigDe('locatári') : null)) && (
+                <Image src={(sigDeNome(r.nome) ?? sigDe('locatári'))!} style={ASSIN_IMG} />
+              )}
               <View style={linhaAssinatura} />
             </View>
           ))}

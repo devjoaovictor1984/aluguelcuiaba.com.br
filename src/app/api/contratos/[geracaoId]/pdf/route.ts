@@ -400,7 +400,7 @@ export async function GET(
   }
 
   // Assinaturas desenhadas (plataforma) já registradas → sobrepõe na linha de cada parte
-  let assinaturasPartes: Array<{ papel: string; imagem: string }> = []
+  let assinaturasPartes: Array<{ papel: string; nome: string; imagem: string }> = []
   const { data: procAssin } = await admin
     .from('contrato_assinaturas')
     .select('id')
@@ -409,10 +409,10 @@ export async function GET(
   if (procAssin) {
     const { data: sigs } = await admin
       .from('contrato_assinatura_signatarios')
-      .select('papel, assinatura_b64').eq('assinatura_id', procAssin.id).eq('status', 'assinado')
+      .select('papel, nome, assinatura_b64').eq('assinatura_id', procAssin.id).eq('status', 'assinado')
     assinaturasPartes = (sigs ?? [])
       .filter(s => s.assinatura_b64)
-      .map(s => ({ papel: s.papel ?? '', imagem: s.assinatura_b64 as string }))
+      .map(s => ({ papel: s.papel ?? '', nome: s.nome ?? '', imagem: s.assinatura_b64 as string }))
   }
 
   // 2. Carrega contrato + pessoas + imóvel
