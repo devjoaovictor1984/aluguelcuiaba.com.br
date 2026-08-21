@@ -13,6 +13,25 @@ export interface CertificadoSignatario {
   /** URL assinada do bucket privado (ou data URL legada, pré-v82). */
   selfie_url: string | null
   assinatura_b64: string | null
+  user_agent: string | null
+}
+
+/** User-agent cru é ruído no certificado: vira "Navegador · Sistema". */
+function fmtDispositivo(ua: string | null): string {
+  if (!ua) return '—'
+  const nav =
+    /Edg\//.test(ua) ? 'Edge' :
+    /OPR\/|Opera/.test(ua) ? 'Opera' :
+    /Chrome\//.test(ua) ? 'Chrome' :
+    /Safari\//.test(ua) ? 'Safari' :
+    /Firefox\//.test(ua) ? 'Firefox' : 'Navegador'
+  const so =
+    /iPhone|iPad|iPod/.test(ua) ? 'iPhone/iPad' :
+    /Android/.test(ua) ? 'Android' :
+    /Windows/.test(ua) ? 'Windows' :
+    /Mac OS X/.test(ua) ? 'Mac' :
+    /Linux/.test(ua) ? 'Linux' : null
+  return so ? `${nav} · ${so}` : nav
 }
 
 function fmtCel(c: string | null): string {
@@ -74,6 +93,7 @@ export function CertificadoAssinaturaDocument({ data }: { data: CertificadoData 
             <Text style={styles.campo}><Text style={styles.label}>Celular: </Text>{fmtCel(s.celular)}</Text>
             <Text style={styles.campo}><Text style={styles.label}>Assinado em: </Text>{fmt(s.assinado_em)}</Text>
             <Text style={styles.campo}><Text style={styles.label}>IP: </Text>{s.ip ?? '—'}   <Text style={styles.label}>Localização: </Text>{s.geo ?? '—'}</Text>
+            <Text style={styles.campo}><Text style={styles.label}>Dispositivo: </Text>{fmtDispositivo(s.user_agent)}</Text>
             <View style={styles.imgRow}>
               {s.selfie_url && <Image src={s.selfie_url} style={styles.selfie} />}
               {s.assinatura_b64 && <Image src={s.assinatura_b64} style={styles.assinatura} />}

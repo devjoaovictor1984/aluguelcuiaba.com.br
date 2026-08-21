@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { ChevronLeft, AlertCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { carregarProcessosAssinatura } from '@/lib/crm/assinatura-painel'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { obterOuCriarGeracaoAdm } from './actions'
 import { contratoAssinado } from '@/lib/crm/assinatura-lock'
@@ -153,13 +154,7 @@ async function renderizar(contratoAdmId: string) {
     : { data: [] }
 
   // Processos de assinatura + sugestões de signatários
-  const { data: processosAss } = await supabase
-    .from('contrato_assinaturas')
-    .select('id, status, created_at, signatarios:contrato_assinatura_signatarios(id, nome, email, papel, status, token)')
-    .eq('user_id', acesso.userId)
-    .eq('tipo_contrato', 'administracao')
-    .eq('contrato_id', contratoAdmId)
-    .order('created_at', { ascending: false })
+  const processosAss = await carregarProcessosAssinatura(acesso.userId, 'administracao', contratoAdmId)
 
   // Sugestões de signatários = partes reais do contrato (preenche automático).
   const propComEmail = unwrap(contrato.proprietario) as { nome: string; email: string | null } | null
@@ -249,7 +244,7 @@ async function renderizar(contratoAdmId: string) {
         titulo={contrato.codigo}
         baseUrl={baseUrl}
         sugestoes={sugestoesAss}
-        processos={(processosAss ?? []) as Array<{ id: string; status: string; created_at: string; signatarios: Array<{ id: string; nome: string; email: string; papel: string | null; status: string; token: string }> }>}
+        processos={processosAss}
       />
 
       <EditorContratoAdm

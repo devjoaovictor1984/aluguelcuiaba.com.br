@@ -7,8 +7,33 @@ import { criarProcessoAssinatura, cancelarProcessoAssinatura, atualizarEmailSign
 import { ConfirmarEnvioAssinatura } from './confirmar-envio-assinatura'
 
 interface Sugestao { nome: string; email: string; papel: string }
-interface SignatarioStatus { id: string; nome: string; email: string; papel: string | null; status: string; token: string }
+interface SignatarioStatus {
+  id: string; nome: string; email: string; papel: string | null; status: string; token: string
+  assinado_em: string | null; ip: string | null; geo: string | null; user_agent: string | null
+  otp_verificado: boolean; selfie_url: string | null
+}
 interface Processo { id: string; status: string; created_at: string; signatarios: SignatarioStatus[] }
+
+// User-agent é longo demais pro painel: resume em "Navegador · Sistema".
+function resumirDispositivo(ua: string | null): string | null {
+  if (!ua) return null
+  const nav =
+    /Edg\//.test(ua) ? 'Edge' :
+    /OPR\/|Opera/.test(ua) ? 'Opera' :
+    /Chrome\//.test(ua) ? 'Chrome' :
+    /Safari\//.test(ua) ? 'Safari' :
+    /Firefox\//.test(ua) ? 'Firefox' : 'Navegador'
+  const so =
+    /iPhone|iPad|iPod/.test(ua) ? 'iPhone/iPad' :
+    /Android/.test(ua) ? 'Android' :
+    /Windows/.test(ua) ? 'Windows' :
+    /Mac OS X/.test(ua) ? 'Mac' :
+    /Linux/.test(ua) ? 'Linux' : null
+  return so ? `${nav} · ${so}` : nav
+}
+
+const fmtDataHora = (iso: string | null) =>
+  iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }) : '—'
 
 interface Props {
   tipoContrato: 'locacao' | 'administracao'
@@ -249,6 +274,44 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
                           </>
                         )}
                       </div>
+
+                      {/* Trilha de auditoria — o que prova a autoria da assinatura.
+                          Vai igual no certificado anexo ao PDF final; aqui é só pra
+                          o corretor conferir sem esperar todos assinarem. */}
+                      {s.status === 'assinado' && (
+                        <div className="mt-1.5 pl-5 flex items-start gap-2">
+                          {s.selfie_url && (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={s.selfie_url}
+                              alt={`Selfie de ${s.nome}`}
+                              className="w-12 h-12 rounded-lg object-cover border border-gray-200 shrink-0"
+                            />
+                          )}
+                          <div className="text-[10px] leading-relaxed text-gray-500 min-w-0">
+                            <div><span className="text-gray-400">Assinado em </span>{fmtDataHora(s.assinado_em)}</div>
+                            <div>
+                              <span className="text-gray-400">IP </span>{s.ip ?? '—'}
+                              {resumirDispositivo(s.user_agent) && <> <span className="text-gray-400">· </span>{resumirDispositivo(s.user_agent)}</>}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-2">
+                              {s.geo && (
+                                <a
+                                  href={`https://www.google.com/maps?q=${s.geo}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-violet-600 hover:underline"
+                                >
+                                  ver localização
+                                </a>
+                              )}
+                              <span className={s.otp_verificado ? 'text-green-600' : 'text-gray-400'}>
+                                {s.otp_verificado ? 'código por e-mail confirmado' : 'sem código por e-mail'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </li>
                   )
                 })}
