@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { enviarEmail } from '@/lib/email/sender'
 import { subirSelfieBase64 } from '@/lib/storage/selfies'
+import { garantirCodigoValidacao } from '@/lib/crm/validacao-codigo'
 
 function hashOtp(code: string): string {
   return createHash('sha256').update(code).digest('hex')
@@ -167,6 +168,10 @@ export async function confirmarAssinatura(token: string, payload: {
       .update({ status: 'concluido', concluido_em: agora })
       .eq('id', sig.assinatura_id)
 
+    // Código público de autenticidade (v83): nasce junto com a conclusão pra
+    // já valer no e-mail e no carimbo da via final.
+    const codigoValidacao = await garantirCodigoValidacao(admin, sig.assinatura_id, null)
+
     // Trava o contrato: vira 'assinado' (editor passa a ser somente leitura — só aditivo).
     if (proc.tipo_contrato === 'locacao') {
       await admin.from('contrato_geracoes')
@@ -199,6 +204,10 @@ export async function confirmarAssinatura(token: string, payload: {
             <p>O contrato <strong>${titulo}</strong> foi assinado por todos. Baixe a via final (contrato + certificado de assinatura):</p>
             <p style="margin:24px 0"><a href="${dl}" style="background:#6d28d9;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Baixar contrato assinado</a></p>
             <p style="font-size:12px;color:#6b7280">Se o botão não abrir, copie e cole:<br>${dl}</p>
+            ${codigoValidacao ? `<p style="font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:12px">
+              Código de validação: <strong style="font-family:monospace;color:#1f2937">${codigoValidacao}</strong><br>
+              Qualquer pessoa confere a autenticidade do contrato em ${base}/validar — sem precisar de conta.
+            </p>` : ''}
           </div>
         `,
         canal: 'assinatura_concluida',

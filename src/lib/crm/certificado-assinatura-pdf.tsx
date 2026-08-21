@@ -56,7 +56,9 @@ export interface CertificadoData {
 }
 
 const styles = StyleSheet.create({
-  page: { padding: 40, fontSize: 10, fontFamily: 'Helvetica', color: '#1f2937', lineHeight: 1.5 },
+  // paddingBottom maior que o resto: o carimbo de validação (código + QR) é
+  // desenhado depois, por pdf-lib, e ocupa os ~50pt de baixo da página.
+  page: { padding: 40, paddingBottom: 62, fontSize: 10, fontFamily: 'Helvetica', color: '#1f2937', lineHeight: 1.5 },
   selo: { fontSize: 8, color: '#7c3aed', fontWeight: 'bold', letterSpacing: 1.5, textAlign: 'center', marginBottom: 4 },
   titulo: { fontSize: 16, fontWeight: 'bold', color: '#111827', textAlign: 'center', marginBottom: 4 },
   sub: { fontSize: 9, color: '#6b7280', textAlign: 'center', marginBottom: 2 },

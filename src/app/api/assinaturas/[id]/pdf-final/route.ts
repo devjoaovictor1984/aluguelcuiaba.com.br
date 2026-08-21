@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CertificadoAssinaturaDocument } from '@/lib/crm/certificado-assinatura-pdf'
 import { montarCertificado } from '@/lib/crm/certificado-dados'
+import { garantirCodigoValidacao } from '@/lib/crm/validacao-codigo'
+import { carimbarValidacao } from '@/lib/crm/carimbo-validacao'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -18,7 +20,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: proc } = await admin
       .from('contrato_assinaturas')
-      .select('id, user_id, tipo_contrato, contrato_id, titulo, status, pdf_hash, concluido_em')
+      .select('id, user_id, tipo_contrato, contrato_id, titulo, status, pdf_hash, concluido_em, codigo_validacao')
       .eq('id', id)
       .maybeSingle()
     if (!proc) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
@@ -83,6 +85,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const certPdf = await PDFDocument.load(new Uint8Array(certBuffer))
     for (const p of await final.copyPages(contratoPdf, contratoPdf.getPageIndices())) final.addPage(p)
     for (const p of await final.copyPages(certPdf, certPdf.getPageIndices())) final.addPage(p)
+
+    // Carimbo de autenticidade: código + QR no rodapé de todas as páginas,
+    // pra quem receber a via impressa poder conferir em /validar. Processos
+    // concluídos antes da v83 ganham o código aqui, na 1ª geração.
+    const codigo = await garantirCodigoValidacao(admin, proc.id, proc.codigo_validacao)
+    if (codigo) await carimbarValidacao(final, { codigo, urlValidacao: `${base}/validar/${codigo}` })
+
     const finalBytes = await final.save()
 
     return new Response(finalBytes as unknown as BodyInit, {

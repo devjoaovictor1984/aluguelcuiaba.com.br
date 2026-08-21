@@ -4,6 +4,9 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CertificadoAssinaturaDocument } from '@/lib/crm/certificado-assinatura-pdf'
 import { montarCertificado } from '@/lib/crm/certificado-dados'
+import { garantirCodigoValidacao } from '@/lib/crm/validacao-codigo'
+import { carimbarValidacao } from '@/lib/crm/carimbo-validacao'
+import { PDFDocument } from 'pdf-lib'
 import React from 'react'
 
 export const runtime = 'nodejs'
@@ -19,14 +22,14 @@ export const maxDuration = 60
  * Só o dono do processo abre — a trilha traz selfie e localização das partes,
  * então não vale liberar por token de signatário como no pdf-final.
  */
-export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
     const admin = createAdminClient()
 
     const { data: proc } = await admin
       .from('contrato_assinaturas')
-      .select('id, user_id, tipo_contrato, titulo, status, pdf_hash, concluido_em')
+      .select('id, user_id, tipo_contrato, titulo, status, pdf_hash, concluido_em, codigo_validacao')
       .eq('id', id)
       .maybeSingle()
     if (!proc) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
@@ -54,8 +57,22 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     const element = React.createElement(CertificadoAssinaturaDocument, { data: cert }) as unknown as React.ReactElement<DocumentProps>
     const buffer = await renderToBuffer(element)
 
+    // Concluído, o certificado avulso circula sozinho — leva o mesmo carimbo
+    // de autenticidade da via final. Na prévia não: ainda não há o que validar.
+    let saida: Uint8Array = new Uint8Array(buffer)
+    if (concluido) {
+      const codigo = await garantirCodigoValidacao(admin, proc.id, proc.codigo_validacao)
+      if (codigo) {
+        const proto = request.headers.get('x-forwarded-proto') ?? 'https'
+        const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
+        const doc = await PDFDocument.load(saida)
+        await carimbarValidacao(doc, { codigo, urlValidacao: `${proto}://${host}/validar/${codigo}` })
+        saida = new Uint8Array(await doc.save())
+      }
+    }
+
     const nome = `certificado${concluido ? '' : '-previa'}-${proc.titulo ?? proc.id}.pdf`
-    return new Response(new Uint8Array(buffer) as unknown as BodyInit, {
+    return new Response(saida as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

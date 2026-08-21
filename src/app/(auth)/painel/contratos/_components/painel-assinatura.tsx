@@ -12,7 +12,7 @@ interface SignatarioStatus {
   assinado_em: string | null; ip: string | null; geo: string | null; user_agent: string | null
   otp_verificado: boolean; selfie_url: string | null
 }
-interface Processo { id: string; status: string; created_at: string; signatarios: SignatarioStatus[] }
+interface Processo { id: string; status: string; created_at: string; codigo_validacao: string | null; signatarios: SignatarioStatus[] }
 
 // User-agent é longo demais pro painel: resume em "Navegador · Sistema".
 function resumirDispositivo(ua: string | null): string | null {
@@ -112,12 +112,13 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
     })
   }
 
-  const copiar = async (token: string) => {
+  const copiarTexto = async (texto: string, marca: string) => {
     try {
-      await navigator.clipboard.writeText(`${origin}/assinar/${token}`)
-      setCopiado(token); setTimeout(() => setCopiado(null), 2000)
+      await navigator.clipboard.writeText(texto)
+      setCopiado(marca); setTimeout(() => setCopiado(null), 2000)
     } catch { setErro('Não consegui copiar.') }
   }
+  const copiar = (token: string) => copiarTexto(`${origin}/assinar/${token}`, token)
 
   const whatsapp = (s: SignatarioStatus) => {
     const msg = `Olá ${s.nome.split(' ')[0]}, segue o link para você assinar o contrato ${titulo}${s.papel ? ` (como ${s.papel})` : ''}:\n\n${origin}/assinar/${s.token}`
@@ -236,6 +237,24 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
                   </>
                 )}
               </div>
+              {/* Código público de autenticidade — o mesmo carimbado no rodapé do
+                  PDF. Fica à mão pra ditar por telefone quando alguém liga
+                  perguntando se o contrato é verdadeiro. */}
+              {p.status === 'concluido' && p.codigo_validacao && (
+                <div className="flex items-center gap-1.5 mb-2 text-[10px] text-gray-500">
+                  <span className="text-gray-400">Código de validação</span>
+                  <span className="font-mono font-semibold text-gray-700">{p.codigo_validacao}</span>
+                  <button
+                    type="button"
+                    onClick={() => copiarTexto(p.codigo_validacao!, `cod-${p.id}`)}
+                    className="text-violet-600 hover:text-violet-800"
+                    title="Copiar código"
+                  >
+                    {copiado === `cod-${p.id}` ? <Check size={11} /> : <Copy size={11} />}
+                  </button>
+                </div>
+              )}
+
               <ul className="space-y-1.5">
                 {p.signatarios.map(s => {
                   const pendente = s.status !== 'assinado' && p.status !== 'concluido'

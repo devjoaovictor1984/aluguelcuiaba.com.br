@@ -31,6 +31,7 @@ export interface ProcessoPainel {
   id: string
   status: string
   created_at: string
+  codigo_validacao: string | null
   signatarios: SignatarioPainel[]
 }
 
@@ -60,7 +61,7 @@ export async function carregarProcessosAssinatura(
   const { data } = await admin
     .from('contrato_assinaturas')
     .select(
-      'id, status, created_at, signatarios:contrato_assinatura_signatarios(' +
+      'id, status, created_at, codigo_validacao, signatarios:contrato_assinatura_signatarios(' +
       'id, nome, email, papel, status, token, ordem, assinado_em, ip, geo, user_agent, otp_verificado_em, selfie_path, selfie_b64)',
     )
     .eq('user_id', userId)
@@ -69,7 +70,7 @@ export async function carregarProcessosAssinatura(
     .order('created_at', { ascending: false })
 
   const processos = (data ?? []) as unknown as Array<{
-    id: string; status: string; created_at: string; signatarios: SigRow[] | null
+    id: string; status: string; created_at: string; codigo_validacao: string | null; signatarios: SigRow[] | null
   }>
 
   return Promise.all(
@@ -77,6 +78,7 @@ export async function carregarProcessosAssinatura(
       id: p.id,
       status: p.status,
       created_at: p.created_at,
+      codigo_validacao: p.codigo_validacao,
       signatarios: await Promise.all(
         [...(p.signatarios ?? [])]
           .sort((a, b) => (a.ordem ?? 0) - (b.ordem ?? 0))
