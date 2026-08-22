@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { AlertOctagon, CheckCircle2, ClipboardCheck } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { VistoriaInquilino, type ItemPub, type FotoPub } from './_components/vistoria-inquilino'
@@ -6,6 +7,49 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ token: string }>
+}
+
+/** Fora do componente: `Date.now()` no corpo do render viola react-hooks/purity. */
+function expirou(iso: string): boolean {
+  return new Date(iso).getTime() < Date.now()
+}
+
+/**
+ * `noindex` porque a URL carrega o token da vistoria. A imagem da prévia sai
+ * em `opengraph-image.tsx`.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { token } = await params
+  let titulo = 'Vistoria do imóvel'
+  const descricao = 'Confira item por item o estado do imóvel, acrescente observações e assine. Link pessoal e intransferível.'
+
+  try {
+    const admin = createAdminClient()
+    const { data: vistoria } = await admin
+      .from('vistorias').select('tipo, contrato_id').eq('token', token).maybeSingle()
+    if (vistoria) {
+      const tipo = vistoria.tipo === 'saida' ? 'saída' : 'entrada'
+      const { data: contrato } = await admin
+        .from('contratos_locacao')
+        .select('inquilino:pessoas!inquilino_id(nome)')
+        .eq('id', vistoria.contrato_id).maybeSingle()
+      const pessoa = contrato && (Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino) as { nome: string } | null
+      const primeiro = (pessoa?.nome ?? '').trim().split(/\s+/)[0]
+      titulo = primeiro
+        ? `${primeiro}, confira a vistoria de ${tipo}`
+        : `Vistoria de ${tipo} do imóvel`
+    }
+  } catch {
+    // Token inválido ou banco fora: fica no texto genérico.
+  }
+
+  return {
+    title: { absolute: titulo },
+    description: descricao,
+    robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
+    openGraph: { type: 'website', locale: 'pt_BR', title: titulo, description: descricao },
+    twitter: { card: 'summary_large_image', title: titulo, description: descricao },
+  }
 }
 
 export default async function VistoriaPublicaPage({ params }: Props) {
@@ -36,7 +80,7 @@ export default async function VistoriaPublicaPage({ params }: Props) {
     )
   }
   if (vistoria.status !== 'enviada') return <Erro titulo="Indisponível" mensagem="Esta vistoria ainda está em rascunho. Peça pro responsável enviar novamente." />
-  if (vistoria.expira_em && new Date(vistoria.expira_em).getTime() < Date.now()) {
+  if (vistoria.expira_em && expirou(vistoria.expira_em)) {
     return <Erro titulo="Link expirado" mensagem="Esse link passou da validade. Peça um novo." />
   }
 

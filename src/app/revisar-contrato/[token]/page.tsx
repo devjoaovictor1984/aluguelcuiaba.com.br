@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { AlertOctagon } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { FormConsideracao } from './_components/form-consideracao'
@@ -6,6 +7,34 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ token: string }>
+}
+
+/**
+ * `noindex` porque a URL carrega o token de revisão: se um link vazar num
+ * crawler, não pode virar resultado de busca. A imagem da prévia sai em
+ * `opengraph-image.tsx`.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { token } = await params
+  let titulo = 'Revisão de contrato'
+  const descricao = 'Leia o contrato antes da assinatura e envie suas considerações. Link pessoal e intransferível.'
+
+  try {
+    const admin = createAdminClient()
+    const { data: link } = await admin
+      .from('contrato_revisao_links').select('titulo').eq('token', token).maybeSingle()
+    if (link?.titulo) titulo = `Revise o contrato ${link.titulo}`
+  } catch {
+    // Token inválido ou banco fora: fica no texto genérico.
+  }
+
+  return {
+    title: { absolute: titulo },
+    description: descricao,
+    robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
+    openGraph: { type: 'website', locale: 'pt_BR', title: titulo, description: descricao },
+    twitter: { card: 'summary_large_image', title: titulo, description: descricao },
+  }
 }
 
 function PaginaErro({ titulo, mensagem }: { titulo: string; mensagem: string }) {

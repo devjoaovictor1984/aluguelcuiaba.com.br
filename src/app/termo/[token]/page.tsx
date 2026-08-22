@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { AlertOctagon, CheckCircle2, KeyRound } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { TermoLocatario } from './_components/termo-locatario'
@@ -6,6 +7,41 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ token: string }>
+}
+
+/**
+ * `noindex` porque a URL carrega o token do termo. A imagem da prévia sai em
+ * `opengraph-image.tsx`.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { token } = await params
+  let titulo = 'Termo de entrega de chaves'
+  const descricao = 'Confira as chaves, os controles e o estado do imóvel e assine o recebimento. Link pessoal e intransferível.'
+
+  try {
+    const admin = createAdminClient()
+    const { data: termo } = await admin
+      .from('termos_entrega_chaves').select('contrato_id').eq('token', token).maybeSingle()
+    if (termo?.contrato_id) {
+      const { data: contrato } = await admin
+        .from('contratos_locacao')
+        .select('inquilino:pessoas!inquilino_id(nome)')
+        .eq('id', termo.contrato_id).maybeSingle()
+      const pessoa = contrato && (Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino) as { nome: string } | null
+      const primeiro = (pessoa?.nome ?? '').trim().split(/\s+/)[0]
+      if (primeiro) titulo = `${primeiro}, assine a entrega das chaves`
+    }
+  } catch {
+    // Token inválido ou banco fora: fica no texto genérico.
+  }
+
+  return {
+    title: { absolute: titulo },
+    description: descricao,
+    robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
+    openGraph: { type: 'website', locale: 'pt_BR', title: titulo, description: descricao },
+    twitter: { card: 'summary_large_image', title: titulo, description: descricao },
+  }
 }
 
 /** Fora do componente: `Date.now()` no corpo do render viola react-hooks/purity. */

@@ -13,9 +13,26 @@ function expirou(iso: string): boolean {
   return new Date(iso).getTime() < Date.now()
 }
 
+const DESCRICAO_SEGURO =
+  'Preencha seus dados para a seguradora analisar a locação. Leva poucos minutos e o corretor avisa assim que sair o resultado.'
+
 export const metadata = {
-  title: 'Análise de seguro fiança',
-  robots: { index: false, follow: false },
+  title: { absolute: 'Análise de seguro fiança' },
+  description: DESCRICAO_SEGURO,
+  robots: { index: false, follow: false, googleBot: { index: false, follow: false } },
+  // Sem isto o link herdava o OG do portal e chegava anunciando imóveis pra
+  // quem só precisa preencher um formulário. A imagem sai em opengraph-image.
+  openGraph: {
+    type: 'website' as const,
+    locale: 'pt_BR',
+    title: 'Análise de seguro fiança',
+    description: DESCRICAO_SEGURO,
+  },
+  twitter: {
+    card: 'summary_large_image' as const,
+    title: 'Análise de seguro fiança',
+    description: DESCRICAO_SEGURO,
+  },
 }
 
 export default async function SeguroFiancaLinkPage({ params }: Props) {
