@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { AlertOctagon } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { FluxoAssinatura } from './_components/fluxo-assinatura'
@@ -6,6 +7,57 @@ export const dynamic = 'force-dynamic'
 
 interface Props {
   params: Promise<{ token: string }>
+}
+
+/**
+ * Prévia do link quando ele é colado no WhatsApp.
+ *
+ * Antes o link herdava o OG do portal e chegava anunciando "apartamento,
+ * casa, comercial, kitnet..." — confuso pra quem esperava um contrato e com
+ * cara de spam. Agora o título traz o nome de quem assina e o documento.
+ *
+ * `noindex` porque a URL carrega o token de assinatura: se um link desses
+ * vazar num crawler, não pode virar resultado de busca. A imagem que
+ * acompanha é gerada em `opengraph-image.tsx`.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { token } = await params
+  const semIndexar = { index: false, follow: false, googleBot: { index: false, follow: false } }
+
+  let titulo = 'Assinatura de contrato'
+  let descricao = 'Link pessoal para assinatura eletrônica de contrato.'
+
+  try {
+    const admin = createAdminClient()
+    const { data: sig } = await admin
+      .from('contrato_assinatura_signatarios')
+      .select('nome, papel, assinatura:contrato_assinaturas!inner(titulo)')
+      .eq('token', token)
+      .maybeSingle()
+
+    if (sig) {
+      const proc = (Array.isArray(sig.assinatura) ? sig.assinatura[0] : sig.assinatura) as
+        { titulo: string | null } | undefined
+      const primeiroNome = (sig.nome ?? '').trim().split(/\s+/)[0]
+      const doc = proc?.titulo ? ` ${proc.titulo}` : ''
+      titulo = primeiroNome
+        ? `${primeiroNome}, assine o contrato${doc}`
+        : `Assinatura do contrato${doc}`
+      descricao = `Confira o documento, confirme o código enviado por e-mail, tire a selfie e assine${
+        sig.papel ? ` como ${sig.papel}` : ''
+      }. Link pessoal e intransferível.`
+    }
+  } catch {
+    // Token inválido ou banco fora: fica no texto genérico.
+  }
+
+  return {
+    title: { absolute: titulo },
+    description: descricao,
+    robots: semIndexar,
+    openGraph: { type: 'website', locale: 'pt_BR', title: titulo, description: descricao },
+    twitter: { card: 'summary_large_image', title: titulo, description: descricao },
+  }
 }
 
 function PaginaErro({ titulo, mensagem }: { titulo: string; mensagem: string }) {
