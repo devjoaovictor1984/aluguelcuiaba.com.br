@@ -8,10 +8,22 @@ import { CertificadoAssinaturaDocument } from '@/lib/crm/certificado-assinatura-
 import { montarCertificado } from '@/lib/crm/certificado-dados'
 import { garantirCodigoValidacao } from '@/lib/crm/validacao-codigo'
 import { carimbarValidacao } from '@/lib/crm/carimbo-validacao'
+import { baixarViaFinal, subirViaFinal, caminhoViaFinal } from '@/lib/storage/contratos-assinados'
 import React from 'react'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
+
+function respostaPdf(bytes: Uint8Array, nomeArquivo: string) {
+  return new Response(bytes as unknown as BodyInit, {
+    status: 200,
+    headers: {
+      'Content-Type': 'application/pdf',
+      'Content-Disposition': `inline; filename="${nomeArquivo}"`,
+      'Cache-Control': 'no-store',
+    },
+  })
+}
 
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -20,7 +32,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const { data: proc } = await admin
       .from('contrato_assinaturas')
-      .select('id, user_id, tipo_contrato, contrato_id, titulo, status, pdf_hash, concluido_em, codigo_validacao')
+      .select('id, user_id, tipo_contrato, contrato_id, titulo, status, pdf_hash, concluido_em, codigo_validacao, pdf_final_path')
       .eq('id', id)
       .maybeSingle()
     if (!proc) return NextResponse.json({ error: 'Processo não encontrado' }, { status: 404 })
@@ -43,6 +55,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     if (proc.status !== 'concluido') {
       return NextResponse.json({ error: 'O contrato ainda não foi assinado por todas as partes.' }, { status: 400 })
+    }
+
+    const nomeArquivo = `contrato-assinado-${proc.titulo ?? proc.id}.pdf`
+
+    // Já congelada (v84): serve o MESMO arquivo, sem remontar. É o que faz o
+    // hash do certificado valer alguma coisa — remontar produzia bytes novos
+    // a cada download e ninguém conseguia conferir nada.
+    if (proc.pdf_final_path) {
+      const guardado = await baixarViaFinal(admin, proc.pdf_final_path)
+      if (guardado) return respostaPdf(guardado, nomeArquivo)
+      // Sumiu do bucket: cai adiante e regera, em vez de estourar na cara
+      // de quem só queria baixar o contrato.
+      console.error('[pdf-final] via congelada não encontrada, regerando:', proc.pdf_final_path)
     }
 
     // Mesma montagem usada na prévia do certificado — uma fonte só pra trilha.
@@ -94,14 +119,23 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     const finalBytes = await final.save()
 
-    return new Response(finalBytes as unknown as BodyInit, {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `inline; filename="contrato-assinado-${proc.titulo ?? proc.id}.pdf"`,
-        'Cache-Control': 'no-store',
-      },
-    })
+    // Congela: sobe pro bucket e guarda o hash DO ARQUIVO INTEIRO — este sim
+    // a pessoa consegue calcular no PDF que recebeu e conferir em /validar.
+    const caminho = caminhoViaFinal(proc.user_id, proc.id)
+    const hashFinal = createHash('sha256').update(finalBytes).digest('hex')
+    const up = await subirViaFinal(admin, caminho, finalBytes)
+    if (up.ok) {
+      await admin.from('contrato_assinaturas').update({
+        pdf_final_path: caminho,
+        pdf_final_hash: hashFinal,
+        pdf_final_em: new Date().toISOString(),
+      }).eq('id', proc.id)
+    } else {
+      // Sem congelar o download ainda funciona; só não vira referência.
+      console.error('[pdf-final] falha ao congelar a via final:', up.error)
+    }
+
+    return respostaPdf(finalBytes, nomeArquivo)
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err)
     console.error('[pdf-final] erro:', msg)

@@ -5,6 +5,7 @@ import { Footer } from '@/components/footer'
 import { ShieldCheck, ShieldX, ChevronRight, CheckCircle2 } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizarCodigo } from '@/lib/crm/validacao-codigo'
+import { ConferirArquivo } from './_components/conferir-arquivo'
 
 export const metadata: Metadata = {
   title: 'Resultado da validação — AluguelCuiabá',
@@ -26,7 +27,7 @@ export default async function ResultadoValidacaoPage({
   const { data: proc } = codigo
     ? await admin
         .from('contrato_assinaturas')
-        .select('id, titulo, tipo_contrato, status, concluido_em, pdf_hash, user_id')
+        .select('id, titulo, tipo_contrato, status, concluido_em, pdf_hash, pdf_final_hash, user_id')
         .eq('codigo_validacao', codigo)
         .maybeSingle()
     : { data: null }
@@ -141,10 +142,24 @@ export default async function ResultadoValidacaoPage({
               </ul>
             </div>
 
-            {proc.pdf_hash && (
-              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 mb-4">
-                <p className="text-[11px] text-gray-500 mb-1">Hash SHA-256 do contrato</p>
-                <p className="font-mono text-[10px] text-gray-700 break-all">{proc.pdf_hash}</p>
+            {/* Só com a via congelada (v84) existe um hash que a pessoa consegue
+                reproduzir no arquivo dela. Antes disso, não há o que conferir. */}
+            {proc.pdf_final_hash && <ConferirArquivo hashEsperado={proc.pdf_final_hash} />}
+
+            {(proc.pdf_final_hash || proc.pdf_hash) && (
+              <div className="bg-gray-50 rounded-2xl border border-gray-100 p-4 mb-4 space-y-3">
+                {proc.pdf_final_hash && (
+                  <div>
+                    <p className="text-[11px] text-gray-500 mb-1">SHA-256 da via assinada (arquivo completo)</p>
+                    <p className="font-mono text-[10px] text-gray-700 break-all">{proc.pdf_final_hash}</p>
+                  </div>
+                )}
+                {proc.pdf_hash && (
+                  <div>
+                    <p className="text-[11px] text-gray-500 mb-1">SHA-256 do contrato, sem o certificado anexo</p>
+                    <p className="font-mono text-[10px] text-gray-700 break-all">{proc.pdf_hash}</p>
+                  </div>
+                )}
               </div>
             )}
 
