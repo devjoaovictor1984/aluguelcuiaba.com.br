@@ -3,7 +3,10 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
-import { gerarParcelas, montarCodigo, type InputCalculoParcelas } from '@/lib/crm/calculos'
+import {
+  gerarParcelas, montarCodigo, calcularComissao, calcularRepasse,
+  type InputCalculoParcelas, type BaseComissao,
+} from '@/lib/crm/calculos'
 import { cancelarParcelasFuturas, reabrirParcelasCanceladas } from '@/lib/crm/encerramento'
 import { PLANOS } from '@/lib/constants'
 
@@ -23,6 +26,7 @@ export interface ContratoInput {
 
   taxa_admin_tipo: 'percentual' | 'fixo'
   taxa_admin_valor: number
+  taxa_admin_base: BaseComissao
 
   primeira_parcela_cheia: boolean
 
@@ -153,6 +157,7 @@ export async function criarContrato(input: ContratoInput) {
       condominio_mensal: input.condominio_mensal,
       taxa_admin_tipo: input.taxa_admin_tipo,
       taxa_admin_valor: input.taxa_admin_valor,
+      taxa_admin_base: input.taxa_admin_base,
       primeira_parcela_cheia: input.primeira_parcela_cheia,
       garantia_tipo: input.garantia_tipo,
       fiador_id: input.fiador_id,
@@ -202,6 +207,7 @@ export async function criarContrato(input: ContratoInput) {
     condominio_mensal: input.condominio_mensal,
     taxa_admin_tipo: input.taxa_admin_tipo,
     taxa_admin_valor: input.taxa_admin_valor,
+    taxa_admin_base: input.taxa_admin_base,
     primeira_parcela_cheia: input.primeira_parcela_cheia,
   }
   const parcelas = gerarParcelas(calcInput)
@@ -565,6 +571,7 @@ export interface RegerarParcelasInput {
   condominio_mensal?: number
   taxa_admin_tipo?: 'percentual' | 'fixo'
   taxa_admin_valor?: number
+  taxa_admin_base?: BaseComissao
   primeira_parcela_cheia?: boolean
   // Limite: parcelas com numero >= a_partir_da_parcela serão regeradas
   a_partir_da_parcela?: number   // default = primeira parcela não paga
@@ -580,7 +587,7 @@ export async function regerarParcelas(input: RegerarParcelasInput) {
     .select(`
       id, duracao_meses, dia_vencimento, data_primeiro_aluguel,
       valor_aluguel, valor_seguro_fianca_mensal, iptu_mensal, condominio_mensal,
-      taxa_admin_tipo, taxa_admin_valor, primeira_parcela_cheia
+      taxa_admin_tipo, taxa_admin_valor, taxa_admin_base, primeira_parcela_cheia
     `)
     .eq('id', input.contrato_id)
     .eq('user_id', acesso.userId)
@@ -620,6 +627,7 @@ export async function regerarParcelas(input: RegerarParcelasInput) {
     condominio_mensal: input.condominio_mensal ?? Number(contrato.condominio_mensal ?? 0),
     taxa_admin_tipo: (input.taxa_admin_tipo ?? contrato.taxa_admin_tipo) as 'percentual' | 'fixo',
     taxa_admin_valor: input.taxa_admin_valor ?? Number(contrato.taxa_admin_valor),
+    taxa_admin_base: (input.taxa_admin_base ?? contrato.taxa_admin_base ?? 'aluguel') as BaseComissao,
     primeira_parcela_cheia: input.primeira_parcela_cheia ?? contrato.primeira_parcela_cheia,
   }
 
@@ -637,6 +645,7 @@ export async function regerarParcelas(input: RegerarParcelasInput) {
     condominio_mensal: novos.condominio_mensal,
     taxa_admin_tipo: novos.taxa_admin_tipo,
     taxa_admin_valor: novos.taxa_admin_valor,
+    taxa_admin_base: novos.taxa_admin_base,
     primeira_parcela_cheia: novos.primeira_parcela_cheia,
   })
 
@@ -683,6 +692,7 @@ export async function regerarParcelas(input: RegerarParcelasInput) {
       condominio_mensal: novos.condominio_mensal,
       taxa_admin_tipo: novos.taxa_admin_tipo,
       taxa_admin_valor: novos.taxa_admin_valor,
+      taxa_admin_base: novos.taxa_admin_base,
       primeira_parcela_cheia: novos.primeira_parcela_cheia,
       updated_at: new Date().toISOString(),
     })
@@ -724,7 +734,7 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
   // 1. Contrato (precisa pegar taxa_admin pra recalcular comissão)
   const { data: contrato, error: errCtr } = await supabase
     .from('contratos_locacao')
-    .select('id, valor_aluguel, taxa_admin_tipo, taxa_admin_valor, data_proximo_reajuste')
+    .select('id, valor_aluguel, taxa_admin_tipo, taxa_admin_valor, taxa_admin_base, data_proximo_reajuste')
     .eq('id', input.contrato_id)
     .eq('user_id', acesso.userId)
     .single()
@@ -752,14 +762,16 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
   // 3. Recalcula cada uma e atualiza em série (poderia ser bulk via RPC, mas N é pequeno)
   const tipo = contrato.taxa_admin_tipo as 'percentual' | 'fixo'
   const taxa = Number(contrato.taxa_admin_valor)
+  const base = (contrato.taxa_admin_base ?? 'aluguel') as BaseComissao
 
   for (const p of parcelas) {
     const seguro = Number(p.valor_seguro) || 0
     const iptu = Number(p.valor_iptu) || 0
     const condo = Number(p.valor_condominio) || 0
-    const total = round2(valorNovo + seguro + iptu + condo)
-    const comissao = tipo === 'fixo' ? round2(taxa) : round2((valorNovo * taxa) / 100)
-    const repasse = round2(valorNovo - comissao)
+    const encargos = round2(iptu + condo)
+    const total = round2(valorNovo + seguro + encargos)
+    const comissao = calcularComissao(valorNovo, tipo, taxa, encargos, base)
+    const repasse = calcularRepasse(valorNovo, encargos, comissao)
 
     const { error: errUp } = await supabase
       .from('parcelas_aluguel')
@@ -1018,6 +1030,7 @@ export async function renovarContrato(input: RenovarContratoInput) {
       condominio_mensal: anterior.condominio_mensal,
       taxa_admin_tipo: anterior.taxa_admin_tipo,
       taxa_admin_valor: anterior.taxa_admin_valor,
+      taxa_admin_base: anterior.taxa_admin_base ?? 'aluguel',
       // Em renovação a 1ª parcela cheia não se repete (já foi cobrada na original)
       primeira_parcela_cheia: false,
       garantia_tipo: anterior.garantia_tipo,
@@ -1054,6 +1067,7 @@ export async function renovarContrato(input: RenovarContratoInput) {
     condominio_mensal: anterior.condominio_mensal,
     taxa_admin_tipo: anterior.taxa_admin_tipo,
     taxa_admin_valor: anterior.taxa_admin_valor,
+    taxa_admin_base: (anterior.taxa_admin_base ?? 'aluguel') as BaseComissao,
     primeira_parcela_cheia: false,
   }
   const parcelas = gerarParcelas(calcInput)

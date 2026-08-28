@@ -68,3 +68,25 @@ arquivo congelado — que agora existe.
 **4. Assinatura desenhada ainda em base64.** A selfie foi pro bucket privado na
 v82; a imagem da assinatura continua em `assinatura_b64` (TEXT) no banco, com os
 mesmos problemas de peso em dump e falta de expiração de acesso.
+
+---
+
+## Acerto manual do IPTU/condomínio já repassado
+
+Levantado em 28/08/2026, junto com a v85.
+
+Até a v85 o repasse ao proprietário era `aluguel − comissão`: IPTU e condomínio
+cobrados no boleto sumiam da conta. O caso que apareceu foi o **2026CT016**
+(HELDER BARBOSA MACIEL), boleto de R$ 3.800 — R$ 3.500 de aluguel + R$ 300 de
+IPTU — repassando R$ 3.150 em vez de R$ 3.450.
+
+A migration corrige as parcelas com `status_repasse = 'pendente'`. As que já
+foram repassadas ficam como estão: são histórico, e reescrever repasse já pago
+descasaria o sistema do extrato bancário.
+
+**O que fazer:** conferir no contrato quantas parcelas foram repassadas a menor
+antes da v85 e acertar a diferença com o proprietário por fora (ou num crédito
+na próxima). Só o 2026CT016 tinha encargos no boleto quando isso foi levantado.
+
+**Por que ficou pra depois:** é acerto de caixa entre pessoas, não cálculo — o
+sistema não tem como saber se o dono já foi compensado por outra via.

@@ -1,3 +1,5 @@
+import type { BaseComissao } from '@/lib/crm/calculos'
+
 export interface ImovelLite {
   id: string
   titulo: string
@@ -59,6 +61,7 @@ export interface WizardState {
   condominio_mensal: string
   taxa_admin_tipo: 'percentual' | 'fixo'
   taxa_admin_valor: string
+  taxa_admin_base: BaseComissao
   primeira_parcela_cheia: boolean
   data_inicio: string
   data_primeiro_aluguel: string
@@ -104,6 +107,7 @@ export const ESTADO_INICIAL: WizardState = {
   condominio_mensal: '',
   taxa_admin_tipo: 'percentual',
   taxa_admin_valor: '10',
+  taxa_admin_base: 'aluguel',
   primeira_parcela_cheia: false,
   data_inicio: '',
   data_primeiro_aluguel: '',

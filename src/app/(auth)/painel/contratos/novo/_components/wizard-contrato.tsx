@@ -9,7 +9,7 @@ import {
 } from 'lucide-react'
 import { criarContrato, type ContratoInput } from '../../actions'
 import { vincularAnaliseAoContrato } from '../../../seguros/actions'
-import { gerarParcelas, resumirParcelas } from '@/lib/crm/calculos'
+import { gerarParcelas, resumirParcelas, calcularComissao, calcularRepasse } from '@/lib/crm/calculos'
 import { InputMoeda, InputPercentual } from '@/components/inputs/input-mascarado'
 import { parseMoney, parsePercentual, formatarBRL } from '@/lib/formatters'
 import type { ImovelLite, PessoaLite, WizardState } from './wizard-types'
@@ -147,11 +147,32 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
       taxa_admin_valor: s.taxa_admin_tipo === 'percentual'
         ? parsePercentual(s.taxa_admin_valor)
         : parseMoney(s.taxa_admin_valor),
+      taxa_admin_base: s.taxa_admin_base,
       primeira_parcela_cheia: s.primeira_parcela_cheia,
     })
   }, [s])
 
   const resumo = useMemo(() => resumirParcelas(previewParcelas), [previewParcelas])
+
+  // Quebra de uma parcela típica — mostra na hora pra onde vai cada parte do
+  // boleto. Usa os valores reais já digitados, não um exemplo fixo.
+  const previaComissao = useMemo(() => {
+    const aluguel = parseNumero(s.valor_aluguel)
+    const encargos = parseNumero(s.iptu_mensal) + parseNumero(s.condominio_mensal)
+    const seguro = parseNumero(s.valor_seguro_fianca_mensal)
+    const taxa = s.taxa_admin_tipo === 'percentual'
+      ? parsePercentual(s.taxa_admin_valor)
+      : parseMoney(s.taxa_admin_valor)
+    const comissao = calcularComissao(aluguel, s.taxa_admin_tipo, taxa, encargos, s.taxa_admin_base)
+    return {
+      base: s.taxa_admin_base === 'aluguel_encargos' ? aluguel + encargos : aluguel,
+      encargos,
+      seguro,
+      comissao,
+      total: aluguel + encargos + seguro,
+      repasse: calcularRepasse(aluguel, encargos, comissao),
+    }
+  }, [s])
 
   // Validação por etapa
   const podeAvancar = (): string | null => {
@@ -216,6 +237,7 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
       taxa_admin_valor: s.taxa_admin_tipo === 'percentual'
         ? parsePercentual(s.taxa_admin_valor)
         : parseMoney(s.taxa_admin_valor),
+      taxa_admin_base: s.taxa_admin_base,
       primeira_parcela_cheia: s.primeira_parcela_cheia,
       garantia_tipo: s.garantia_tipo,
       fiador_id: s.garantia_tipo === 'fiador' ? s.fiador_id : null,
@@ -714,7 +736,7 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
                 className={`px-3 py-2 rounded-lg border-2 text-sm font-medium transition-colors ${
                   s.taxa_admin_tipo === 'percentual' ? 'border-violet-700 bg-violet-50 text-violet-700' : 'border-gray-100 text-gray-600 hover:border-violet-300'
                 }`}>
-                Percentual sobre o aluguel (%)
+                Percentual (%)
               </button>
               <button type="button"
                 onClick={() => setField('taxa_admin_tipo', 'fixo')}
@@ -728,7 +750,9 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
             <div className="grid sm:grid-cols-2 gap-3 items-end">
               <div>
                 <label className="text-xs text-gray-500 block mb-1">
-                  {s.taxa_admin_tipo === 'percentual' ? 'Quanto % sobre o aluguel?' : 'Quanto em reais por parcela?'}
+                  {s.taxa_admin_tipo === 'percentual'
+                    ? `Quanto % sobre ${s.taxa_admin_base === 'aluguel_encargos' ? 'o pacote' : 'o aluguel'}?`
+                    : 'Quanto em reais por parcela?'}
                 </label>
                 {s.taxa_admin_tipo === 'percentual' ? (
                   <InputPercentual value={s.taxa_admin_valor} onChange={v => setField('taxa_admin_valor', v)} className={inputCls} />
@@ -737,15 +761,61 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
                 )}
               </div>
               <div className="text-xs text-gray-500">
-                Exemplo: aluguel de R$ 1.900 com {s.taxa_admin_tipo === 'percentual' ? (parsePercentual(s.taxa_admin_valor) || 10) + '%' : 'R$ ' + (parseMoney(s.taxa_admin_valor) || 0).toFixed(2)}
+                {s.taxa_admin_tipo === 'percentual'
+                  ? <>Incide sobre <strong>{fmtBRL(previaComissao.base)}</strong> ({s.taxa_admin_base === 'aluguel_encargos' ? 'aluguel + encargos' : 'só o aluguel'})</>
+                  : <>Valor fixo por parcela, independente do aluguel</>}
                 {' → comissão de '}
-                <strong className="text-violet-700">
-                  R$ {(s.taxa_admin_tipo === 'percentual'
-                    ? (1900 * (parsePercentual(s.taxa_admin_valor) || 10)) / 100
-                    : parseMoney(s.taxa_admin_valor)
-                  ).toFixed(2).replace('.', ',')}
-                </strong>
+                <strong className="text-violet-700">{fmtBRL(previaComissao.comissao)}</strong>
               </div>
+            </div>
+
+            {/* Base da comissão — só faz diferença com percentual e encargos no boleto */}
+            {s.taxa_admin_tipo === 'percentual' && (
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-gray-600">A taxa incide sobre o quê?</p>
+                <div className="grid sm:grid-cols-2 gap-2">
+                  {([
+                    { k: 'aluguel',          t: 'Só o aluguel',        d: 'IPTU e condomínio passam inteiros pro proprietário' },
+                    { k: 'aluguel_encargos', t: 'Aluguel + encargos',  d: 'Quando o valor negociado foi o pacote com IPTU e condomínio' },
+                  ] as const).map(o => (
+                    <button key={o.k} type="button"
+                      onClick={() => setField('taxa_admin_base', o.k)}
+                      className={`text-left px-3 py-2 rounded-lg border-2 transition-colors ${
+                        s.taxa_admin_base === o.k ? 'border-violet-700 bg-violet-50' : 'border-gray-100 hover:border-violet-300'
+                      }`}>
+                      <span className={`block text-sm font-medium ${s.taxa_admin_base === o.k ? 'text-violet-700' : 'text-gray-700'}`}>{o.t}</span>
+                      <span className="block text-[11px] text-gray-500 mt-0.5">{o.d}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Onde cada parte do boleto vai parar — a conta que o corretor confere */}
+            <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 text-xs space-y-1">
+              <div className="flex justify-between text-gray-600">
+                <span>Boleto do inquilino</span>
+                <strong className="text-gray-900">{fmtBRL(previaComissao.total)}</strong>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <span>− comissão da imobiliária</span>
+                <span className="text-violet-700">{fmtBRL(previaComissao.comissao)}</span>
+              </div>
+              {previaComissao.seguro > 0 && (
+                <div className="flex justify-between text-gray-500">
+                  <span>− seguro fiança (seguradora)</span>
+                  <span>{fmtBRL(previaComissao.seguro)}</span>
+                </div>
+              )}
+              <div className="flex justify-between pt-1 border-t border-gray-200 text-gray-700">
+                <span>= repasse ao proprietário</span>
+                <strong className="text-green-700">{fmtBRL(previaComissao.repasse)}</strong>
+              </div>
+              {previaComissao.encargos > 0 && (
+                <p className="text-[11px] text-gray-400 pt-1">
+                  Inclui {fmtBRL(previaComissao.encargos)} de IPTU/condomínio — encargo do proprietário, a imobiliária só cobra junto.
+                </p>
+              )}
             </div>
 
             <label className="flex items-start gap-2 cursor-pointer p-3 rounded-lg border border-gray-100 hover:bg-gray-50">

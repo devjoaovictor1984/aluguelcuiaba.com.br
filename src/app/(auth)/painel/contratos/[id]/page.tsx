@@ -12,6 +12,7 @@ import { InventarioSecao, type ItemInventario } from './_components/inventario-s
 import { AditivosSecao, type AditivoRow } from './_components/aditivos-secao'
 import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
 import { RegerarParcelasBotao } from './_components/regerar-parcelas'
+import { BASE_COMISSAO_LABEL, type BaseComissao } from '@/lib/crm/calculos'
 import { TimelineEventos, type EventoRow } from './_components/timeline-eventos'
 import { DocsPartesContrato } from './_components/docs-partes'
 import { BotaoExcluirContrato } from './_components/botao-excluir'
@@ -61,6 +62,11 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     .single()
 
   if (!contrato) notFound()
+
+  // IPTU e condomínio cobrados no boleto são do proprietário — a imobiliária
+  // só passa por dentro. A taxa pode incidir só no aluguel ou no pacote.
+  const encargosMensais = Number(contrato.iptu_mensal ?? 0) + Number(contrato.condominio_mensal ?? 0)
+  const baseComissao = (contrato.taxa_admin_base ?? 'aluguel') as BaseComissao
 
   const [
     { data: parcelas },
@@ -189,6 +195,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
               condominioAtual={Number(contrato.condominio_mensal ?? 0)}
               taxaAdminTipo={contrato.taxa_admin_tipo}
               taxaAdminValor={Number(contrato.taxa_admin_valor)}
+              taxaAdminBase={(contrato.taxa_admin_base ?? 'aluguel') as BaseComissao}
               primeiraParcelaCheiaAtual={contrato.primeira_parcela_cheia}
               duracaoMeses={contrato.duracao_meses}
               parcelas={lista.map(p => ({ numero: p.numero, status_pagamento: p.status_pagamento, mes_referencia: p.mes_referencia }))}
@@ -310,7 +317,20 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <p className="text-xs text-gray-400 flex items-center gap-1 mb-1"><DollarSign size={11} /> ALUGUEL</p>
           <p className="text-lg font-bold text-gray-900">{fmtBRL(contrato.valor_aluguel)}</p>
-          <p className="text-xs text-gray-400">+ seguro {fmtBRL(contrato.valor_seguro_fianca_mensal)}</p>
+          {Number(contrato.valor_seguro_fianca_mensal ?? 0) > 0 && (
+            <p className="text-xs text-gray-400">+ seguro {fmtBRL(contrato.valor_seguro_fianca_mensal)}</p>
+          )}
+          {encargosMensais > 0 && (
+            <p className="text-xs text-gray-400">
+              + encargos {fmtBRL(encargosMensais)}
+              {' '}(repassados ao proprietário)
+            </p>
+          )}
+          <p className="text-[11px] text-gray-400 mt-1.5 pt-1.5 border-t border-gray-50">
+            Taxa {contrato.taxa_admin_tipo === 'fixo'
+              ? `${fmtBRL(contrato.taxa_admin_valor)} fixos`
+              : `de ${Number(contrato.taxa_admin_valor)}% sobre ${BASE_COMISSAO_LABEL[baseComissao].toLowerCase()}`}
+          </p>
         </div>
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
           <p className="text-xs text-gray-400 flex items-center gap-1 mb-1"><Shield size={11} /> GARANTIA</p>

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { RefreshCw, X, Loader2, AlertCircle, Check } from 'lucide-react'
 import { InputMoeda, InputPercentual } from '@/components/inputs/input-mascarado'
 import { parseMoney, parsePercentual, formatarBRL } from '@/lib/formatters'
+import { calcularComissao, calcularRepasse, type BaseComissao } from '@/lib/crm/calculos'
 import { regerarParcelas, type RegerarParcelasInput } from '../../actions'
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
@@ -20,6 +21,7 @@ interface Props {
   condominioAtual: number
   taxaAdminTipo: 'percentual' | 'fixo'
   taxaAdminValor: number
+  taxaAdminBase: BaseComissao
   primeiraParcelaCheiaAtual: boolean
   duracaoMeses: number
   parcelas: Array<{ numero: number; status_pagamento: string; mes_referencia: string }>
@@ -50,7 +52,7 @@ function ModalRegerar({
   contratoId, contratoCodigo,
   diaVencimentoAtual, dataPrimeiroAluguelAtual,
   valorAluguelAtual, valorSeguroAtual, iptuAtual, condominioAtual,
-  taxaAdminTipo, taxaAdminValor, primeiraParcelaCheiaAtual,
+  taxaAdminTipo, taxaAdminValor, taxaAdminBase, primeiraParcelaCheiaAtual,
   parcelas,
   onFechar,
 }: Props & { onFechar: () => void }) {
@@ -78,12 +80,27 @@ function ModalRegerar({
   const [taxaValor, setTaxaValor] = useState(
     taxaAdminValor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
   )
+  const [taxaBase, setTaxaBase] = useState<BaseComissao>(taxaAdminBase)
   const [primeiraCheia, setPrimeiraCheia] = useState(primeiraParcelaCheiaAtual)
   const [aPartirDe, setAPartirDe] = useState<number>(primeiraNaoPaga?.numero ?? 1)
 
   const [erro, setErro] = useState('')
   const [ok, setOk] = useState('')
   const [isPending, startTransition] = useTransition()
+
+  // Prévia da parcela recalculada — o corretor confere a conta antes de mandar.
+  const previa = (() => {
+    const aluguel = parseMoney(valorAluguel) || 0
+    const encargos = (parseMoney(iptu) || 0) + (parseMoney(condo) || 0)
+    const seguro = parseMoney(valorSeguro) || 0
+    const taxa = taxaTipo === 'percentual' ? parsePercentual(taxaValor) : parseMoney(taxaValor)
+    const comissao = calcularComissao(aluguel, taxaTipo, taxa, encargos, taxaBase)
+    return {
+      encargos, seguro, comissao,
+      total: aluguel + encargos + seguro,
+      repasse: calcularRepasse(aluguel, encargos, comissao),
+    }
+  })()
 
   const confirmar = () => {
     setErro('')
@@ -103,6 +120,7 @@ function ModalRegerar({
       condominio_mensal: parseMoney(condo) || 0,
       taxa_admin_tipo: taxaTipo,
       taxa_admin_valor: vTaxa,
+      taxa_admin_base: taxaBase,
       primeira_parcela_cheia: primeiraCheia,
       a_partir_da_parcela: aPartirDe,
     }
@@ -209,6 +227,49 @@ function ModalRegerar({
                 ? <InputPercentual value={taxaValor} onChange={setTaxaValor} className={inputCls} />
                 : <InputMoeda value={taxaValor} onChange={setTaxaValor} className={inputCls} />}
             </div>
+          </div>
+
+          {taxaTipo === 'percentual' && (
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">A taxa incide sobre</label>
+              <div className="flex gap-1">
+                <button type="button" onClick={() => setTaxaBase('aluguel')}
+                  className={`flex-1 text-xs py-2 rounded-lg ${taxaBase === 'aluguel' ? 'bg-violet-700 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  Só o aluguel
+                </button>
+                <button type="button" onClick={() => setTaxaBase('aluguel_encargos')}
+                  className={`flex-1 text-xs py-2 rounded-lg ${taxaBase === 'aluguel_encargos' ? 'bg-violet-700 text-white' : 'bg-gray-100 text-gray-600'}`}>
+                  Aluguel + encargos
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Como fica cada parcela recalculada */}
+          <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 text-xs space-y-1">
+            <div className="flex justify-between text-gray-600">
+              <span>Boleto do inquilino</span>
+              <strong className="text-gray-900">{formatarBRL(previa.total)}</strong>
+            </div>
+            <div className="flex justify-between text-gray-500">
+              <span>− comissão</span>
+              <span className="text-violet-700">{formatarBRL(previa.comissao)}</span>
+            </div>
+            {previa.seguro > 0 && (
+              <div className="flex justify-between text-gray-500">
+                <span>− seguro fiança</span>
+                <span>{formatarBRL(previa.seguro)}</span>
+              </div>
+            )}
+            <div className="flex justify-between pt-1 border-t border-gray-200 text-gray-700">
+              <span>= repasse ao proprietário</span>
+              <strong className="text-green-700">{formatarBRL(previa.repasse)}</strong>
+            </div>
+            {previa.encargos > 0 && (
+              <p className="text-[11px] text-gray-400 pt-1">
+                Inclui {formatarBRL(previa.encargos)} de IPTU/condomínio, que são do proprietário.
+              </p>
+            )}
           </div>
 
           <label className="flex items-center gap-2 cursor-pointer pt-2 border-t border-gray-100">

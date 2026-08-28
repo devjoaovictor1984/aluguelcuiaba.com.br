@@ -11,7 +11,22 @@ export interface InputCalculoParcelas {
   condominio_mensal: number
   taxa_admin_tipo: 'percentual' | 'fixo'
   taxa_admin_valor: number       // 10 = 10% ou R$ 10
+  /**
+   * Sobre o que o percentual incide. 'aluguel' = só o aluguel (padrão);
+   * 'aluguel_encargos' = aluguel + IPTU + condomínio, pra quando o pacote
+   * inteiro é o que foi negociado. O seguro fiança nunca entra na base —
+   * é repassado à seguradora, não é receita do contrato.
+   * Irrelevante quando taxa_admin_tipo = 'fixo'.
+   */
+  taxa_admin_base?: BaseComissao
   primeira_parcela_cheia: boolean
+}
+
+export type BaseComissao = 'aluguel' | 'aluguel_encargos'
+
+export const BASE_COMISSAO_LABEL: Record<BaseComissao, string> = {
+  aluguel: 'Só o aluguel',
+  aluguel_encargos: 'Aluguel + IPTU + condomínio',
 }
 
 export interface ParcelaCalculada {
@@ -43,9 +58,31 @@ function ultimoDia(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate()
 }
 
-function calcularComissao(aluguel: number, tipo: 'percentual' | 'fixo', valor: number): number {
+/**
+ * Comissão da imobiliária numa parcela.
+ *
+ * Taxa fixa ignora a base. Percentual incide sobre o aluguel ou sobre o
+ * aluguel somado aos encargos (IPTU + condomínio), conforme o contrato.
+ */
+export function calcularComissao(
+  aluguel: number,
+  tipo: 'percentual' | 'fixo',
+  valor: number,
+  encargos = 0,
+  base: BaseComissao = 'aluguel',
+): number {
   if (tipo === 'fixo') return round(valor)
-  return round((aluguel * valor) / 100)
+  const baseCalculo = base === 'aluguel_encargos' ? round(aluguel + encargos) : aluguel
+  return round((baseCalculo * valor) / 100)
+}
+
+/**
+ * Repasse ao proprietário. IPTU e condomínio cobrados no boleto são do dono
+ * — a imobiliária só passa por dentro. Fora da conta fica o seguro fiança,
+ * que vai pra seguradora.
+ */
+export function calcularRepasse(aluguel: number, encargos: number, comissao: number): number {
+  return round(aluguel + encargos - comissao)
 }
 
 export function gerarParcelas(input: InputCalculoParcelas): ParcelaCalculada[] {
@@ -66,13 +103,19 @@ export function gerarParcelas(input: InputCalculoParcelas): ParcelaCalculada[] {
     const aluguel = round(input.valor_aluguel)
     const total = round(aluguel + seguro + iptu + condo)
 
-    let comissaoVal = calcularComissao(aluguel, input.taxa_admin_tipo, input.taxa_admin_valor)
-    let repasse = round(aluguel - comissaoVal)
+    const encargos = round(iptu + condo)
 
-    // 1ª parcela cheia: 100% do aluguel pro corretor (proprietário recebe 0)
+    let comissaoVal = calcularComissao(
+      aluguel, input.taxa_admin_tipo, input.taxa_admin_valor,
+      encargos, input.taxa_admin_base ?? 'aluguel',
+    )
+    let repasse = calcularRepasse(aluguel, encargos, comissaoVal)
+
+    // 1ª parcela cheia: 100% do aluguel pro corretor. Os encargos seguem
+    // pro proprietário — são despesa dele, não receita de locação.
     if (i === 0 && input.primeira_parcela_cheia) {
       comissaoVal = aluguel
-      repasse = 0
+      repasse = encargos
     }
 
     parcelas.push({
