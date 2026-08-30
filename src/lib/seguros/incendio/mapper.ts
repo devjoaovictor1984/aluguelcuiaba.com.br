@@ -122,9 +122,33 @@ function num(v: unknown): number {
   return Number.isFinite(n) ? n : 0
 }
 
+/**
+ * Nomes das seguradoras de incêndio, nas DUAS formas que a API já devolveu.
+ *
+ * Medido em 16/08/2026:  ["Alfa", "Porto"]
+ * Medido em 30/08/2026:  [{"seguradora":"Alfa","sigla":"al2"},
+ *                         {"seguradora":"Porto","sigla":"por"}]
+ *
+ * Mudou sem aviso, sem versão nova de endpoint e sem alterar o status HTTP.
+ * Como o mapper fazia `String(s)`, cada objeto virou a string
+ * "[object Object]": a tela ofereceu duas seguradoras com esse nome e o
+ * valor escolhido ia parar no header `seguradora` das chamadas seguintes.
+ *
+ * Continua devolvendo só o nome porque é o nome que o resto do fluxo usa —
+ * header, coluna `seguradora` e catálogos. A `sigla` nova (`al2`/`por`)
+ * ficou perguntada: não se sabe se o header passa a esperar ela.
+ *
+ * Forma desconhecida vira string vazia e é filtrada, então uma terceira
+ * mudança de formato devolve lista vazia (a tela diz que está carregando)
+ * em vez de encher o header de lixo.
+ */
 export function lerSeguradorasIncendio(bruto: unknown): string[] {
   return (Array.isArray(bruto) ? bruto : [])
-    .map(s => String(s).trim())
+    .map(s => {
+      if (typeof s === 'string') return s.trim()
+      const o = (s ?? {}) as Record<string, unknown>
+      return String(o.seguradora ?? o.nome ?? '').trim()
+    })
     .filter(Boolean)
 }
 

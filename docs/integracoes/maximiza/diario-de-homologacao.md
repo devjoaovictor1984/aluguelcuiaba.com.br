@@ -105,6 +105,36 @@ achando que testava.
   ambiente 1 sem o aceite. A tela pode estar velha — uma aba aberta antes do
   deploy não tem a caixa de confirmação, e sem a trava emitiria. ✅
 
+### O `listarSeguradorasDisponiveis` mudou de formato ⚠️ *deles*
+
+Primeira cotação depois do deploy: o seletor de seguradora mostrou
+**"[object Object]" duas vezes**. Não era coisa faltando — o corpo da
+resposta mudou desde a medição de 16/08.
+
+```
+GET /incendioAlfaV2/listarSeguradorasDisponiveis
+
+16/08  200  ["Alfa","Porto"]
+30/08  200  [{"seguradora":"Alfa","sigla":"al2"},{"seguradora":"Porto","sigla":"por"}]
+```
+
+Mesmo endpoint, mesmo método, mesmo status. Só o contrato de resposta. E
+apareceu um campo que não existia: `sigla` — `al2` na Alfa, `por` na Porto
+(a mesma sigla que a fiança já usava para a Porto).
+
+`String(objeto)` devolve `"[object Object]"`, então o nome sujo ia da tela
+para o header `seguradora` das chamadas seguintes. O `ocupacoes/R` respondeu
+200 mesmo assim, o que sugere que ele não valida o header — mas isso é
+sorte, não desenho.
+
+**Decisão:** `lerSeguradorasIncendio` aceita as duas formas e continua
+devolvendo só o nome, que é o que o resto do fluxo usa. Forma desconhecida
+vira string vazia e é filtrada — uma terceira mudança de formato devolve
+lista vazia em vez de encher o header de lixo. ✅
+
+Se a `sigla` passa a ser o valor esperado no header, não dá pra saber daqui.
+Perguntado (item 7.1, que era um ✅ e voltou a ser pergunta).
+
 ### Quatro pontas do painel deles, fechadas (v86)
 
 - **Taxa por cobertura** — a API já devolvia `lmi` e `premio` por cobertura;

@@ -444,8 +444,31 @@ estado, a parceria acompanha com a mesma tabela?
 Recebemos a documentação (Incêndio V2) e a integração já está construída.
 Pontos a confirmar:
 
-**7.1** ✅ Confirmado contra a API: `listarSeguradorasDisponiveis` devolve
-exatamente `["Alfa","Porto"]`. Há previsão de outras?
+**7.1 O `listarSeguradorasDisponiveis` mudou de formato entre 16/08 e 30/08**
+⚠️ *quebrou a nossa tela*
+
+```
+16/08:  ["Alfa","Porto"]
+30/08:  [{"seguradora":"Alfa","sigla":"al2"},{"seguradora":"Porto","sigla":"por"}]
+```
+
+Mesmo endpoint, mesmo método, mesmo HTTP 200 — só o corpo mudou. Do nosso
+lado cada objeto virou a string `"[object Object]"`: a tela ofereceu duas
+seguradoras com esse nome e o valor escolhido ia parar no header
+`seguradora` das chamadas seguintes. Já aceitamos as duas formas.
+
+Três perguntas:
+
+- A mudança foi intencional? Há outras respostas que mudaram junto e que
+  ainda não percebemos?
+- A `sigla` nova (`al2` para a Alfa, `por` para a Porto) **passa a ser o
+  valor esperado no header `seguradora`**, ou o header continua sendo o
+  nome? Hoje mandamos o nome e as chamadas respondem.
+- Quando houver mudança de contrato de resposta, dá pra avisar antes? É o
+  tipo de coisa que derruba a tela sem nenhum erro de HTTP para investigar.
+
+E a pergunta original: há previsão de outras seguradoras além de Alfa e
+Porto? O `consultarImobiliaria` já devolve uma flag `yelum_incendio`.
 
 **7.0 O que medimos no `/calculo` em 16/08/2026** ⚠️ *novo*
 
