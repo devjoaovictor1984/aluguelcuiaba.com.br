@@ -9,6 +9,7 @@ import { VIGENCIA_LABEL, type TipoVigencia } from '@/lib/seguros/incendio/tipos'
 import { estimarProLabore } from '@/lib/seguros/incendio/sugestoes'
 import { Paginacao } from '../_components/paginacao'
 import { AvisoDemo } from '../_components/aviso-demo'
+import { FaixaAmbiente } from '../_components/faixa-ambiente'
 import { BuscaIncendio } from './_components/busca-incendio'
 
 const POR_PAGINA = 20
@@ -48,7 +49,7 @@ export default async function SeguroIncendioPage({ searchParams }: Props) {
       `id, seguradora, ambiente, tipo_seguro, tipo_vigencia, status,
        valor_aluguel, premio_total, valor_parcela, qtd_parcelas,
        inicio_vigencia, fim_vigencia, codigo_seguro, numero_proposta,
-       inquilino, endereco, erro, created_at,
+       inquilino, endereco, erro, controle, created_at,
        imovel:imoveis(titulo), contrato:contratos_locacao(codigo)`,
       { count: 'exact' },
     )
@@ -72,7 +73,7 @@ export default async function SeguroIncendioPage({ searchParams }: Props) {
     const end = l.endereco as { endereco?: string } | null
     return [
       inq?.nome, inq?.cpfCnpj, end?.endereco, l.codigo_seguro,
-      l.numero_proposta, um<{ codigo: string }>(l.contrato)?.codigo,
+      l.numero_proposta, um<{ codigo: string }>(l.contrato)?.codigo, l.controle,
     ].filter(Boolean).join(' ').toLowerCase().includes(termo)
   })
 
@@ -111,6 +112,7 @@ export default async function SeguroIncendioPage({ searchParams }: Props) {
         </div>
       </div>
 
+      <FaixaAmbiente />
       <AvisoDemo />
 
       {!perfil.pronto && (

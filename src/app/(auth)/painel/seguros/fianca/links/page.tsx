@@ -6,6 +6,7 @@ import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { GerenciadorLinks } from './_components/gerenciador-links'
 import { AvisoDemo } from '../../_components/aviso-demo'
+import { FaixaAmbiente } from '../../_components/faixa-ambiente'
 
 export const metadata = { title: 'Links de análise' }
 
@@ -57,6 +58,7 @@ export default async function LinksAnalisePage() {
         </p>
       </div>
 
+      <FaixaAmbiente />
       <AvisoDemo />
 
       {!perfil.pronto ? (

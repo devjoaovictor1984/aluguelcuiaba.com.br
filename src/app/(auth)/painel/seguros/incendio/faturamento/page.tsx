@@ -3,6 +3,7 @@ import { ArrowLeft, Receipt } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { AvisoDemo } from '../../_components/aviso-demo'
+import { FaixaAmbiente } from '../../_components/faixa-ambiente'
 import { PainelFaturamento } from './_components/painel-faturamento'
 
 interface Props {
@@ -46,6 +47,7 @@ export default async function FaturamentoPage({ searchParams }: Props) {
         </p>
       </div>
 
+      <FaixaAmbiente />
       <AvisoDemo />
 
       <PainelFaturamento

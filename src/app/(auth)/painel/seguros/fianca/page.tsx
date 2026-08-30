@@ -11,6 +11,7 @@ import { Paginacao } from '../_components/paginacao'
 import { BuscaSeguros } from '../_components/busca-seguros'
 import { BandeiraSeguradora } from '../_components/bandeira-seguradora'
 import { AvisoDemo } from '../_components/aviso-demo'
+import { FaixaAmbiente } from '../_components/faixa-ambiente'
 
 const POR_PAGINA = 20
 
@@ -118,6 +119,7 @@ export default async function SeguroFiancaPage({ searchParams }: Props) {
         </div>
       </div>
 
+      <FaixaAmbiente />
       <AvisoDemo />
 
       {!perfil.pronto && (

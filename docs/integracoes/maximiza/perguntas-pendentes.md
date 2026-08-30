@@ -5,11 +5,12 @@ homologação permite. `transmitirAnalise` e `GET /apiFiancaAnalise/{id}`
 respondem, o parecer chega, e a análise para em **pré-aprovado** — como vocês
 descreveram. Daí não sai.
 
-Três coisas travam a continuação dos testes, e as três dependem de vocês:
-**habilitação das outras seguradoras no CNPJ de teste** (1.6), **cadastro das
-URLs de webhook** (1.2) e **como concluir uma biometria em homologação**
-(3.4.1). Sem a segunda, nenhuma análise passa de pré-aprovado, e a contratação
-nunca chega a ser exercitada.
+Três coisas travavam a continuação dos testes. A habilitação das outras
+seguradoras (1.6) **caiu em 28/08** — vocês ligaram as quatro na IMOBILIATTO.
+Sobram duas, e as duas dependem de vocês: **cadastro das URLs de webhook**
+(1.2) e **como concluir uma biometria em homologação** (3.4.1). Sem a
+primeira, nenhuma análise passa de pré-aprovado e a contratação nunca chega a
+ser exercitada.
 
 Em paralelo segue aberto o **bloco 2 (modelo comercial)**.
 
@@ -156,7 +157,7 @@ Restam as perguntas:
 *(No `yelum_incendio` aparece uma seguradora — Yelum — que não está em nenhuma
 das listas de disponíveis. Ela entra em algum momento?)*
 
-**1.6 Habilitar as demais seguradoras no CNPJ de teste** ⚠️ *novo — pedido*
+**1.6 Habilitar as demais seguradoras** ✅ *resolvido em 28/08/2026 — por outro caminho*
 Consequência direta do 1.5: com `porto_fianca` como única habilitação ativa, o
 CNPJ de teste só permite exercitar **uma** das quatro seguradoras. Três quartos
 da integração de fiança seguem sem cobertura de teste — e o comportamento
@@ -169,6 +170,17 @@ O que isso destrava do nosso lado: comparação de pareceres entre seguradoras n
 mesma análise (que é o produto que estamos construindo), o caminho da Tokio com
 análise completa, e a validação de que o filtro do 1.5 está correto — hoje não
 temos como distinguir "filtrou certo" de "só existe uma opção".
+
+**Resolvido de outro jeito.** Vocês não habilitaram no CNPJ de teste: habilitaram
+na **IMOBILIATTO** (`45.528.182/0001-06`), avisada em 28/08 como *"ficou certo
+para sua imobiliária"*. Medido em 30/08 no `consultarImobiliaria` de
+homologação — `porto_fianca`, `too_fianca`, `tokio_fianca` e
+`pottencial_fianca` **todas true**, mais `porto_incendio` e `alfa_incendio`.
+O CNPJ de teste segue com só a Porto.
+
+Serve igual: passamos a cotar sob o CNPJ da imobiliária em homologação, com o
+de teste como rede para quem não tem cadastro na base de vocês. Só confirmem
+que a habilitação foi intencional.
 
 ---
 
@@ -501,8 +513,8 @@ caminho é contratar uma nova?
 Checklist do que precisamos de vocês para ligar:
 
 - [x] Credencial de **homologação** — recebida em 13/08/2026 e testada
-- [ ] **Habilitar Too, Tokio e Pottencial** no CNPJ de teste (1.6) — *destrava
-      3 das 4 seguradoras*
+- [x] **Habilitar Too, Tokio e Pottencial** (1.6) — feito em 28/08 na
+      IMOBILIATTO, não no CNPJ de teste; medido em 30/08
 - [ ] **URLs de webhook cadastradas** do lado de vocês (1.2) — *destrava a
       biometria e, com ela, a contratação*
 - [ ] **Caminho para concluir biometria em homologação** (3.4.1)

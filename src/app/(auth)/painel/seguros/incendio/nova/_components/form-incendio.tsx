@@ -76,6 +76,8 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
   const [endereco, setEndereco] = useState('')
   const [numero, setNumero] = useState('')
   const [complemento, setComplemento] = useState('')
+  /** Referência interna da imobiliária — "Controle / CTRL-PASTA" no painel deles. */
+  const [controle, setControle] = useState('')
   const [bairro, setBairro] = useState('')
   const [cidade, setCidade] = useState('Cuiabá')
   const [uf, setUf] = useState('MT')
@@ -232,6 +234,7 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
 
     startTransition(async () => {
       const r = await calcularApoliceIncendio({
+        controle: controle.trim() || null,
         contratoId: contratoId || null,
         imovelId: idsCrm.imovelId,
         inquilinoId: idsCrm.inquilinoId,
@@ -360,6 +363,13 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
             </select>
             <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
           </div>
+          {/* O painel da corretora avisa isso numa caixa amarela e a API não
+              devolve o dado. Descobrir na recusa é tarde: a cotação inteira
+              já foi preenchida. */}
+          <p className="text-[11px] text-gray-500 mt-1 leading-snug">
+            Construção inferior ou mista não é aceita pelas seguradoras — só
+            alvenaria. Confirme antes de cotar.
+          </p>
         </div>
 
         <div>
@@ -497,6 +507,18 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
               placeholder="Apto 302, bloco B"
               className={input}
             />
+          </div>
+          <div>
+            <label className={label}>Controle</label>
+            <input
+              value={controle}
+              onChange={e => setControle(e.target.value)}
+              placeholder="nº da pasta, referência interna"
+              className={input}
+            />
+            <p className="text-[11px] text-gray-400 mt-1 leading-snug">
+              Só pra você achar depois. Não vai pra seguradora.
+            </p>
           </div>
           <div>
             <label className={label}>Bairro</label>

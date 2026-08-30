@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { assinarUrlArquivo } from '@/lib/seguros/arquivos'
 import type { ResultadoCalculo } from '@/lib/seguros/incendio/tipos'
+import { ambienteMaximiza } from '@/lib/seguros/maximiza/client'
+import { FaixaAmbiente } from '../../_components/faixa-ambiente'
 import { DetalheIncendio } from './_components/detalhe-incendio'
 
 interface Props {
@@ -24,7 +26,7 @@ export default async function ApoliceIncendioPage({ params }: Props) {
       status, valor_aluguel, premio_total, valor_iof, valor_assistencia,
       valor_parcela, qtd_parcelas, forma_pagto_descricao,
       inicio_vigencia, fim_vigencia, codigo_seguro, numero_proposta,
-      calculo, inquilino, proprietario, endereco, erro,
+      calculo, inquilino, proprietario, endereco, erro, controle,
       cancelamento_msg, contratada_em, cancelada_em, created_at,
       imovel:imoveis(titulo), contrato:contratos_locacao(codigo)
     `)
@@ -75,6 +77,12 @@ export default async function ApoliceIncendioPage({ params }: Props) {
 
   const local = [end?.endereco, end?.numero].filter(Boolean).join(', ')
 
+  // Resolvido aqui e passado adiante: o componente é client e não enxerga
+  // env var. Se faltar a variável, some a trava — e aí a própria chamada
+  // falha com mensagem própria antes de qualquer emissão.
+  let ambienteAtual: 1 | 2 | null = null
+  try { ambienteAtual = ambienteMaximiza() } catch { ambienteAtual = null }
+
   return (
     <div className="p-4 sm:p-6 space-y-4 max-w-3xl mx-auto pb-32">
       <div>
@@ -93,10 +101,14 @@ export default async function ApoliceIncendioPage({ params }: Props) {
         <p className="text-sm text-gray-500">
           {imovel?.titulo ?? local ?? '—'}
           {contrato?.codigo && <> · {contrato.codigo}</>}
+          {a.controle && <> · controle <span className="font-mono">{a.controle}</span></>}
         </p>
       </div>
 
+      <FaixaAmbiente />
+
       <DetalheIncendio
+        ambiente={ambienteAtual}
         apolice={{
           id: a.id,
           seguradora: a.seguradora,

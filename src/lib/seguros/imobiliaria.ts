@@ -56,9 +56,9 @@ async function emailDoUsuario(admin: Admin, userId: string): Promise<string | nu
 
 /**
  * CNPJ de imobiliária que a Maximiza liberou para os nossos testes
- * (`MAXIMIZA_CNPJ_TESTE`). Em homologação a base deles é outra: o CNPJ real
- * do corretor não existe lá, e a análise voltaria com erro de imobiliária
- * não encontrada antes mesmo de exercitar o fluxo.
+ * (`MAXIMIZA_CNPJ_TESTE`). É a REDE DE SEGURANÇA de homologação, para quem
+ * não tem cadastro na base deles — quem tem passa pelo próprio, e a
+ * escolha entre os dois é de `cnpjParaHomologacao()`.
  *
  * Só vale em ambiente 2 — em produção, cada corretor responde pelo próprio
  * CNPJ, e uma análise emitida sob o CNPJ de teste seria apólice no nome de
@@ -70,6 +70,51 @@ function cnpjDeTeste(): string | null {
   const cnpj = (process.env.MAXIMIZA_CNPJ_TESTE ?? '').replace(/\D/g, '')
   if (!cnpj) return null
   return ambienteMaximiza() === 2 ? cnpj : null
+}
+
+/** Só o documento do perfil, sem exigir que o resto esteja completo. */
+async function documentoDoPerfil(admin: Admin, userId: string): Promise<string | null> {
+  const { data } = await admin
+    .from('perfis').select('cpf, cnpj').eq('id', userId).maybeSingle()
+  const p = data as { cpf?: string | null; cnpj?: string | null } | null
+  const doc = (p?.cnpj ?? p?.cpf ?? '').replace(/\D/g, '')
+  return doc || null
+}
+
+/**
+ * Qual CPF/CNPJ usar quando estamos em homologação.
+ *
+ * Até 30/08/2026 isto era simplesmente "o CNPJ de teste, sempre": a base
+ * de homologação da corretora não tinha o cadastro de ninguém nosso, e
+ * cotar com o CNPJ real voltava imobiliária não encontrada antes de
+ * exercitar o fluxo.
+ *
+ * Deixou de ser verdade. Em 28/08/2026 a Maximiza habilitou a IMOBILIATTO,
+ * e `consultarImobiliaria` passou a responder 201 para 45.528.182/0001-06
+ * — com as quatro seguradoras de fiança ligadas, contra só a Porto no
+ * CNPJ de teste. Continuar trocando esconderia justamente o que se quer
+ * medir: uma cotação que "passa" sob outro CNPJ não prova nada sobre o
+ * cadastro que eles acabaram de liberar.
+ *
+ * Então tenta o do corretor primeiro e cai no de teste quando ele não
+ * responde — o que continua sendo o caso do convidado da sessão de
+ * homologação, que não tem perfil nenhum.
+ *
+ * O resultado NÃO é gravado em `seguro_imobiliarias`: aquela linha guarda
+ * `cod_alfa` e `cod_porto`, que são códigos da base de homologação e não
+ * valem em produção. Uma consulta a mais por cotação é barata — não cria
+ * registro, e homologação não tem volume.
+ */
+async function cnpjParaHomologacao(admin: Admin, userId: string): Promise<string | null> {
+  const teste = cnpjDeTeste()
+  if (!teste) return null
+
+  const proprio = await documentoDoPerfil(admin, userId)
+  if (proprio && proprio !== teste) {
+    const existe = await consultarImobiliaria(admin, proprio, userId)
+    if (existe) return proprio
+  }
+  return teste
 }
 
 export interface StatusProvisionamento {
@@ -142,8 +187,8 @@ export async function garantirImobiliaria(
   admin: Admin,
   userId: string,
 ): Promise<{ cnpjCpf?: string; error?: string }> {
-  const teste = cnpjDeTeste()
-  if (teste) return { cnpjCpf: teste }
+  const homolog = await cnpjParaHomologacao(admin, userId)
+  if (homolog) return { cnpjCpf: homolog }
 
   const { data: vinculo } = await admin
     .from('seguro_imobiliarias')

@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { AvisoDemo } from '../../_components/aviso-demo'
+import { FaixaAmbiente } from '../../_components/faixa-ambiente'
 import { FormIncendio } from './_components/form-incendio'
 
 interface Props {
@@ -104,6 +105,7 @@ export default async function NovaIncendioPage({ searchParams }: Props) {
         </p>
       </div>
 
+      <FaixaAmbiente />
       <AvisoDemo />
 
       {!perfil.pronto ? (

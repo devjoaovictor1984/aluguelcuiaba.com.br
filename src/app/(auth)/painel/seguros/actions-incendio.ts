@@ -72,6 +72,8 @@ export async function listarSeguradorasDoIncendio() {
 /* ── Cálculo ───────────────────────────────────────────────────────── */
 
 export interface NovaApoliceInput {
+  /** Referência interna da imobiliária. Não vai pra seguradora. */
+  controle?: string | null
   contratoId?: string | null
   imovelId?: string | null
   inquilinoId?: string | null
@@ -108,6 +110,7 @@ export async function calcularApoliceIncendio(input: NovaApoliceInput) {
     .from('seguro_incendio_apolices')
     .insert({
       user_id: acesso.userId,
+      controle: input.controle?.trim() || null,
       contrato_id: input.contratoId ?? null,
       imovel_id: input.imovelId ?? null,
       inquilino_id: input.inquilinoId ?? null,
@@ -166,6 +169,15 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
   formaPagtoDescricao: string
   qtdParcelas: number
   valorParcela: number
+  /**
+   * Aceite explícito de que a emissão é real. Só é exigido em produção.
+   *
+   * Vive no servidor e não na tela porque a tela pode estar velha: uma aba
+   * aberta antes do deploy que virou o ambiente não tem a caixa de
+   * confirmação, e sem esta trava emitiria apólice de verdade achando que
+   * ainda estava em homologação.
+   */
+  confirmaEmissaoReal?: boolean
 }) {
   const acesso = await exigirAcessoSeguros()
   const admin = createAdminClient()
@@ -174,6 +186,13 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
   if (!apolice) return { error: 'Cotação não encontrada.' }
   if (apolice.status === 'contratada') return { error: 'Esta apólice já foi contratada.' }
   if (apolice.status !== 'calculada') return { error: 'Calcule antes de contratar.' }
+
+  if (ambienteMaximiza() === 1 && !escolha.confirmaEmissaoReal) {
+    return {
+      error: 'Esta plataforma está em produção: contratar aqui emite apólice ' +
+        'de verdade. Recarregue a página e confirme a emissão real antes de continuar.',
+    }
+  }
 
   const { data: linha } = await admin
     .from('seguro_incendio_apolices')

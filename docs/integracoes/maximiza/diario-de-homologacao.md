@@ -11,22 +11,138 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 
 ---
 
-## Estado atual — 17/08/2026 (fim do dia)
+## 30/08/2026 — o primeiro retorno deles, e o que ele não diz
+
+Doze dias sem contato desde a entrega das URLs de webhook em 18/08. Em
+28/08, às 17:54, veio por WhatsApp:
+
+> *"Ficou certo para sua imobiliária. Poderia testar o cálculo de incêndio?"*
+
+**Medido no nosso lado, antes de responder qualquer coisa:**
+
+| Onde | O que tem |
+|---|---|
+| `seguro_eventos` com `direcao = entrada` | **zero registros.** Nenhum webhook chegou desde 13/08 |
+| `homologacao_apontamentos` | **vazio.** A equipe técnica deles entrou 7× entre 17/08 e 18/08 12:38 e não anotou nada |
+| `sessoes_homologacao` | a sessão deles **expira em 31/08** e não é acessada desde 18/08 |
+| último evento nosso | 30/08 15:42 — três chamadas de catálogo do formulário de incêndio |
+
+Ou seja: o retorno veio por fora do sistema, e nada mudou nos três bloqueios
+de fiança.
+
+### A pegadinha do "teste o cálculo"
+
+`garantirImobiliaria()` (`src/lib/seguros/imobiliaria.ts`) devolvia o CNPJ de
+teste **na primeira linha**, antes de ler o perfil, sempre que
+`MAXIMIZA_AMBIENTE=2`. Testar assim exercitaria `10.961.528/0001-80`
+(MAXIMIZA IMOB TEMP - DF), **não a IMOBILIATTO** — passaria bonito e não
+provaria nada sobre o que eles acabaram de habilitar.
+
+### O que a consulta respondeu ✅
+
+Em vez de perguntar em qual ambiente habilitaram, medimos: o
+`consultarImobiliaria` não cria registro, então dá pra consultar à vontade.
+Com a credencial de **homologação**, o CNPJ da IMOBILIATTO respondeu:
+
+```
+POST /apiImobiliaria/consultarImobiliaria  { "cnpj_cpf": "45528182000106" }
+→ 201
+
+razao   J. V. VIEIRA LTDA        fantasia  IMOBILIATTO
+cod_alfa 5719                    cod_porto 60132
+porto_incendio true    alfa_incendio     true    yelum_incendio false
+porto_fianca   true    too_fianca        true
+tokio_fianca   true    pottencial_fianca true
+```
+
+Contra o CNPJ de teste, na mesma base e no mesmo minuto:
+
+```
+MAXIMIZA IMOB TEMP - DF
+porto_fianca true · too_fianca FALSE · tokio_fianca FALSE · pottencial_fianca FALSE
+```
+
+**Duas conclusões.** Habilitaram em **homologação** — a IMOBILIATTO responde
+na base que a credencial de homologação enxerga. E habilitaram **as quatro
+seguradoras de fiança**, não só incêndio: o item 1.6 pedia isso no CNPJ de
+teste e eles resolveram na imobiliária, o que serve igual agora que dá pra
+cotar sob ela. **Um dos três bloqueios do projeto cai aqui.**
+
+Sobra a biometria, que depende do webhook — e webhook continua zerado.
+
+### A troca de CNPJ deixou de ser incondicional ✅
+
+`cnpjParaHomologacao()` substitui o antigo atalho: em ambiente 2, usa o CNPJ
+do próprio corretor quando ele já responde na base deles, e cai no de teste
+quando não responde. Confirmado que `perfis.cnpj` do João já é
+`45528182000106`, então a cotação passa a sair sob a IMOBILIATTO.
+
+O resultado **não** é gravado em `seguro_imobiliarias`: aquela linha guarda
+`cod_alfa` e `cod_porto`, que são da base de homologação e não valem em
+produção. Custa uma consulta por cotação, que não cria registro.
+
+O convidado da sessão de homologação continua caindo no CNPJ de teste — ele
+não tem perfil nenhum, que é exatamente o caso pro qual a rede existe.
+
+**Confirmado na leitura do código, e é o que torna o teste viável:** o
+`/calculo` não leva `criaRegistro` — não cria nada, não emite nada, repete à
+vontade. Só `/contratar` e `/cancelar` criam registro. Então o cálculo pode
+rodar até em produção sem emitir apólice; o risco é o botão ao lado.
+
+### O que foi construído por causa disso ⚠️ *nosso lado*
+
+Virar `MAXIMIZA_AMBIENTE` para 1 deixou de ser hipótese, e a tela era
+**idêntica** nos dois ambientes — mesma cor, mesmo botão, mesmo lugar. Quem
+abrisse a aba antes de um deploy que virasse o ambiente emitiria apólice real
+achando que testava.
+
+- **`FaixaAmbiente`** em todas as telas de seguros: cinza em homologação
+  (dizendo sob qual CNPJ a cotação sai), vermelha em produção. ✅
+- **Confirmação explícita** antes de contratar em produção, com o valor que o
+  cliente vai pagar escrito nela; o botão muda de cor e de texto para
+  "Emitir apólice real". ✅
+- **Trava no servidor**, e não só na tela: `contratarApoliceIncendio` recusa em
+  ambiente 1 sem o aceite. A tela pode estar velha — uma aba aberta antes do
+  deploy não tem a caixa de confirmação, e sem a trava emitiria. ✅
+
+### Quatro pontas do painel deles, fechadas (v86)
+
+- **Taxa por cobertura** — a API já devolvia `lmi` e `premio` por cobertura;
+  exibíamos só o total. Agora sai a taxa de cada uma. ✅
+- **% do prêmio sobre o aluguel** — o argumento de venda que o painel deles
+  mostra ao lado do total. ✅
+- **Campo Controle / CTRL-PASTA** — referência livre da imobiliária, migration
+  v86. Não vai pra seguradora; entra na busca da listagem. ✅
+- **Aviso de construção inferior/mista não aceita** — caixa amarela no painel
+  deles, dado que a API não devolve. Agora avisa antes de cotar, não na
+  recusa. ✅
+
+---
+
+## Estado atual — 30/08/2026
 
 | Frente | Onde está |
 |---|---|
 | Fiança — análise | ✅ funciona; para em pré-aprovado, como a regra deles prevê |
+| Fiança — seguradoras | ✅ as quatro habilitadas na IMOBILIATTO (30/08); só a Porto no CNPJ de teste |
 | Fiança — biometria | ⏳ sem caminho: o link só vem por webhook, que não está cadastrado |
 | Fiança — contratação | ⏳ bloqueada pela biometria; nunca exercitada |
 | Incêndio — cálculo | ✅ funciona na Alfa e na Porto |
 | Incêndio — contratação | ✅ apólice 607773 emitida em homologação |
 | Incêndio — documentos | ✅ certificado e proposta; boleto sai depois do lote |
 | Incêndio — cancelamento | ✅ "Certificado cancelado com sucesso" |
+| Incêndio — ligar em produção | ⏳ falta credencial de produção e o pró-labore confirmado — ver `incendio-para-ligar.md` |
+| Webhooks | ⏳ **nenhum recebido desde 13/08**; URLs entregues em 18/08 |
+| Sessão de homologação deles | ⚠️ expira 31/08, sem acesso desde 18/08 e sem nenhum apontamento |
 | Comissões | ✅ registradas na venda; percentuais dependem da corretora |
 | Modelo comercial | ⏳ nada definido — ver `perguntas-pendentes.md`, bloco 2 |
 
-**Ambiente:** homologação (`MAXIMIZA_AMBIENTE=2`), local e na Vercel.
-**CNPJ de teste:** `10.961.528/0001-80` (MAXIMIZA IMOB TEMP - DF).
+**Ambiente:** homologação (`MAXIMIZA_AMBIENTE=2`), local e na Vercel. Desde
+30/08 a tela diz em qual ambiente está, e contratar em produção exige aceite
+explícito — na tela e no servidor.
+**CNPJ em homologação:** o do próprio corretor quando responde na base deles
+(a IMOBILIATTO responde desde 28/08); `10.961.528/0001-80` (MAXIMIZA IMOB
+TEMP - DF) como rede pra quem não tem cadastro lá.
 **Habilitações do CNPJ de teste:** só `porto_fianca`; incêndio tem Porto e Alfa.
 
 ---

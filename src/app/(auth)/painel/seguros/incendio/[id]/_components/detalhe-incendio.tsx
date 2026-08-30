@@ -55,12 +55,21 @@ interface DocumentoView {
 interface Props {
   apolice: ApoliceView
   documentos: DocumentoView[]
+  /** 1 = produção (emite de verdade) · 2 = homologação · null = env ausente. */
+  ambiente: 1 | 2 | null
 }
 
 const dataBr = (iso: string | null) =>
   iso ? new Date(iso + 'T00:00:00').toLocaleDateString('pt-BR') : '—'
 
-export function DetalheIncendio({ apolice: a, documentos }: Props) {
+/** Taxa de cobertura: prêmio sobre o limite. Fração pequena, precisa de casas. */
+const fmtTaxa = (v: number) =>
+  `${(v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 })}%`
+
+const fmtPercent = (v: number) =>
+  `${(v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
+
+export function DetalheIncendio({ apolice: a, documentos, ambiente }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState('')
@@ -73,6 +82,15 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
   /** Toda ação começa limpando o que sobrou da anterior. */
   const limpar = () => { setErro(''); setMsg(''); setAviso('') }
   const [escolha, setEscolha] = useState<{ codigo: string; descricao: string; qtd: number; valor: number } | null>(null)
+
+  /**
+   * Em produção o botão de contratar emite apólice real, com cobrança ao
+   * cliente. A tela é a mesma da homologação — só o ambiente muda —, então
+   * a única coisa que separa um teste de uma emissão é a atenção de quem
+   * clica. Este passo existe pra isso não ser verdade.
+   */
+  const emProducao = ambiente === 1
+  const [cienteProducao, setCienteProducao] = useState(false)
 
   const contratada = a.status === 'contratada'
   const cancelada = a.status === 'cancelada'
@@ -101,6 +119,7 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
         formaPagtoDescricao: escolha.descricao,
         qtdParcelas: escolha.qtd,
         valorParcela: escolha.valor,
+        confirmaEmissaoReal: cienteProducao,
       })
       if ('error' in r && r.error) { setErro(r.error); return }
       setMsg('ok' in r ? `Contratado. Apólice ${r.codigoSeguro}.` : 'Contratado.')
@@ -239,6 +258,7 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
                   <p className="font-bold text-gray-900 tabular-nums">{formatarBRL(c.limite)}</p>
                   <p className="text-[11px] text-gray-400 tabular-nums">
                     prêmio {formatarBRL(c.premio)}
+                    {c.limite > 0 && <> · taxa {fmtTaxa(c.premio / c.limite)}</>}
                   </p>
                 </div>
               </div>
@@ -257,6 +277,14 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
                 {formatarBRL(a.calculo.premio)}
               </span>
             </div>
+            {/* O peso do seguro sobre o aluguel — é o número que convence o
+                proprietário, e o painel da corretora mostra ao lado do total. */}
+            {(a.valorAluguel ?? 0) > 0 && a.calculo.premio > 0 && (
+              <p className="text-[11px] text-gray-500 pt-0.5">
+                {fmtPercent(a.calculo.premio / (a.valorAluguel as number))} do valor
+                do aluguel {a.tipoVigencia === 0 ? 'no ano' : 'no mês'}
+              </p>
+            )}
           </div>
 
           {a.tipoCobertura && (
@@ -330,14 +358,35 @@ export function DetalheIncendio({ apolice: a, documentos }: Props) {
             cartão pela plataforma.
           </p>
 
+          {emProducao && (
+            <label className="flex items-start gap-2.5 cursor-pointer rounded-xl bg-red-50 ring-1 ring-red-300 px-3.5 py-3">
+              <input
+                type="checkbox"
+                checked={cienteProducao}
+                onChange={e => setCienteProducao(e.target.checked)}
+                className="w-4 h-4 mt-0.5 shrink-0 accent-red-600"
+              />
+              <span className="text-[11px] text-red-900 leading-snug">
+                <strong>Isto emite uma apólice de verdade.</strong> O cliente
+                {escolha && <> vai ser cobrado em {escolha.qtd}× {formatarBRL(escolha.valor)}</>}
+                {' '}e o cancelamento passa a ter prazo e regra de estorno.
+                Não é teste.
+              </span>
+            </label>
+          )}
+
           <button
             type="button"
             onClick={contratar}
-            disabled={isPending || !escolha}
-            className="w-full flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-700 disabled:opacity-50 py-3.5 font-semibold text-white"
+            disabled={isPending || !escolha || (emProducao && !cienteProducao)}
+            className={`w-full flex items-center justify-center gap-2 rounded-xl disabled:opacity-50 py-3.5 font-semibold text-white ${
+              emProducao ? 'bg-red-600 hover:bg-red-700' : 'bg-orange-600 hover:bg-orange-700'
+            }`}
           >
             {isPending ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-            {isPending ? 'Contratando…' : 'Contratar seguro'}
+            {isPending
+              ? 'Contratando…'
+              : emProducao ? 'Emitir apólice real' : 'Contratar seguro'}
           </button>
         </section>
       ) : null}

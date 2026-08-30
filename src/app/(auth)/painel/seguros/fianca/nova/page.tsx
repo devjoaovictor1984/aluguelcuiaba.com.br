@@ -6,6 +6,7 @@ import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { FormNovaAnalise } from './_components/form-nova-analise'
 import { AvisoDemo } from '../../_components/aviso-demo'
+import { FaixaAmbiente } from '../../_components/faixa-ambiente'
 
 interface Props {
   searchParams: Promise<{ contrato?: string }>
@@ -68,6 +69,7 @@ export default async function NovaAnalisePage({ searchParams }: Props) {
         </p>
       </div>
 
+      <FaixaAmbiente />
       <AvisoDemo />
 
       {!perfil.pronto ? (
