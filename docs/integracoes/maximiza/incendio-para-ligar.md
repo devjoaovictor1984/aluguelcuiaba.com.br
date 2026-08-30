@@ -91,17 +91,35 @@ de teste, o que exercita o fluxo mas não valida o cadastro de vocês.
 
 ---
 
-## 1.4 O `ocupacoes/R` parou de honrar o header `seguradora`
+## 1.4 URGENTE — a escolha de seguradora parou de ter efeito
 
-Em 17/08 medimos catálogos diferentes por seguradora — Alfa `4070/1002`,
-Porto `1/6 (APARTAMENTOS)`. Hoje, seis valores de header diferentes
-(incluindo um inválido e nenhum header) devolvem **a mesma lista**, a da
-Alfa. E o `/calculo` da Porto aceita as rubricas da Alfa e devolve prêmio.
+Em 17/08 o header `seguradora` funcionava: a Porto exigia endereço no cálculo
+e usava outro catálogo de ocupação (`1/6 APARTAMENTOS` contra `4070/1002` da
+Alfa). Hoje, não.
 
-Os catálogos foram unificados, ou o endpoint deixou de filtrar? A diferença
-importa: se a Porto ainda tem rubrica própria internamente, estamos cotando
-com o código errado e recebendo preço assim mesmo — o que é pior do que
-receber erro.
+**`ocupacoes/R`** devolve a mesma lista para seis valores de header
+diferentes, incluindo um inválido e nenhum header.
+
+**`/calculo`** faz o mesmo. Payload idêntico:
+
+```
+header seguradora = Alfa   → 201  premio 364,71 · 6 coberturas
+header seguradora = Porto  → 201  premio 364,71 · 6 coberturas
+header seguradora = al2    → 201  (idêntico)
+header seguradora = por    → 201  (idêntico)
+SEM header                 → 201  (idêntico)
+```
+
+Procuramos o roteamento novo no corpo — `seguradora`, `sigla`,
+`cdseguradora`, `cia` — e nenhum muda o resultado.
+
+**Como pedimos a cotação para uma seguradora específica agora?** Enquanto não
+soubermos, o seletor da nossa tela é decorativo: o corretor escolhe Porto e
+recebe um preço que não sabemos de quem é. Isso é pior do que receber erro,
+porque o número parece bom.
+
+E se a mudança for intencional, precisamos saber: a `sigla` nova (`al2`,
+`por`) entra onde?
 
 ---
 
@@ -169,9 +187,11 @@ do nosso lado já está contornado.
 
 1. **Provisionar as credenciais das seguradoras no cadastro da IMOBILIATTO**
    (item 1.3) — é o que trava o teste do incêndio hoje.
-2. **Cadastrar as URLs de webhook** (entregues em 18/08) — é o que trava a
+2. **Dizer como escolher a seguradora agora** (item 1.4) — o header parou de
+   funcionar e não achamos substituto.
+3. **Cadastrar as URLs de webhook** (entregues em 18/08) — é o que trava a
    fiança inteira; nenhum webhook chegou desde 13/08.
-3. Credencial de produção e o pró-labore confirmado, pra ligar o incêndio.
+4. Credencial de produção e o pró-labore confirmado, pra ligar o incêndio.
 
 ---
 

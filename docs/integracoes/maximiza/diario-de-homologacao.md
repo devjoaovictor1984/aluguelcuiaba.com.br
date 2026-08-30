@@ -55,6 +55,34 @@ de teste enquanto eles arrumam. A faixa de ambiente diz quando está forçado,
 pra ninguém esquecer ligado. Sai quando a cotação sob a IMOBILIATTO voltar
 201. ✅
 
+### Medido: o `/calculo` também ignora o header — o seletor está decorativo ⚠️ *deles*
+
+Pior que o `ocupacoes`. Payload **idêntico**, só variando o header:
+
+```
+POST /incendioAlfaV2/calculo
+
+header seguradora = Alfa   → 201  premio 364.71 · liq 339.64 · iof 25.07 · 6 coberturas
+header seguradora = Porto  → 201  (idêntico)
+header seguradora = al2    → 201  (idêntico)
+header seguradora = por    → 201  (idêntico)
+SEM header                 → 201  (idêntico)
+```
+
+Procuramos roteamento novo no corpo — `seguradora`, `sigla`, `cdseguradora`,
+`cia`. Nenhum muda o resultado.
+
+**Consequência:** o seletor de seguradora da nossa tela não faz nada.
+Escolher Porto grava `seguradora: "Porto"` numa cotação que a API calculou
+como se fosse outra coisa. Não dá pra consertar daqui sem saber qual é o
+mecanismo novo — e o dado gravado fica mentindo enquanto isso.
+
+Cuidado com uma leitura errada que quase tivemos: mais cedo a Alfa deu
+251,69/5 coberturas e a Porto 364,71/6, o que parecia diferença entre
+seguradoras. Não era — o payload da Alfa ia com `vl_cob_vendaval: 0`. Com o
+mesmo payload, o resultado é igual. Comparação entre seguradoras só vale com
+payload idêntico.
+
 ### Medido: `ocupacoes/R` ignora o header `seguradora` ⚠️ *deles*
 
 Em 17/08 estava registrado que o catálogo de ocupação era por seguradora —
