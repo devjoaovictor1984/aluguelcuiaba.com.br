@@ -60,6 +60,51 @@ contratação de fiança nunca abre. Foram entregues em 18/08.
 
 ---
 
+## 1.3 URGENTE — o cadastro da IMOBILIATTO não coteja
+
+Assim que passamos a cotar sob a IMOBILIATTO, toda cotação passou a voltar:
+
+```
+400  Erro em EnviaCertificadoXML. Contacte o Administrador.
+     Erro: Usuário e/ou Senha Inválidos! Tente novamente ou contate Sistemas.
+```
+
+Isolamos mandando o **mesmo payload** e trocando só o `cpfcnpj_imob`:
+
+```
+Alfa  · 45528182000106 (IMOBILIATTO)  → 400  "Usuário e/ou Senha Inválidos!"
+Alfa  · 10961528000180 (teste)        → 201  prêmio 251,69
+Porto · 45528182000106 (IMOBILIATTO)  → 400  "Usuário e/ou Senha Inválidos!"
+Porto · 10961528000180 (teste)        → 201  prêmio 364,71
+```
+
+Falha nas duas seguradoras, então não é credencial de uma delas. E não é a
+nossa credencial: a autenticação passa e o erro é de regra de negócio.
+
+O `consultarImobiliaria` responde 201 para a IMOBILIATTO, com `cod_alfa
+5719`, `cod_porto 60132` e todas as flags `true`. **O cadastro existe mas
+parece não ter as credenciais das seguradoras provisionadas em
+homologação** — as flags não refletem isso.
+
+**É o que trava os testes agora.** Enquanto isso seguimos cotando sob o CNPJ
+de teste, o que exercita o fluxo mas não valida o cadastro de vocês.
+
+---
+
+## 1.4 O `ocupacoes/R` parou de honrar o header `seguradora`
+
+Em 17/08 medimos catálogos diferentes por seguradora — Alfa `4070/1002`,
+Porto `1/6 (APARTAMENTOS)`. Hoje, seis valores de header diferentes
+(incluindo um inválido e nenhum header) devolvem **a mesma lista**, a da
+Alfa. E o `/calculo` da Porto aceita as rubricas da Alfa e devolve prêmio.
+
+Os catálogos foram unificados, ou o endpoint deixou de filtrar? A diferença
+importa: se a Porto ainda tem rubrica própria internamente, estamos cotando
+com o código errado e recebendo preço assim mesmo — o que é pior do que
+receber erro.
+
+---
+
 ## 2. O que precisa estar de pé antes da primeira apólice real
 
 Não é lista de desejos — é o mínimo pra não emitir errado:
@@ -120,11 +165,13 @@ do nosso lado já está contornado.
 
 ---
 
-## O que pedimos, em uma linha
+## O que pedimos, em ordem
 
-**As URLs de webhook**, que seguem sem cadastro desde 18/08 — é o único
-bloqueio que sobrou, e ele é da fiança. No incêndio, o que falta é a
-credencial de produção e o pró-labore confirmado.
+1. **Provisionar as credenciais das seguradoras no cadastro da IMOBILIATTO**
+   (item 1.3) — é o que trava o teste do incêndio hoje.
+2. **Cadastrar as URLs de webhook** (entregues em 18/08) — é o que trava a
+   fiança inteira; nenhum webhook chegou desde 13/08.
+3. Credencial de produção e o pró-labore confirmado, pra ligar o incêndio.
 
 ---
 

@@ -11,6 +11,77 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 
 ---
 
+## 30/08/2026 (noite) — o cadastro existe, mas não funciona
+
+Primeira cotação real sob a IMOBILIATTO, apartamento no Paiaguás, R$ 1.800.
+Voltou 400:
+
+```
+Erro em EnviaCertificadoXML. Contacte o Administrador.
+Erro: Usuário e/ou Senha Inválidos! Tente novamente ou contate Sistemas.
+```
+
+**Confirmado primeiro o que interessava:** o `request` gravado em
+`seguro_eventos` traz `cpfcnpj_imob: "45528182000106"`. A troca de CNPJ
+funcionou — a cotação está saindo sob a IMOBILIATTO.
+
+**E o erro é no `/calculo`, não no `/contratar`.** Nada foi criado do lado
+deles: `/calculo` não leva `criaRegistro`. Não há apólice órfã.
+
+### Medido: o mesmo payload, trocando só o CNPJ ⏳ *deles*
+
+```
+POST /incendioAlfaV2/calculo   (payload idêntico, só cpfcnpj_imob muda)
+
+Alfa  · 45528182000106 (IMOBILIATTO)  → 400  "Usuário e/ou Senha Inválidos!"
+Alfa  · 10961528000180 (teste)        → 201  prêmio 251,69 · 5 coberturas
+Porto · 45528182000106 (IMOBILIATTO)  → 400  "Usuário e/ou Senha Inválidos!"
+Porto · 10961528000180 (teste)        → 201  prêmio 364,71 · 6 coberturas
+```
+
+Falha nas **duas** seguradoras, então não é credencial de uma delas. E não é
+credencial nossa: a autenticação passou, o request chegou na regra de
+negócio e voltou erro de negócio.
+
+**Conclusão:** a Maximiza criou o cadastro da IMOBILIATTO — o
+`consultarImobiliaria` responde 201, com `cod_alfa 5719`, `cod_porto 60132`
+e todas as flags true — mas **não provisionou as credenciais das
+seguradoras para esse cadastro em homologação**. Estar cadastrado não é o
+mesmo que estar funcionando, e as flags mentem sobre isso.
+
+**Decisão nossa, temporária:** `MAXIMIZA_FORCAR_CNPJ_TESTE=1` volta ao CNPJ
+de teste mesmo com o cadastro próprio respondendo, pra não travar o roteiro
+de teste enquanto eles arrumam. A faixa de ambiente diz quando está forçado,
+pra ninguém esquecer ligado. Sai quando a cotação sob a IMOBILIATTO voltar
+201. ✅
+
+### Medido: `ocupacoes/R` ignora o header `seguradora` ⚠️ *deles*
+
+Em 17/08 estava registrado que o catálogo de ocupação era por seguradora —
+Alfa `4070/1002`, Porto `1/6 (APARTAMENTOS)`. Não é mais:
+
+```
+GET /incendioAlfaV2/ocupacoes/R
+
+header seguradora = Alfa              → 200  4070/1002 4080/1002 4000/1001 4010/1001
+header seguradora = Porto             → 200  4070/1002 4080/1002 4000/1001 4010/1001
+header seguradora = al2               → 200  (idêntico)
+header seguradora = por               → 200  (idêntico)
+header seguradora = "[object Object]" → 200  (idêntico)
+SEM o header                          → 200  (idêntico)
+```
+
+Seis valores diferentes, incluindo lixo e ausência, e a mesma resposta. O
+endpoint deixou de honrar o header — ou os catálogos foram unificados.
+
+Importa porque o formulário recarrega o catálogo ao trocar de seguradora
+achando que recebe outro, e o `/calculo` da Porto aceitou as rubricas da
+Alfa (201, 6 coberturas). Se internamente a Porto ainda tem código próprio,
+estamos cotando com rubrica errada e recebendo preço mesmo assim — que é
+pior do que receber erro. Perguntado.
+
+---
+
 ## 30/08/2026 — o primeiro retorno deles, e o que ele não diz
 
 Doze dias sem contato desde a entrega das URLs de webhook em 18/08. Em

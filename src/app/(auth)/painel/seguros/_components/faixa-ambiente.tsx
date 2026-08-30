@@ -47,18 +47,30 @@ export function FaixaAmbiente() {
   const cnpjFmt = cnpj.length === 14
     ? cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
     : null
+  const forcado = process.env.MAXIMIZA_FORCAR_CNPJ_TESTE === '1'
 
   return (
     <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 px-3.5 py-2.5 flex items-start gap-2">
       <FlaskConical size={14} className="text-slate-500 shrink-0 mt-0.5" />
       <p className="text-[11px] text-slate-700 leading-snug">
-        <strong>Homologação.</strong> Nenhuma apólice daqui é real. A cotação
-        sai sob o seu CNPJ quando ele já responde na base da corretora
-        {cnpjFmt && (
-          <>; se não responder, cai no CNPJ de teste
-            {' '}<span className="font-mono">{cnpjFmt}</span>
+        <strong>Homologação.</strong> Nenhuma apólice daqui é real.{' '}
+        {forcado ? (
+          <>Cotando <strong>forçado no CNPJ de teste</strong>
+            {cnpjFmt && <> <span className="font-mono">{cnpjFmt}</span></>} —
+            o cadastro da sua imobiliária está sem credencial de seguradora
+            na corretora. Tire o <span className="font-mono">MAXIMIZA_FORCAR_CNPJ_TESTE</span>{' '}
+            quando eles arrumarem.
           </>
-        )}.
+        ) : (
+          <>A cotação sai sob o seu CNPJ quando ele já responde na base da
+            corretora
+            {cnpjFmt && (
+              <>; se não responder, cai no CNPJ de teste
+                {' '}<span className="font-mono">{cnpjFmt}</span>
+              </>
+            )}.
+          </>
+        )}
       </p>
     </div>
   )

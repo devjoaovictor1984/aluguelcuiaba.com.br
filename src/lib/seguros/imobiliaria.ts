@@ -109,6 +109,26 @@ async function cnpjParaHomologacao(admin: Admin, userId: string): Promise<string
   const teste = cnpjDeTeste()
   if (!teste) return null
 
+  /**
+   * Escape hatch temporário: `MAXIMIZA_FORCAR_CNPJ_TESTE=1` volta ao CNPJ
+   * de teste mesmo com o cadastro próprio respondendo.
+   *
+   * Existe porque estar cadastrado não é o mesmo que estar funcionando.
+   * Medido em 30/08/2026, MESMO payload, só trocando `cpfcnpj_imob`:
+   *
+   *   45528182000106 (IMOBILIATTO)  → 400 "Erro em EnviaCertificadoXML.
+   *                                       Usuário e/ou Senha Inválidos!"
+   *   10961528000180 (teste)        → 201, prêmio 251,69
+   *
+   * Vale para Alfa e para Porto, então não é credencial de uma seguradora:
+   * é o cadastro da IMOBILIATTO que a corretora criou sem provisionar as
+   * credenciais das seguradoras em homologação. Enquanto eles não
+   * arrumam, isto permite exercitar o resto do fluxo.
+   *
+   * Sai daqui quando a cotação sob a IMOBILIATTO voltar 201.
+   */
+  if (process.env.MAXIMIZA_FORCAR_CNPJ_TESTE === '1') return teste
+
   const proprio = await documentoDoPerfil(admin, userId)
   if (proprio && proprio !== teste) {
     const existe = await consultarImobiliaria(admin, proprio, userId)
