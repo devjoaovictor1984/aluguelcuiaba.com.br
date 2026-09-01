@@ -11,6 +11,60 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 
 ---
 
+## 01/09/2026 — reteste: o cadastro continua sem credencial na seguradora
+
+Em 31/08, 08:12, eles pediram por WhatsApp o JSON de envio da cotação. Foi
+mandado o corpo real do `/calculo` que falhou em 30/08 — extraído do
+`seguro_eventos`, não reconstruído — com endpoint, headers, a resposta 400 e o
+A/B do CNPJ. Nenhum retorno até agora.
+
+### Medido: nada mudou ⏳ *deles*
+
+Quatro chamadas contra a homologação, `/auth` respondendo 201 antes de todas:
+
+```
+POST /incendioAlfaV2/calculo     (payload de 30/08, salvo em cotacao-incendio-envio.json)
+
+A) 45528182000106 · header Alfa                → 400  "Usuário e/ou Senha Inválidos!"
+B) 10961528000180 · header Alfa                → 201  prêmio 364,71 · 6 coberturas
+C) 45528182000106 · header Porto               → 400  (mesma mensagem)
+D) 45528182000106 · header Alfa · vigência 12m → 400  (mesma mensagem)
+```
+
+**D existe para fechar uma porta.** O payload de 30/08 leva
+`fim_vigencia_seguro` a 30 meses — o formulário copia a data de término do
+contrato de locação em vez de somar 12 (ver o aberto abaixo). Rodar com
+01/09/2026 → 01/09/2027 devolve o mesmo erro, então a vigência não tem parte
+nisso e não serve como desvio quando eles responderem.
+
+**B é o controle de que o ambiente deles não foi tocado:** prêmio, coberturas
+e valores idênticos aos de 30/08, cobertura por cobertura. O que falha continua
+sendo o vínculo entre o cadastro da IMOBILIATTO e as credenciais das
+seguradoras, e ele segue como estava.
+
+Repetível com `node scripts/testa-incendio-imobiliatto.mjs` — é `/calculo`, não
+leva `criaRegistro`, não emite nada.
+
+### Medido junto, no mesmo minuto
+
+| Onde | O que tem |
+|---|---|
+| `seguro_eventos` com `direcao = entrada` | **zero.** Nenhum webhook desde 13/08 — três semanas |
+| `homologacao_apontamentos` | **vazio**, como em 30/08 |
+| `sessoes_homologacao` | **expirou** em 31/08 16:58; 7 acessos, nenhum desde 18/08 12:38 |
+
+A sessão de homologação deles morreu sem nunca ter registrado um apontamento.
+Se voltarem a pedir acesso, tem que ser emitida outra.
+
+### Aberto do nosso lado ⚠️
+
+`form-incendio.tsx:169` — ao puxar um contrato do CRM, o fim da vigência do
+seguro recebe a data de término do **contrato** (01/09/2026 → 28/02/2029, 30
+meses) em vez de somar 12 meses. A digitação manual está correta (linha 478).
+Não é a causa do 400, mas vira recusa assim que a credencial funcionar.
+
+---
+
 ## 30/08/2026 (noite) — o cadastro existe, mas não funciona
 
 Primeira cotação real sob a IMOBILIATTO, apartamento no Paiaguás, R$ 1.800.
@@ -248,7 +302,7 @@ Perguntado (item 7.1, que era um ✅ e voltou a ser pergunta).
 
 ---
 
-## Estado atual — 30/08/2026
+## Estado atual — 01/09/2026
 
 | Frente | Onde está |
 |---|---|
@@ -256,13 +310,14 @@ Perguntado (item 7.1, que era um ✅ e voltou a ser pergunta).
 | Fiança — seguradoras | ✅ as quatro habilitadas na IMOBILIATTO (30/08); só a Porto no CNPJ de teste |
 | Fiança — biometria | ⏳ sem caminho: o link só vem por webhook, que não está cadastrado |
 | Fiança — contratação | ⏳ bloqueada pela biometria; nunca exercitada |
-| Incêndio — cálculo | ✅ funciona na Alfa e na Porto |
+| Incêndio — cálculo | ⏳ **só sob o CNPJ de teste.** Sob a IMOBILIATTO, 400 de credencial na Alfa e na Porto |
+| Incêndio — seleção de seguradora | ⚠️ o header deixou de rotear; o seletor da tela está decorativo (30/08) |
 | Incêndio — contratação | ✅ apólice 607773 emitida em homologação |
 | Incêndio — documentos | ✅ certificado e proposta; boleto sai depois do lote |
 | Incêndio — cancelamento | ✅ "Certificado cancelado com sucesso" |
 | Incêndio — ligar em produção | ⏳ falta credencial de produção e o pró-labore confirmado — ver `incendio-para-ligar.md` |
 | Webhooks | ⏳ **nenhum recebido desde 13/08**; URLs entregues em 18/08 |
-| Sessão de homologação deles | ⚠️ expira 31/08, sem acesso desde 18/08 e sem nenhum apontamento |
+| Sessão de homologação deles | ⚠️ **expirou em 31/08**; 7 acessos, nenhum desde 18/08, zero apontamentos |
 | Comissões | ✅ registradas na venda; percentuais dependem da corretora |
 | Modelo comercial | ⏳ nada definido — ver `perguntas-pendentes.md`, bloco 2 |
 
@@ -273,6 +328,9 @@ explícito — na tela e no servidor.
 (a IMOBILIATTO responde desde 28/08); `10.961.528/0001-80` (MAXIMIZA IMOB
 TEMP - DF) como rede pra quem não tem cadastro lá.
 **Habilitações do CNPJ de teste:** só `porto_fianca`; incêndio tem Porto e Alfa.
+**`MAXIMIZA_FORCAR_CNPJ_TESTE=1`** está ligado desde 30/08: volta ao CNPJ de
+teste mesmo com a IMOBILIATTO respondendo, pra não travar o roteiro enquanto
+eles não provisionam. Desligar assim que a cotação sob a IMOBILIATTO voltar 201.
 
 ---
 
