@@ -9,6 +9,7 @@ import { TIPOS_IMOVEL } from '@/lib/constants'
 import { validarWhatsApp, slugify } from '@/lib/utils'
 import { Editor } from '@/components/editor'
 import { DadosContratoSection } from '../_components/dados-contrato-section'
+import { revalidarImovel } from '../../actions'
 import { dadosContratoParaDb, DADOS_CONTRATO_VAZIO, type DadosContrato } from '../_components/dados-contrato'
 import {
   ChevronLeft, Camera, X, Plus, Loader2, AlertCircle,
@@ -261,7 +262,6 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
   const [bairroId, setBairroId] = useState('')
   const [condominioNome, setCondominioNome] = useState('')
   // endereço do imóvel (privado, não exibido publicamente)
-  const [imovelCep, setImovelCep] = useState('')
   const [imovelLogradouro, setImovelLogradouro] = useState('')
   const [imovelNumero, setImovelNumero] = useState('')
   const [imovelComplemento, setImovelComplemento] = useState('')
@@ -293,6 +293,15 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
 
   // ── dados pro contrato (opcional) ──
   const [dadosContrato, setDadosContrato] = useState<DadosContrato>(DADOS_CONTRATO_VAZIO)
+
+  /**
+   * O CEP do imóvel é UM só, e mora na coluna `endereco_cep` — a mesma que
+   * o bloco "dados pro contrato" já grava. Antes havia aqui um `useState`
+   * próprio, usado só pra consultar o ViaCEP e descartado no submit: o
+   * corretor digitava, o endereço era preenchido, e o CEP sumia ao salvar.
+   */
+  const imovelCep = dadosContrato.endereco_cep
+  const setImovelCep = (v: string) => setDadosContrato(d => ({ ...d, endereco_cep: v }))
 
   // ── fotos ──
   const [fotos, setFotos] = useState<FotoLocal[]>([])
@@ -413,6 +422,10 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
       }
 
       await supabase.from('perfis').upsert({ id: userId, telefone: whatsappLimpo }, { onConflict: 'id', ignoreDuplicates: false })
+
+      // Mesma razão da tela de edição: a página pública é ISR e é dela que
+      // sai a mensagem de compartilhamento.
+      await revalidarImovel(imovel.id)
 
       // Geocoda em background — não bloqueia o redirect
       fetch('/api/geocode', {

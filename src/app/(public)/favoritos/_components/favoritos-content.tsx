@@ -23,6 +23,7 @@ export function FavoritosContent() {
       .select('*, bairro:bairros(*), fotos(*)')
       .in('id', ids)
       .eq('status', 'ativo')
+      .order('ordem', { referencedTable: 'fotos' })
       .then(({ data }) => {
         setImoveis((data ?? []) as Imovel[])
         setLoading(false)

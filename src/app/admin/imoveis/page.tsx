@@ -47,6 +47,7 @@ export default async function AdminImoveisPage({
   let query = supabase
     .from('imoveis')
     .select('id, slug, titulo, tipo, preco, preco_antigo, status, created_at, fotos(url), bairro:bairros(nome, slug), perfil:perfis(nome)', { count: 'exact' })
+    .order('ordem', { referencedTable: 'fotos' })
     .order('created_at', { ascending: false })
     .range(offset, offset + POR_PAGINA - 1)
 

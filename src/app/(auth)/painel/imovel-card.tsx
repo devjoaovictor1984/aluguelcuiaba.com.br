@@ -15,7 +15,7 @@ interface CardImovel {
   expira_em: string
   visualizacoes: number
   data_alugado?: string | null
-  fotos?: Array<{ url: string }>
+  fotos?: Array<{ url: string; principal?: boolean | null }>
   bairro?: { nome: string } | null
 }
 
@@ -43,7 +43,10 @@ export function PainelImovelCard({ imovel }: { imovel: CardImovel }) {
   const [erro, setErro] = useState('')
 
   const dias = diasParaExpirar(imovel.expira_em)
-  const foto = imovel.fotos?.[0]?.url
+  // A capa é a marcada como principal; a ordem da lista é só o desempate.
+  // Sem isso o card mostrava a primeira foto que o banco devolvesse, e a
+  // estrela do formulário parecia não fazer nada.
+  const foto = imovel.fotos?.find(f => f.principal)?.url ?? imovel.fotos?.[0]?.url
   const status = imovel.status
   // 'expirado' pode ser o status real (setado pelo cron) ou um ativo já vencido
   const expirado = status === 'expirado' || (dias <= 0 && status === 'ativo')

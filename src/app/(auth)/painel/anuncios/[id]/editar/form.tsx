@@ -9,6 +9,7 @@ import { TIPOS_IMOVEL } from '@/lib/constants'
 import { validarWhatsApp } from '@/lib/utils'
 import { Editor } from '@/components/editor'
 import { DadosContratoSection } from '../../_components/dados-contrato-section'
+import { revalidarImovel } from '../../../actions'
 import { dadosContratoDeImovel, dadosContratoParaDb, type DadosContrato } from '../../_components/dados-contrato'
 import {
   ChevronLeft, Camera, X, Plus, Loader2, AlertCircle, Trash2,
@@ -169,7 +170,6 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
   // ── localização ──
   const [bairroId, setBairroId] = useState(imovel.bairro_id ?? '')
   const [condominioNome, setCondominioNome] = useState(imovel.condominio_nome ?? '')
-  const [imovelCep, setImovelCep] = useState('')
   const [imovelLogradouro, setImovelLogradouro] = useState(imovel.endereco_resumido ?? '')
   const [imovelNumero, setImovelNumero] = useState('')
   const [imovelComplemento, setImovelComplemento] = useState('')
@@ -209,11 +209,27 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
   // ── dados pro contrato (opcional) ──
   const [dadosContrato, setDadosContrato] = useState<DadosContrato>(() => dadosContratoDeImovel(imovel))
 
+  /**
+   * O CEP do imóvel é UM só, e mora na coluna `endereco_cep` — a mesma que
+   * o bloco "dados pro contrato" já grava. Antes havia aqui um `useState`
+   * próprio, usado só pra consultar o ViaCEP e descartado no submit: o
+   * corretor digitava, o endereço era preenchido, e o CEP sumia ao salvar.
+   */
+  const imovelCep = dadosContrato.endereco_cep
+  const setImovelCep = (v: string) => setDadosContrato(d => ({ ...d, endereco_cep: v }))
+
   // ── fotos ──
   const [fotosExistentes, setFotosExistentes] = useState<FotoExistente[]>(
     (imovel.fotos ?? []).map(f => ({ id: f.id, url: f.url, principal: f.principal, removida: false }))
   )
   const [fotosNovas, setFotosNovas] = useState<FotoNova[]>([])
+  /**
+   * A capa é sempre a primeira foto da lista — mas existem DUAS listas, e
+   * sem isto a estrela clicada numa foto recém-adicionada não tinha como
+   * vencer as que já estavam lá. `false` mantém a regra antiga (as
+   * existentes vêm primeiro); `true` diz que o corretor escolheu uma nova.
+   */
+  const [capaEhNova, setCapaEhNova] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   // ── submit ──
@@ -323,23 +339,69 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
         await supabase.from('fotos').delete().eq('id', foto.id)
       }
 
+      /**
+       * Ordem final das fotos: posição 0 é a capa.
+       *
+       * Isto precisa ser GRAVADO. Antes a estrela só reordenava o array em
+       * memória e o submit não tocava nas fotos existentes — o clique não
+       * tinha efeito nenhum depois de salvar, e a capa voltava a ser a de
+       * sempre ao recarregar a página.
+       */
+      const ativas = fotosExistentes.filter(f => !f.removida)
+      const capaNaNova = fotosNovas.length > 0 && (capaEhNova || ativas.length === 0)
+
+      const posDaNova = new Map<number, number>()
+      const posDaExistente = new Map<string, number>()
+      let pos = 0
+      if (capaNaNova) posDaNova.set(0, pos++)
+      for (const f of ativas) posDaExistente.set(f.id, pos++)
+      for (let i = capaNaNova ? 1 : 0; i < fotosNovas.length; i++) posDaNova.set(i, pos++)
+
+      // Zera a capa antiga antes de definir a nova: evita depender da ordem
+      // dos updates se algum dia existir índice único sobre `principal`.
+      //
+      // O `.select()` não é enfeite: quando a RLS barra um UPDATE, o
+      // PostgREST não devolve erro — devolve zero linhas. Sem conferir isso,
+      // uma política ausente faria a estrela continuar sem efeito e sem
+      // ninguém saber por quê.
+      const { data: zeradas, error: limparErr } = await supabase
+        .from('fotos').update({ principal: false }).eq('imovel_id', imovel.id).select('id')
+      if (limparErr) throw new Error(`Erro ao reordenar fotos: ${limparErr.message}`)
+      if (ativas.length > 0 && (zeradas?.length ?? 0) === 0) {
+        throw new Error('Sem permissão para reordenar as fotos no banco (falta a política de UPDATE em `fotos`).')
+      }
+
       // Upload novas fotos
       if (fotosNovas.length > 0) {
-        const existentesAtivas = fotosExistentes.filter(f => !f.removida)
         for (let i = 0; i < fotosNovas.length; i++) {
           setProgresso(`Enviando fotos ${i + 1}/${fotosNovas.length}...`)
           const blob = fotosNovas[i].blob ?? await comprimirImagem(fotosNovas[i].file)
-          const ordem = existentesAtivas.length + i + 1
+          const posicao = posDaNova.get(i) ?? pos + i
           const path = `${userId}/${imovel.id}/${Date.now()}-${i + 1}.jpg`
           const { error: uploadErr } = await supabase.storage.from('fotos-imoveis').upload(path, blob, { contentType: 'image/jpeg', upsert: false, cacheControl: '31536000' })
           if (uploadErr) throw new Error(uploadErr.message)
           const { data: { publicUrl } } = supabase.storage.from('fotos-imoveis').getPublicUrl(path)
-          await supabase.from('fotos').insert({
-            imovel_id: imovel.id, url: publicUrl, ordem,
-            principal: existentesAtivas.length === 0 && i === 0,
+          const { error: insertErr } = await supabase.from('fotos').insert({
+            imovel_id: imovel.id, url: publicUrl,
+            ordem: posicao + 1, principal: posicao === 0,
           })
+          if (insertErr) throw new Error(insertErr.message)
         }
       }
+
+      // Grava a ordem e a capa das fotos que já existiam
+      for (const foto of ativas) {
+        const posicao = posDaExistente.get(foto.id)!
+        const { error: ordemErr } = await supabase.from('fotos')
+          .update({ ordem: posicao + 1, principal: posicao === 0 })
+          .eq('id', foto.id)
+        if (ordemErr) throw new Error(`Erro ao salvar a foto destaque: ${ordemErr.message}`)
+      }
+
+      // Invalida o cache da página pública ANTES de sair da tela: é ela que
+      // alimenta o botão de compartilhar no WhatsApp. Sem isto o anúncio
+      // recém-editado continuava sendo compartilhado com os dados antigos.
+      await revalidarImovel(imovel.id)
 
       // Geocoda em background — endereço pode ter mudado
       fetch('/api/geocode', {
@@ -383,16 +445,19 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
               {/* Fotos existentes */}
               {fotosExistentes.filter(f => !f.removida).map((foto, i) => {
-                const isDestaque = i === 0 && fotosNovas.length === 0
+                const isDestaque = i === 0 && !capaEhNova
                 return (
                   <div key={foto.id} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
                     <img src={foto.url} alt="" className="w-full h-full object-cover" />
                     <button type="button"
-                      onClick={() => i !== 0 && setFotosExistentes(prev => {
-                        const ativas = prev.filter(f => !f.removida)
-                        const rem = prev.filter(f => f.removida)
-                        return [ativas[i], ...ativas.filter((_, j) => j !== i), ...rem]
-                      })}
+                      onClick={() => {
+                        setCapaEhNova(false)
+                        if (i !== 0) setFotosExistentes(prev => {
+                          const ativas = prev.filter(f => !f.removida)
+                          const rem = prev.filter(f => f.removida)
+                          return [ativas[i], ...ativas.filter((_, j) => j !== i), ...rem]
+                        })
+                      }}
                       title={isDestaque ? 'Foto destaque' : 'Definir como destaque'}
                       className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                         isDestaque ? 'bg-yellow-400 text-white' : 'bg-black/40 text-white/60 hover:bg-yellow-400 hover:text-white'
@@ -409,12 +474,15 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
               {/* Fotos novas */}
               {fotosNovas.map((foto, i) => {
                 const existAtivas = fotosExistentes.filter(f => !f.removida).length
-                const isDestaque = existAtivas === 0 && i === 0
+                const isDestaque = i === 0 && (capaEhNova || existAtivas === 0)
                 return (
                   <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
                     <img src={foto.preview} alt="" className="w-full h-full object-cover" />
                     <button type="button"
-                      onClick={() => !isDestaque && setFotosNovas(prev => [prev[i], ...prev.filter((_, j) => j !== i)])}
+                      onClick={() => {
+                        setCapaEhNova(true)
+                        if (i !== 0) setFotosNovas(prev => [prev[i], ...prev.filter((_, j) => j !== i)])
+                      }}
                       title={isDestaque ? 'Foto destaque' : 'Definir como destaque'}
                       className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center transition-colors ${
                         isDestaque ? 'bg-yellow-400 text-white' : 'bg-black/40 text-white/60 hover:bg-yellow-400 hover:text-white'

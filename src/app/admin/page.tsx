@@ -155,6 +155,7 @@ export default async function AdminPage() {
     supabase.from('imoveis')
       .select('id, slug, titulo, preco, visualizacoes, status, bairro:bairros(slug, nome), fotos(url, principal, ordem)')
       .eq('status', 'ativo')
+      .order('ordem', { referencedTable: 'fotos' })
       .order('visualizacoes', { ascending: false, nullsFirst: false })
       .limit(10),
     // Top 10 posts mais lidos (resiliente se a coluna ainda não existe)

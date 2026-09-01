@@ -101,6 +101,7 @@ export async function getImoveis(filtros: FiltrosBusca = {}, pagina = 1, porPagi
       .from('imoveis')
       .select(selectStr)
       .in('id', slice)
+      .order('ordem', { referencedTable: 'fotos' })
     if (error || !imoveis) return { data: [], count: total, error }
 
     // Re-ordena na ordem do slice (Supabase .in() não preserva ordem)
@@ -114,6 +115,7 @@ export async function getImoveis(filtros: FiltrosBusca = {}, pagina = 1, porPagi
     .from('imoveis')
     .select(selectStr, { count: 'exact' })
     .or(filtroStatusPublico())
+    .order('ordem', { referencedTable: 'fotos' })
     .range(offset, offset + porPagina - 1)
 
   if (filtros.ordenar === 'recentes') {
@@ -137,6 +139,7 @@ export async function getImoveisParaMapa(filtros: FiltrosBusca = {}) {
     .from('imoveis')
     .select('id, slug, titulo, preco, preco_antigo, lat, lng, status, data_alugado, bairro:bairros(slug, nome), fotos(url, principal, ordem)')
     .or(filtroStatusPublico())
+    .order('ordem', { referencedTable: 'fotos' })
     .not('lat', 'is', null)
     .not('lng', 'is', null)
     .limit(500)
@@ -174,6 +177,7 @@ export async function getImovelPorId(idOrSlug: string) {
     .select(selectStr)
     .eq('slug', idOrSlug)
     .or(filtroStatus)
+    .order('ordem', { referencedTable: 'fotos' })
     .maybeSingle()
   if (bySlug.data) return { data: bySlug.data, error: null }
   return supabase
@@ -201,6 +205,7 @@ export async function getImoveisPorBairro(bairroId: string) {
     .select(`*, fotos(*), bairro:bairros(*)`)
     .eq('bairro_id', bairroId)
     .or(filtroStatusPublico())
+    .order('ordem', { referencedTable: 'fotos' })
     .order('destaque', { ascending: false })
     .order('created_at', { ascending: false })
 }
@@ -218,6 +223,7 @@ export async function getImoveisSimilares(bairroId: string, excluirId: string, l
     .eq('bairro_id', bairroId)
     .or(filtroStatusPublico())
     .neq('id', excluirId)
+    .order('ordem', { referencedTable: 'fotos' })
     .order('destaque', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(limite)
@@ -234,6 +240,7 @@ export async function getMeusImoveis(userId: string) {
     .from('imoveis')
     .select(`*, bairro:bairros(*), fotos(*)`)
     .eq('user_id', userId)
+    .order('ordem', { referencedTable: 'fotos' })
     .order('created_at', { ascending: false })
 }
 
@@ -263,6 +270,7 @@ export async function getImoveisDoAnunciante(userId: string) {
     .select(`*, bairro:bairros(*), fotos(*), perfil:perfis(id, nome, foto_url, tipo)`)
     .eq('user_id', userId)
     .or(filtroStatusPublico())
+    .order('ordem', { referencedTable: 'fotos' })
     .order('destaque', { ascending: false })
     .order('created_at', { ascending: false })
 }

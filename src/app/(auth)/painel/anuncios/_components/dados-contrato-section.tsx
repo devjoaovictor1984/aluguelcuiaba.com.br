@@ -6,10 +6,6 @@ import type { DadosContrato } from './dados-contrato'
 
 const inputCls = "w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 text-sm transition"
 
-function mascaraCEP(v: string) {
-  return v.replace(/\D/g, '').slice(0, 8).replace(/(\d{5})(\d{0,3})/, '$1-$2')
-}
-
 interface Props {
   value: DadosContrato
   onChange: (v: DadosContrato) => void
@@ -58,6 +54,7 @@ export function DadosContratoSection({ value, onChange, defaultOpen = false }: P
           {/* Endereço completo */}
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">Endereço pra contrato</p>
+            <p className="text-xs text-gray-400 -mt-1 mb-2">O CEP é o mesmo da seção Localização, ali em cima.</p>
             <div className="space-y-2">
               <input
                 type="text"
@@ -82,15 +79,6 @@ export function DadosContratoSection({ value, onChange, defaultOpen = false }: P
                   className={`${inputCls} col-span-2`}
                 />
               </div>
-              <input
-                type="text"
-                inputMode="numeric"
-                value={value.endereco_cep}
-                onChange={e => set('endereco_cep', mascaraCEP(e.target.value))}
-                placeholder="CEP"
-                className={inputCls}
-                maxLength={9}
-              />
             </div>
           </div>
 
