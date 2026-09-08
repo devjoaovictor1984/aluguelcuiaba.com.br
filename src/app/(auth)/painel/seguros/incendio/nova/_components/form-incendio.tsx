@@ -8,7 +8,8 @@ import {
 import { maskCep, maskCpfCnpj, maskMoney, maskTelefone, parseMoney } from '@/lib/formatters'
 import {
   COBERTURA_LABEL, VIGENCIA_LABEL,
-  type Ocupacao, type PacoteAssistencia, type TipoCobertura, type TipoSeguro, type TipoVigencia,
+  type CalculoIncendioInput, type Ocupacao, type PacoteAssistencia,
+  type TipoCobertura, type TipoSeguro, type TipoVigencia,
 } from '@/lib/seguros/incendio/tipos'
 import { sugerirValores } from '@/lib/seguros/incendio/sugestoes'
 import {
@@ -28,10 +29,48 @@ interface ContratoOpcao {
   proprietario: { id: string; nome: string; cpfCnpj: string } | null
 }
 
+/**
+ * Uma cotação anterior servindo de ponto de partida.
+ *
+ * `dados` é o `payload` guardado no cálculo — a entrada exata que foi
+ * mandada à seguradora. Refazer é preencher a tela com ela; o registro
+ * novo nasce do botão calcular, como qualquer outro.
+ */
+export interface BaseCotacao {
+  dados: CalculoIncendioInput
+  controle: string
+  contratoId: string | null
+  imovelId: string | null
+  inquilinoId: string | null
+  proprietarioId: string | null
+  pacoteAssist: number | null
+}
+
 interface Props {
   contratos: ContratoOpcao[]
   contratoInicial: string | null
+  base?: BaseCotacao | null
 }
+
+/** Centavos vindos do banco no formato mascarado da tela. */
+const centavos = (n?: number | null) =>
+  n && n > 0 ? maskMoney(String(Math.round(n * 100))) : ''
+
+/**
+ * Teto de cada cobertura acessória, como fração do LMI de incêndio.
+ *
+ * Medido contra a API em 08/09/2026, em produção, residencial: perda de
+ * aluguel a 30% do LMI passa e a 35% volta
+ * `"IS da Cobertura: Perda ou Pagamento de Aluguel fora do limite"`. Testado
+ * com LMI de 144.000 e de 60.000 — quebra no mesmo ponto nos dois, então é
+ * proporção e não valor absoluto.
+ *
+ * Em comercial o teto é MENOR: em 17/08 o vendaval a 30% foi recusado e a
+ * 25% passou, com o mesmo payload. Onde exatamente ele fica em comercial
+ * ainda não foi medido — por isso a checagem abaixo avisa em vez de
+ * bloquear, e a mensagem diz de onde vem o número.
+ */
+const TETO_SOBRE_INCENDIO = 0.30
 
 const input = 'w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-orange-500 text-sm text-gray-900'
 const label = 'text-xs font-medium text-gray-600 block mb-1'
@@ -50,7 +89,8 @@ function somarMeses(iso: string, meses: number): string {
 
 const hoje = () => new Date().toISOString().slice(0, 10)
 
-export function FormIncendio({ contratos, contratoInicial }: Props) {
+export function FormIncendio({ contratos, contratoInicial, base }: Props) {
+  const d = base?.dados
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState('')
@@ -68,54 +108,66 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
   const [buscaSeguradoras, setBuscaSeguradoras] =
     useState<'carregando' | 'ok' | 'falhou'>('carregando')
   const [erroSeguradoras, setErroSeguradoras] = useState('')
-  const [seguradora, setSeguradora] = useState('')
+  const [seguradora, setSeguradora] = useState(d?.seguradora ?? '')
   const [ocupacoes, setOcupacoes] = useState<Ocupacao[]>([])
   const [pacotes, setPacotes] = useState<PacoteAssistencia[]>([])
   const [carregandoCatalogo, setCarregandoCatalogo] = useState(false)
 
-  const [contratoId, setContratoId] = useState(contratoInicial ?? '')
-  const [tipoSeguro, setTipoSeguro] = useState<TipoSeguro>('R')
-  const [tipoVigencia, setTipoVigencia] = useState<TipoVigencia>(1)
-  const [tipoCobertura, setTipoCobertura] = useState<TipoCobertura>(2)
-  const [ocupacao, setOcupacao] = useState('')
-  const [pacote, setPacote] = useState('')
+  const [contratoId, setContratoId] = useState(base?.contratoId ?? contratoInicial ?? '')
+  const [tipoSeguro, setTipoSeguro] = useState<TipoSeguro>(d?.tipoSeguro ?? 'R')
+  const [tipoVigencia, setTipoVigencia] = useState<TipoVigencia>(d?.tipoVigencia ?? 1)
+  const [tipoCobertura, setTipoCobertura] = useState<TipoCobertura>(d?.tipoCobertura ?? 2)
+  const [ocupacao, setOcupacao] = useState(d?.ocupacao?.rubrica ?? '')
+  const [pacote, setPacote] = useState(
+    base?.pacoteAssist != null ? String(base.pacoteAssist) : '',
+  )
 
-  const [aluguel, setAluguel] = useState('')
-  const [inicio, setInicio] = useState(hoje())
-  const [fim, setFim] = useState(somarMeses(hoje(), 12))
+  const [aluguel, setAluguel] = useState(centavos(d?.aluguel))
+  const [inicio, setInicio] = useState(d?.inicioVigencia ?? hoje())
+  const [fim, setFim] = useState(d?.fimVigencia ?? somarMeses(hoje(), 12))
 
-  const [cep, setCep] = useState('')
-  const [endereco, setEndereco] = useState('')
-  const [numero, setNumero] = useState('')
-  const [complemento, setComplemento] = useState('')
+  const [cep, setCep] = useState(d?.endereco?.cep ? maskCep(d.endereco.cep) : '')
+  const [endereco, setEndereco] = useState(d?.endereco?.endereco ?? '')
+  const [numero, setNumero] = useState(d?.endereco?.numero ?? '')
+  const [complemento, setComplemento] = useState(d?.endereco?.complemento ?? '')
   /** Referência interna da imobiliária — "Controle / CTRL-PASTA" no painel deles. */
-  const [controle, setControle] = useState('')
-  const [bairro, setBairro] = useState('')
-  const [cidade, setCidade] = useState('Cuiabá')
-  const [uf, setUf] = useState('MT')
+  const [controle, setControle] = useState(base?.controle ?? '')
+  const [bairro, setBairro] = useState(d?.endereco?.bairro ?? '')
+  const [cidade, setCidade] = useState(d?.endereco?.cidade ?? 'Cuiabá')
+  const [uf, setUf] = useState(d?.endereco?.uf ?? 'MT')
 
-  const [inqNome, setInqNome] = useState('')
-  const [inqDoc, setInqDoc] = useState('')
-  const [inqEmail, setInqEmail] = useState('')
-  const [inqFone, setInqFone] = useState('')
-  const [inqNasc, setInqNasc] = useState('')
-  const [inqSexo, setInqSexo] = useState<'M' | 'F' | ''>('')
+  const [inqNome, setInqNome] = useState(d?.inquilino?.nome ?? '')
+  const [inqDoc, setInqDoc] = useState(
+    d?.inquilino?.cpfCnpj ? maskCpfCnpj(d.inquilino.cpfCnpj) : '',
+  )
+  const [inqEmail, setInqEmail] = useState(d?.inquilino?.email ?? '')
+  const [inqFone, setInqFone] = useState(
+    d?.inquilino?.telefone ? maskTelefone(d.inquilino.telefone) : '',
+  )
+  const [inqNasc, setInqNasc] = useState(d?.inquilino?.dataNascimento ?? '')
+  const [inqSexo, setInqSexo] = useState<'M' | 'F' | ''>(d?.inquilino?.sexo ?? '')
 
-  const [propNome, setPropNome] = useState('')
-  const [propDoc, setPropDoc] = useState('')
+  const [propNome, setPropNome] = useState(d?.proprietario?.nome ?? '')
+  const [propDoc, setPropDoc] = useState(
+    d?.proprietario?.cpfCnpj ? maskCpfCnpj(d.proprietario.cpfCnpj) : '',
+  )
 
   // Limites das coberturas, em centavos mascarados.
-  const [vIncendio, setVIncendio] = useState('')
-  const [vPerdaAluguel, setVPerdaAluguel] = useState('')
-  const [vVendaval, setVVendaval] = useState('')
-  const [vDanosEletricos, setVDanosEletricos] = useState('')
-  const [vVazamento, setVVazamento] = useState('')
-  const [vRespCivil, setVRespCivil] = useState('')
-  const [vConteudo, setVConteudo] = useState('')
+  const [vIncendio, setVIncendio] = useState(centavos(d?.valores?.incendio))
+  const [vPerdaAluguel, setVPerdaAluguel] = useState(centavos(d?.valores?.perdaAluguel))
+  const [vVendaval, setVVendaval] = useState(centavos(d?.valores?.vendaval))
+  const [vDanosEletricos, setVDanosEletricos] = useState(centavos(d?.valores?.danosEletricos))
+  const [vVazamento, setVVazamento] = useState(centavos(d?.valores?.vazamento))
+  const [vRespCivil, setVRespCivil] = useState(centavos(d?.valores?.respCivil))
+  const [vConteudo, setVConteudo] = useState(centavos(d?.valores?.conteudo))
 
   const [idsCrm, setIdsCrm] = useState<{
     imovelId: string | null; inquilinoId: string | null; proprietarioId: string | null
-  }>({ imovelId: null, inquilinoId: null, proprietarioId: null })
+  }>({
+    imovelId: base?.imovelId ?? null,
+    inquilinoId: base?.inquilinoId ?? null,
+    proprietarioId: base?.proprietarioId ?? null,
+  })
 
   const cent = (n: number) => (n > 0 ? maskMoney(String(Math.round(n * 100))) : '')
 
@@ -279,6 +331,35 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
     if (propDoc.replace(/\D/g, '').length < 11) return setErro('CPF/CNPJ do proprietário incompleto.')
     if (!inicio || !fim) return setErro('Informe a vigência.')
     if (parseMoney(vIncendio) <= 0) return setErro('Informe o valor da cobertura de incêndio.')
+
+    /**
+     * Teto das acessórias sobre o LMI de incêndio.
+     *
+     * A seguradora recusa com "IS da Cobertura: <nome> fora do limite", que
+     * não diz qual é o limite nem sobre o que ele incide — e o corretor fica
+     * mexendo no valor no escuro. Medido em 08/09/2026: 30% passa, 35% não,
+     * e o corte acompanha o LMI (mesmo ponto com 144.000 e com 60.000).
+     *
+     * Avisa em vez de bloquear: em comercial o teto é menor (vendaval a 30%
+     * foi recusado em 17/08) e não foi medido onde fica. Barrar com um
+     * número que talvez não valha ali seria trocar uma recusa por outra.
+     */
+    const lmi = parseMoney(vIncendio)
+    const acima = ([
+      ['Perda de aluguel', parseMoney(vPerdaAluguel)],
+      ['Vendaval', parseMoney(vVendaval)],
+      ['Danos elétricos', parseMoney(vDanosEletricos)],
+      ['Vazamento', parseMoney(vVazamento)],
+      ['Responsabilidade civil', parseMoney(vRespCivil)],
+    ] as const).filter(([, v]) => v > lmi * TETO_SOBRE_INCENDIO)
+
+    if (acima.length) {
+      return setErro(
+        `${acima.map(([n]) => n).join(', ')} ${acima.length > 1 ? 'passam' : 'passa'} de ` +
+        `30% do limite de incêndio (máx. ${maskMoney(String(Math.round(lmi * TETO_SOBRE_INCENDIO * 100)))}). ` +
+        'A seguradora recusa acima disso — em imóvel comercial o teto costuma ser ainda menor.',
+      )
+    }
     // A Porto exige conteúdo mesmo quando a cobertura é "somente prédio", e
     // trata zero como não informado.
     if (ehPorto && parseMoney(vConteudo) <= 0) {

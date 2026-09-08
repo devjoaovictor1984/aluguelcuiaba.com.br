@@ -6,21 +6,73 @@ import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { verificarPerfilParaSeguros } from '@/lib/seguros/imobiliaria'
 import { AvisoDemo } from '../../_components/aviso-demo'
 import { FaixaAmbiente } from '../../_components/faixa-ambiente'
-import { FormIncendio } from './_components/form-incendio'
+import { FormIncendio, type BaseCotacao } from './_components/form-incendio'
 
 interface Props {
-  searchParams: Promise<{ contrato?: string }>
+  /**
+   * `contrato` puxa os dados de um contrato de locação.
+   * `base` refaz uma cotação existente — é o mais perto de "editar" que
+   * uma cotação pode ter sem mentir sobre o preço. Ver abaixo.
+   */
+  searchParams: Promise<{ contrato?: string; base?: string }>
 }
 
 export const metadata = { title: 'Nova cotação de incêndio' }
 
 export default async function NovaIncendioPage({ searchParams }: Props) {
-  const { contrato } = await searchParams
+  const { contrato, base } = await searchParams
   const acesso = await exigirAcessoSeguros()
   const supabase = await createClient()
   const admin = createAdminClient()
 
   const perfil = await verificarPerfilParaSeguros(admin, acesso.userId)
+
+  /**
+   * Refazer uma cotação: os campos voltam preenchidos, o registro é novo.
+   *
+   * Não é edição no lugar, de propósito. Uma cotação calculada guarda a
+   * RESPOSTA da seguradora para um conjunto exato de limites — mexer nos
+   * limites mantendo a mesma linha faria o prêmio gravado descrever uma
+   * cotação que nunca existiu, e é esse número que vai para o contrato e
+   * para a comissão.
+   *
+   * Nascendo outra, as duas ficam lado a lado na listagem, que é
+   * exatamente o que o corretor quer quando está procurando o preço para
+   * mostrar ao proprietário.
+   *
+   * O `eq('user_id')` é a posse: id de cotação alheia não preenche nada.
+   */
+  let baseCotacao: BaseCotacao | null = null
+  if (base) {
+    const { data } = await admin
+      .from('seguro_incendio_apolices')
+      .select('payload, controle, contrato_id, imovel_id, inquilino_id, proprietario_id, pacote_assist')
+      .eq('id', base)
+      .eq('user_id', acesso.userId)
+      .maybeSingle()
+
+    const linha = data as {
+      payload?: unknown
+      controle?: string | null
+      contrato_id?: string | null
+      imovel_id?: string | null
+      inquilino_id?: string | null
+      proprietario_id?: string | null
+      pacote_assist?: number | null
+    } | null
+
+    if (linha?.payload) {
+      baseCotacao = {
+        dados: linha.payload as BaseCotacao['dados'],
+        controle: linha.controle ?? '',
+        contratoId: linha.contrato_id ?? null,
+        imovelId: linha.imovel_id ?? null,
+        inquilinoId: linha.inquilino_id ?? null,
+        proprietarioId: linha.proprietario_id ?? null,
+        pacoteAssist: linha.pacote_assist ?? null,
+      }
+    }
+  }
 
   // Contratos ativos: o incêndio quase sempre nasce de um contrato — dali
   // vêm inquilino, proprietário, imóvel e aluguel de uma vez.
@@ -98,10 +150,13 @@ export default async function NovaIncendioPage({ searchParams }: Props) {
           <ArrowLeft size={12} /> Seguro incêndio
         </Link>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <Flame size={20} className="text-orange-500" /> Nova cotação
+          <Flame size={20} className="text-orange-500" />
+          {baseCotacao ? 'Refazer cotação' : 'Nova cotação'}
         </h1>
         <p className="text-sm text-gray-500">
-          O cálculo sai na hora — não há análise de crédito.
+          {baseCotacao
+            ? 'Os campos vieram da cotação anterior. Ajuste o que quiser e calcule de novo — a cotação original continua salva.'
+            : 'O cálculo sai na hora — não há análise de crédito.'}
         </p>
       </div>
 
@@ -122,7 +177,11 @@ export default async function NovaIncendioPage({ searchParams }: Props) {
           </div>
         </div>
       ) : (
-        <FormIncendio contratos={opcoes} contratoInicial={contrato ?? null} />
+        <FormIncendio
+          contratos={opcoes}
+          contratoInicial={contrato ?? null}
+          base={baseCotacao}
+        />
       )}
     </div>
   )

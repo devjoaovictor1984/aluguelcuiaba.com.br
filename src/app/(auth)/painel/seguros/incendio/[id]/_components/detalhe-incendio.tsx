@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
   Loader2, AlertTriangle, FileText, Trash2, ShieldCheck, CheckCircle2,
-  Download, Ban, Wallet, CreditCard, Info, Receipt,
+  Download, Ban, Wallet, CreditCard, Info, Receipt, Copy,
 } from 'lucide-react'
 import { formatarBRL } from '@/lib/formatters'
 import {
@@ -470,12 +471,28 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente }: Props) {
           </button>
         ) : <span />}
 
+        {/*
+          "Refazer" e não "editar": abre uma cotação nova já preenchida com
+          estes valores. O prêmio guardado aqui é a resposta da seguradora
+          para ESTES limites — mudar os limites nesta linha faria o número
+          descrever uma cotação que nunca existiu.
+
+          Vale também depois de contratada: é como nasce a renovação, e é
+          de onde se parte para comparar preços de coberturas diferentes.
+        */}
+        <Link
+          href={`/painel/seguros/incendio/nova?base=${a.id}`}
+          className="flex items-center gap-1.5 text-sm text-gray-600 active:text-gray-900 px-3 py-2 rounded-lg ml-auto"
+        >
+          <Copy size={14} /> Refazer com outros valores
+        </Link>
+
         {!contratada && (
           <button
             type="button"
             onClick={excluir}
             disabled={isPending}
-            className="flex items-center gap-1.5 text-sm text-rose-600 active:text-rose-700 px-3 py-2 rounded-lg ml-auto"
+            className="flex items-center gap-1.5 text-sm text-rose-600 active:text-rose-700 px-3 py-2 rounded-lg"
           >
             <Trash2 size={14} /> Excluir cotação
           </button>
