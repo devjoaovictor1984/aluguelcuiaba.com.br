@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { mensagemDeErro } from '@/lib/seguros/erros'
-import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
+import { bloqueioDeConvidado, exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { cancelarComissao, registrarComissao } from '@/lib/seguros/comissoes'
 import { consultarPrecos, contratar } from '@/lib/seguros'
 import { statusAprovado, statusPreAprovado } from '@/lib/seguros/tabelas'
@@ -203,6 +203,8 @@ export interface ContratarInput {
  */
 export async function contratarSeguro(input: ContratarInput) {
   const acesso = await exigirAcessoSeguros()
+  const barrado = bloqueioDeConvidado(acesso)
+  if (barrado) return { error: barrado }
   const ctx = await carregarParaContratacao(input.analiseId, input.seguradoraSigla, acesso.userId)
   if ('error' in ctx) return { error: ctx.error }
 
@@ -311,6 +313,8 @@ export async function contratarSeguro(input: ContratarInput) {
 
 export async function cancelarContratacao(contratacaoId: string) {
   const acesso = await exigirAcessoSeguros()
+  const barrado = bloqueioDeConvidado(acesso)
+  if (barrado) return { error: barrado }
   const admin = createAdminClient()
 
   const { data: c } = await admin

@@ -58,6 +58,8 @@ interface Props {
   documentos: DocumentoView[]
   /** 1 = produção (emite de verdade) · 2 = homologação · null = env ausente. */
   ambiente: 1 | 2 | null
+  /** Sessão de homologação da corretora: cota, mas não contrata. */
+  convidado?: boolean
 }
 
 const dataBr = (iso: string | null) =>
@@ -70,7 +72,7 @@ const fmtTaxa = (v: number) =>
 const fmtPercent = (v: number) =>
   `${(v * 100).toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`
 
-export function DetalheIncendio({ apolice: a, documentos, ambiente }: Props) {
+export function DetalheIncendio({ apolice: a, documentos, ambiente, convidado = false }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [erro, setErro] = useState('')
@@ -297,7 +299,31 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente }: Props) {
       )}
 
       {/* Escolha do pagamento */}
-      {podeContratar && opcoes.length ? (
+      {/*
+        Convidado da corretora: a cotação é de verdade e para aqui.
+
+        O botão sai da tela em vez de ficar desabilitado, e o aviso diz por
+        quê — desabilitado sem explicação parece defeito, e é justamente
+        alguém avaliando se a nossa implementação tem defeito. O servidor
+        recusa a operação de qualquer jeito (`bloqueioDeConvidado`); isto é
+        para a pessoa não precisar descobrir clicando.
+      */}
+      {podeContratar && convidado && (
+        <section className="rounded-2xl bg-slate-50 ring-1 ring-slate-200 px-4 py-3.5">
+          <p className="text-sm font-bold text-slate-900">A cotação vai até aqui</p>
+          <p className="text-xs text-slate-700 mt-1 leading-relaxed">
+            O cálculo acima é real: saiu da API, com os limites e o prêmio que a
+            seguradora devolveu. A <strong>contratação está desligada</strong> neste
+            acesso — ela emitiria apólice e cobrança a um cliente de verdade.
+          </p>
+          <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+            Cotar, recotar e comparar preço funcionam sem limite. Se precisarem
+            exercitar a emissão, é só falar com a gente que acompanhamos.
+          </p>
+        </section>
+      )}
+
+      {podeContratar && !convidado && opcoes.length ? (
         <section className="rounded-2xl bg-white ring-1 ring-gray-100 shadow-sm p-4 space-y-3">
           <h2 className="text-sm font-bold text-gray-900">Forma de pagamento</h2>
 

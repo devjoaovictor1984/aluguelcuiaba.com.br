@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { mensagemDeErro } from '@/lib/seguros/erros'
-import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
+import { bloqueioDeConvidado, exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
 import { cancelarComissao, registrarComissao } from '@/lib/seguros/comissoes'
 import { ambienteMaximiza } from '@/lib/seguros'
@@ -180,6 +180,8 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
   confirmaEmissaoReal?: boolean
 }) {
   const acesso = await exigirAcessoSeguros()
+  const barrado = bloqueioDeConvidado(acesso)
+  if (barrado) return { error: barrado }
   const admin = createAdminClient()
 
   const apolice = await checarPosse(apoliceId, acesso.userId)
@@ -264,6 +266,8 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
 
 export async function cancelarApoliceIncendio(apoliceId: string) {
   const acesso = await exigirAcessoSeguros()
+  const barrado = bloqueioDeConvidado(acesso)
+  if (barrado) return { error: barrado }
   const admin = createAdminClient()
 
   const apolice = await checarPosse(apoliceId, acesso.userId)

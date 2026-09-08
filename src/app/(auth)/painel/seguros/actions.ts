@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { mensagemDeErro } from '@/lib/seguros/erros'
 import { seguradorasElegiveis, motivoDeNenhumaElegivel } from '@/lib/seguros/elegiveis'
-import { exigirAcessoSeguros } from '@/lib/seguros/acesso'
+import { bloqueioDeConvidado, exigirAcessoSeguros } from '@/lib/seguros/acesso'
 import { garantirImobiliaria } from '@/lib/seguros/imobiliaria'
 import { salvarArquivo, removerArquivosDaAnalise } from '@/lib/seguros/arquivos'
 import {
@@ -58,6 +58,8 @@ export interface NovaAnaliseInput {
  */
 export async function criarAnalise(input: NovaAnaliseInput) {
   const acesso = await exigirAcessoSeguros()
+  const barrado = bloqueioDeConvidado(acesso)
+  if (barrado) return { error: barrado }
   const admin = createAdminClient()
 
   if (!input.consentimento) {
@@ -192,6 +194,8 @@ export async function incluirSolidarios(
   solidarios: { nome: string; cpf: string; dataNascimento: string }[],
 ) {
   const acesso = await exigirAcessoSeguros()
+  const barrado = bloqueioDeConvidado(acesso)
+  if (barrado) return { error: barrado }
   const admin = createAdminClient()
 
   const analise = await checarPosseAnalise(analiseId, acesso.userId)
@@ -241,6 +245,8 @@ export async function incluirSolidarios(
 /** Nova tentativa — recusa não é fim de linha. */
 export async function reanalisar(analiseId: string, seguradoras: string[]) {
   const acesso = await exigirAcessoSeguros()
+  const barrado = bloqueioDeConvidado(acesso)
+  if (barrado) return { error: barrado }
   const admin = createAdminClient()
 
   const analise = await checarPosseAnalise(analiseId, acesso.userId)

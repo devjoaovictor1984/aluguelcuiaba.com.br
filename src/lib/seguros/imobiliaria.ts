@@ -72,6 +72,40 @@ function cnpjDeTeste(): string | null {
   return ambienteMaximiza() === 2 ? cnpj : null
 }
 
+/**
+ * O CNPJ de quem ABRIU a sessão de homologação, quando quem está cotando
+ * é um convidado.
+ *
+ * O convidado é a equipe técnica da corretora. Ele não tem imobiliária,
+ * não tem CNPJ e não tem perfil para completar — e é justamente o cadastro
+ * da NOSSA imobiliária que ele foi convidado a conferir. Sem isto, em
+ * produção ele abre "Nova cotação" e recebe "Complete seu perfil: falta
+ * telefone, CEP, endereço…", com um botão que o devolve para a tela
+ * inicial porque o resto do CRM é barrado para ele. Foi o que aconteceu em
+ * 08/09/2026, minutos depois de o link ser enviado.
+ *
+ * Devolve null para qualquer outro usuário — quem tem imobiliária própria
+ * responde pelo próprio CNPJ, como sempre. E a sessão é revalidada aqui
+ * (prazo e revogação) em vez de confiar no cookie: um link revogado deixa
+ * de cotar sob o nosso CNPJ na hora.
+ */
+async function cnpjDoAnfitriao(admin: Admin, userId: string): Promise<string | null> {
+  const { data: sessao } = await admin
+    .from('sessoes_homologacao')
+    .select('criado_por')
+    .eq('usuario_id', userId)
+    .is('revogada_em', null)
+    .gt('expira_em', new Date().toISOString())
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  const anfitriao = (sessao as { criado_por?: string } | null)?.criado_por
+  if (!anfitriao) return null
+
+  return documentoDoPerfil(admin, anfitriao)
+}
+
 /** Só o documento do perfil, sem exigir que o resto esteja completo. */
 async function documentoDoPerfil(admin: Admin, userId: string): Promise<string | null> {
   const { data } = await admin
@@ -175,6 +209,11 @@ export async function verificarPerfilParaSeguros(
   const teste = cnpjDeTeste()
   if (teste) return { pronto: true, cnpjCpf: teste }
 
+  // Convidado de homologação: coteja sob o CNPJ de quem o convidou, então
+  // não há perfil dele a completar. Ver `cnpjDoAnfitriao`.
+  const anfitriao = await cnpjDoAnfitriao(admin, userId)
+  if (anfitriao) return { pronto: true, cnpjCpf: anfitriao }
+
   const { data, error } = await admin
     .from('perfis').select(CAMPOS_PERFIL).eq('id', userId).maybeSingle()
 
@@ -212,6 +251,16 @@ export async function garantirImobiliaria(
 ): Promise<{ cnpjCpf?: string; error?: string }> {
   const homolog = await cnpjParaHomologacao(admin, userId)
   if (homolog) return { cnpjCpf: homolog }
+
+  /**
+   * Convidado de homologação: o CNPJ é o de quem abriu a sessão.
+   *
+   * Vem antes do vínculo e do perfil de propósito, e NÃO grava nada em
+   * `seguro_imobiliarias` — o vínculo pertence à imobiliária de verdade e
+   * não pode ser reescrito por uma visita.
+   */
+  const anfitriao = await cnpjDoAnfitriao(admin, userId)
+  if (anfitriao) return { cnpjCpf: anfitriao }
 
   const { data: vinculo } = await admin
     .from('seguro_imobiliarias')

@@ -28,6 +28,33 @@ export function segurosConfigurado(): boolean {
 }
 
 /**
+ * O convidado da corretora está proibido desta operação?
+ *
+ * A sessão de homologação existe para a equipe técnica deles exercitar a
+ * nossa implementação de verdade — cotar, comparar preço, ver o que a API
+ * responde. Tudo isso é leitura e cálculo, e é para funcionar sem
+ * ressalva.
+ *
+ * O que ela não pode é CRIAR registro do lado da corretora: contratar
+ * emite apólice com cobrança a um cliente real, transmitir análise abre
+ * proposta em nome de alguém, cancelar mexe numa apólice viva. Em produção
+ * nada disso é reversível por nós, e o convidado não tem como saber qual
+ * botão cruza essa linha — quem tem que saber é o código.
+ *
+ * Devolve a mensagem do bloqueio, ou null quando pode seguir. Fica aqui,
+ * junto de `exigirAcessoSeguros`, para a regra morar num lugar só.
+ */
+export function bloqueioDeConvidado(acesso: AcessoCRM): string | null {
+  if (acesso.role !== 'homologacao') return null
+  return (
+    'Este acesso é de demonstração: cotar e consultar funcionam de verdade, ' +
+    'mas contratar, transmitir e cancelar estão desligados — eles criariam ' +
+    'apólice e cobrança reais. Para exercitar essa parte, fale com a ' +
+    'AluguelCuiabá.'
+  )
+}
+
+/**
  * Porta de entrada do módulo de seguros — hoje restrito a admin.
  *
  * A integração roda em homologação e o modelo comercial ainda não fechou,

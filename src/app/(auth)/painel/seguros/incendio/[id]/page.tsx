@@ -109,6 +109,7 @@ export default async function ApoliceIncendioPage({ params }: Props) {
 
       <DetalheIncendio
         ambiente={ambienteAtual}
+        convidado={acesso.role === 'homologacao'}
         apolice={{
           id: a.id,
           seguradora: a.seguradora,
