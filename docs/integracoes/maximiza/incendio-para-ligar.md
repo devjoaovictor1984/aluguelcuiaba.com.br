@@ -1,6 +1,6 @@
 # Seguro incêndio — o que falta pra ligar
 
-*AluguelCuiabá × Maximiza · 30/08/2026*
+*AluguelCuiabá × Maximiza · 30/08/2026, revisto em 08/09/2026*
 
 Este documento é só de **incêndio**. As pendências de fiança seguem em
 `perguntas-pendentes.md` e não bloqueiam nada aqui: o que restou lá —
@@ -49,9 +49,9 @@ item 1.6 das pendências pedia isso no CNPJ de teste
 resolveram na imobiliária — serve igual, e agradecemos. Confirmem que é
 intencional, porque muda o que passamos a exercitar na fiança.
 
-**1.2** Do nosso lado, a cotação em homologação passou a sair sob o CNPJ da
-IMOBILIATTO em vez do CNPJ de teste. **O cálculo de incêndio que vocês
-pediram já pode rodar** — é o que vamos fazer.
+**1.2** Do nosso lado, a cotação passou a sair sob o CNPJ da IMOBILIATTO em
+vez do CNPJ de teste. Foi o que expôs o item 1.3 abaixo — e, com ele, o fato
+de que essas flags descrevem o cadastro, não o ambiente em que ele coteja.
 
 Continua faltando, e é o que trava a fiança: **as URLs de webhook não estão
 cadastradas.** Nenhum webhook chegou desde 13/08. Sem elas o link da
@@ -60,34 +60,32 @@ contratação de fiança nunca abre. Foram entregues em 18/08.
 
 ---
 
-## 1.3 URGENTE — o cadastro da IMOBILIATTO não coteja
+## 1.3 RESOLVIDO — era ambiente, não cadastro
 
-Assim que passamos a cotar sob a IMOBILIATTO, toda cotação passou a voltar:
+Ficou dez dias como o item mais urgente daqui. Em 08/09/2026 vocês
+responderam:
+
+> *"Favor testar em modo produção. Essa credencial para cálculo incêndio Alfa
+> é somente em modo produção."*
+
+Testamos, e é isso. O mesmo payload, mudando só o campo `ambiente`:
 
 ```
-400  Erro em EnviaCertificadoXML. Contacte o Administrador.
-     Erro: Usuário e/ou Senha Inválidos! Tente novamente ou contate Sistemas.
+ambiente 1 (produção)      ambiente 2 (homologação)
+──────────────────────     ────────────────────────
+Alfa  · IMOBILIATTO  201   Alfa  · IMOBILIATTO  400
+Alfa  · CNPJ teste   400   Alfa  · CNPJ teste   201
+Porto · IMOBILIATTO  201   Porto · IMOBILIATTO  400
 ```
 
-Isolamos mandando o **mesmo payload** e trocando só o `cpfcnpj_imob`:
+A tabela inverte inteira: cada CNPJ está provisionado no seu ambiente, e o
+400 era nós batendo no ambiente errado. Prêmio idêntico dos dois lados —
+364,71, com as mesmas 6 coberturas.
 
-```
-Alfa  · 45528182000106 (IMOBILIATTO)  → 400  "Usuário e/ou Senha Inválidos!"
-Alfa  · 10961528000180 (teste)        → 201  prêmio 251,69
-Porto · 45528182000106 (IMOBILIATTO)  → 400  "Usuário e/ou Senha Inválidos!"
-Porto · 10961528000180 (teste)        → 201  prêmio 364,71
-```
-
-Falha nas duas seguradoras, então não é credencial de uma delas. E não é a
-nossa credencial: a autenticação passa e o erro é de regra de negócio.
-
-O `consultarImobiliaria` responde 201 para a IMOBILIATTO, com `cod_alfa
-5719`, `cod_porto 60132` e todas as flags `true`. **O cadastro existe mas
-parece não ter as credenciais das seguradoras provisionadas em
-homologação** — as flags não refletem isso.
-
-**É o que trava os testes agora.** Enquanto isso seguimos cotando sob o CNPJ
-de teste, o que exercita o fluxo mas não valida o cadastro de vocês.
+Fica registrado só para quem vier depois não repetir a investigação: **o
+`consultarImobiliaria` não tem campo `ambiente`**, então ele respondia 201 com
+todas as flags `true` mesmo quando o cálculo naquele ambiente ia falhar. Não
+dá para usar a consulta como prova de que a cotação vai passar.
 
 ---
 
@@ -127,7 +125,8 @@ E se a mudança for intencional, precisamos saber: a `sigla` nova (`al2`,
 
 Não é lista de desejos — é o mínimo pra não emitir errado:
 
-- [ ] **Credencial de produção**, separada da de homologação
+- [x] **Credencial de produção** — a mesma do login; o que muda é o campo
+      `ambiente` do corpo. Medida no cálculo em 08/09 (item 1.3)
 - [ ] **Pró-labore do incêndio**: a coluna "Pró-labore %/R$" do painel mostra
       **20%** do prêmio. É fixo, varia por seguradora, ou é negociado por
       imobiliária? A API não devolve esse valor — hoje exibimos como
@@ -185,13 +184,16 @@ do nosso lado já está contornado.
 
 ## O que pedimos, em ordem
 
-1. **Provisionar as credenciais das seguradoras no cadastro da IMOBILIATTO**
-   (item 1.3) — é o que trava o teste do incêndio hoje.
-2. **Dizer como escolher a seguradora agora** (item 1.4) — o header parou de
-   funcionar e não achamos substituto.
-3. **Cadastrar as URLs de webhook** (entregues em 18/08) — é o que trava a
+1. **Dizer como escolher a seguradora agora** (item 1.4) — o header parou de
+   funcionar e não achamos substituto. Em produção isso pesa mais: o corretor
+   escolhe, recebe preço e contrata sem saber de qual seguradora ele é.
+2. **Cadastrar as URLs de webhook** (entregues em 18/08) — é o que trava a
    fiança inteira; nenhum webhook chegou desde 13/08.
-4. Credencial de produção e o pró-labore confirmado, pra ligar o incêndio.
+3. **O pró-labore confirmado** e o resto do item 2, pra ligar o incêndio de
+   verdade.
+4. **A fiança também é só em produção?** O cálculo de incêndio era; se valer
+   igual para a fiança, dizer antes — transmitir análise em produção cria
+   proposta real, e não fazemos isso por conta própria.
 
 ---
 

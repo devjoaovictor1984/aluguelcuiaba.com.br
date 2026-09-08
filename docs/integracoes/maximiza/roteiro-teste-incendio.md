@@ -1,17 +1,38 @@
 # Roteiro de teste — seguro incêndio
 
-*Homologação · aberto em 30/08/2026*
+*Aberto em 30/08/2026 · reescrito em 08/09/2026, em duas fases*
 
-O que precisa estar exercitado antes de pedir credencial de produção. Marque
+O que precisa estar exercitado antes da primeira apólice real. Marque
 conforme for passando; o que falhar vira entrada no `diario-de-homologacao.md`.
+
+---
+
+## Por que duas fases
+
+Medido em 08/09 (ver o diário): **cada CNPJ só cota no seu ambiente.**
+
+```
+                        produção (1)   homologação (2)
+IMOBILIATTO 4552…0106       201             400
+CNPJ teste  1096…0180       400             201
+```
+
+Não dá pra ter os dois no mesmo lugar, e cada metade do roteiro precisa de um:
+
+- **Fase 1 · cálculo, em produção.** É o único ambiente onde o nosso CNPJ
+  coteja. Cálculo é consulta de preço — não emite apólice, não gera cobrança.
+- **Fase 2 · contratar, documentos e cancelar, em homologação.** Emitir de
+  verdade só depois do acerto comercial, então esta metade roda sob o CNPJ de
+  teste, onde a apólice é de mentira.
+
+A regra que separa as duas: **na Fase 1 não se clica em "Contratar".**
 
 ---
 
 ## O que já está provado, e é menos do que parece
 
 Levantado da tabela `seguro_incendio_apolices` em 30/08. Sobraram **três
-cotações**, todas de 17/08 (linhas podem ter sido apagadas pelo botão de
-excluir, então isto é piso, não retrato completo):
+cotações**, todas de 17/08:
 
 | Seguradora | Tipo | Vigência | Cobertura | Como terminou |
 |---|---|---|---|---|
@@ -27,29 +48,40 @@ v81, então `registrarComissao()` nunca rodou de verdade nenhuma vez.
 
 ---
 
-## Antes de começar
+# FASE 1 — cálculo, em produção
 
-- [ ] A faixa no topo de `/painel/seguros/incendio` está **cinza**, dizendo
-      "Homologação". Se estiver **vermelha**, pare: a `MAXIMIZA_AMBIENTE` da
-      Vercel está em 1 e o botão de contratar emite de verdade.
-- [ ] A faixa diz que a cotação sai sob o seu CNPJ. Depois da primeira
-      cotação dá pra confirmar no `seguro_eventos`: o `request` do
-      `/calculo` traz `cpfcnpj_imob`, que deve ser `45528182000106` e não
-      `10961528000180`.
+## 1.0 · Virar o ambiente
 
----
+Na Vercel, projeto → **Settings → Environment Variables**:
 
-## Bloco 1 — cálculo: a matriz que falta
+- [ ] `MAXIMIZA_AMBIENTE` de `2` para **`1`**, escopo **Production**
+- [ ] **Redeploy.** Mudar a variável não afeta o deploy que já está no ar:
+      Deployments → o último → ⋯ → Redeploy
+- [ ] `MAXIMIZA_FORCAR_CNPJ_TESTE` **fica como está** — em ambiente 1 ele é
+      ignorado no código (`cnpjDeTeste()` devolve null fora da homologação)
 
-Cada linha existe porque exercita um caminho diferente do código, não por
-capricho.
+**Confirmação obrigatória antes de seguir:** abra `/painel/seguros/incendio`.
+A faixa do topo tem que estar **vermelha**, dizendo "Produção". Se ainda
+estiver cinza, o redeploy não pegou — **pare aqui**, porque cinza em produção
+significa que a tela está mentindo sobre o que o botão faz.
+
+- [ ] Faixa vermelha na tela
+
+> **Enquanto a Fase 1 durar, o site publicado está em produção para todo
+> mundo.** Qualquer pessoa com acesso ao painel que marque a caixa vermelha e
+> clique em contratar emite apólice real. Faça a fase inteira de uma sentada e
+> volte o ambiente no fim.
+
+## 1.1 · A matriz de cálculo
+
+Cada linha existe porque exercita um caminho diferente do código.
 
 - [ ] **1.1 · Alfa · Residencial · Anual · cobertura 3**
-      Refazer o que já funcionou, só pra confirmar que a troca de CNPJ não
-      quebrou nada.
+      A combinação que já funcionou. Agora sob o CNPJ real e em produção —
+      é o retorno mais importante da fase.
 
 - [ ] **1.2 · Alfa · Residencial · Mensal**
-      Nunca calculou com sucesso. A vigência muda o catálogo de assistência
+      Nunca calculou com sucesso. A vigência troca o catálogo de assistência
       inteiro — códigos 1 a 5 no mensalizado, 8 a 12 no anual. Código de uma
       é inválido na outra.
 
@@ -84,9 +116,39 @@ capricho.
 - [ ] O campo **Controle** salva, aparece no cabeçalho da cotação e acha a
       cotação na busca da listagem
 
+### Duas checagens só desta fase
+
+- [ ] **Puxar um contrato do CRM e conferir a vigência.** O fim tem que vir
+      12 meses depois do início, e não a data de término do contrato de
+      locação. Consertado em 08/09 (`form-incendio.tsx:169`); em produção um
+      erro aqui vira recusa da seguradora
+- [ ] **O CNPJ que saiu na cotação.** No `seguro_eventos`, o `request` do
+      `/calculo` tem que trazer `cpfcnpj_imob: 45528182000106`. Se vier
+      `10961528000180`, o ambiente não virou
+
+### E uma pergunta que só a produção responde
+
+- [ ] **O preço bate com o do painel da corretora?** Homologação nunca
+      permitiu conferir isso. Cote a mesma coisa nos dois e compare o prêmio.
+      Se divergir, é o campo "Tabela" (1 a 20) do painel deles, que não
+      existe na API — está no item 3.1 de `incendio-para-ligar.md`
+
 ---
 
-## Bloco 2 — contratar uma na Porto
+# FASE 2 — contratar, documentos e cancelar, em homologação
+
+## 2.0 · Voltar o ambiente
+
+- [ ] `MAXIMIZA_AMBIENTE` de volta para **`2`** na Vercel
+- [ ] **Redeploy** de novo
+- [ ] A faixa voltou a ser **cinza**, dizendo "Homologação" e que está cotando
+      forçado no CNPJ de teste
+
+Não volte para contratar uma cotação criada na Fase 1: ela nasceu em produção,
+e contratá-la agora manda um corpo de homologação em cima de dados de outro
+ambiente. **Faça cotações novas para os blocos abaixo.**
+
+## 2.1 · Contratar uma na Porto
 
 Só uma, e na Porto, porque a Alfa já foi. Fecha o par de seguradoras.
 
@@ -98,9 +160,7 @@ Só uma, e na Porto, porque a Alfa já foi. Fecha o par de seguradoras.
       `valor_seguro_incendio_anual` e o `seguro_incendio_data` do contrato
       são preenchidos
 
----
-
-## Bloco 3 — documentos
+## 2.2 · Documentos
 
 - [ ] **3.1** Certificado e proposta baixam
 - [ ] **3.2** O boleto **falha**, com *"Fatura não encontrada"* — e isso é o
@@ -108,23 +168,23 @@ Só uma, e na Porto, porque a Alfa já foi. Fecha o par de seguradoras.
       seguradora. Tem que aparecer em âmbar, como aviso, não em vermelho
       como erro, e o certificado já baixado não pode sumir junto
 
----
-
-## Bloco 4 — cancelar
+## 2.3 · Cancelar
 
 - [ ] **4.1** Devolve *"Certificado cancelado com sucesso."*
 - [ ] **4.2** A mensagem de erro da ação anterior sumiu da tela antes desta
 
 ---
 
-## O que NÃO dá pra testar aqui, e não adianta tentar
+## O que NÃO dá pra testar em nenhuma das duas fases
 
 - **Boleto de verdade** — depende do fechamento do lote deles
 - **`listarFaturamento`** — nunca exercitado, e sem apólice faturada não tem
   o que listar
-- **Se o preço de homologação é o preço real** — não há como saber daqui
-- **O campo "Tabela" (1 a 20)** do painel deles, que não existe na API.
-  Cotamos sempre no padrão sem saber se ele mexe em preço ou comissão
+- **A escolha de seguradora** — o header `seguradora` parou de rotear, e em
+  08/09 foi medido que em produção também não roteia: Alfa e Porto devolvem
+  prêmio idêntico. As linhas 1.3 e 1.4 da matriz exercitam o **formulário** da
+  Porto (endereço obrigatório, catálogo de ocupação, `vl_cob_conteudo`), não a
+  seguradora que vai atender. Item 1.4 de `incendio-para-ligar.md`
 
 ---
 
@@ -132,12 +192,13 @@ Só uma, e na Porto, porque a Alfa já foi. Fecha o par de seguradoras.
 
 O teste prova que o código funciona. Falta o que não depende de código:
 
-- [ ] **Credencial de produção** — a atual é de homologação
+- [x] **Credencial de produção** — é a mesma do login; o que muda é o campo
+      `ambiente` do corpo. Confirmado em 08/09
 - [ ] **Pró-labore confirmado** — exibimos 20% como estimativa, lida do
       painel deles; ninguém confirmou se é fixo, por seguradora ou negociado
 - [ ] **Regra de estorno no cancelamento** — proporcional? do prêmio e da
       comissão?
 - [ ] **Contrato de parceria e tabela de comissionamento**
 
-Só quando esses quatro fecharem é que `MAXIMIZA_AMBIENTE` vira `1` — e a
+Só quando esses três fecharem é que `MAXIMIZA_AMBIENTE` fica em `1` — e a
 partir daí toda contratação é dinheiro real de cliente real.

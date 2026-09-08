@@ -11,6 +11,169 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 
 ---
 
+## 08/09/2026 — era ambiente: em produção a IMOBILIATTO cota ✅
+
+De manhã, pelo WhatsApp:
+
+> *"Favor testar em modo produção. Essa credencial para cálculo incêndio Alfa
+> é somente em modo produção."*
+
+Primeira resposta desde 31/08, quando pediram o JSON de envio. Explica os dez
+dias de 400: o vínculo do cadastro da IMOBILIATTO com a Alfa existe, só que **no
+ambiente de produção**, e nós vínhamos batendo em homologação. Não era cadastro
+quebrado — era cadastro no outro lado da porta.
+
+### Medido: o espelho exato da homologação ✅
+
+Mesmo payload congelado de 30/08, mesma vigência de 12 meses, mudando só o
+`ambiente` de `"2"` para `"1"`. `/auth` em 201 antes das três:
+
+```
+POST /incendioAlfaV2/calculo     ambiente "1" (PRODUÇÃO)
+
+A) 45528182000106 · header Alfa   → 201  prêmio 364,71 · líq 339,64 · IOF 25,07 · 6 coberturas
+B) 10961528000180 · header Alfa   → 400  "Usuário e/ou Senha Inválidos!"
+C) 45528182000106 · header Porto  → 201  prêmio 364,71 · líq 339,64 · IOF 25,07 · 6 coberturas
+```
+
+**A tabela inteira inverte.** Em homologação a IMOBILIATTO dava 400 e o CNPJ
+de teste cotava; em produção a IMOBILIATTO cota e o CNPJ de teste dá 400 — a
+mesma mensagem, palavra por palavra. Dois CNPJs, dois ambientes, cada um
+provisionado no seu: nenhuma outra explicação sobrevive às seis células.
+
+E o prêmio de produção sob a IMOBILIATTO bate centavo por centavo com o que a
+homologação vinha devolvendo sob o CNPJ de teste — 364,71 / 339,64 / 25,07, as
+mesmas 6 coberturas. Mesma tarifa nos dois lados.
+
+Isso **fecha o item 1.3** de `incendio-para-ligar.md`, aberto desde 30/08. Não
+havia nada a consertar: faltava saber onde testar.
+
+### O que continua igual, agora medido em produção ⏳ *deles*
+
+**A escolha de seguradora segue sem efeito** (item 1.4). A e C são o mesmo
+payload com header `Alfa` e `Porto`, e voltam idênticos — prêmio, líquido, IOF
+e contagem de coberturas. O header parou de rotear em homologação em 30/08 e
+em produção nunca roteou. A pergunta continua de pé, e agora vale para o
+ambiente que emite: **como se pede a cotação de uma seguradora específica?**
+Enquanto não houver resposta, o seletor da tela é decorativo — e em produção
+decorativo custa caro, porque o corretor escolhe Porto, recebe um preço e
+contrata sem saber de quem ele é.
+
+**A fiança não foi tocada.** A biometria da 215549 e os webhooks continuam
+como em 06/09. Se o mesmo "é só em produção" também vale lá, ainda não foi
+medido — e medir exige transmitir uma análise, que em produção cria proposta
+de verdade. Não se faz por conta própria: perguntar antes.
+
+### Como repetir
+
+```
+node scripts/testa-incendio-imobiliatto.mjs --producao
+```
+
+A flag `--producao` é nova de hoje e troca só o campo `ambiente` do corpo.
+Continua chamando **exclusivamente o `/calculo`**, que é consulta de preço:
+sem `criaRegistro`, sem apólice, sem cobrança. `/contratar` não existe neste
+script, de propósito — é o que separa "rodar à vontade" de "emitir sem
+querer".
+
+### Consertado do nosso lado ✅
+
+`form-incendio.tsx:169` — o fim da vigência recebia `c.dataTermino` ao puxar
+contrato do CRM, mandando 30 meses ao cálculo num contrato de 30. Agora soma
+12 meses ao início, igual à digitação manual. Estava no diário como aberto
+desde 01/09, com a nota de que viraria recusa no minuto em que a credencial
+funcionasse. A credencial funcionou hoje.
+
+### O app NÃO foi ligado em produção ⚠️
+
+`MAXIMIZA_AMBIENTE` continua `2`, local e na Vercel. O teste de hoje foi por
+script, fora do app. Trocar para `1` faz o **`/contratar` da tela emitir
+apólice real e cobrança real** — e antes disso falta o que está no item 2 de
+`incendio-para-ligar.md`: pró-labore confirmado, regra de cancelamento e
+estorno, tabela de comissionamento e o contrato de parceria. É decisão de
+negócio, não de código.
+
+---
+
+## 06/09/2026 — reteste dos dois produtos: nada se moveu em cinco dias
+
+Cinco dias depois do reteste de 01/09, e nove desde o "ficou certo para sua
+imobiliária". Continua sem retorno ao JSON mandado em 31/08.
+
+### Incêndio — o mesmo 400 de credencial ⏳ *deles*
+
+`node scripts/testa-incendio-imobiliatto.mjs`, `/auth` em 201 antes das três:
+
+```
+POST /incendioAlfaV2/calculo     (payload congelado de 30/08)
+
+A) 45528182000106 · header Alfa   → 400  "Usuário e/ou Senha Inválidos!"
+B) 10961528000180 · header Alfa   → 201  prêmio 364,71 · líq 339,64 · IOF 25,07 · 6 coberturas
+C) 45528182000106 · header Porto  → 400  (mesma mensagem)
+```
+
+B saiu idêntico ao de 01/09 e ao de 30/08, centavo por centavo — o ambiente
+deles está de pé e não foi mexido. O que falha é o mesmo vínculo de sempre.
+
+### Fiança — a biometria continua sem caminho ⏳ *deles*
+
+`GET /apiFiancaAnalise/{id}` nas três análises reais (leitura pura, não
+transmite nada):
+
+```
+215549 → 200  Porto · codigoStatus 12 Pré-Aprovado · statusBiometria 0
+              linkBiometria AUSENTE · msg "Necessária biometria facial para contratação"
+215544 → 200  Porto · codigoStatus 3 Recusado
+215542 → 200  Porto · codigoStatus 3 Recusado
+```
+
+**Vinte dias parada no mesmo ponto.** A 215549 está pré-aprovada desde 17/08 e
+a reconsulta segue pedindo a biometria sem devolver o link dela. Confirma pela
+segunda medição o que já estava no diário: o link só chega por webhook, e
+webhook não há. A contratação de fiança continua sem como ser exercitada.
+
+### As flags continuam mentindo — agora medido nos dois CNPJs
+
+`POST /apiImobiliaria/consultarImobiliaria` (não cria registro):
+
+| | IMOBILIATTO 45528182000106 | teste 10961528000180 |
+|---|---|---|
+| razão | J. V. VIEIRA LTDA | MAXIMIZA IMOB TEMP - DF |
+| cod_alfa / cod_porto | 5719 / 60132 | 4695 / 3608 |
+| `alfa_incendio` · `porto_incendio` | true · true | true · true |
+| `yelum_incendio` | false | false |
+| fiança (porto/too/tokio/pottencial) | **true nas quatro** | só `porto_fianca` |
+
+Idêntico a 30/08. A IMOBILIATTO tem `alfa_incendio: true` e `porto_incendio:
+true` e mesmo assim o `/calculo` recusa a credencial nas duas — vale como
+prova de que a flag descreve o cadastro, não o provisionamento.
+
+### Medido junto, no mesmo minuto
+
+| Onde | O que tem |
+|---|---|
+| `seguro_eventos` com `direcao = entrada` | **zero.** Nenhum webhook desde 13/08 — 24 dias |
+| último evento de qualquer direção | 30/08 23:48, saída, `/incendioAlfaV2/calculo` |
+| `homologacao_apontamentos` | **vazio** |
+| `sessoes_homologacao` | expirada em 31/08; 7 acessos, o último em 18/08 12:38 |
+
+### Aberto do nosso lado ⚠️
+
+`form-incendio.tsx:169` segue como em 01/09: ao puxar contrato do CRM, o fim da
+vigência recebe `c.dataTermino` em vez de `somarMeses(inicio, 12)`. Digitação
+manual continua certa (linha 478). Não é a causa do 400, mas vira recusa no
+minuto em que a credencial funcionar.
+
+### Nunca exercitado, e continua nunca
+
+A cotação de fiança sob o CNPJ da IMOBILIATTO. Todas as análises existentes são
+de 15–17/08, anteriores à troca de CNPJ (v86, 30/08) — ou seja, saíram sob o
+CNPJ de teste. Se o problema de provisionamento também alcança a fiança, isso
+ainda não foi medido, e medir exige transmitir uma análise nova (cria registro
+do lado deles).
+
+---
+
 ## 01/09/2026 — reteste: o cadastro continua sem credencial na seguradora
 
 Em 31/08, 08:12, eles pediram por WhatsApp o JSON de envio da cotação. Foi
@@ -302,13 +465,13 @@ Perguntado (item 7.1, que era um ✅ e voltou a ser pergunta).
 
 ---
 
-## Estado atual — 01/09/2026
+## Estado atual — 06/09/2026
 
 | Frente | Onde está |
 |---|---|
 | Fiança — análise | ✅ funciona; para em pré-aprovado, como a regra deles prevê |
 | Fiança — seguradoras | ✅ as quatro habilitadas na IMOBILIATTO (30/08); só a Porto no CNPJ de teste |
-| Fiança — biometria | ⏳ sem caminho: o link só vem por webhook, que não está cadastrado |
+| Fiança — biometria | ⏳ sem caminho: o link só vem por webhook, que não está cadastrado; 215549 parada há 20 dias (06/09) |
 | Fiança — contratação | ⏳ bloqueada pela biometria; nunca exercitada |
 | Incêndio — cálculo | ⏳ **só sob o CNPJ de teste.** Sob a IMOBILIATTO, 400 de credencial na Alfa e na Porto |
 | Incêndio — seleção de seguradora | ⚠️ o header deixou de rotear; o seletor da tela está decorativo (30/08) |
@@ -316,8 +479,8 @@ Perguntado (item 7.1, que era um ✅ e voltou a ser pergunta).
 | Incêndio — documentos | ✅ certificado e proposta; boleto sai depois do lote |
 | Incêndio — cancelamento | ✅ "Certificado cancelado com sucesso" |
 | Incêndio — ligar em produção | ⏳ falta credencial de produção e o pró-labore confirmado — ver `incendio-para-ligar.md` |
-| Webhooks | ⏳ **nenhum recebido desde 13/08**; URLs entregues em 18/08 |
-| Sessão de homologação deles | ⚠️ **expirou em 31/08**; 7 acessos, nenhum desde 18/08, zero apontamentos |
+| Webhooks | ⏳ **nenhum recebido desde 13/08** (24 dias); URLs entregues em 18/08 |
+| Sessão de homologação deles | ⚠️ **expirada desde 31/08**; 7 acessos, nenhum desde 18/08, zero apontamentos |
 | Comissões | ✅ registradas na venda; percentuais dependem da corretora |
 | Modelo comercial | ⏳ nada definido — ver `perguntas-pendentes.md`, bloco 2 |
 

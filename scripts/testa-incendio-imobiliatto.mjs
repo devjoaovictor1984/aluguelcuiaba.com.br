@@ -17,10 +17,20 @@
  * Uso:
  *   node scripts/testa-incendio-imobiliatto.mjs
  *   node scripts/testa-incendio-imobiliatto.mjs --cnpj=00000000000000
+ *   node scripts/testa-incendio-imobiliatto.mjs --producao
  *
  * Lê MAXIMIZA_EMAIL, MAXIMIZA_SENHA e MAXIMIZA_CNPJ_TESTE do .env.local.
- * O `ambiente` do corpo é fixo em "2": este script é de homologação e não
- * aceita rodar contra produção.
+ *
+ * O `ambiente` do corpo sai "2" (homologação) por padrão. Com `--producao`
+ * sai "1", pedido pela corretora em 08/09/2026: "essa credencial para cálculo
+ * incêndio Alfa é somente em modo produção". Os dois ambientes usam a MESMA
+ * URL e esse campo é a única coisa que os separa — por isso produção é flag
+ * explícita, nunca o padrão.
+ *
+ * Rodar em produção continua seguro AQUI porque o script chama só o
+ * `/calculo`, que é consulta de preço: sem `criaRegistro`, sem apólice, sem
+ * cobrança. O que emite de verdade é o `/contratar`, que este script não
+ * conhece.
  */
 
 import { readFileSync } from 'node:fs'
@@ -66,7 +76,7 @@ function sair(msg) {
  * em 01/09 que não mudam o resultado. Aqui vale mais o payload limpo.
  */
 const CORPO = {
-  ambiente: '2',
+  ambiente: '2',               // sobrescrito por cotar(): 1 = produção
   cpfcnpj_imob: null,          // preenchido por cotar()
   tipo_seguro: 'R',
   tipo_vigencia: 0,
@@ -123,7 +133,7 @@ async function autenticar(env) {
   return accessToken
 }
 
-async function cotar(token, rotulo, cnpj, seguradora) {
+async function cotar(token, rotulo, cnpj, seguradora, ambiente) {
   const inicio = Date.now()
   let resp, dados
   try {
@@ -131,7 +141,7 @@ async function cotar(token, rotulo, cnpj, seguradora) {
       method: 'POST',
       // Sem "Bearer" — a API rejeita o formato padrão.
       headers: { Authorization: token, 'Content-Type': 'application/json', seguradora },
-      body: JSON.stringify({ ...CORPO, cpfcnpj_imob: cnpj }),
+      body: JSON.stringify({ ...CORPO, ambiente, cpfcnpj_imob: cnpj }),
       signal: AbortSignal.timeout(TIMEOUT_MS),
     })
     const texto = await resp.text()
@@ -158,14 +168,16 @@ const env = carregarEnv()
 const arg = process.argv.find(a => a.startsWith('--cnpj='))
 const cnpj = (arg ? arg.split('=')[1] : CNPJ_IMOBILIATTO).replace(/\D/g, '')
 const cnpjTeste = env.MAXIMIZA_CNPJ_TESTE
+const producao = process.argv.includes('--producao')
+const ambiente = producao ? '1' : '2'
 
-console.log('\n  Cotação de incêndio em HOMOLOGAÇÃO — só /calculo, nada é emitido.\n')
+console.log(`\n  Cotação de incêndio em ${producao ? 'PRODUÇÃO' : 'HOMOLOGAÇÃO'} — só /calculo, nada é emitido.\n`)
 
 const token = await autenticar(env)
 
-const a = await cotar(token, `A) ${cnpj} (IMOBILIATTO)  ·  header Alfa`, cnpj, 'Alfa')
-const b = await cotar(token, `B) ${cnpjTeste} (teste)  ·  header Alfa`, cnpjTeste, 'Alfa')
-const c = await cotar(token, `C) ${cnpj} (IMOBILIATTO)  ·  header Porto`, cnpj, 'Porto')
+const a = await cotar(token, `A) ${cnpj} (IMOBILIATTO)  ·  header Alfa`, cnpj, 'Alfa', ambiente)
+const b = await cotar(token, `B) ${cnpjTeste} (teste)  ·  header Alfa`, cnpjTeste, 'Alfa', ambiente)
+const c = await cotar(token, `C) ${cnpj} (IMOBILIATTO)  ·  header Porto`, cnpj, 'Porto', ambiente)
 
 console.log('\n  ─────────────────────────────────────────────────────────────\n')
 

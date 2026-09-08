@@ -166,7 +166,10 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
 
     setAluguel(cent(c.aluguel))
     setInicio(c.dataInicio || hoje())
-    setFim(c.dataTermino || somarMeses(c.dataInicio || hoje(), 12))
+    // A vigência do seguro é de 12 meses, e não a do contrato de locação:
+    // copiar `dataTermino` mandava 30 meses ao `/calculo` num contrato de
+    // 30. Mesma conta da digitação manual, logo abaixo no campo "Início".
+    setFim(somarMeses(c.dataInicio || hoje(), 12))
     setCep(c.endereco.cep ? maskCep(c.endereco.cep) : '')
     setEndereco(c.endereco.endereco)
     setNumero(c.endereco.numero)
