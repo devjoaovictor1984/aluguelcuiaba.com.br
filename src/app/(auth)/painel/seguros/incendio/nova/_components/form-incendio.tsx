@@ -56,6 +56,18 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
   const [erro, setErro] = useState('')
 
   const [seguradoras, setSeguradoras] = useState<string[]>([])
+  /**
+   * O que aconteceu com a busca das seguradoras.
+   *
+   * Existe porque "lista vazia" tinha dois significados na tela: ainda
+   * carregando, e falhou. Os dois mostravam "Carregando seguradoras…" —
+   * então uma queda da corretora virava uma tela que carrega para sempre,
+   * sem dizer nada a ninguém. Em 08/09/2026, com a API deles respondendo em
+   * 90s, foi exatamente o que o corretor viu.
+   */
+  const [buscaSeguradoras, setBuscaSeguradoras] =
+    useState<'carregando' | 'ok' | 'falhou'>('carregando')
+  const [erroSeguradoras, setErroSeguradoras] = useState('')
   const [seguradora, setSeguradora] = useState('')
   const [ocupacoes, setOcupacoes] = useState<Ocupacao[]>([])
   const [pacotes, setPacotes] = useState<PacoteAssistencia[]>([])
@@ -108,14 +120,52 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
   const cent = (n: number) => (n > 0 ? maskMoney(String(Math.round(n * 100))) : '')
 
   /* ── Seguradoras ── */
+  /**
+   * Contador de tentativa: é o que o botão "tentar de novo" incrementa
+   * para o efeito rodar outra vez. Mesmo formato do efeito de catálogo
+   * logo abaixo — a busca vive DENTRO do efeito, e não numa função
+   * chamada por ele.
+   */
+  const [tentativaSeguradoras, setTentativaSeguradoras] = useState(0)
+
   useEffect(() => {
+    let cancelado = false
+
     void (async () => {
-      const r = await listarSeguradorasDoIncendio()
-      if ('error' in r) { setErro(r.error!); return }
-      setSeguradoras(r.seguradoras ?? [])
-      if (r.seguradoras?.length) setSeguradora(s => s || r.seguradoras![0])
+      try {
+        const r = await listarSeguradorasDoIncendio()
+        if (cancelado) return
+        if ('error' in r && r.error) {
+          setBuscaSeguradoras('falhou')
+          setErroSeguradoras(r.error)
+          return
+        }
+        const lista = r.seguradoras ?? []
+        if (lista.length === 0) {
+          setBuscaSeguradoras('falhou')
+          setErroSeguradoras('A corretora não devolveu nenhuma seguradora habilitada.')
+          return
+        }
+        setSeguradoras(lista)
+        setSeguradora(s => s || lista[0])
+        setBuscaSeguradoras('ok')
+      } catch (e) {
+        // A action pode REJEITAR, e não só devolver { error }: timeout da
+        // função, queda de rede, deploy no meio. Sem este catch a promessa
+        // morria em silêncio e a tela ficava carregando para sempre — foi
+        // o que se viu em 08/09/2026, com a API da corretora em 90s.
+        if (cancelado) return
+        setBuscaSeguradoras('falhou')
+        setErroSeguradoras(
+          e instanceof Error && e.message
+            ? e.message
+            : 'Não foi possível falar com a corretora.',
+        )
+      }
     })()
-  }, [])
+
+    return () => { cancelado = true }
+  }, [tentativaSeguradoras])
 
   /* ── Catálogo: depende da seguradora e do tipo ── */
   useEffect(() => {
@@ -326,10 +376,34 @@ export function FormIncendio({ contratos, contratoInicial }: Props) {
               {s}
             </button>
           ))}
-          {seguradoras.length === 0 && (
+          {buscaSeguradoras === 'carregando' && (
             <p className="text-xs text-gray-400 py-2">Carregando seguradoras…</p>
           )}
         </div>
+
+        {buscaSeguradoras === 'falhou' && (
+          <div className="rounded-xl bg-amber-50 ring-1 ring-amber-300 px-3.5 py-3 space-y-2">
+            <p className="text-[11px] text-amber-900 leading-snug">
+              <strong>A corretora não respondeu.</strong> Sem a lista de
+              seguradoras não dá para cotar — e isso costuma ser lentidão do
+              lado deles, não erro seu.
+              {erroSeguradoras && (
+                <> <span className="text-amber-800">({erroSeguradoras})</span></>
+              )}
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setBuscaSeguradoras('carregando')
+                setErroSeguradoras('')
+                setTentativaSeguradoras(n => n + 1)
+              }}
+              className="rounded-lg bg-amber-600 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-amber-700"
+            >
+              Tentar de novo
+            </button>
+          </div>
+        )}
 
         <div className="grid sm:grid-cols-2 gap-3">
           <div>

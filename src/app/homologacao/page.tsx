@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
-  ShieldCheck, Flame, FlaskConical, PenLine, ArrowRight, AlertTriangle, Terminal,
+  ShieldCheck, Flame, FlaskConical, PenLine, ArrowRight, AlertTriangle, Terminal, Stethoscope,
   History,
 } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { sessaoAtual } from '@/lib/homologacao/sessao'
+import { ambienteMaximiza } from '@/lib/seguros/maximiza/client'
 
 /** Fora do componente: `Date.now()` no corpo do render viola react-hooks/purity. */
 function diasAte(iso: string): number {
@@ -34,6 +35,9 @@ export default async function HomologacaoPage() {
   if (!sessao) redirect('/homologacao/encerrada?motivo=expirada')
 
   const dias = diasAte(sessao.expiraEm)
+
+  let ambiente: 1 | 2 | null = null
+  try { ambiente = ambienteMaximiza() } catch { ambiente = null }
 
   /**
    * O que a sessão já produziu.
@@ -65,8 +69,15 @@ export default async function HomologacaoPage() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-3xl mx-auto px-4 py-8 pb-32 space-y-5">
         <header>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 text-amber-800 ring-1 ring-amber-200 px-2.5 py-1 text-[11px] font-bold">
-            <FlaskConical size={11} /> Ambiente de homologação
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full ring-1 px-2.5 py-1 text-[11px] font-bold ${
+              ambiente === 1
+                ? 'bg-red-50 text-red-800 ring-red-200'
+                : 'bg-amber-50 text-amber-800 ring-amber-200'
+            }`}
+          >
+            <FlaskConical size={11} />
+            {ambiente === 1 ? 'Apontado para produção' : 'Ambiente de homologação'}
           </span>
           <h1 className="text-2xl font-bold text-gray-900 mt-3 leading-tight">
             Integração AluguelCuiabá × Maximiza
@@ -131,11 +142,29 @@ export default async function HomologacaoPage() {
 
         <section className="rounded-2xl bg-white ring-1 ring-gray-100 shadow-sm p-4 space-y-2.5">
           <h2 className="text-sm font-bold text-gray-900">O que isto é</h2>
+          {/*
+            Lido do ambiente, e não escrito à mão.
+
+            Este parágrafo dizia "ambiente 2, CNPJ de teste" em texto fixo.
+            Em 08/09/2026 a plataforma passou a rodar em produção para
+            exercitar a credencial da Alfa, e a frase virou mentira sem que
+            ninguém tocasse nela — para quem lê é pior que não ter frase.
+          */}
           <p className="text-sm text-gray-600 leading-relaxed">
-            É a nossa implementação da API de vocês, rodando contra
-            <strong> ambiente 2</strong>, com o CNPJ de teste
-            <strong> 10.961.528/0001-80</strong>. Nada aqui emite apólice de verdade
-            nem toca em produção.
+            É a nossa implementação da API de vocês, rodando contra{' '}
+            <strong>ambiente {ambiente ?? '—'}</strong>
+            {ambiente === 2 ? (
+              <>
+                , com o CNPJ de teste <strong>10.961.528/0001-80</strong>. Nada
+                aqui emite apólice de verdade nem toca em produção.
+              </>
+            ) : (
+              <>
+                , sob o CNPJ da própria imobiliária. Esta tela e o diagnóstico
+                fazem <strong>consulta e cálculo</strong> — quem emite apólice é
+                o botão de contratar, e ele não faz parte do diagnóstico.
+              </>
+            )}
           </p>
           <p className="text-sm text-gray-600 leading-relaxed">
             Queremos que vocês cotem como cotariam no painel de vocês, e nos digam
@@ -144,6 +173,37 @@ export default async function HomologacaoPage() {
             registro e as últimas chamadas à API, então basta escrever a observação.
           </p>
         </section>
+
+        {/*
+          Fica ANTES do roteiro de propósito.
+
+          Quando a cotação não fecha, o roteiro inteiro para — e o que a
+          gente recebe de volta é "não funcionou". Esta tela responde
+          "onde não funcionou" sem exigir que quem abriu seja técnico, e é
+          por onde vale começar num dia em que algo esteja fora do ar.
+        */}
+        <Link
+          href="/homologacao/diagnostico"
+          className="block rounded-2xl bg-white ring-1 ring-orange-200 shadow-sm p-4
+                     hover:ring-orange-400 transition-colors"
+        >
+          <h3 className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+            <Stethoscope size={16} className="text-orange-600" />
+            Diagnóstico da cotação
+            <span className="ml-1 rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-700">
+              comece por aqui
+            </span>
+          </h3>
+          <p className="text-sm text-gray-600 leading-relaxed mt-1.5">
+            Roda uma cotação de verdade e mostra o resultado de cada chamada —
+            cadastro, catálogos e cálculo — com status e tempo de resposta. Já vem
+            preenchido: é um clique. Não emite apólice nem gera cobrança.
+          </p>
+          <span className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2.5
+                           text-sm font-bold text-white">
+            Abrir <ArrowRight size={14} />
+          </span>
+        </Link>
 
         <section className="space-y-3">
           <h2 className="text-sm font-bold text-gray-900">O roteiro, em ordem</h2>

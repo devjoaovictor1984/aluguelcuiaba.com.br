@@ -131,8 +131,11 @@ async function cnpjParaHomologacao(admin: Admin, userId: string): Promise<string
 
   const proprio = await documentoDoPerfil(admin, userId)
   if (proprio && proprio !== teste) {
-    const existe = await consultarImobiliaria(admin, proprio, userId)
-    if (existe) return proprio
+    // Só o CNPJ próprio quando a consulta CONFIRMA que ele responde lá.
+    // Consulta indisponível cai no de teste, que é o comportamento seguro
+    // em homologação: nada é emitido de verdade sob nenhum dos dois.
+    const consulta = await consultarImobiliaria(admin, proprio, userId)
+    if (consulta.estado === 'encontrada') return proprio
   }
   return teste
 }
@@ -259,7 +262,25 @@ export async function garantirImobiliaria(
   }
 
   // Pode já existir lá de um cadastro feito fora da plataforma.
-  const existente = await consultarImobiliaria(admin, cnpjCpf, userId)
+  const consulta = await consultarImobiliaria(admin, cnpjCpf, userId)
+
+  /**
+   * Consulta que não respondeu NÃO é cadastro inexistente.
+   *
+   * Seguir daqui com "não achei" faria o passo seguinte cadastrar um CNPJ
+   * que provavelmente já está lá — e cadastrar cria registro na base deles,
+   * que não temos como desfazer. Melhor devolver erro e o corretor tentar de
+   * novo em um minuto.
+   */
+  if (consulta.estado === 'indisponivel') {
+    return {
+      error:
+        'Não foi possível confirmar seu cadastro na corretora agora ' +
+        `(${consulta.erro}). Tente de novo em instantes — seguir sem essa ` +
+        'confirmação criaria um cadastro duplicado lá.',
+    }
+  }
+  const existente = consulta.estado === 'encontrada' ? consulta.dados : null
 
   let maximizaId: number | null = null
   if (!existente) {

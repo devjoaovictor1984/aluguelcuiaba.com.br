@@ -1,6 +1,8 @@
 import 'server-only'
 import type { createAdminClient } from '@/lib/supabase/admin'
-import { ambienteMaximiza, chamar, TIMEOUT_TRANSMISSAO } from '../maximiza/client'
+import {
+  ambienteMaximiza, chamar, TIMEOUT_CONSULTA, TIMEOUT_TRANSMISSAO,
+} from '../maximiza/client'
 import { registrarEvento } from '../index'
 import {
   lerBoletos, lerCalculo, lerContratacaoIncendio, lerDocumentos,
@@ -59,7 +61,9 @@ export async function listarSeguradorasIncendio(admin: Admin): Promise<string[]>
   const dados = await comLog<unknown>(
     admin,
     { endpoint: '/incendioAlfaV2/listarSeguradorasDisponiveis' },
-    () => chamar('/incendioAlfaV2/listarSeguradorasDisponiveis', { metodo: 'GET', produto: P }),
+    () => chamar('/incendioAlfaV2/listarSeguradorasDisponiveis', {
+      metodo: 'GET', produto: P, timeoutMs: TIMEOUT_CONSULTA,
+    }),
   )
   return lerSeguradorasIncendio(dados)
 }
@@ -75,7 +79,9 @@ export async function listarOcupacoes(
   const dados = await comLog<unknown>(
     admin,
     { userId, endpoint: caminho },
-    () => chamar(caminho, { metodo: 'GET', produto: P, seguradora }),
+    () => chamar(caminho, {
+      metodo: 'GET', produto: P, seguradora, timeoutMs: TIMEOUT_CONSULTA,
+    }),
   )
   return lerOcupacoes(dados)
 }
@@ -109,7 +115,9 @@ export async function calcularIncendio(
   const dados = await comLog<unknown>(
     admin,
     { userId, endpoint: '/incendioAlfaV2/calculo', request: corpo },
-    () => chamar('/incendioAlfaV2/calculo', { corpo, produto: P, seguradora: input.seguradora }),
+    () => chamar('/incendioAlfaV2/calculo', {
+      corpo, produto: P, seguradora: input.seguradora, timeoutMs: TIMEOUT_CONSULTA,
+    }),
   )
   return lerCalculo(dados)
 }

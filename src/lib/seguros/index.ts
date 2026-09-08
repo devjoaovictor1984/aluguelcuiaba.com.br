@@ -1,12 +1,13 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import {
-  ambienteMaximiza, chamar, sanitizarParaLog, TIMEOUT_TRANSMISSAO,
+  ambienteMaximiza, chamar, sanitizarParaLog, TIMEOUT_CONSULTA, TIMEOUT_TRANSMISSAO,
 } from './maximiza/client'
 import {
   lerArquivos, lerPlanos, lerResultadoAnalise, lerSeguradoras,
   montarAnalise, montarContratacao,
 } from './maximiza/mapper'
+import { SeguroApiError } from './tipos'
 import type {
   AnaliseInput, ArquivoRecebido, ContratacaoInput, PlanosPreco,
   ResultadoAnalise, Seguradora,
@@ -140,20 +141,54 @@ export interface ImobiliariaDados {
   email: string
 }
 
-/** O corretor já existe do lado da corretora? */
+/**
+ * O corretor já existe do lado da corretora?
+ *
+ * TRÊS respostas, não duas — e a diferença entre as duas últimas é o que
+ * impede um cadastro duplicado na base deles.
+ *
+ * Até 08/09/2026 isto devolvia `null` tanto para "consultei e não achei"
+ * quanto para "não consegui consultar". Quem chama trata `null` como
+ * "cadastrar", e `cadastrarImobiliaria` CRIA registro. No dia em que a API
+ * deles passou a responder em 30–90s, o timeout virou "não existe" e o app
+ * tentou cadastrar a IMOBILIATTO, que já estava lá: voltou 400 "já
+ * cadastrado". O 400 é que salvou — com outro tempo de resposta, teria
+ * nascido um segundo cadastro do mesmo CNPJ.
+ *
+ * Como se separa: "não encontrada" chega como erro de NEGÓCIO (4xx), que é
+ * resposta. Timeout, queda de rede e 5xx não são resposta nenhuma — ali não
+ * se sabe se existe, e agir como se não existisse é o que causa o estrago.
+ */
+export type ConsultaImobiliaria =
+  | { estado: 'encontrada'; dados: Record<string, unknown> }
+  | { estado: 'ausente' }
+  | { estado: 'indisponivel'; erro: string }
+
 export async function consultarImobiliaria(
   admin: Admin, cnpjCpf: string, userId?: string,
-): Promise<Record<string, unknown> | null> {
+): Promise<ConsultaImobiliaria> {
   try {
     const dados = await comLog<Record<string, unknown>>(
       admin,
       { userId, endpoint: '/apiImobiliaria/consultarImobiliaria', request: { cnpj_cpf: cnpjCpf } },
-      () => chamar('/apiImobiliaria/consultarImobiliaria', { corpo: { cnpj_cpf: cnpjCpf } }),
+      () => chamar('/apiImobiliaria/consultarImobiliaria', {
+        corpo: { cnpj_cpf: cnpjCpf }, timeoutMs: TIMEOUT_CONSULTA,
+      }),
     )
-    return dados && Object.keys(dados).length > 0 ? dados : null
-  } catch {
-    // Não encontrado costuma vir como erro. Quem chama trata como "cadastrar".
-    return null
+    return dados && Object.keys(dados).length > 0
+      ? { estado: 'encontrada', dados }
+      : { estado: 'ausente' }
+  } catch (e) {
+    if (
+      e instanceof SeguroApiError &&
+      e.httpStatus && e.httpStatus < 500 && e.httpStatus !== 429
+    ) {
+      return { estado: 'ausente' }
+    }
+    return {
+      estado: 'indisponivel',
+      erro: e instanceof Error ? e.message : 'Falha ao consultar a corretora.',
+    }
   }
 }
 

@@ -50,6 +50,22 @@ const TENTATIVAS = 3
 export const TIMEOUT_TRANSMISSAO = 55_000
 
 /**
+ * Teto para consulta que só LÊ — catálogos, cadastro, cálculo.
+ *
+ * Medido em 08/09/2026, com a API deles degradada: `/auth` levando 30 a 45s,
+ * `ocupacoes/R` entre 28 e 50s (e um 90s sem resposta), `consultarImobiliaria`
+ * em 63s. Nos nove dias anteriores esses mesmos endpoints respondiam em ~1s.
+ *
+ * Com os 30s do padrão, metade das cotações morria em timeout e a tela ficava
+ * carregando para sempre. Esperar é seguro AQUI e só aqui: nada nesta lista
+ * cria registro do lado deles, então uma repetição não vira duplicata — o que
+ * separa isto do `TIMEOUT_TRANSMISSAO`, que existe para o caso oposto.
+ *
+ * Mesmos 55s pela mesma razão: o plano Hobby da Vercel mata a função em 60s.
+ */
+export const TIMEOUT_CONSULTA = 55_000
+
+/**
  * 1 = Produção (emite seguro de verdade) · 2 = Homologação.
  *
  * Deriva de MAXIMIZA_AMBIENTE, e nunca de parâmetro ou input do usuário:

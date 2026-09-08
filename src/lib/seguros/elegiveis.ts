@@ -61,7 +61,8 @@ export async function seguradorasElegiveis(
   // falhou é pior que deixar passar uma natimorta, que pelo menos aparece
   // no painel. O filtro da reduzida, esse, nunca é dispensado — é ele que
   // evita o 500.
-  const imob = await consultarImobiliaria(admin, opcoes.cnpjImobiliaria, opcoes.userId)
+  const consulta = await consultarImobiliaria(admin, opcoes.cnpjImobiliaria, opcoes.userId)
+  const imob = consulta.estado === 'encontrada' ? consulta.dados : null
 
   const pedidas = (opcoes.escolhidas ?? [])
     .map(normalizarSigla)
