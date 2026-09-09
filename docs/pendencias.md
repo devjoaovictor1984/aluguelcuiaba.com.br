@@ -90,3 +90,33 @@ na próxima). Só o 2026CT016 tinha encargos no boleto quando isso foi levantado
 
 **Por que ficou pra depois:** é acerto de caixa entre pessoas, não cálculo — o
 sistema não tem como saber se o dono já foi compensado por outra via.
+
+---
+
+## Painel mensal de comissões da seguradora
+
+Pedido em 08/09/2026, para quando a parceria estiver operando de verdade.
+
+Um lugar só, por competência mensal, com o **pró-labore de incêndio e o de
+fiança** lado a lado — para conferir o que a corretora deve, contra o que
+entrou. Hoje o `/admin/seguros` mostra "base de comissão" dos últimos 30 dias
+como referência de negociação, e `seguro_comissoes` (v81) já guarda o
+percentual congelado na venda, mas nada disso está fechado por mês nem
+separado por produto.
+
+**O que falta antes de construir:**
+
+- A **tabela de comissionamento** da corretora, que segue indefinida (item 2.5
+  das pendências da integração). Sem ela o painel exibe estimativa, e
+  estimativa em cima de dinheiro a receber é pior que nada.
+- O **pró-labore confirmado** do incêndio. Exibimos 20% lidos do painel deles;
+  ninguém confirmou se é fixo, por seguradora ou negociado por imobiliária.
+- **Pelo menos uma apólice contratada de verdade**, para haver o que conciliar.
+  `seguro_comissoes` está vazia: a única apólice emitida (607773, 17/08) é
+  anterior à v81, então `registrarComissao()` nunca rodou.
+- A **regra de estorno no cancelamento** — se a comissão volta proporcional, o
+  painel precisa saber disso antes de dar número por fechado.
+
+**Por que ficou pra depois:** não é tela, é acordo comercial. Construir agora
+significa escolher percentuais no lugar da corretora, e o painel passaria a
+afirmar valores que ninguém combinou.
