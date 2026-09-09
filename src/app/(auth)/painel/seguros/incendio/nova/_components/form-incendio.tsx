@@ -662,14 +662,24 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
                   }}
                   className="w-4 h-4 shrink-0 accent-orange-600"
                 />
-                <span className="flex-1 min-w-0 text-xs text-gray-700 truncate">{rotulo}</span>
-                <input
-                  value={valor}
-                  onChange={e => setter(maskMoney(e.target.value))}
-                  className={`${input} w-36 shrink-0 ${marcada ? '' : 'opacity-40'}`}
-                  inputMode="numeric"
-                  placeholder="0,00"
-                />
+                <span className="flex-1 min-w-0 text-xs text-gray-700">{rotulo}</span>
+                {/*
+                  O campo vai DENTRO de um invólucro de largura fixa em vez de
+                  receber `w-36` na própria classe: `input` já traz `w-full`, e
+                  as duas larguras têm a mesma especificidade — quem ganha é a
+                  ordem no CSS gerado, não a ordem na string. O `w-full` venceu,
+                  o campo tomou a linha inteira e o nome da cobertura foi
+                  espremido até desaparecer.
+                */}
+                <div className="w-36 shrink-0">
+                  <input
+                    value={valor}
+                    onChange={e => setter(maskMoney(e.target.value))}
+                    className={`${input} ${marcada ? '' : 'opacity-40'}`}
+                    inputMode="numeric"
+                    placeholder="0,00"
+                  />
+                </div>
               </div>
             )
           })}
