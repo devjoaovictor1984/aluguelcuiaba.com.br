@@ -43,6 +43,38 @@ o item 2 detalha.
 
 ---
 
+## 1.1 A franquia sai diferente — e franquia não é arredondamento
+
+Comparação com a apólice **607987** do painel (orçamento 285667, transmitida
+em 18/08/2026, versão 007), contra a mesma cotação pela API. Valores
+segurados idênticos, sem assistência nos dois lados:
+
+```
+                         Painel (apólice 607987)          API Alfa
+Incêndio    150.000   8% com mínimo de R$ 200,00   10% com mínimo de R$ 500,00
+Danos elétr.  3.600   8% com mínimo de R$ 200,00   10% com mínimo de R$ 500,00
+Perda aluguel 2.000   sem franquia                 sem franquia
+Resp. civil  36.000   sem franquia                 sem franquia
+
+Prêmio líquido              R$ 173,45                    R$ 182,31
+IOF                         R$  12,80                    R$  13,45
+TOTAL                       R$ 186,25                    R$ 195,76
+                                                    diferença R$ 9,51 (5,1%)
+```
+
+**A franquia é cláusula contratual, não arredondamento.** Quando ela muda
+junto com a taxa, o mais provável é que os dois lados estejam cotando
+produtos, versões ou tabelas diferentes da mesma seguradora — e aí o cliente
+vê dois preços E duas franquias para o mesmo seguro.
+
+O detalhamento da apólice mostra um campo **"Versão: 007"** que não existe em
+lugar nenhum da API. Pode ser exatamente essa a chave.
+
+**Pergunta:** em que produto/versão/tabela o `/calculo` coteja, e como pedimos
+o mesmo que o painel usa?
+
+---
+
 ## 2. As taxas divergem, e nos dois sentidos
 
 A coluna "Taxa" do painel de vocês contra a taxa efetiva da API (prêmio ÷

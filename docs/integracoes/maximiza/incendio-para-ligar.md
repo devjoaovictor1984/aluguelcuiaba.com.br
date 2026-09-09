@@ -127,10 +127,11 @@ Não é lista de desejos — é o mínimo pra não emitir errado:
 
 - [x] **Credencial de produção** — a mesma do login; o que muda é o campo
       `ambiente` do corpo. Medida no cálculo em 08/09 (item 1.3)
-- [ ] **Pró-labore do incêndio**: a coluna "Pró-labore %/R$" do painel mostra
-      **20%** do prêmio. É fixo, varia por seguradora, ou é negociado por
-      imobiliária? A API não devolve esse valor — hoje exibimos como
-      estimativa, e rotulado como tal
+- [x] **Pró-labore do incêndio: 20%, confirmado.** O detalhamento da apólice
+      607987 no painel deles traz "% Pró-labore Imobiliária: 20" em campo
+      próprio, para a IMOBILIATTO. Continua sem vir na API — seguimos
+      exibindo como estimativa —, mas o número deixou de ser leitura de
+      coluna e virou dado da apólice. Falta só saber se varia por seguradora
 - [ ] **Cancelamento**: há prazo limite? Gera estorno proporcional do prêmio
       **e** da comissão?
 - [ ] Contrato de parceria e tabela de comissionamento
