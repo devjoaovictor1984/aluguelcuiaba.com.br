@@ -18,9 +18,19 @@ memória.
 
 ## 1. O mesmo caso, nos dois lugares
 
-Residencial · Apartamento habitual · aluguel R$ 1.800 · vigência anual
-(365 dias) · incêndio R$ 150.000 · perda de aluguel R$ 10.800 · demais
-coberturas em zero.
+Depois de alinharmos a nossa tela à de vocês — mesmas coberturas marcadas,
+mesmos valores sugeridos — a cotação bate.
+
+Residencial · Apartamento habitual · aluguel R$ 1.800 · anual (365 dias) ·
+valor do imóvel R$ 360.000 · perda de aluguel R$ 10.800 · responsabilidade
+civil R$ 36.000 · danos elétricos R$ 3.600 · sem assistência:
+
+```
+Painel de vocês    R$ 361,78
+API Alfa           R$ 360,89       diferença de R$ 0,89  (0,25%)
+```
+
+E com o valor do imóvel em R$ 150.000, só as duas obrigatórias:
 
 | | Painel (Tabela 20) | API Alfa | diferença |
 |---|---|---|---|
@@ -28,7 +38,8 @@ coberturas em zero.
 | Perda ou pagamento de aluguel | 8,93 | **11,81** | +2,88 |
 | **Prêmio líquido** | **114,43** | **114,79** | **+0,36** |
 
-O total praticamente bate. **A composição, não.**
+O total praticamente bate nos dois testes. **A composição, não** — e é o que
+o item 2 detalha.
 
 ---
 
@@ -122,16 +133,25 @@ O painel mostra. A API não devolve. É o item 2 acima.
 
 ### 4.3 O botão "Sugerir valores"
 
-Para aluguel de R$ 1.800 o painel sugere **R$ 150.000** de incêndio; nós
-sugerimos R$ 144.000, porque não temos a conta de vocês e usamos um fator de
-mercado. A perda de aluguel bate exato (6 aluguéis).
+A conta não vem na API. Levantamos observando o painel, e passamos a usar a
+mesma — mas é leitura nossa, não regra confirmada:
 
-`150.000 ÷ 1.800 = 83,33`, contra o nosso 80.
+```
+valor do imóvel (= limite de incêndio)  =  aluguel ÷ 0,5%   (× 200)
+perda de aluguel                        =  6 aluguéis
+responsabilidade civil                  =  10% do valor do imóvel
+danos elétricos                         =   1% do valor do imóvel
+vendaval                                =  ?  (não observado)
+```
 
-**Pedido:** a fórmula, ou um endpoint que devolva os valores sugeridos.
-Enquanto não houver, cada cotação nossa nasce com um limite de incêndio
-diferente do que sairia no painel de vocês — e o limite de incêndio é o que
-manda no prêmio.
+Conferido com aluguel de R$ 1.800: o painel preenche R$ 360.000 de incêndio
+e R$ 10.800 de perda de aluguel, e ao marcar as opcionais sugere R$ 36.000 de
+responsabilidade civil e R$ 3.600 de danos elétricos.
+
+**Pedido:** confirmem a fórmula (e a do vendaval, que não vimos), ou nos deem
+um endpoint que devolva os valores sugeridos. O limite de incêndio é o que
+manda no prêmio — enquanto for leitura nossa, uma mudança no painel de vocês
+nos deixa para trás sem ninguém perceber.
 
 ### 4.4 O cálculo inverso
 

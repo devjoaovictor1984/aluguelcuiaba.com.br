@@ -11,7 +11,7 @@ import {
   type CalculoIncendioInput, type Ocupacao, type PacoteAssistencia,
   type TipoCobertura, type TipoSeguro, type TipoVigencia,
 } from '@/lib/seguros/incendio/tipos'
-import { sugerirValores } from '@/lib/seguros/incendio/sugestoes'
+import { sugerirOpcional, sugerirValores } from '@/lib/seguros/incendio/sugestoes'
 import {
   calcularApoliceIncendio, carregarCatalogoIncendio, listarSeguradorasDoIncendio,
 } from '../../../actions-incendio'
@@ -607,7 +607,7 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
         */}
         <div className="grid sm:grid-cols-2 gap-3 pt-1 border-t border-gray-50">
           {([
-            ['Incêndio, raio e explosão *', vIncendio, setVIncendio],
+            ['Valor do imóvel — incêndio, raio e explosão *', vIncendio, setVIncendio],
             ['Perda de aluguel', vPerdaAluguel, setVPerdaAluguel],
           ] as const).map(([rotulo, valor, setter]) => (
             <div key={rotulo}>
@@ -629,45 +629,64 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
           é ele que manda no prêmio.
         </p>
 
-        <details className="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3.5 py-2.5">
-          <summary className="text-xs font-semibold text-gray-700 cursor-pointer">
-            Coberturas adicionais (opcionais)
-          </summary>
-
-          <p className="text-[11px] text-gray-500 mt-2 leading-snug">
-            Ficam em branco por padrão, como no painel da corretora — o que não
-            for preenchido não entra no prêmio. Cada uma é limitada a 30% do
-            valor de incêndio.
+        {/*
+          Opcionais por caixa, como no painel da corretora: desmarcadas, e o
+          valor sugerido só aparece quando o corretor marca. Campo aberto e
+          vazio convida a inventar número; caixa desmarcada não.
+        */}
+        <div className="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3.5 py-3 space-y-2.5">
+          <p className="text-xs font-semibold text-gray-700">
+            Coberturas adicionais{' '}
+            <span className="font-normal text-gray-400">— opcionais, como no painel da corretora</span>
           </p>
 
-          <div className="grid sm:grid-cols-2 gap-3 mt-2.5">
-            {([
-              ['Vendaval', vVendaval, setVVendaval],
-              ['Danos elétricos', vDanosEletricos, setVDanosEletricos],
-              ['Vazamento', vVazamento, setVVazamento],
-              ['Responsabilidade civil', vRespCivil, setVRespCivil],
-              ...(tipoCobertura !== 3 ? [['Conteúdo', vConteudo, setVConteudo] as const] : []),
-            ] as const).map(([rotulo, valor, setter]) => (
-              <div key={rotulo}>
-                <label className={label}>{rotulo}</label>
+          {([
+            ['Vendaval, furacão, ciclone, tornado, granizo', vVendaval, setVVendaval, null],
+            ['Responsabilidade civil', vRespCivil, setVRespCivil, 'respCivil'],
+            ['Danos elétricos', vDanosEletricos, setVDanosEletricos, 'danosEletricos'],
+            ['Vazamento', vVazamento, setVVazamento, null],
+            ...(tipoCobertura !== 3
+              ? [['Conteúdo', vConteudo, setVConteudo, null] as const]
+              : []),
+          ] as const).map(([rotulo, valor, setter, chave]) => {
+            const marcada = parseMoney(valor) > 0
+            return (
+              <div key={rotulo} className="flex items-center gap-2.5">
+                <input
+                  type="checkbox"
+                  checked={marcada}
+                  onChange={e => {
+                    if (!e.target.checked) { setter(''); return }
+                    const base = parseMoney(vIncendio)
+                    setter(chave && base > 0 ? cent(sugerirOpcional(chave, base)) : '')
+                  }}
+                  className="w-4 h-4 shrink-0 accent-orange-600"
+                />
+                <span className="flex-1 min-w-0 text-xs text-gray-700 truncate">{rotulo}</span>
                 <input
                   value={valor}
                   onChange={e => setter(maskMoney(e.target.value))}
-                  className={input}
+                  className={`${input} w-36 shrink-0 ${marcada ? '' : 'opacity-40'}`}
                   inputMode="numeric"
                   placeholder="0,00"
                 />
               </div>
-            ))}
-          </div>
+            )
+          })}
 
-          <p className="text-[11px] text-amber-800 mt-2.5 leading-snug">
-            <strong>Danos elétricos sai caro:</strong> a taxa da API é 1,69%,
-            contra 0,72% na tabela do painel da corretora. Sobre R$ 7.200 ela
-            custa mais que a cobertura de incêndio inteira. Está perguntado a
-            eles.
+          <p className="text-[11px] text-gray-500 leading-snug pt-0.5">
+            O painel sugere <strong>10%</strong> do valor do imóvel para
+            responsabilidade civil e <strong>1%</strong> para danos elétricos.
+            Vendaval e vazamento entram em branco: não vimos o valor que eles
+            sugerem, e chutar aqui é o que nos tirou do lugar antes. Cada
+            cobertura é limitada a 30% do valor de incêndio.
           </p>
-        </details>
+
+          <p className="text-[11px] text-amber-800 leading-snug">
+            <strong>Danos elétricos sai caro:</strong> a taxa da API é 1,69%,
+            contra 0,72% na tabela do painel da corretora. Está perguntado a eles.
+          </p>
+        </div>
       </section>
 
       {/* Vigência e endereço */}

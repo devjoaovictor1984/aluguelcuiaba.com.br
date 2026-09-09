@@ -16,50 +16,70 @@ import type { TipoCobertura, ValoresCobertura } from './tipos'
  */
 
 /**
- * Limite de incêndio = aluguel × este fator.
+ * Valor do imóvel = aluguel ÷ 0,5%, ou seja aluguel × 200.
  *
- * 83,33 lido do painel da corretora em 08/09/2026: aluguel de R$ 1.800
- * produz R$ 150.000 no campo de incêndio (150.000 ÷ 1.800 = 83,33). Antes
- * usávamos 80, que era regra de mercado nossa e dava R$ 144.000.
+ * É a conta do painel da corretora, conferida em 08/09/2026: aluguel de
+ * R$ 1.800 produz R$ 360.000 no campo de incêndio. O "valor segurado" da
+ * cobertura principal É o valor do imóvel — não existe campo separado lá,
+ * e o corretor sobrescreve quando conhece o valor real.
  *
- * ⚠️ UMA amostra só. Com um ponto não dá para distinguir "fator 83,33" de
- * "fator 80 arredondado para cima" — as duas explicam 1.800 → 150.000.
- * Está pedido à corretora, junto da fórmula. Um segundo aluguel no painel
- * deles fecha a questão.
+ * Antes usávamos 80, sob a ideia de que interessava o custo de
+ * reconstrução e não o valor de mercado. Era raciocínio nosso, e dava
+ * R$ 144.000 onde eles davam R$ 360.000 — dois seguros diferentes para o
+ * mesmo imóvel.
  */
-const FATOR_RECONSTRUCAO = 250 / 3
+const FATOR_VALOR_IMOVEL = 200
 
-/** Perda de aluguel: 6 meses, igual ao painel deles. */
+/** Perda de aluguel: 6 meses, igual ao painel. */
 const MESES_PERDA_ALUGUEL = 6
 
+/**
+ * O que o painel sugere para cada cobertura opcional, como fração do valor
+ * do imóvel, no momento em que o corretor MARCA a caixa.
+ *
+ * Medido no painel deles com valor do imóvel de R$ 360.000:
+ * responsabilidade civil sugeriu 36.000 (10%) e danos elétricos 3.600 (1%).
+ *
+ * Vendaval está no painel e ainda não foi observado marcado — fica de fora
+ * até alguém ver o número, em vez de entrar com chute. Vazamento não existe
+ * no painel deles; a API aceita, e continua disponível como campo livre.
+ */
+export const SUGESTAO_OPCIONAL = {
+  respCivil: 0.10,
+  danosEletricos: 0.01,
+} as const
+
+/**
+ * O que já vem preenchido: só as duas coberturas obrigatórias.
+ *
+ * No painel da corretora, "Sugerir valores" preenche incêndio e perda de
+ * aluguel, e as demais ficam desmarcadas em zero. Enquanto sugeríamos as
+ * seis, a mesma casa saía R$ 364,71 aqui e R$ 131,99 lá — parecia tarifa
+ * da seguradora e era escolha nossa.
+ *
+ * `cobertura` segue no parâmetro porque a divisão prédio/conteúdo ainda
+ * decide o `tipo_cobertura` enviado; o que mudou é que o conteúdo não vem
+ * mais sugerido.
+ */
 export function sugerirValores(aluguel: number, cobertura: TipoCobertura): ValoresCobertura {
   if (!(aluguel > 0)) return {}
-
-  const predio = Math.round((aluguel * FATOR_RECONSTRUCAO) / 1000) * 1000
-
-  /**
-   * As acessórias saem VAZIAS, e é de propósito.
-   *
-   * No painel da corretora, "Sugerir valores" preenche incêndio e perda de
-   * aluguel; vendaval, responsabilidade civil e danos elétricos ficam em
-   * zero e desmarcadas, e quem quiser liga. Fazemos igual: o corretor
-   * preenche o que for vender, e o que ele não preencher não entra no
-   * prêmio.
-   *
-   * Danos elétricos é o caso que mais dói: a taxa efetiva da API é 1,688%,
-   * contra 0,725% na tabela do painel deles. Ligada por padrão sobre 5% do
-   * prédio, ela sozinha custava mais que a cobertura principal de incêndio.
-   *
-   * `cobertura` continua no parâmetro porque a divisão prédio/conteúdo é
-   * escolha da nossa tela e ainda decide o `tipo_cobertura` enviado; o que
-   * mudou é que o conteúdo não vem mais sugerido.
-   */
   void cobertura
 
   return {
-    incendio: predio,
+    incendio: valorDoImovel(aluguel),
     perdaAluguel: Math.round(aluguel * MESES_PERDA_ALUGUEL),
   }
+}
+
+export function valorDoImovel(aluguel: number): number {
+  return Math.round((aluguel * FATOR_VALOR_IMOVEL) / 1000) * 1000
+}
+
+/** O valor que o painel preenche quando a cobertura opcional é marcada. */
+export function sugerirOpcional(
+  chave: keyof typeof SUGESTAO_OPCIONAL, valorImovel: number,
+): number {
+  return Math.round(valorImovel * SUGESTAO_OPCIONAL[chave])
 }
 
 /** A parcela mínima aceita pela seguradora — aparece no painel deles. */
