@@ -11,6 +11,176 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 
 ---
 
+## 08/09/2026, à noite — cotando de verdade em produção: o que bateu e o que não
+
+Continuação da entrada de mais cedo. Depois de virar o `MAXIMIZA_AMBIENTE`
+para 1 na Vercel, o fluxo foi exercitado pela tela, e não por script. Rendeu
+mais achado do que o dia inteiro anterior.
+
+### A API deles degradou, e voltou ⏳ *deles*
+
+Entre ~17h e ~18h30, medido daqui:
+
+```
+/auth                          30,2s · 33,5s · 45,5s · um timeout de 30s · um HTTP 500
+listarSeguradorasDisponiveis   0,8s a 13,2s
+ocupacoes/R                    28,4s · 43,1s · 50,8s · dois sem resposta em 90s
+listaPacotesAssist24hs         sem resposta em 90s
+consultarImobiliaria           63,7s
+/calculo                       sem resposta em 90s
+```
+
+Em 30/08 os mesmos endpoints saíam em ~1s. Depois das 18h30 normalizou:
+`/calculo` em 2,4s a 3,9s, `ocupacoes` em 1,2s. O `seguro_eventos` do site
+guardou o retrato: duas chamadas de 91s morrendo no timeout e uma devolvendo
+200 depois de **62 segundos**.
+
+### Três consertos nossos que só apareceram por causa disso ✅
+
+**1. `consultarImobiliaria` tratava falha como "não existe".** O `catch`
+devolvia `null` tanto para "consultei e não achei" quanto para "não consegui
+consultar", e quem chama trata `null` como *cadastrar*. Com a API lenta, o
+timeout virou "não existe" e o app chamou `cadastrarImobiliaria` para um CNPJ
+que já estava lá: voltou 400 "já cadastrado". **O 400 é que salvou** — com
+outro tempo de resposta teria nascido um segundo cadastro da IMOBILIATTO na
+base deles. Agora são três estados, e *ausente* só quando há resposta de
+negócio (4xx).
+
+**2. Timeout de 30s nas consultas, abaixo do cold start deles.** Catálogos,
+cadastro e cálculo passaram a 55s (`TIMEOUT_CONSULTA`). São chamadas que só
+leem: esperar é seguro e repetir não duplica.
+
+**3. A tela ficava "Carregando seguradoras…" para sempre.** O `useEffect`
+engolia a rejeição da action, e lista vazia tinha a mesma aparência de falha.
+Agora há estado, mensagem e botão de tentar de novo.
+
+### O teto das coberturas acessórias: 30% do LMI de incêndio ✅
+
+A cotação voltou `"IS da Cobertura: Perda ou Pagamento de Aluguel fora do
+limite"`, que não diz qual é o limite nem sobre o que incide. Medido:
+
+```
+LMI incêndio 144.000 · perda 43.200 (30%) → 201
+LMI incêndio 144.000 · perda 50.400 (35%) → 400  fora do limite
+LMI incêndio  60.000 · perda 18.000 (30%) → 201
+LMI incêndio  60.000 · perda 21.000 (35%) → 400  fora do limite
+```
+
+Quebra no mesmo ponto nos dois LMIs: é **proporção, não valor absoluto**.
+Bate com o vendaval de 17/08, que passava a 30% em residencial e era recusado
+a 30% em comercial — ou seja, em comercial o teto é menor, e onde ele fica
+continua sem medição. O formulário passou a barrar antes, dizendo o máximo em
+reais.
+
+### O prêmio depende do LMI, não do aluguel
+
+Mesma cobertura de perda de aluguel em R$ 10.800 com aluguel de R$ 1.800 e de
+R$ 3.000 devolve o mesmo prêmio, centavo por centavo. O aluguel só alimenta a
+nossa tabela de sugestão; para a seguradora ele não entra na conta.
+
+### Anual e mensalizado são a mesma tarifa dividida por 12
+
+```
+                    ANUAL      MENSAL    mensal × 12
+Prêmio líquido     339,64       28,31        339,72
+IOF                 25,07        2,09         25,08
+TOTAL              364,71       30,40        364,80
+```
+
+Cobertura por cobertura o mesmo. Vale para não confundir preço com modalidade
+quando o corretor comparar.
+
+### ⚠️ O achado da noite: nossa taxa diverge da do painel deles
+
+O João cotou o MESMO caso no painel da Maximiza (residencial, Apto-Habitual,
+**Tabela 20**, aluguel 1.800, 365 dias) e mandou o print. Reproduzimos o
+payload idêntico na API — só incêndio 150.000 e perda de aluguel 10.800, as
+demais em zero, como estavam lá.
+
+**O total quase bate:**
+
+```
+                        API        painel (Tabela 20)
+Incêndio 150.000      102,98            105,50
+Perda     10.800       11,81              8,93
+──────────────────────────────────────────────────
+Prêmio líquido        114,79            114,43      diferença de 0,3%
+```
+
+**Mas as taxas por cobertura divergem, e nos dois sentidos:**
+
+| Cobertura | taxa do painel | taxa implícita da API | razão |
+|---|---|---|---|
+| Incêndio | 0,07033% | 0,06865% | 0,98 |
+| Perda de aluguel | 0,0827% | 0,1094% | 1,32 |
+| Vendaval | 0,596% | 0,2656% | 0,45 |
+| Responsabilidade civil | 0,1117% | 0,0455% | 0,41 |
+| Danos elétricos | 0,7247% | **1,6881%** | **2,33** |
+
+Não é prêmio mínimo: variando o LMI de danos elétricos de 3.600 a 45.000 a
+taxa implícita fica em 1,688% em todos os pontos — perfeitamente linear.
+
+**E a resposta da API não traz taxa.** As chaves de cobertura são `cdcob`,
+`nmcobert`, `lmi`, `premio` e `txtfranq`; a taxa que a nossa tela mostra é
+derivada (prêmio ÷ LMI). Por isso a comparação acima é de taxa efetiva contra
+taxa de tabela.
+
+### O campo "Tabela" não existe na API — testado ⏳ *deles*
+
+Seis nomes plausíveis, com valor 20 e com 1, no mesmo payload:
+`tabela`, `cod_tabela`, `nr_tabela`, `tabela_preco`, `cdtabela`, `id_tabela`.
+**Nenhum muda um centavo** — a API aceita o campo desconhecido e ignora.
+
+Como a API sem tabela nenhuma dá 114,79 contra os 114,43 da Tabela 20, o
+padrão dela é a 20 ou coisa muito próxima. O que continua sem resposta é o que
+as tabelas 1 a 19 fazem: se alguma delas for mais barata, estamos cotando caro
+sem saber. **Isto vira a pergunta nº 1 para a corretora**, no lugar do item 3.1
+antigo, que agora tem medição.
+
+### Por que os R$ 364,71 pareciam absurdos perto dos R$ 131,99
+
+Não era tarifa: era **seleção de cobertura**. No painel deles só as duas
+primeiras vinham marcadas; a nossa sugestão liga as seis. As quatro extras
+somam R$ 228,97 dos R$ 343,76 — 67% do prêmio. Danos elétricos sozinho, a
+1,69%, custa mais que a cobertura principal de incêndio.
+
+**Aberto do nosso lado ⚠️:** decidir se a sugestão continua ligando as seis.
+Como está, toda cotação nossa sai ~2,8× a do painel deles para o mesmo imóvel.
+
+### A tela de diagnóstico, e o convidado que não conseguia cotar ✅
+
+Entrou `/homologacao/diagnostico`: cotação passo a passo, com semáforo, tempo e
+status de cada chamada, e um botão que copia o relatório. Não emite nada —
+`contratar`, `cancelar` e `cadastrarImobiliaria` não são importados ali.
+
+O link foi enviado à equipe técnica deles (sessão "Equipe técnica", 30 dias) e
+a primeira coisa que aconteceu foi o convidado esbarrar em "Complete seu
+perfil antes de cotar", com um botão que o devolvia à inicial. Ele não tem
+imobiliária nem CNPJ, e é o NOSSO cadastro que ele foi convidado a conferir.
+Consertado: o convidado coteja sob o CNPJ de quem abriu a sessão, e a
+contratação fica desligada para ele — cotar e consultar seguem livres.
+
+Rodado por eles às 18:33, os cinco passos verdes:
+
+```
+Cadastro da imobiliária   1,1s · 201    J. V. VIEIRA LTDA · Alfa 5719 · Porto 60132
+Seguradoras disponíveis   261ms · 200   Alfa, Porto
+Catálogo de ocupações     1,2s · 200    4 ocupações
+Pacotes de assistência    811ms · 200   5 pacotes
+Cálculo do prêmio         3,0s · 200    prêmio 364,71 · 6 coberturas
+```
+
+### Divergência de catálogo, para perguntar
+
+O painel deles oferece **seis** ocupações residenciais (apto habitual, apto
+veraneio com porteiro, casa habitual, casa em condomínio fechado, casa
+veraneio com caseiro, casa veraneio em condomínio fechado). O
+`ocupacoes/R` da API devolve **quatro** (apartamento habitual, apartamento
+veraneio, casa habitual, casa veraneio). Como a ocupação entra na tarifa, as
+duas que faltam podem ser preço diferente que não temos como pedir.
+
+---
+
 ## 08/09/2026 — era ambiente: em produção a IMOBILIATTO cota ✅
 
 De manhã, pelo WhatsApp:
