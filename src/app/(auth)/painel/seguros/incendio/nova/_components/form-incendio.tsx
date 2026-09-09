@@ -115,7 +115,11 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
 
   const [contratoId, setContratoId] = useState(base?.contratoId ?? contratoInicial ?? '')
   const [tipoSeguro, setTipoSeguro] = useState<TipoSeguro>(d?.tipoSeguro ?? 'R')
-  const [tipoVigencia, setTipoVigencia] = useState<TipoVigencia>(d?.tipoVigencia ?? 1)
+  // Anual por padrão, como no painel da corretora — lá a cotação nasce com
+  // 365 dias e o mensalizado é escolha. O catálogo de assistência muda com
+  // a vigência (códigos 8 a 12 no anual, 1 a 5 no mensalizado), então o
+  // padrão errado também trocava a lista de pacotes por baixo.
+  const [tipoVigencia, setTipoVigencia] = useState<TipoVigencia>(d?.tipoVigencia ?? 0)
   const [tipoCobertura, setTipoCobertura] = useState<TipoCobertura>(d?.tipoCobertura ?? 2)
   const [ocupacao, setOcupacao] = useState(d?.ocupacao?.rubrica ?? '')
   const [pacote, setPacote] = useState(

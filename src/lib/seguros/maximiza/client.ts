@@ -108,11 +108,27 @@ async function obterToken(): Promise<string> {
     throw new Error('MAXIMIZA_EMAIL / MAXIMIZA_SENHA não configuradas.')
   }
 
+  /**
+   * O `/auth` deles é o que mais demora a acordar, e por isso tem timeout
+   * próprio.
+   *
+   * Medido em 08 e 09/09/2026: primeira chamada depois de um tempo parado
+   * levando 30,2s · 33,5s · 45,5s · uma vez 90s sem responder; a segunda,
+   * logo em seguida, entre 0,2s e 10,8s. É cold start do lado deles.
+   *
+   * Ficou de fora quando as consultas subiram para 55s, e o efeito era
+   * exatamente o que a tela mostrava: os catálogos respondendo em 0,8s e a
+   * cotação falhando assim mesmo, porque morria antes, no login. Três
+   * tentativas de 30s davam 90 segundos de espera e nenhum resultado.
+   *
+   * Uma tentativa só, generosa, vale mais que três curtas: a repetição não
+   * ajuda contra cold start e ainda estoura o limite de função da Vercel.
+   */
   const resp = await fetch(`${URL_AUTH}/auth`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
-    signal: AbortSignal.timeout(TIMEOUT_MS),
+    signal: AbortSignal.timeout(TIMEOUT_CONSULTA),
   })
 
   if (!resp.ok) {
