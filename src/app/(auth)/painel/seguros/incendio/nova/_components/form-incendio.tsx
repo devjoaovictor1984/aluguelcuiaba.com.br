@@ -597,15 +597,18 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
           </div>
         </div>
 
+        {/*
+          Duas listas separadas, e a separação é o assunto.
+
+          O painel da corretora sugere DUAS coberturas — incêndio e perda de
+          aluguel — e deixa as outras em zero, desmarcadas. Quando
+          sugeríamos as seis, a mesma casa saía 2,8x mais cara aqui do que
+          lá, e a diferença parecia tarifa quando era escolha nossa.
+        */}
         <div className="grid sm:grid-cols-2 gap-3 pt-1 border-t border-gray-50">
           {([
             ['Incêndio, raio e explosão *', vIncendio, setVIncendio],
             ['Perda de aluguel', vPerdaAluguel, setVPerdaAluguel],
-            ['Vendaval', vVendaval, setVVendaval],
-            ['Danos elétricos', vDanosEletricos, setVDanosEletricos],
-            ['Vazamento', vVazamento, setVVazamento],
-            ['Responsabilidade civil', vRespCivil, setVRespCivil],
-            ...(tipoCobertura !== 3 ? [['Conteúdo', vConteudo, setVConteudo] as const] : []),
           ] as const).map(([rotulo, valor, setter]) => (
             <div key={rotulo}>
               <label className={label}>{rotulo}</label>
@@ -621,9 +624,50 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
 
         <p className="text-[11px] text-gray-500 flex items-start gap-1.5">
           <Info size={11} className="mt-0.5 shrink-0 text-gray-400" />
-          Sugerimos os limites a partir do aluguel. Ajuste se conhecer o valor de
-          reconstrução do imóvel — é ele que define a cobertura de incêndio.
+          Estes dois saem do aluguel, na mesma conta do painel da corretora.
+          Ajuste o de incêndio se conhecer o valor de reconstrução do imóvel —
+          é ele que manda no prêmio.
         </p>
+
+        <details className="rounded-xl bg-gray-50 ring-1 ring-gray-100 px-3.5 py-2.5">
+          <summary className="text-xs font-semibold text-gray-700 cursor-pointer">
+            Coberturas adicionais (opcionais)
+          </summary>
+
+          <p className="text-[11px] text-gray-500 mt-2 leading-snug">
+            Ficam em branco por padrão, como no painel da corretora — o que não
+            for preenchido não entra no prêmio. Cada uma é limitada a 30% do
+            valor de incêndio.
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-3 mt-2.5">
+            {([
+              ['Vendaval', vVendaval, setVVendaval],
+              ['Danos elétricos', vDanosEletricos, setVDanosEletricos],
+              ['Vazamento', vVazamento, setVVazamento],
+              ['Responsabilidade civil', vRespCivil, setVRespCivil],
+              ...(tipoCobertura !== 3 ? [['Conteúdo', vConteudo, setVConteudo] as const] : []),
+            ] as const).map(([rotulo, valor, setter]) => (
+              <div key={rotulo}>
+                <label className={label}>{rotulo}</label>
+                <input
+                  value={valor}
+                  onChange={e => setter(maskMoney(e.target.value))}
+                  className={input}
+                  inputMode="numeric"
+                  placeholder="0,00"
+                />
+              </div>
+            ))}
+          </div>
+
+          <p className="text-[11px] text-amber-800 mt-2.5 leading-snug">
+            <strong>Danos elétricos sai caro:</strong> a taxa da API é 1,69%,
+            contra 0,72% na tabela do painel da corretora. Sobre R$ 7.200 ela
+            custa mais que a cobertura de incêndio inteira. Está perguntado a
+            eles.
+          </p>
+        </details>
       </section>
 
       {/* Vigência e endereço */}

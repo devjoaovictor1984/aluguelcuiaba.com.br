@@ -1,61 +1,64 @@
 import type { TipoCobertura, ValoresCobertura } from './tipos'
 
 /**
- * Sugestão de limites e estimativa de pró-labore.
+ * Sugestão de limites, espelhando o "Sugerir valores" do painel da
+ * corretora.
  *
- * O painel da corretora tem um botão "Sugerir valores" que deriva as
- * coberturas do aluguel. Fazemos o mesmo, mas sem botão: já vem
- * preenchido, e o corretor ajusta se quiser. Um campo em branco que
- * precisa de um clique pra ser útil é um campo mal desenhado.
+ * REGRA DESTE ARQUIVO: não inventar. O que sai daqui tem que ser o que o
+ * painel da Maximiza produz para a mesma entrada — se a nossa cotação e a
+ * deles divergem, a divergência tem que ser da API, não nossa.
  *
- * As proporções abaixo são convenção de mercado, não regra da seguradora
- * — servem de ponto de partida. O prêmio real sai do cálculo.
+ * Até 08/09/2026 não era assim. Sugeríamos as SEIS coberturas com
+ * proporções de mercado escolhidas por nós, e o painel deles sugere DUAS.
+ * O resultado é que a mesma casa saía a R$ 364,71 aqui e R$ 131,99 lá —
+ * 2,8× — e a conversa com a corretora virava sobre um preço que era
+ * escolha nossa, não tarifa deles.
  */
 
 /**
- * Valor do imóvel estimado a partir do aluguel.
+ * Limite de incêndio = aluguel × este fator.
  *
- * Regra prática do mercado: aluguel residencial gira em torno de 0,5% do
- * valor do imóvel ao mês, ou seja ~200 aluguéis. Para incêndio interessa
- * o custo de RECONSTRUÇÃO, não o valor de mercado (que embute o terreno),
- * daí o fator menor.
+ * 83,33 lido do painel da corretora em 08/09/2026: aluguel de R$ 1.800
+ * produz R$ 150.000 no campo de incêndio (150.000 ÷ 1.800 = 83,33). Antes
+ * usávamos 80, que era regra de mercado nossa e dava R$ 144.000.
+ *
+ * ⚠️ UMA amostra só. Com um ponto não dá para distinguir "fator 83,33" de
+ * "fator 80 arredondado para cima" — as duas explicam 1.800 → 150.000.
+ * Está pedido à corretora, junto da fórmula. Um segundo aluguel no painel
+ * deles fecha a questão.
  */
-const FATOR_RECONSTRUCAO = 80
+const FATOR_RECONSTRUCAO = 250 / 3
+
+/** Perda de aluguel: 6 meses, igual ao painel deles. */
+const MESES_PERDA_ALUGUEL = 6
 
 export function sugerirValores(aluguel: number, cobertura: TipoCobertura): ValoresCobertura {
   if (!(aluguel > 0)) return {}
 
   const predio = Math.round((aluguel * FATOR_RECONSTRUCAO) / 1000) * 1000
 
-  // O tipo de cobertura define como o capital se divide entre prédio e
-  // conteúdo. Ver tabela TIPO DE COBERTURA da documentação.
-  const conteudo =
-    cobertura === 4 ? Math.round(predio * 0.10) :
-    cobertura === 5 ? Math.round(predio * 0.15) :
-    cobertura === 2 ? Math.round(predio * 0.20) : 0
+  /**
+   * As acessórias saem VAZIAS, e é de propósito.
+   *
+   * No painel da corretora, "Sugerir valores" preenche incêndio e perda de
+   * aluguel; vendaval, responsabilidade civil e danos elétricos ficam em
+   * zero e desmarcadas, e quem quiser liga. Fazemos igual: o corretor
+   * preenche o que for vender, e o que ele não preencher não entra no
+   * prêmio.
+   *
+   * Danos elétricos é o caso que mais dói: a taxa efetiva da API é 1,688%,
+   * contra 0,725% na tabela do painel deles. Ligada por padrão sobre 5% do
+   * prédio, ela sozinha custava mais que a cobertura principal de incêndio.
+   *
+   * `cobertura` continua no parâmetro porque a divisão prédio/conteúdo é
+   * escolha da nossa tela e ainda decide o `tipo_cobertura` enviado; o que
+   * mudou é que o conteúdo não vem mais sugerido.
+   */
+  void cobertura
 
   return {
     incendio: predio,
-    // Perda de aluguel: 6 meses é o padrão de contrato de locação.
-    perdaAluguel: Math.round(aluguel * 6),
-    /**
-     * 25%, e não os 30% que usávamos.
-     *
-     * Medido em 17/08/2026 num imóvel comercial com LMI de incêndio de
-     * R$ 700.000: 30% volta 400 "IS da Cobertura: Vendaval, Granizo,
-     * Queda de Aeronave e F fora do limite", e 25% passa. Em residencial
-     * os mesmos 30% eram aceitos — ou seja, o teto varia com a ocupação,
-     * e a documentação não diz qual é.
-     *
-     * Como isto é ponto de partida e não regra, o valor que passa nos dois
-     * casos vale mais que o valor maior que quebra num deles. Está
-     * perguntado à corretora.
-     */
-    vendaval: Math.round(predio * 0.25),
-    danosEletricos: Math.round(predio * 0.05),
-    vazamento: Math.round(predio * 0.05),
-    respCivil: Math.round(predio * 0.10),
-    ...(conteudo > 0 ? { conteudo } : {}),
+    perdaAluguel: Math.round(aluguel * MESES_PERDA_ALUGUEL),
   }
 }
 
