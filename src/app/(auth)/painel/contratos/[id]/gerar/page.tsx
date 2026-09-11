@@ -224,11 +224,15 @@ async function renderizarEditor(contratoId: string) {
   // signatário tem que ser a mesma pessoa — não a razão social.
   const adminNomeAss = perfilAss?.nome || perfilAss?.razao_social || 'Administradora'
 
+  // A parte entra na lista mesmo sem e-mail cadastrado: o painel mostra a
+  // linha com nome e papel preenchidos e o campo de e-mail destacado, e o
+  // envio avisa o que falta. Antes ela sumia em silêncio, e dava pra mandar o
+  // contrato pra assinatura sem perceber que faltava gente.
   const sugestoesAss = [
-    inqEmail?.email ? { nome: inqEmail.nome, email: inqEmail.email, papel: 'Locatário(a)' } : null,
+    inqEmail?.nome ? { nome: inqEmail.nome, email: inqEmail.email ?? '', papel: 'Locatário(a)' } : null,
     temAdministracaoAss
       ? (user?.email ? { nome: adminNomeAss, email: user.email, papel: 'Administradora (responsável)' } : null)
-      : (propEmail?.email ? { nome: propEmail.nome, email: propEmail.email, papel: 'Locador(a)' } : null),
+      : (propEmail?.nome ? { nome: propEmail.nome, email: propEmail.email ?? '', papel: 'Locador(a)' } : null),
     ...((testPessoasAss ?? []) as Array<{ nome: string; email: string | null }>)
       .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' })),
   ].filter((s): s is { nome: string; email: string; papel: string } => !!s)

@@ -48,9 +48,14 @@ interface Linha { nome: string; email: string; papel: string }
 
 export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, sugestoes, processos }: Props) {
   const router = useRouter()
+  // Toda parte do contrato entra pré-preenchida, inclusive quem está sem
+  // e-mail cadastrado: a linha aparece com nome e papel, o campo de e-mail
+  // fica destacado e o envio explica o que falta antes de sair. Esconder a
+  // parte era pior — dava pra mandar o contrato sem perceber que o
+  // proprietário não estava na lista.
   const [linhas, setLinhas] = useState<Linha[]>(() => {
-    const comEmail = sugestoes.filter(s => s.email)
-    return comEmail.length > 0 ? comEmail.map(s => ({ ...s })) : [{ nome: '', email: '', papel: '' }]
+    const partes = sugestoes.filter(s => s.nome.trim())
+    return partes.length > 0 ? partes.map(s => ({ ...s })) : [{ nome: '', email: '', papel: '' }]
   })
   const [erro, setErro] = useState('')
   const [copiado, setCopiado] = useState<string | null>(null)
@@ -165,6 +170,12 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
             <button type="button" onClick={() => rem(i)} className="text-gray-300 hover:text-rose-600 p-1.5 justify-self-end"><Trash2 size={14} /></button>
           </div>
         ))}
+        {linhas.some(l => l.nome.trim() && !/\S+@\S+\.\S+/.test(l.email)) && (
+          <p className="text-[11px] text-amber-700">
+            Quem está com o e-mail em branco não recebe o link. Preencha aqui — vale
+            só para esta assinatura — ou cadastre o e-mail da pessoa em Clientes.
+          </p>
+        )}
         <button type="button" onClick={add} className="flex items-center gap-1 text-xs font-semibold text-violet-700 hover:text-violet-800"><Plus size={12} /> Adicionar signatário</button>
       </div>
 
@@ -173,7 +184,7 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
         <div className="flex flex-wrap items-center gap-1.5 mb-3">
           <span className="text-[11px] text-gray-400">Adicionar das partes:</span>
           {sugestoes
-            .filter(s => !linhas.some(l => l.email.toLowerCase() === s.email.toLowerCase()))
+            .filter(s => !linhas.some(l => l.nome.trim().toLowerCase() === s.nome.trim().toLowerCase()))
             .map((s, i) => (
               <button
                 key={i}

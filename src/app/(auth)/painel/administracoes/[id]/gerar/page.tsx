@@ -157,8 +157,13 @@ async function renderizar(contratoAdmId: string) {
   const processosAss = await carregarProcessosAssinatura(acesso.userId, 'administracao', contratoAdmId)
 
   // Sugestões de signatários = partes reais do contrato (preenche automático).
-  const propComEmail = unwrap(contrato.proprietario) as { nome: string; email: string | null } | null
-  const reprComEmail = unwrap(contrato.proprietario_representante) as { nome: string; email: string | null } | null
+  //
+  // A parte entra na lista mesmo sem e-mail cadastrado: o painel mostra a linha
+  // com nome e papel preenchidos e o campo de e-mail destacado, e o envio avisa
+  // o que falta. Antes ela sumia em silêncio, e o contrato seguia pra
+  // assinatura sem o proprietário na lista.
+  const propAss = unwrap(contrato.proprietario) as { nome: string; email: string | null } | null
+  const reprAss = unwrap(contrato.proprietario_representante) as { nome: string; email: string | null } | null
   const adminNome = perfilAdm?.razao_social || perfilAdm?.nome || 'Administradora'
   const testIds = (r.geracao.testemunha_ids as string[] | null) ?? []
   const { data: testPessoas } = testIds.length > 0
@@ -167,14 +172,16 @@ async function renderizar(contratoAdmId: string) {
 
   // Quando há representante (proprietária PJ representada por uma pessoa), quem
   // assina é o REPRESENTANTE em nome da empresa — a própria proprietária (PJ)
-  // não assina. Sem representante, sugere a proprietária diretamente.
-  const temRepresentante = !!reprComEmail
+  // não assina. Sem representante, sugere a proprietária diretamente. Quem
+  // decide isso é a existência do representante, não o e-mail dele: antes,
+  // representante cadastrado sem e-mail escondia os dois de uma vez.
+  const temRepresentante = !!reprAss
   const sugestoesAss = [
     user?.email ? { nome: adminNome, email: user.email, papel: 'Administradora (responsável)' } : null,
-    (!temRepresentante && propComEmail?.email)
-      ? { nome: propComEmail.nome, email: propComEmail.email, papel: 'Proprietária(o)' } : null,
-    reprComEmail?.email
-      ? { nome: reprComEmail.nome, email: reprComEmail.email, papel: 'Representante da proprietária' } : null,
+    (!temRepresentante && propAss?.nome)
+      ? { nome: propAss.nome, email: propAss.email ?? '', papel: 'Proprietária(o)' } : null,
+    reprAss?.nome
+      ? { nome: reprAss.nome, email: reprAss.email ?? '', papel: 'Representante da proprietária' } : null,
     ...((testPessoas ?? []) as Array<{ nome: string; email: string | null }>)
       .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' })),
   ].filter((s): s is { nome: string; email: string; papel: string } => !!s)
