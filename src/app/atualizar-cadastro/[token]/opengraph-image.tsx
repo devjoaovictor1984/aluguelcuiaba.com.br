@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cartaoLinkImage, nomeCurto, OG_SIZE, OG_CONTENT_TYPE } from '@/lib/og/cartao-link'
+import { resumirTiposDoc } from '@/lib/crm/tipos-documento'
 
 export const alt = 'Atualização de cadastro'
 export const size = OG_SIZE
@@ -12,9 +13,9 @@ export const contentType = OG_CONTENT_TYPE
  * já é a pessoa em questão, e ver o próprio nome junto do nome da
  * administradora é o que separa isto de um golpe pedindo documento.
  *
- * O que NÃO sai é quais dados estão sendo pedidos — só quantos. A prévia é
- * buscada pelo servidor do WhatsApp e aparece em qualquer conversa pra onde o
- * link for encaminhado; "RG e comprovante de renda" ali é informação demais.
+ * Os tipos de documento também saem, a pedido: a pessoa já vê pela prévia o
+ * que vai precisar separar antes de abrir o link. São só os tipos ("RG",
+ * "Comprovante de renda"), nunca conteúdo de documento.
  */
 export default async function Image({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
@@ -39,12 +40,14 @@ export default async function Image({ params }: { params: Promise<{ token: strin
       emitente = perfil?.razao_social || perfil?.nome || emitente
       nome = nomeCurto(pessoa?.nome)
 
+      // Cabe uma linha só no cartão: os tipos de documento mandam, porque
+      // são o que dá trabalho separar. Sem documento pedido, mostra quantos
+      // dados são.
+      const docs = resumirTiposDoc((sol.tipos_documento as string[] | null) ?? [])
       const qtdCampos = ((sol.campos as string[] | null) ?? []).length
-      const qtdDocs = ((sol.tipos_documento as string[] | null) ?? []).length
-      detalhe = [
-        qtdCampos > 0 ? `${qtdCampos} ${qtdCampos === 1 ? 'informação' : 'informações'}` : '',
-        qtdDocs > 0 ? `${qtdDocs} ${qtdDocs === 1 ? 'documento' : 'documentos'}` : '',
-      ].filter(Boolean).join('  ·  ')
+      detalhe = docs || (qtdCampos > 0
+        ? `${qtdCampos} ${qtdCampos === 1 ? 'informação' : 'informações'}`
+        : '')
     }
   } catch {
     // Token inválido ou banco fora: cai na versão genérica, sem vazar nada.

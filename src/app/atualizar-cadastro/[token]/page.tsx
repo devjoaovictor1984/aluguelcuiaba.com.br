@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { AlertOctagon, CheckCircle2 } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { LABELS_DOC } from '@/lib/crm/tipos-documento'
 import { FormAtualizacao, type CampoExistente, type TipoDoc } from './_components/form-atualizacao'
 
 export const dynamic = 'force-dynamic'
@@ -53,22 +54,6 @@ const LABELS_CAMPO: Record<string, string> = {
   conjuge_data_nascimento: 'Data de nascimento do cônjuge',
   conjuge_profissao: 'Profissão do cônjuge',
   conjuge_nacionalidade: 'Nacionalidade do cônjuge',
-}
-
-const LABELS_DOC: Record<string, string> = {
-  rg: 'RG',
-  cpf: 'CPF',
-  cnh: 'CNH',
-  passaporte: 'Passaporte',
-  comprovante_renda: 'Comprovante de renda',
-  comprovante_residencia: 'Comprovante de residência',
-  contracheque: 'Contracheque',
-  extrato_bancario: 'Extrato bancário',
-  imposto_renda: 'Imposto de renda',
-  certidao_casamento: 'Certidão de casamento',
-  certidao_nascimento: 'Certidão de nascimento',
-  foto: 'Foto',
-  outro: 'Outro',
 }
 
 /**
