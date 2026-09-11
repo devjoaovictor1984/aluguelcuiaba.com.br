@@ -16,6 +16,46 @@ memória.
 
 ---
 
+## 0. Respondido em 10/09/2026 — são dois produtos, não um
+
+**Vocês responderam, e a resposta explica os itens 1.1 e 2 de uma vez:**
+
+> *"O produto constante na Api é a versão 2 da Alfa. No nosso sistema tem
+> ambas versões. Quanto a 'VER 007' é outra codificação interna nossa, e não
+> da seguradora. A Alfa versão 1 está sendo descontinuada, por isso deixamos
+> apenas a versão 2 na Api. Elas têm taxas, franquias e regras diferentes
+> entre si."*
+
+Ou seja: a apólice 607987, do painel, é **Alfa v1**; o `/calculo` da API é
+**Alfa v2**. Não é divergência de tabela dentro do mesmo produto — são
+produtos diferentes. Fecha a pergunta da franquia (1.1) e a das taxas por
+cobertura (2), e explica a sigla `al2` que apareceu no
+`listarSeguradorasDisponiveis` (item 7.1 das perguntas pendentes) — `al2` é
+literalmente Alfa v2.
+
+**Do nosso lado não muda código:** a franquia que exibimos vem do campo
+`txtfranq` do próprio `/calculo`, então o cliente já vê a franquia da v2, que
+é a do produto que ele está contratando. O que mudou é que paramos de tratar
+a diferença como defeito.
+
+**O que ainda precisamos, agora que sabemos o que estamos vendendo:**
+
+1. **Condições gerais da v2** — clausulado e número do processo SUSEP. É o
+   documento que o segurado tem direito de receber, e hoje não temos.
+2. **Tabela de franquias e regras da v2** por cobertura, para conferirmos o
+   que a tela mostra antes de emitir.
+3. **Data em que a v1 é desligada.** Importa para renovação: quem tem apólice
+   v1 hoje renova em v2 com **preço e franquia diferentes** (no caso medido,
+   +5,1% no prêmio e franquia de 8%/R$ 200 para 10%/R$ 500). Precisamos
+   avisar o cliente antes, não na hora.
+4. **O pró-labore de 20% vale igual na v2?** O número confirmado veio de uma
+   apólice v1.
+5. **O painel de vocês vai continuar oferecendo a v1 enquanto ela existir?**
+   Se sim, o mesmo corretor cota mais barato fora da plataforma que dentro —
+   e isso é conversa comercial, não técnica.
+
+---
+
 ## 1. O mesmo caso, nos dois lugares
 
 Depois de alinharmos a nossa tela à de vocês — mesmas coberturas marcadas,
@@ -73,6 +113,10 @@ lugar nenhum da API. Pode ser exatamente essa a chave.
 **Pergunta:** em que produto/versão/tabela o `/calculo` coteja, e como pedimos
 o mesmo que o painel usa?
 
+> **Respondido em 10/09/2026:** painel = Alfa v1, API = Alfa v2, produtos
+> distintos com franquias e regras próprias. A v1 está sendo descontinuada.
+> Ver item 0.
+
 ---
 
 ## 2. As taxas divergem, e nos dois sentidos
@@ -103,6 +147,10 @@ Perfeitamente linear em todos os pontos. A taxa é essa mesmo.
 
 **Pergunta:** em que tabela o `/calculo` coteja? E por que a taxa por
 cobertura difere da Tabela 20 para mais em duas e para menos em duas?
+
+> **Respondido em 10/09/2026:** porque a Tabela 20 é da **v1** e a API cota a
+> **v2** — taxas diferentes por produto, não por erro de tabela. Ver item 0.
+> Segue valendo o pedido da tabela de taxas da v2, para conferência.
 
 ---
 

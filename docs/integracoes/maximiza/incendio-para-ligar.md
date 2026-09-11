@@ -1,6 +1,6 @@
 # Seguro incêndio — o que falta pra ligar
 
-*AluguelCuiabá × Maximiza · 30/08/2026, revisto em 08/09/2026*
+*AluguelCuiabá × Maximiza · 30/08/2026, revisto em 10/09/2026*
 
 Este documento é só de **incêndio**. As pendências de fiança seguem em
 `perguntas-pendentes.md` e não bloqueiam nada aqui: o que restou lá —
@@ -183,18 +183,55 @@ do nosso lado já está contornado.
 
 ---
 
+## 5. Respondido em 10/09/2026 — a API é Alfa v2
+
+> *"O produto constante na Api é a versão 2 da Alfa. No nosso sistema tem
+> ambas versões. A Alfa versão 1 está sendo descontinuada, por isso deixamos
+> apenas a versão 2 na Api. Elas têm taxas, franquias e regras diferentes
+> entre si. Quanto a 'VER 007' é outra codificação interna nossa."*
+
+Fecha a divergência de preço e franquia contra o painel (detalhe em
+`o-que-a-api-nao-entrega.md`, item 0) e explica a sigla `al2`. **Não muda
+código** — a franquia exibida vem do `txtfranq` do próprio cálculo.
+
+Mas abre três coisas que entram na lista de pedidos abaixo: **as condições
+gerais da v2**, **a data em que a v1 é desligada** (quem renova sai mais caro
+e com franquia maior) e se o **pró-labore de 20%** — confirmado numa apólice
+v1 — vale igual na v2.
+
+---
+
 ## O que pedimos, em ordem
+
+**Trava a emissão da primeira apólice real:**
 
 1. **Dizer como escolher a seguradora agora** (item 1.4) — o header parou de
    funcionar e não achamos substituto. Em produção isso pesa mais: o corretor
    escolhe, recebe preço e contrata sem saber de qual seguradora ele é.
-2. **Cadastrar as URLs de webhook** (entregues em 18/08) — é o que trava a
-   fiança inteira; nenhum webhook chegou desde 13/08.
-3. **O pró-labore confirmado** e o resto do item 2, pra ligar o incêndio de
-   verdade.
-4. **A fiança também é só em produção?** O cálculo de incêndio era; se valer
-   igual para a fiança, dizer antes — transmitir análise em produção cria
-   proposta real, e não fazemos isso por conta própria.
+2. **Condições gerais e número do processo SUSEP da Alfa v2** — é o documento
+   que o segurado tem direito de receber, e hoje não temos.
+3. **O campo "Tabela" (1 a 20)** (item 3.1) — se ele mexe em preço ou em
+   comissão, estamos cotando sempre no padrão sem saber.
+4. **Confirmar a parcela mínima de R$ 60,00 e o teto de 6 parcelas**
+   (item 4.1) — hoje derivamos isso por conta, porque a `listaFormasPagto`
+   volta vazia.
+5. **Cancelamento: prazo limite e estorno** do prêmio e da comissão (item 2).
+
+**Precisa antes de vender, não antes de emitir:**
+
+6. **Data em que a Alfa v1 é desligada**, e se o painel de vocês segue
+   vendendo v1 enquanto isso. Quem tem apólice v1 renova em v2 com preço e
+   franquia diferentes — o cliente precisa ser avisado antes.
+7. **O pró-labore de 20% vale igual na v2?** E varia por seguradora?
+8. **Contrato de parceria e tabela de comissionamento.**
+
+**Segue aberto, mas é da fiança, não do incêndio:**
+
+9. **Cadastrar as URLs de webhook** (entregues em 18/08) — nenhum webhook
+   chegou desde 13/08; é o que trava a fiança inteira.
+10. **A fiança também é só em produção?** O cálculo de incêndio era; se valer
+    igual para a fiança, dizer antes — transmitir análise em produção cria
+    proposta real, e não fazemos isso por conta própria.
 
 ---
 

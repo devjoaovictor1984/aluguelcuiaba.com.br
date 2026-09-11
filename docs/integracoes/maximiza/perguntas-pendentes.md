@@ -464,6 +464,9 @@ Três perguntas:
 - A `sigla` nova (`al2` para a Alfa, `por` para a Porto) **passa a ser o
   valor esperado no header `seguradora`**, ou o header continua sendo o
   nome? Hoje mandamos o nome e as chamadas respondem.
+  *(10/09/2026 — vocês confirmaram que a API cota a **Alfa versão 2**, e a
+  v1 está sendo descontinuada. O `al2` é isso: Alfa v2. Segue a pergunta de
+  qual valor o header espera.)*
 - Quando houver mudança de contrato de resposta, dá pra avisar antes? É o
   tipo de coisa que derruba a tela sem nenhum erro de HTTP para investigar.
 

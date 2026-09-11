@@ -11,6 +11,42 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 
 ---
 
+## 10/09/2026 — a resposta da corretora: são dois produtos ✅
+
+Resposta pelo WhatsApp, do time da Maximiza, sobre a divergência de preço e
+franquia levantada em 08/09:
+
+> *"O produto constante na Api é a versão 2 da Alfa. No nosso sistema tem
+> ambas versões. Quanto a 'VER 007' é outra codificação interna nossa, e não
+> da seguradora. A Alfa versão 1 está sendo descontinuada, por isso deixamos
+> apenas a versão 2 na Api. Elas têm taxas, franquias e regras diferentes
+> entre si."*
+
+**Fato:** a apólice 607987 (painel, versão 007) é Alfa **v1**; o `/calculo` é
+Alfa **v2**. Os R$ 9,51 de diferença e as duas franquias — 8%/R$ 200 contra
+10%/R$ 500 — não eram defeito de tabela: são dois produtos. A sigla `al2` que
+apareceu no `listarSeguradorasDisponiveis` em 30/08 é literalmente isso, Alfa
+versão 2. O "VER 007" morre como pista — é código interno da corretora.
+
+**Decisão:** nada muda no código. A franquia que a tela exibe vem do campo
+`txtfranq` do próprio `/calculo`, então é sempre a do produto que está sendo
+contratado. O que muda é que a comparação com o painel deixa de ser um bug a
+perseguir — comparar v1 com v2 não faz sentido.
+
+**O que a resposta abriu** (registrado em `o-que-a-api-nao-entrega.md`, item 0,
+e é o que vai na próxima conversa com eles):
+
+- condições gerais e processo SUSEP da v2 — o segurado tem direito, e não
+  temos;
+- tabela de taxas e franquias da v2, para conferir a tela antes de emitir;
+- **data do desligamento da v1** — quem tem apólice v1 renova em v2 mais caro
+  (+5,1% no caso medido) e com franquia maior; isso precisa ser avisado antes;
+- o pró-labore de 20% foi confirmado numa apólice v1 — vale igual na v2?
+- o painel deles segue vendendo v1 enquanto ela existir? Se sim, o mesmo
+  corretor cota mais barato fora da plataforma do que dentro.
+
+---
+
 ## 08/09/2026, à noite — cotando de verdade em produção: o que bateu e o que não
 
 Continuação da entrada de mais cedo. Depois de virar o `MAXIMIZA_AMBIENTE`
