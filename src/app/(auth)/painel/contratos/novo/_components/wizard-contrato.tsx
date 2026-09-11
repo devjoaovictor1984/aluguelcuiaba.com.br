@@ -12,6 +12,7 @@ import { vincularAnaliseAoContrato } from '../../../seguros/actions'
 import { gerarParcelas, resumirParcelas, calcularComissao, calcularRepasse } from '@/lib/crm/calculos'
 import { InputMoeda, InputPercentual } from '@/components/inputs/input-mascarado'
 import { parseMoney, parsePercentual, formatarBRL } from '@/lib/formatters'
+import { somarMeses } from '@/lib/contratos/reajuste'
 import type { ImovelLite, PessoaLite, WizardState } from './wizard-types'
 import { ESTADO_INICIAL } from './wizard-types'
 
@@ -113,6 +114,12 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
       set(prev => ({ ...prev, data_primeiro_aluguel: iso }))
     }
   }, [s.data_inicio, s.dia_vencimento, s.garantia_tipo, primeiroAluguelManual, s.data_primeiro_aluguel])
+
+  // Data do próximo reajuste: quando não escolhem uma, vale o aniversário do
+  // contrato (+12 meses, a periodicidade legal). Deixar em branco custava o
+  // aviso no painel — o contrato passava do aniversário sem ninguém ver.
+  const dataReajuste = s.data_proximo_reajuste
+    || (s.data_inicio ? somarMeses(s.data_inicio, 12) : '')
 
   const inquilinos    = useMemo(() => pessoas.filter(p => p.tipo === 'inquilino'),    [pessoas])
   const proprietarios = useMemo(() => pessoas.filter(p => p.tipo === 'proprietario'), [pessoas])
@@ -257,7 +264,7 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
       observacoes: s.observacoes || null,
       clausulas_extras: s.clausulas_extras || null,
       indice_reajuste: s.indice_reajuste || null,
-      data_proximo_reajuste: s.data_proximo_reajuste || null,
+      data_proximo_reajuste: dataReajuste || null,
       finalidade: s.finalidade,
       tipo_atuacao: s.tipo_atuacao,
       intermediador_assina: s.intermediador_assina,
@@ -911,7 +918,15 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
             </div>
             <div className="sm:col-span-2">
               <label className="text-xs font-medium text-gray-600 block mb-1">Próximo reajuste</label>
-              <input type="date" value={s.data_proximo_reajuste} onChange={e => setField('data_proximo_reajuste', e.target.value)} className={inputCls} />
+              <input
+                type="date"
+                value={dataReajuste}
+                onChange={e => setField('data_proximo_reajuste', e.target.value)}
+                className={inputCls}
+              />
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                Calculado como 12 meses depois do início. É essa data que dispara o aviso no painel.
+              </p>
             </div>
           </div>
 

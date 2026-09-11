@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { STATUS_CANCELADA } from '@/lib/crm/encerramento'
 import { formatarBRL, formatarData } from '@/lib/formatters'
+import { marcoContrato, terminoContrato } from '@/lib/contratos/reajuste'
 import { FiltroMesAno, type ModoPeriodo } from './_components/filtro-mes-ano'
 
 interface ParcelaRow {
@@ -34,6 +35,7 @@ interface ContratoRow {
   valor_aluguel: number
   data_inicio: string
   data_termino: string | null
+  duracao_meses: number | null
   data_proximo_reajuste: string | null
   seguro_incendio_data: string | null
   valor_seguro_incendio_anual: number | null
@@ -112,7 +114,6 @@ export default async function FinanceiroPage({ searchParams }: Props) {
     : 'todo o período'
 
   // Relativos a HOJE (não mudam com filtro)
-  const em30Dias = new Date(hoje.getTime() + 30 * 86400000)
   const em7Dias = new Date(hoje.getTime() + 7 * 86400000)
   const ha12Meses = new Date(hoje.getFullYear() - 1, hoje.getMonth(), 1)
 
@@ -123,7 +124,7 @@ export default async function FinanceiroPage({ searchParams }: Props) {
   ] = await Promise.all([
     supabase.from('contratos_locacao')
       .select(`
-        id, codigo, status, valor_aluguel, data_inicio, data_termino,
+        id, codigo, status, valor_aluguel, data_inicio, data_termino, duracao_meses,
         data_proximo_reajuste, seguro_incendio_data, valor_seguro_incendio_anual,
         garantia_tipo,
         inquilino:pessoas!inquilino_id(id, nome),
@@ -247,17 +248,23 @@ export default async function FinanceiroPage({ searchParams }: Props) {
   const contGarantia: Record<string, number> = {}
   contratosAtivos.forEach(c => { contGarantia[c.garantia_tipo] = (contGarantia[c.garantia_tipo] ?? 0) + 1 })
 
-  // Próximos contratos a vencer (próximos 60 dias)
+  // Próximos contratos a vencer (próximos 60 dias). O fim da vigência sai do
+  // próprio contrato — data gravada, ou início + prazo dele.
   const em60Dias = new Date(hoje.getTime() + 60 * 86400000)
   const contratosVencendo = contratosAtivos
-    .filter(c => c.data_termino && new Date(c.data_termino) <= em60Dias)
-    .sort((a, b) => (a.data_termino ?? '').localeCompare(b.data_termino ?? ''))
+    .map(c => ({ contrato: c, termino: terminoContrato(c) }))
+    .filter(x => x.termino !== null && new Date(x.termino) <= em60Dias)
+    .sort((a, b) => a.termino!.localeCompare(b.termino!))
     .slice(0, 5)
 
-  // Reajustes nos próximos 30 dias
+  // Reajustes nos próximos 60 dias — o inquilino tem que ser avisado com um
+  // mês de antecedência, então o aviso chega antes disso. Contrato sem data
+  // gravada entra pelo aniversário (marcoContrato); contrato perto do fim tem
+  // renovação como marco e aparece no card de contratos a vencer.
   const reajustesProximos = contratosAtivos
-    .filter(c => c.data_proximo_reajuste && new Date(c.data_proximo_reajuste) <= em30Dias)
-    .sort((a, b) => (a.data_proximo_reajuste ?? '').localeCompare(b.data_proximo_reajuste ?? ''))
+    .map(c => ({ contrato: c, marco: marcoContrato(c) }))
+    .filter(x => x.marco !== null && x.marco.tipo === 'reajuste' && x.marco.dias <= 60)
+    .sort((a, b) => a.marco!.dias - b.marco!.dias)
     .slice(0, 5)
 
   // Seguro incêndio: anual. Alerta quando faltar 60 dias do vencimento (data + 365d).
@@ -606,12 +613,12 @@ export default async function FinanceiroPage({ searchParams }: Props) {
                 <FileSignature size={15} className="text-orange-600" /> Contratos vencendo (60 dias)
               </h2>
               <div className="space-y-2 text-xs">
-                {contratosVencendo.map(c => {
+                {contratosVencendo.map(({ contrato: c, termino }) => {
                   const inq = Array.isArray(c.inquilino) ? c.inquilino[0] : c.inquilino
                   return (
                     <Link key={c.id} href={`/painel/contratos/${c.id}`} className="flex items-center justify-between hover:bg-gray-50 -mx-1 px-1 py-1 rounded">
                       <span className="text-gray-700 truncate">{inq?.nome ?? c.codigo}</span>
-                      <span className="text-orange-700 font-medium shrink-0 ml-2">{formatarData(c.data_termino)}</span>
+                      <span className="text-orange-700 font-medium shrink-0 ml-2">{formatarData(termino)}</span>
                     </Link>
                   )
                 })}
@@ -622,15 +629,18 @@ export default async function FinanceiroPage({ searchParams }: Props) {
           {reajustesProximos.length > 0 && (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
               <h2 className="font-semibold text-gray-900 mb-3 flex items-center gap-2 text-sm">
-                <TrendingUp size={15} className="text-amber-600" /> Reajustes próximos (30 dias)
+                <TrendingUp size={15} className="text-amber-600" /> Reajustes próximos (60 dias)
               </h2>
               <div className="space-y-2 text-xs">
-                {reajustesProximos.map(c => {
+                {reajustesProximos.map(({ contrato: c, marco }) => {
                   const inq = Array.isArray(c.inquilino) ? c.inquilino[0] : c.inquilino
                   return (
                     <Link key={c.id} href={`/painel/contratos/${c.id}`} className="flex items-center justify-between hover:bg-gray-50 -mx-1 px-1 py-1 rounded">
-                      <span className="text-gray-700 truncate">{inq?.nome ?? c.codigo}</span>
-                      <span className="text-amber-700 font-medium shrink-0 ml-2">{formatarData(c.data_proximo_reajuste)}</span>
+                      <span className="text-gray-700 truncate">
+                        {inq?.nome ?? c.codigo}
+                        <span className="text-gray-400"> · {marco!.rotulo}{marco!.estimado && ' (est.)'}</span>
+                      </span>
+                      <span className="text-amber-700 font-medium shrink-0 ml-2">{formatarData(marco!.data)}</span>
                     </Link>
                   )
                 })}

@@ -3,6 +3,8 @@ import { FileSignature, Plus, Variable } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { BotaoAjuda } from '@/components/botao-ajuda'
+import { BadgeMarco } from '@/components/painel/badge-marco'
+import { marcoNaJanela } from '@/lib/contratos/reajuste'
 
 export default async function ContratosPage() {
   const acesso = await exigirAcessoCRM()
@@ -10,7 +12,7 @@ export default async function ContratosPage() {
 
   const { data: contratos } = await supabase
     .from('contratos_locacao')
-    .select('id, codigo, status, valor_aluguel, data_inicio, inquilino:pessoas!inquilino_id(nome)')
+    .select('id, codigo, status, valor_aluguel, data_inicio, data_termino, duracao_meses, data_proximo_reajuste, inquilino:pessoas!inquilino_id(nome)')
     .eq('user_id', acesso.userId)
     .is('deleted_at', null)
     .order('created_at', { ascending: false })
@@ -71,6 +73,12 @@ export default async function ContratosPage() {
             {lista.map(c => {
               const inq = Array.isArray(c.inquilino) ? c.inquilino[0] : c.inquilino
               const inqNome = (inq as { nome?: string } | null)?.nome ?? '—'
+              // Etiqueta do marco: 12 meses (1º reajuste), 24 (2º), fim da
+              // vigência (renovação). Só em contrato vivo — rascunho e
+              // encerrado não têm prazo correndo.
+              const marco = c.status === 'ativo' || c.status === 'inadimplente'
+                ? marcoNaJanela(c)
+                : null
               const corStatus =
                 c.status === 'ativo' ? 'bg-green-100 text-green-700' :
                 c.status === 'rascunho' ? 'bg-gray-100 text-gray-600' :
@@ -85,8 +93,11 @@ export default async function ContratosPage() {
                   {/* Mobile: 1ª linha = código + status / Desktop: cada um na coluna */}
                   <div className="flex items-center justify-between sm:contents">
                     <span className="text-xs font-mono text-gray-400 sm:w-24">{c.codigo}</span>
-                    <span className={`text-[10px] sm:text-xs font-medium px-2 py-0.5 rounded-full sm:order-last ${corStatus}`}>
-                      {c.status}
+                    <span className="flex items-center gap-1.5 sm:contents">
+                      {marco && <span className="sm:order-last"><BadgeMarco marco={marco} /></span>}
+                      <span className={`text-[10px] sm:text-xs font-medium px-2 py-0.5 rounded-full sm:order-last ${corStatus}`}>
+                        {c.status}
+                      </span>
                     </span>
                   </div>
                   {/* Mobile: 2ª linha = nome + valor / Desktop: continua na linha */}

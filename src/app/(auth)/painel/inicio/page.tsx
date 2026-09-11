@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { STATUS_CANCELADA } from '@/lib/crm/encerramento'
 import { formatarBRL, formatarData } from '@/lib/formatters'
+import { marcoContrato, terminoContrato } from '@/lib/contratos/reajuste'
 import { TabelaMes, type LinhaParcela } from './_components/tabela-mes'
 import { SeletorMes } from './_components/seletor-mes'
 import { BotaoAjuda } from '@/components/botao-ajuda'
@@ -36,7 +37,9 @@ interface ContratoLite {
   id: string
   codigo: string
   status: string
+  data_inicio: string
   data_termino: string | null
+  duracao_meses: number | null
   data_proximo_reajuste: string | null
   seguro_incendio_data: string | null
   valor_seguro_incendio_anual: number | null
@@ -128,7 +131,6 @@ export default async function InicioCRMPage({ searchParams }: Props) {
 
   // Janelas de aviso
   const em5Dias = new Date(hoje.getTime() + 5 * 86400000)
-  const em30Dias = new Date(hoje.getTime() + 30 * 86400000)
   const em60Dias = new Date(hoje.getTime() + 60 * 86400000)
 
   // Carrega tudo
@@ -141,7 +143,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
         status_pagamento, status_repasse, status_seguro, boleto_enviado,
         data_pagamento, valor_pago,
         contrato:contratos_locacao!inner(
-          id, codigo, status, data_termino, data_proximo_reajuste,
+          id, codigo, status, data_inicio, data_termino, duracao_meses, data_proximo_reajuste,
           seguro_incendio_data, valor_seguro_incendio_anual, valor_aluguel,
           pagamento_antecipado,
           inquilino:pessoas!inquilino_id(id, nome, telefone),
@@ -233,14 +235,27 @@ export default async function InicioCRMPage({ searchParams }: Props) {
   }
   const contratosLista: ContratoLite[] = Array.from(contratosUnicos.values())
 
+  // O fim da vigência sai do próprio contrato: a data gravada nele, ou o
+  // início mais o prazo dele.
   const contratosVencendo = contratosLista
-    .filter(c => c.data_termino && new Date(c.data_termino) <= em60Dias && new Date(c.data_termino) >= hoje)
-    .map(c => ({ ...c, diasRestantes: diasEntre(hoje, new Date(c.data_termino! + 'T00:00:00')) }))
+    .map(c => ({ contrato: c, termino: terminoContrato(c) }))
+    .filter(x => x.termino !== null && new Date(x.termino) <= em60Dias && new Date(x.termino) >= hoje)
+    .map(({ contrato, termino }) => ({ ...contrato, diasRestantes: diasEntre(hoje, new Date(termino! + 'T00:00:00')) }))
     .sort((a, b) => a.diasRestantes - b.diasRestantes)
 
+  // 60 dias, e nao 30: o inquilino precisa ser avisado com um mes de
+  // antecedencia, entao o aviso tem que chegar antes disso. Contrato sem data
+  // gravada entra pelo aniversario — ver marcoContrato. Contrato perto do fim
+  // tem renovacao como marco, e sai daqui pro card ao lado.
   const reajustesProximos = contratosLista
-    .filter(c => c.data_proximo_reajuste && new Date(c.data_proximo_reajuste) <= em30Dias)
-    .map(c => ({ ...c, diasRestantes: diasEntre(hoje, new Date(c.data_proximo_reajuste! + 'T00:00:00')) }))
+    .map(c => ({ contrato: c, marco: marcoContrato(c) }))
+    .filter(x => x.marco !== null && x.marco.tipo === 'reajuste' && x.marco.dias <= 60)
+    .map(({ contrato, marco }) => ({
+      ...contrato,
+      diasRestantes: marco!.dias,
+      rotulo: marco!.rotulo,
+      estimada: marco!.estimado,
+    }))
     .sort((a, b) => a.diasRestantes - b.diasRestantes)
 
   // Seguro incêndio: vence 1 ano após data registrada. Alerta quando faltar 60 dias.
@@ -373,7 +388,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
           )}
 
           {reajustesProximos.length > 0 && (
-            <Card icon={<TrendingUp size={15} className="text-amber-600" />} titulo="Reajustes próximos (30 dias)">
+            <Card icon={<TrendingUp size={15} className="text-amber-600" />} titulo="Reajustes próximos (60 dias)">
               <ul className="space-y-1.5">
                 {reajustesProximos.map(c => {
                   const inq = unwrap(c.inquilino)
@@ -381,7 +396,10 @@ export default async function InicioCRMPage({ searchParams }: Props) {
                   return (
                     <li key={c.id} className="text-xs">
                       <Link href={`/painel/contratos/${c.id}`} className="flex items-center justify-between hover:bg-gray-50 -mx-1 px-1 py-1 rounded">
-                        <span className="text-gray-700 truncate min-w-0">{inq?.nome ?? c.codigo}</span>
+                        <span className="text-gray-700 truncate min-w-0">
+                          {inq?.nome ?? c.codigo}
+                          <span className="text-gray-400 font-normal"> · {c.rotulo}{c.estimada && ' (est.)'}</span>
+                        </span>
                         <span className={`font-semibold shrink-0 ml-2 ${atrasado ? 'text-red-600' : 'text-amber-700'}`}>
                           {atrasado ? `${-c.diasRestantes}d atrás` : `em ${c.diasRestantes}d`}
                         </span>
@@ -391,7 +409,8 @@ export default async function InicioCRMPage({ searchParams }: Props) {
                 })}
               </ul>
               <p className="text-[10px] text-gray-400 mt-3 pt-2 border-t border-gray-50">
-                💡 Combine % com o inquilino antes de aplicar.
+                💡 Combine % com o inquilino antes de aplicar. &quot;(est.)&quot; = data
+                estimada pelo aniversário do contrato, sem data no cadastro.
               </p>
             </Card>
           )}

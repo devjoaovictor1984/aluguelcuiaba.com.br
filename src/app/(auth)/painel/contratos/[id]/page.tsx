@@ -13,6 +13,8 @@ import { AditivosSecao, type AditivoRow } from './_components/aditivos-secao'
 import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
 import { RegerarParcelasBotao } from './_components/regerar-parcelas'
 import { BASE_COMISSAO_LABEL, type BaseComissao } from '@/lib/crm/calculos'
+import { janelaReajuste, marcoNaJanela } from '@/lib/contratos/reajuste'
+import { BadgeMarco } from '@/components/painel/badge-marco'
 import { TimelineEventos, type EventoRow } from './_components/timeline-eventos'
 import { DocsPartesContrato } from './_components/docs-partes'
 import { BotaoExcluirContrato } from './_components/botao-excluir'
@@ -166,6 +168,13 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   const fiador = Array.isArray(contrato.fiador) ? contrato.fiador[0] : contrato.fiador
   const bairro = imovel && (Array.isArray(imovel.bairro) ? imovel.bairro[0] : imovel.bairro)
 
+  // 12 meses → 1º reajuste, 24 → 2º, fim da vigência → renovação. A etiqueta
+  // aparece no último mês antes da data. Contrato encerrado não tem prazo
+  // correndo.
+  const marco = ['encerrado', 'rescindido'].includes(contrato.status)
+    ? null
+    : marcoNaJanela(contrato)
+
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
       <div>
@@ -178,6 +187,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
             <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${STATUS_COR[contrato.status]}`}>
               {contrato.status}
             </span>
+            {marco && <BadgeMarco marco={marco} longo />}
             <span className="text-xs text-gray-400">
               {pagas}/{lista.length} parcelas pagas
               {atrasadas > 0 && <span className="text-red-600 font-semibold ml-2">· {atrasadas} atrasada{atrasadas === 1 ? '' : 's'}</span>}
@@ -293,6 +303,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         contratoCodigo={contrato.codigo}
         valorAluguelAtual={contrato.valor_aluguel}
         dataProximoReajuste={contrato.data_proximo_reajuste}
+        dataReajusteEstimada={janelaReajuste(contrato)?.data ?? null}
         jaEncerrado={['encerrado', 'rescindido'].includes(contrato.status)}
         parcelasFuturas={parcelasFuturas}
         proximaParcelaMesRef={proximaParcela?.mes_referencia ?? null}
