@@ -11,7 +11,7 @@ import { salvarArquivoIncendio } from '@/lib/seguros/incendio/arquivos'
 import {
   calcularIncendio, cancelarIncendio, contratarIncendio, imprimirBoletos,
   imprimirProposta, listarOcupacoes, listarPacotesAssistencia,
-  listarSeguradorasIncendio, listarFaturamento,
+  listarSeguradorasIncendio, listarFaturamento, SEGURADORAS_INCENDIO_ATIVAS,
 } from '@/lib/seguros/incendio'
 import type {
   CalculoIncendioInput, ContratacaoIncendioInput, TipoSeguro, TipoVigencia,
@@ -63,7 +63,16 @@ export async function listarSeguradorasDoIncendio() {
   await exigirAcessoSeguros()
   const admin = createAdminClient()
   try {
-    return { seguradoras: await listarSeguradorasIncendio(admin) }
+    // A tela só oferece o que está em SEGURADORAS_INCENDIO_ATIVAS (hoje, só
+    // a Alfa). A lista crua continua saindo inteira no diagnóstico, que é
+    // onde a gente quer ver o que a corretora realmente devolve.
+    const lista = await listarSeguradorasIncendio(admin)
+    const ativas = lista.filter(s =>
+      SEGURADORAS_INCENDIO_ATIVAS.some(a => a.toLowerCase() === s.toLowerCase()),
+    )
+    // Se a corretora renomear a Alfa, o filtro zera e a tela fica sem opção
+    // nenhuma. Nesse caso vale mais mostrar o que veio do que travar a venda.
+    return { seguradoras: ativas.length > 0 ? ativas : lista }
   } catch (e) {
     return { error: mensagemDeErro(e, 'Falha ao listar seguradoras.') }
   }

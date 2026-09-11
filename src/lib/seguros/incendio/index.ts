@@ -56,7 +56,22 @@ async function comLog<T>(
 
 /* ── Catálogo ──────────────────────────────────────────────────────── */
 
-/** Hoje devolve ["Alfa", "Porto"] — array de strings, não de objetos. */
+/**
+ * Seguradoras de incêndio que a plataforma oferece hoje.
+ *
+ * A API devolve Alfa e Porto, mas desde 30/08/2026 o header `seguradora`
+ * parou de ter efeito: Alfa, Porto, `al2`, `por` e nenhum header devolvem o
+ * mesmo prêmio, e não achamos o roteamento novo. Oferecer a Porto nessas
+ * condições é pior do que não oferecer — o corretor escolhe, recebe um preço
+ * e não se sabe de quem ele é.
+ *
+ * Decisão de 11/09/2026: vender só Alfa até a corretora responder. Para
+ * voltar a oferecer a Porto, basta acrescentá-la aqui; o resto do fluxo
+ * (catálogos, regras da Porto no formulário, cálculo) continua no lugar.
+ */
+export const SEGURADORAS_INCENDIO_ATIVAS = ['Alfa'] as const
+
+/** Devolve o que a corretora lista, sem filtro. Ver `SEGURADORAS_INCENDIO_ATIVAS`. */
 export async function listarSeguradorasIncendio(admin: Admin): Promise<string[]> {
   const dados = await comLog<unknown>(
     admin,

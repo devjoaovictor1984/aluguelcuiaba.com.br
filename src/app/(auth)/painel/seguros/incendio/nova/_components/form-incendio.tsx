@@ -305,6 +305,9 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
     aplicarSugestao(c.aluguel, tipoCobertura, true)
   }
 
+  // Desde 11/09/2026 a tela oferece só a Alfa (SEGURADORAS_INCENDIO_ATIVAS),
+  // então isto não dispara. Fica porque as regras da Porto foram medidas
+  // contra a API, e apagá-las custaria remedi-las quando ela voltar.
   const ehPorto = seguradora.toLowerCase().startsWith('porto')
   const inqEhPJ = inqDoc.replace(/\D/g, '').length > 11
 
@@ -465,6 +468,12 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
             <p className="text-xs text-gray-400 py-2">Carregando seguradoras…</p>
           )}
         </div>
+
+        {buscaSeguradoras === 'ok' && seguradoras.length === 1 && (
+          <p className="text-[11px] text-gray-400">
+            Hoje a plataforma cota só na {seguradoras[0]}.
+          </p>
+        )}
 
         {buscaSeguradoras === 'falhou' && (
           <div className="rounded-xl bg-amber-50 ring-1 ring-amber-300 px-3.5 py-3 space-y-2">

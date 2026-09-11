@@ -1,6 +1,6 @@
 # Seguro incêndio — o que falta pra ligar
 
-*AluguelCuiabá × Maximiza · 30/08/2026, revisto em 10/09/2026*
+*AluguelCuiabá × Maximiza · 30/08/2026, revisto em 11/09/2026*
 
 Este documento é só de **incêndio**. As pendências de fiança seguem em
 `perguntas-pendentes.md` e não bloqueiam nada aqui: o que restou lá —
@@ -201,13 +201,29 @@ v1 — vale igual na v2.
 
 ---
 
+## 6. Decisão de 11/09/2026 — a plataforma vende só Alfa
+
+Enquanto o item 1.4 não tiver resposta, a tela de incêndio oferece **só a
+Alfa**. O filtro está em `SEGURADORAS_INCENDIO_ATIVAS`
+(`src/lib/seguros/incendio/index.ts`) e é aplicado na action que alimenta a
+tela; o diagnóstico continua mostrando a lista crua que a corretora devolve.
+
+Oferecer a Porto com o header sem efeito era pior do que não oferecer: o
+corretor escolhia, recebia um preço e ninguém sabia de quem ele era. As
+regras da Porto medidas contra a API (endereço no cálculo, catálogo próprio,
+`vl_cob_conteudo` > 0) ficam no código — voltar a oferecê-la é acrescentar o
+nome na constante.
+
+---
+
 ## O que pedimos, em ordem
 
 **Trava a emissão da primeira apólice real:**
 
-1. **Dizer como escolher a seguradora agora** (item 1.4) — o header parou de
-   funcionar e não achamos substituto. Em produção isso pesa mais: o corretor
-   escolhe, recebe preço e contrata sem saber de qual seguradora ele é.
+1. **Confirmar que o `/calculo` devolve sempre Alfa v2** (item 1.4). O header
+   `seguradora` parou de ter efeito e não achamos substituto. Como passamos a
+   vender só Alfa (item 6), isso deixa de bloquear a escolha, mas precisamos
+   da confirmação por escrito de que o preço que sai é o da Alfa v2.
 2. **Condições gerais e número do processo SUSEP da Alfa v2** — é o documento
    que o segurado tem direito de receber, e hoje não temos.
 3. **O campo "Tabela" (1 a 20)** (item 3.1) — se ele mexe em preço ou em
