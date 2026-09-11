@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { AlertOctagon, CheckCircle2 } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { FormAtualizacao, type CampoExistente, type TipoDoc } from './_components/form-atualizacao'
@@ -68,6 +69,52 @@ const LABELS_DOC: Record<string, string> = {
   certidao_nascimento: 'Certidão de nascimento',
   foto: 'Foto',
   outro: 'Outro',
+}
+
+/**
+ * Título e descrição da prévia do link (WhatsApp, e-mail). Sem isto o link
+ * herdava o OG do portal e chegava anunciando imóveis, com cara de spam
+ * justamente num link que pede documento. A arte é a do
+ * `opengraph-image.tsx` ao lado; aqui é só o texto.
+ */
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const { token } = await params
+  const semIndexar = { index: false, follow: false, googleBot: { index: false, follow: false } }
+
+  let titulo = 'Atualização de cadastro'
+  let descricao = 'Link pessoal para completar seus dados cadastrais.'
+
+  try {
+    const admin = createAdminClient()
+    const { data: sol } = await admin
+      .from('solicitacoes_cadastro')
+      .select('user_id, pessoa_id')
+      .eq('token', token)
+      .maybeSingle()
+
+    if (sol) {
+      const [{ data: perfil }, { data: pessoa }] = await Promise.all([
+        admin.from('perfis').select('razao_social, nome').eq('id', sol.user_id).maybeSingle(),
+        admin.from('pessoas').select('nome').eq('id', sol.pessoa_id).maybeSingle(),
+      ])
+      const primeiroNome = (pessoa?.nome ?? '').trim().split(/\s+/)[0]
+      const emitente = perfil?.razao_social || perfil?.nome || 'AluguelCuiabá'
+      titulo = primeiroNome
+        ? `${primeiroNome}, atualize seu cadastro`
+        : 'Atualize seu cadastro'
+      descricao = `${emitente} precisa completar alguns dados do seu cadastro. Link pessoal e temporário.`
+    }
+  } catch {
+    // Token inválido ou banco fora: fica no texto genérico.
+  }
+
+  return {
+    title: { absolute: titulo },
+    description: descricao,
+    robots: semIndexar,
+    openGraph: { type: 'website', locale: 'pt_BR', title: titulo, description: descricao },
+    twitter: { card: 'summary_large_image', title: titulo, description: descricao },
+  }
 }
 
 export default async function AtualizarCadastroPage({ params }: Props) {
