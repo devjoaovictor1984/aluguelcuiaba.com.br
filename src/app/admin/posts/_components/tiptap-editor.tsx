@@ -19,6 +19,7 @@ import {
   AlignLeft, AlignCenter, AlignRight,
   Undo, Redo, Code2, Loader2, Trash2,
 } from 'lucide-react'
+import { comprimirImagem } from '@/lib/imagens/comprimir'
 
 interface TipTapEditorProps {
   content: string
@@ -78,9 +79,12 @@ export function TipTapEditor({ content, onChange }: TipTapEditorProps) {
     setUploading(true)
     try {
       const supabase = createClient()
-      const ext = file.name.split('.').pop()
+      // Imagem no meio do texto: 1600px cobre qualquer tela, e evita pendurar
+      // uma foto de 8MB na página do blog.
+      const pronto = await comprimirImagem(file, { maxLado: 1600, alvoBytes: 500 * 1024 })
+      const ext = pronto.name.split('.').pop()
       const path = `posts/${Date.now()}.${ext}`
-      const { error, data } = await supabase.storage.from('post-images').upload(path, file, { upsert: true })
+      const { error, data } = await supabase.storage.from('post-images').upload(path, pronto, { upsert: true })
       if (error) { alert(`Erro ao enviar imagem: ${error.message}`); return }
       const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(data.path)
       insertImage(publicUrl)

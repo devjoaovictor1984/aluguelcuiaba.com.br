@@ -16,6 +16,7 @@ import {
   ChevronDown, Home, Building2, Layers, Briefcase, MapPin,
   DollarSign, Droplets, Zap, Flame, Package, SplitSquareHorizontal, Lock, Star,
 } from 'lucide-react'
+import { comprimirImagem as comprimirFoto, PERFIL_FOTO_ANUNCIO } from '@/lib/imagens/comprimir'
 
 function mascaraTelefone(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11)
@@ -33,23 +34,6 @@ function normalizarNome(s: string): string {
 }
 
 const MAX_FOTOS = 20
-
-async function comprimirImagem(file: File, maxWidth = 1200, qualidade = 0.82): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      let { width, height } = img
-      if (width > maxWidth) { height = Math.round(height * maxWidth / width); width = maxWidth }
-      const canvas = document.createElement('canvas')
-      canvas.width = width; canvas.height = height
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-      canvas.toBlob(b => b ? resolve(b) : reject(new Error('Falha ao comprimir')), 'image/jpeg', qualidade)
-      URL.revokeObjectURL(url)
-    }
-    img.onerror = reject; img.src = url
-  })
-}
 
 // ─── UI helpers ──────────────────────────────────────────────────────────────
 
@@ -339,7 +323,7 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
     for (let i = 0; i < Math.min(files.length, disponiveis); i++) {
       const file = files[i]
       if (!file.type.startsWith('image/')) continue
-      const blob = await comprimirImagem(file)
+      const blob = await comprimirFoto(file, PERFIL_FOTO_ANUNCIO)
       novas.push({ file, preview: URL.createObjectURL(blob), blob })
     }
     setFotos(prev => [...prev, ...novas])
@@ -412,7 +396,7 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
       if (fotos.length > 0) {
         for (let i = 0; i < fotos.length; i++) {
           setProgresso(`Enviando fotos ${i + 1}/${fotos.length}...`)
-          const blob = fotos[i].blob ?? await comprimirImagem(fotos[i].file)
+          const blob = fotos[i].blob ?? await comprimirFoto(fotos[i].file, PERFIL_FOTO_ANUNCIO)
           const path = `${userId}/${imovel.id}/${i + 1}.jpg`
           const { error: uploadError } = await supabase.storage.from('fotos-imoveis').upload(path, blob, { contentType: 'image/jpeg', upsert: true, cacheControl: '31536000' })
           if (uploadError) throw new Error(`Erro ao enviar foto ${i + 1}: ${uploadError.message}`)

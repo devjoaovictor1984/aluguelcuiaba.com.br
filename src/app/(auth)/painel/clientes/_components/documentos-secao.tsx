@@ -10,6 +10,7 @@ import {
   uploadDocumentoPessoa, removerDocumentoPessoa, gerarUrlDocumento,
   type TipoDocumento,
 } from '../actions-documentos'
+import { comprimirImagem, PERFIL_DOCUMENTO } from '@/lib/imagens/comprimir'
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
 
@@ -208,14 +209,16 @@ function ModalUpload({
     if (!arquivo) { setErro('Selecione um arquivo.'); return }
     if (arquivo.size > 10 * 1024 * 1024) { setErro('Arquivo maior que 10MB.'); return }
 
-    const fd = new FormData()
-    fd.set('pessoa_id', pessoaId)
-    fd.set('tipo', tipo)
-    fd.set('file', arquivo)
-    if (validade) fd.set('validade', validade)
-    if (observacao) fd.set('observacao', observacao)
-
     startTransition(async () => {
+      const fd = new FormData()
+      fd.set('pessoa_id', pessoaId)
+      fd.set('tipo', tipo)
+      // Foto de documento vem do celular com 4 a 12MB e o POST não passa: o
+      // limite de corpo da Vercel é 4,5MB por chamada. PDF sobe como veio.
+      fd.set('file', await comprimirImagem(arquivo, PERFIL_DOCUMENTO))
+      if (validade) fd.set('validade', validade)
+      if (observacao) fd.set('observacao', observacao)
+
       const r = await uploadDocumentoPessoa(fd)
       if (r.error) { setErro(r.error); return }
       onSucesso()

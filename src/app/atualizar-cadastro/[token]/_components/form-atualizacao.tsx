@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import { Upload, Loader2, Check, AlertCircle, FileText } from 'lucide-react'
-import { comprimirImagem, formatarTamanho } from '@/lib/imagens/comprimir'
+import { comprimirImagem, formatarTamanho, PERFIL_DOCUMENTO } from '@/lib/imagens/comprimir'
 import { submitAtualizacaoCadastro } from '../actions'
 
 export interface CampoExistente {
@@ -46,7 +46,7 @@ export function FormAtualizacao({ token, nomePessoa, campos, documentos }: Props
     if (!f) { setArquivos(s => ({ ...s, [chave]: null })); return }
     setPreparando(chave)
     try {
-      const pronto = await comprimirImagem(f)
+      const pronto = await comprimirImagem(f, PERFIL_DOCUMENTO)
       setArquivos(s => ({ ...s, [chave]: pronto }))
     } finally {
       setPreparando(null)

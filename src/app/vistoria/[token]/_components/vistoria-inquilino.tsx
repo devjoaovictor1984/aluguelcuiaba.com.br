@@ -11,6 +11,7 @@ import {
   inquilinoObservacaoItem, inquilinoUploadFoto, inquilinoAssinar, inquilinoRecusar,
   inquilinoAdicionarProblema, inquilinoContestarQuantidades,
 } from '../actions'
+import { comprimirImagem, PERFIL_FOTO_VISTORIA } from '@/lib/imagens/comprimir'
 
 export interface ItemPub {
   id: string
@@ -91,10 +92,12 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
 
   const onFoto = (item: ItemPub, file: File) => {
     if (previewMode) { avisoPreview(); return }
-    const fd = new FormData()
-    fd.set('vistoria_item_id', item.id)
-    fd.set('file', file)
     startTransition(async () => {
+      const fd = new FormData()
+      fd.set('vistoria_item_id', item.id)
+      // Foto de celular chega com 4 a 12MB e o POST não passa: o limite de
+      // corpo da Vercel é 4,5MB por chamada. Reduz antes de subir.
+      fd.set('file', await comprimirImagem(file, PERFIL_FOTO_VISTORIA))
       const r = await inquilinoUploadFoto(token, fd)
       if (r.error || !r.url) { alert(r.error ?? 'Falha ao subir foto.'); return }
       setFotos(curr => [...curr, { id: r.id!, vistoria_item_id: item.id, url: r.url!, origem: 'inquilino', legenda: null }])
@@ -173,7 +176,7 @@ export function VistoriaInquilino({ token, observacoesGerais, qtdChaves, qtdCont
       if (foto) {
         const fd = new FormData()
         fd.set('vistoria_item_id', novoItem.id)
-        fd.set('file', foto)
+        fd.set('file', await comprimirImagem(foto, PERFIL_FOTO_VISTORIA))
         const rFoto = await inquilinoUploadFoto(token, fd)
         if (!rFoto.error && rFoto.url && rFoto.id) {
           setFotos(curr => [...curr, {

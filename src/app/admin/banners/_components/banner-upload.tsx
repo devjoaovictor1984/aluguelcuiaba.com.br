@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Upload, Loader2, Link as LinkIcon, X, ImagePlus } from 'lucide-react'
+import { comprimirImagem } from '@/lib/imagens/comprimir'
 import { adicionarBanner } from '../actions'
 
 const inputCls = "w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900 placeholder:text-gray-400"
@@ -21,11 +22,14 @@ export function BannerUpload() {
     setErro('')
     setUploading(true)
     const supabase = createClient()
-    const ext = file.name.split('.').pop()
+    // Banner é lateral e nunca passa de uns 400px na tela. 1400px já sobra,
+    // e o que vinha do Canva costumava chegar com vários MB.
+    const pronto = await comprimirImagem(file, { maxLado: 1400, alvoBytes: 400 * 1024 })
+    const ext = pronto.name.split('.').pop()
     const path = `banners/${Date.now()}.${ext}`
     const { error, data } = await supabase.storage
       .from('site-assets')
-      .upload(path, file, { upsert: false, cacheControl: '86400' })
+      .upload(path, pronto, { upsert: false, cacheControl: '86400' })
     setUploading(false)
     if (error) { setErro(`Erro no upload: ${error.message}`); return }
     const { data: { publicUrl } } = supabase.storage.from('site-assets').getPublicUrl(data.path)

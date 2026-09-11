@@ -10,6 +10,7 @@ import {
   uploadArquivoRecibo, removerArquivoRecibo, salvarConfigRecibo,
   type ArquivoRecibo,
 } from '../../actions-recibo'
+import { comprimirImagem } from '@/lib/imagens/comprimir'
 
 interface Props {
   perfilNome: string | null
@@ -171,7 +172,9 @@ function UploadBox({
 
     const fd = new FormData()
     fd.set('tipo', tipo)
-    fd.set('file', file)
+    // Logo e assinatura entram no recibo em poucos centímetros: 1000px é
+    // mais do que o PDF usa, e evita subir uma foto de 8MB.
+    fd.set('file', await comprimirImagem(file, { maxLado: 1000, alvoBytes: 400 * 1024 }))
     const r = await uploadArquivoRecibo(fd)
     setEnviando(false)
     if (r.error) { setErro(r.error); return }

@@ -23,6 +23,7 @@ import {
   enviarVistoria, revogarEnvioVistoria, excluirVistoria,
   renomearComodoVistoria, removerComodoVistoria, reordenarComodosVistoria,
 } from '../../actions'
+import { comprimirImagem, PERFIL_FOTO_VISTORIA } from '@/lib/imagens/comprimir'
 
 export interface ItemRow {
   id: string
@@ -494,7 +495,9 @@ function FotosGerais({ vistoriaId, fotos, editavel }: {
       for (const file of lista) {
         const fd = new FormData()
         fd.set('vistoria_id', vistoriaId)
-        fd.set('file', file)
+        // Foto de celular chega com 4 a 12MB; reduz aqui, no navegador, ou o
+        // POST estoura o limite de corpo da Vercel (4,5MB por chamada).
+        fd.set('file', await comprimirImagem(file, PERFIL_FOTO_VISTORIA))
         const r = await uploadFotoVistoria(fd)
         if (r.error) { alert(`Foto ${i + 1}: ${r.error}`); break }
         i += 1
@@ -607,7 +610,9 @@ function ComodoCard({ comodo, itens, fotos, fotosComodo, vistoriaId, editavel }:
         const fd = new FormData()
         fd.set('vistoria_id', vistoriaId)
         fd.set('comodo', comodo)
-        fd.set('file', file)
+        // Foto de celular chega com 4 a 12MB; reduz aqui, no navegador, ou o
+        // POST estoura o limite de corpo da Vercel (4,5MB por chamada).
+        fd.set('file', await comprimirImagem(file, PERFIL_FOTO_VISTORIA))
         const r = await uploadFotoVistoria(fd)
         if (r.error) { alert(`Foto ${i + 1}: ${r.error}`); break }
         i += 1
@@ -759,7 +764,9 @@ function ItemRow({ item, fotos, vistoriaId, editavel }: {
         const fd = new FormData()
         fd.set('vistoria_id', vistoriaId)
         fd.set('vistoria_item_id', item.id)
-        fd.set('file', file)
+        // Foto de celular chega com 4 a 12MB; reduz aqui, no navegador, ou o
+        // POST estoura o limite de corpo da Vercel (4,5MB por chamada).
+        fd.set('file', await comprimirImagem(file, PERFIL_FOTO_VISTORIA))
         const r = await uploadFotoVistoria(fd)
         if (r.error) { alert(`Foto ${i + 1}: ${r.error}`); break }
         i += 1

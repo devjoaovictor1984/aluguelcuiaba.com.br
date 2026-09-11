@@ -4,6 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Loader2, Eye, EyeOff, Save, Upload, X } from 'lucide-react'
+import { comprimirImagem } from '@/lib/imagens/comprimir'
 import { TipTapEditor } from './tiptap-editor'
 import { TagsInput } from './tags-input'
 
@@ -66,9 +67,12 @@ export function EditorPost({ post, categorias }: { post?: Post; categorias?: Cat
   const uploadCapa = async (file: File) => {
     setUploadandoCapa(true)
     const supabase = createClient()
-    const ext = file.name.split('.').pop()
+    // Capa de post não precisa de mais que 1600px, e foto de celular
+    // colocaria 8MB no caminho crítico de quem abre o blog.
+    const pronto = await comprimirImagem(file, { maxLado: 1600, alvoBytes: 500 * 1024 })
+    const ext = pronto.name.split('.').pop()
     const path = `capas/${Date.now()}.${ext}`
-    const { error, data } = await supabase.storage.from('post-images').upload(path, file, { upsert: true })
+    const { error, data } = await supabase.storage.from('post-images').upload(path, pronto, { upsert: true })
     setUploadandoCapa(false)
     if (error) { setErro(`Erro ao enviar capa: ${error.message}`); return }
     const { data: { publicUrl } } = supabase.storage.from('post-images').getPublicUrl(data.path)

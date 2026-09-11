@@ -16,25 +16,9 @@ import {
   ChevronDown, Home, Building2, Layers, Briefcase, MapPin,
   DollarSign, Droplets, Zap, Flame, Package, SplitSquareHorizontal, Lock, Star,
 } from 'lucide-react'
+import { comprimirImagem as comprimirFoto, PERFIL_FOTO_ANUNCIO } from '@/lib/imagens/comprimir'
 
 const MAX_FOTOS = 20
-
-async function comprimirImagem(file: File, maxWidth = 1200, qualidade = 0.82): Promise<Blob> {
-  return new Promise((resolve, reject) => {
-    const img = new window.Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      let { width, height } = img
-      if (width > maxWidth) { height = Math.round(height * maxWidth / width); width = maxWidth }
-      const canvas = document.createElement('canvas')
-      canvas.width = width; canvas.height = height
-      canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
-      canvas.toBlob(b => b ? resolve(b) : reject(), 'image/jpeg', qualidade)
-      URL.revokeObjectURL(url)
-    }
-    img.onerror = reject; img.src = url
-  })
-}
 
 function mascaraTelefone(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11)
@@ -266,7 +250,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
     for (let i = 0; i < Math.min(files.length, disponiveis); i++) {
       const file = files[i]
       if (!file.type.startsWith('image/')) continue
-      const blob = await comprimirImagem(file)
+      const blob = await comprimirFoto(file, PERFIL_FOTO_ANUNCIO)
       novas.push({ file, preview: URL.createObjectURL(blob), blob })
     }
     setFotosNovas(prev => [...prev, ...novas])
@@ -375,7 +359,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
       if (fotosNovas.length > 0) {
         for (let i = 0; i < fotosNovas.length; i++) {
           setProgresso(`Enviando fotos ${i + 1}/${fotosNovas.length}...`)
-          const blob = fotosNovas[i].blob ?? await comprimirImagem(fotosNovas[i].file)
+          const blob = fotosNovas[i].blob ?? await comprimirFoto(fotosNovas[i].file, PERFIL_FOTO_ANUNCIO)
           const posicao = posDaNova.get(i) ?? pos + i
           const path = `${userId}/${imovel.id}/${Date.now()}-${i + 1}.jpg`
           const { error: uploadErr } = await supabase.storage.from('fotos-imoveis').upload(path, blob, { contentType: 'image/jpeg', upsert: false, cacheControl: '31536000' })
