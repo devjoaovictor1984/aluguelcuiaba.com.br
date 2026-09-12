@@ -25,7 +25,12 @@ interface ContratoOpcao {
   dataTermino: string | null
   imovelId: string | null
   endereco: { cep: string; endereco: string; numero: string; complemento: string; bairro: string; cidade: string; uf: string }
-  inquilino: { id: string; nome: string; cpfCnpj: string; email: string; telefone: string; dataNascimento: string } | null
+  inquilino: {
+    id: string; nome: string; cpfCnpj: string; email: string; telefone: string
+    dataNascimento: string
+    /** Vem do campo Gênero do cadastro do cliente. 'N' chega como vazio. */
+    sexo: '' | 'M' | 'F'
+  } | null
   proprietario: { id: string; nome: string; cpfCnpj: string } | null
 }
 
@@ -308,6 +313,9 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
       setInqEmail(c.inquilino.email)
       setInqFone(c.inquilino.telefone ? maskTelefone(c.inquilino.telefone) : '')
       setInqNasc(c.inquilino.dataNascimento)
+      // Puxa o gênero do cadastro: quem já preencheu lá não digita de novo,
+      // e não descobre que faltava só na hora de contratar.
+      if (c.inquilino.sexo) setInqSexo(c.inquilino.sexo)
     }
     if (c.proprietario) {
       setPropNome(c.proprietario.nome)

@@ -132,6 +132,12 @@ export default async function ApoliceIncendioPage({ params }: Props) {
           erro: a.erro,
           cancelamentoMsg: a.cancelamento_msg,
           contratadaEm: a.contratada_em,
+          // A contratação exige o sexo e o cálculo não. Quando falta, a tela
+          // pede ali mesmo em vez de mandar refazer a cotação inteira.
+          sexoInquilino: ((a.inquilino as { sexo?: string } | null)?.sexo === 'M'
+            || (a.inquilino as { sexo?: string } | null)?.sexo === 'F')
+            ? (a.inquilino as { sexo: 'M' | 'F' }).sexo
+            : null,
         }}
         documentos={documentos}
       />

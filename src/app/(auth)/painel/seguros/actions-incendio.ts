@@ -187,6 +187,15 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
    * ainda estava em homologação.
    */
   confirmaEmissaoReal?: boolean
+  /**
+   * Sexo do inquilino, quando a cotação foi feita sem ele.
+   *
+   * A contratação exige o campo e o cálculo não, então dava pra cotar e
+   * bater na parede depois — com a única saída sendo refazer a cotação
+   * inteira por causa de um dado que nem mexe no preço. Agora a tela pede
+   * na hora, e o valor é gravado na cotação.
+   */
+  sexoInquilino?: 'M' | 'F'
 }) {
   const acesso = await exigirAcessoSeguros()
   const barrado = bloqueioDeConvidado(acesso)
@@ -214,7 +223,18 @@ export async function contratarApoliceIncendio(apoliceId: string, escolha: {
 
   // A contratação exige o que o cálculo dispensa: endereço completo.
   if (!base.endereco?.endereco?.trim()) return { error: 'Informe o endereço completo do imóvel antes de contratar.' }
-  if (!base.inquilino?.sexo) return { error: 'Informe o sexo do inquilino antes de contratar.' }
+  if (!base.inquilino?.sexo) {
+    if (escolha.sexoInquilino !== 'M' && escolha.sexoInquilino !== 'F') {
+      return { error: 'Informe o sexo do inquilino antes de contratar.' }
+    }
+    base.inquilino = { ...base.inquilino, sexo: escolha.sexoInquilino }
+    // Grava na cotação: a apólice fica com o dado que foi emitido, e
+    // recarregar a página não pede de novo.
+    await admin.from('seguro_incendio_apolices').update({
+      inquilino: base.inquilino as unknown as Record<string, unknown>,
+      payload: base as unknown as Record<string, unknown>,
+    }).eq('id', apoliceId)
+  }
 
   const entrada: ContratacaoIncendioInput = {
     ...base,

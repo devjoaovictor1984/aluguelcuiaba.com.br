@@ -43,6 +43,8 @@ interface ApoliceView {
   erro: string | null
   cancelamentoMsg: string | null
   contratadaEm: string | null
+  /** null = a cotação saiu sem ele, e a contratação vai precisar. */
+  sexoInquilino: 'M' | 'F' | null
 }
 
 interface DocumentoView {
@@ -86,6 +88,9 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente, convidado = 
   /** Toda ação começa limpando o que sobrou da anterior. */
   const limpar = () => { setErro(''); setMsg(''); setAviso('') }
   const [escolha, setEscolha] = useState<{ codigo: string; descricao: string; qtd: number; valor: number } | null>(null)
+  // Só aparece quando a cotação saiu sem o sexo do inquilino, que o cálculo
+  // dispensa e a contratação exige.
+  const [sexo, setSexo] = useState<'' | 'M' | 'F'>(a.sexoInquilino ?? '')
 
   /**
    * Em produção o botão de contratar emite apólice real, com cobrança ao
@@ -117,6 +122,7 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente, convidado = 
   const contratar = () => {
     limpar()
     if (!escolha) { setErro('Escolha a forma de pagamento.'); return }
+    if (!sexo) { setErro('Informe o sexo do inquilino: a seguradora exige na contratação.'); return }
     startTransition(async () => {
       const r = await contratarApoliceIncendio(a.id, {
         formaPagtoCodigo: escolha.codigo,
@@ -124,6 +130,7 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente, convidado = 
         qtdParcelas: escolha.qtd,
         valorParcela: escolha.valor,
         confirmaEmissaoReal: cienteProducao,
+        sexoInquilino: sexo,
       })
       if ('error' in r && r.error) { setErro(r.error); return }
       setMsg('ok' in r ? `Contratado. Apólice ${r.codigoSeguro}.` : 'Contratado.')
@@ -371,6 +378,29 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente, convidado = 
             )
           })}
 
+          {!a.sexoInquilino && (
+            <div className="rounded-xl bg-amber-50 ring-1 ring-amber-200 px-3 py-2.5 space-y-1.5">
+              <p className="text-[11px] text-amber-900 leading-snug">
+                <strong>Falta o sexo do inquilino.</strong> A seguradora exige
+                na contratação e dispensa no cálculo, por isso ele não apareceu
+                antes. Não muda o preço: escolha aqui e siga.
+              </p>
+              <select
+                value={sexo}
+                onChange={e => setSexo(e.target.value as '' | 'M' | 'F')}
+                className="w-full rounded-lg border border-amber-300 bg-white px-2.5 py-1.5 text-sm text-gray-900"
+              >
+                <option value="">Selecione</option>
+                <option value="M">Masculino</option>
+                <option value="F">Feminino</option>
+              </select>
+              <p className="text-[10px] text-amber-700">
+                Preenchendo o campo Gênero na ficha do cliente, ele vem sozinho
+                nas próximas.
+              </p>
+            </div>
+          )}
+
           {derivado && (
             <p className="text-[11px] text-gray-500 flex items-start gap-1.5">
               <Info size={11} className="mt-0.5 shrink-0 text-gray-400" />
@@ -381,6 +411,19 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente, convidado = 
               contratação é feita pelo canal da corretora.
             </p>
           )}
+
+          <p className="text-[11px] text-gray-500">
+            Precisa corrigir algum dado ou valor antes de emitir?{' '}
+            <Link
+              href={`/painel/seguros/incendio/nova?base=${a.id}`}
+              className="font-semibold text-orange-700 underline"
+            >
+              Editar e recalcular
+            </Link>
+            . Abre esta mesma cotação preenchida; o preço é recalculado com a
+            seguradora, porque o prêmio guardado aqui é a resposta dela para
+            estes limites.
+          </p>
 
           <p className="text-[11px] text-gray-500 flex items-start gap-1.5">
             <Info size={11} className="mt-0.5 shrink-0 text-gray-400" />
@@ -513,7 +556,8 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente, convidado = 
           href={`/painel/seguros/incendio/nova?base=${a.id}`}
           className="flex items-center gap-1.5 text-sm text-gray-600 active:text-gray-900 px-3 py-2 rounded-lg ml-auto"
         >
-          <Copy size={14} /> Refazer com outros valores
+          <Copy size={14} />
+          {contratada ? 'Refazer com outros valores' : 'Editar e recalcular'}
         </Link>
 
         {!contratada && (

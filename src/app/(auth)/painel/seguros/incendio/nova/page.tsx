@@ -82,7 +82,7 @@ export default async function NovaIncendioPage({ searchParams }: Props) {
       id, codigo, valor_aluguel, data_inicio, data_termino,
       imovel_id,
       imovel:imoveis(titulo, endereco_completo, endereco_resumido, endereco_numero, endereco_complemento, endereco_cep, bairro:bairros(nome)),
-      inquilino:pessoas!inquilino_id(id, nome, cpf_cnpj, email, telefone, whatsapp, data_nascimento),
+      inquilino:pessoas!inquilino_id(id, nome, cpf_cnpj, email, telefone, whatsapp, data_nascimento, genero),
       proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj)
     `)
     .eq('user_id', acesso.userId)
@@ -107,6 +107,7 @@ export default async function NovaIncendioPage({ searchParams }: Props) {
     const inq = um<{
       id: string; nome: string; cpf_cnpj: string | null; email: string | null
       telefone: string | null; whatsapp: string | null; data_nascimento: string | null
+      genero: string | null
     }>(c.inquilino)
     const prop = um<{ id: string; nome: string; cpf_cnpj: string | null }>(c.proprietario)
 
@@ -134,6 +135,9 @@ export default async function NovaIncendioPage({ searchParams }: Props) {
         email: inq.email ?? '',
         telefone: inq.whatsapp ?? inq.telefone ?? '',
         dataNascimento: inq.data_nascimento ?? '',
+        // A seguradora só entende M ou F. O 'N' do cadastro (não informado,
+        // ou PJ) fica em branco pra ser escolhido na cotação.
+        sexo: (inq.genero === 'M' || inq.genero === 'F' ? inq.genero : '') as '' | 'M' | 'F',
       } : null,
       proprietario: prop ? {
         id: prop.id,
