@@ -11,6 +11,71 @@ Fato sem medição não entra aqui — se está escrito, foi observado contra a 
 
 ---
 
+## 11/09/2026 — a comissão entra no preço, e o parcelamento morre ✅
+
+Segunda resposta do Leandro, e é a mais esclarecedora até agora.
+
+### As condições gerais são as mesmas ✅ *fecha um pedido*
+
+> *"Os produtos versão 1 e versão 2 da Alfa apontam para as mesmas condições
+> gerais, então não teve mudança de condições gerais. A diferença entre eles
+> consta nas apólices respectivas. Nas condições gerais não mencionam valor
+> de franquia e nem percentual, somente na apólice. E o número de processo
+> usado também é o mesmo."*
+
+**Some um item da lista de produção.** Não existe documento novo pra pedir: o
+clausulado e o processo SUSEP valem para as duas versões, e a franquia nunca
+esteve nas condições gerais — ela é da apólice. Ou seja, a franquia que o
+cliente tem é a que sai no `txtfranq` da cotação, que é o que já exibimos.
+
+### A comissão entra no preço ⚠️ *muda como lemos a divergência*
+
+> *"A comissão impacta diretamente no preço do seguro. A API hoje pega a
+> comissão cadastrada para aquela imobiliária. Como o seguro é muito barato
+> ele não mexe pela API, apenas pelo portal deles. Então no nosso sempre com
+> a comissão 20."*
+
+Isso é maior do que parece. Até aqui tratávamos os 20% como pró-labore: o
+que a imobiliária recebe. São também **um insumo do preço**, e não um campo
+que a gente escolhe — a API cota com o que estiver cadastrado no CNPJ, e
+mexer nisso é no portal da corretora.
+
+Duas consequências:
+
+- a comparação com a apólice 607987 do painel tinha **duas** variáveis, não
+  uma: v1 contra v2 **e** a comissão daquela emissão contra os 20% nossos.
+  Comparar preço entre os dois lados sem fixar a comissão não prova nada;
+- a tela parou de chamar os 20% de "estimativa". Continua sendo conta nossa
+  (a API não devolve o valor), mas é a comissão cadastrada, já embutida no
+  prêmio, e é assim que está escrito agora.
+
+### Parcelamento: a v2 vai até 4×, mas a API não devolve a parcela ✅ *virou decisão*
+
+> *"Na versão 1 sim, tinha até 6x, na versão 2 em até 4x. Mas a API não
+> devolve o valor da parcela."*
+
+Fecha a pergunta de 16/08 sobre a `listaFormasPagto` vazia, e fecha pro lado
+que não esperávamos: o teto que a gente usava (6×, da v1) estava errado, e o
+dado que faltava não vem mesmo.
+
+**Decisão: a plataforma emite à vista.** Parcelar sem o valor da parcela é
+chutar o boleto do cliente. `opcoesParcelamento` passou a devolver só "À
+vista", o `qtpar` ficou travado em 4 como rede, e a tela explica que
+parcelar é pelo canal da corretora. O código que lê a `listaFormasPagto`
+continua no lugar e volta a mandar no dia em que ela vier preenchida.
+
+### O que sobrou pra ligar
+
+Da lista de quatro, duas foram respondidas hoje. Restam:
+
+1. **como escolher a seguradora** — o header sem efeito desde 30/08;
+2. **o campo "Tabela" (1 a 20)** — se mexe em preço ou comissão.
+
+E a corretora ofereceu o teste de verdade: emitir uma apólice real, válida,
+pela plataforma em produção, que eles cancelam do lado deles depois.
+
+---
+
 ## 10/09/2026 — a resposta da corretora: são dois produtos ✅
 
 Resposta pelo WhatsApp, do time da Maximiza, sobre a divergência de preço e

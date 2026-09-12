@@ -165,7 +165,7 @@ export function PainelFaturamento({ itens, competencia, sincronizadoEm }: Props)
             </p>
             <p className="text-xl font-black text-emerald-900 tabular-nums">{formatarBRL(proLabore)}</p>
             <p className="text-[11px] text-emerald-800">
-              estimado a {Math.round(PRO_LABORE_PADRAO * 100)}%
+              {Math.round(PRO_LABORE_PADRAO * 100)}% do prêmio, comissão cadastrada
             </p>
           </div>
         </div>

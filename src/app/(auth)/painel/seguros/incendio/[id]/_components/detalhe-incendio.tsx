@@ -14,6 +14,7 @@ import {
 } from '@/lib/seguros/incendio/tipos'
 import {
   estimarProLabore, opcoesParcelamento, PARCELA_MINIMA, PRO_LABORE_PADRAO,
+  MAX_PARCELAS_ALFA_V2,
 } from '@/lib/seguros/incendio/sugestoes'
 import {
   baixarDocumentosIncendio, cancelarApoliceIncendio,
@@ -238,8 +239,9 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente, convidado = 
             {formatarBRL(proLabore)}
           </p>
           <p className="text-[11px] text-emerald-800 leading-snug">
-            Estimativa a {Math.round(PRO_LABORE_PADRAO * 100)}% do prêmio, como
-            aparece no painel da corretora. Confirme a tabela vigente.
+            {Math.round(PRO_LABORE_PADRAO * 100)}% do prêmio, que é a comissão
+            cadastrada para a sua imobiliária na corretora e já vem embutida
+            no preço. A API não devolve o valor: este aqui é a conta.
           </p>
         </section>
       )}
@@ -372,10 +374,11 @@ export function DetalheIncendio({ apolice: a, documentos, ambiente, convidado = 
           {derivado && (
             <p className="text-[11px] text-gray-500 flex items-start gap-1.5">
               <Info size={11} className="mt-0.5 shrink-0 text-gray-400" />
-              A seguradora não devolveu as formas de pagamento nesta cotação.
-              O parcelamento acima é calculado sobre o prêmio, respeitando a
-              parcela mínima de {formatarBRL(PARCELA_MINIMA)} — a mesma conta
-              que o painel da corretora faz.
+              A seguradora não devolve as formas de pagamento nesta cotação, e
+              também não devolve o valor da parcela. Sem esse dado, parcelar
+              seria chutar o boleto do cliente: a plataforma emite à vista.
+              Para parcelar (a Alfa v2 aceita até {MAX_PARCELAS_ALFA_V2}×), a
+              contratação é feita pelo canal da corretora.
             </p>
           )}
 

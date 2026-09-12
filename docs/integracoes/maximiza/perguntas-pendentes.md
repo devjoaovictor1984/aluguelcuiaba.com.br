@@ -511,13 +511,23 @@ seguradora** e não se misturam — `4070/1002` (Apartamento habitual, Alfa) é
 inválido na Porto, que usa `1/6` (APARTAMENTOS). Já tratávamos assim; fica
 registrado porque não está escrito em lugar nenhum.
 
-**7.2** No painel, a coluna "Pró-labore %/R$" mostra **20%** do prêmio nas
-apólices de incêndio. Esse percentual é fixo, varia por seguradora, ou é
-negociado por imobiliária? A API não devolve esse valor — hoje exibimos como
-estimativa.
+**7.2** ✅ **Respondido em 11/09/2026, e a resposta é maior que a pergunta.**
+No painel, a coluna "Pró-labore %/R$" mostra **20%** do prêmio nas apólices de
+incêndio. Vocês esclareceram que **a comissão entra no preço do seguro**: a API
+cota com a comissão cadastrada naquele CNPJ (20% na IMOBILIATTO) e não aceita
+outra pela API — mexer nela é pelo portal de vocês. Seguimos exibindo os 20%
+como conta nossa, já que a API não devolve o valor, mas rotulados como comissão
+cadastrada e não mais como estimativa.
 
-**7.3** A parcela mínima é **R$ 60,00**, como consta no painel? E o teto de 6
-parcelas do campo `qtpar` vale para as duas seguradoras?
+*Fica em aberto para a fase multi-imobiliária:* como pedimos o cadastro de uma
+comissão diferente para uma imobiliária nova que entre pela plataforma?
+
+**7.3** ✅ **Respondido em 11/09/2026.** O teto de 6 era da **v1**; a **v2 vai
+até 4×**, e a **API não devolve o valor da parcela**. Decidimos emitir **à
+vista** pela plataforma: parcelar sem esse dado é chutar o boleto do cliente.
+Quem quiser parcelar fecha pelo canal de vocês. O `qtpar` ficou travado em 4 do
+nosso lado, como rede. Se a `listaFormasPagto` passar a vir preenchida, ela
+volta a ter preferência automaticamente.
 
 **7.4** O painel diferencia "Seguros com Adm. Imobiliária" de "Seguros SEM
 Administração — Estipulante Particular". Como essa distinção é feita pela API?
@@ -531,6 +541,12 @@ comissão?
 
 **7.7** Renovação: apólice anual vencendo — existe endpoint de renovação, ou o
 caminho é contratar uma nova?
+
+**7.8 Condições gerais e processo SUSEP** ✅ *respondido em 11/09/2026*
+As versões 1 e 2 da Alfa apontam para as **mesmas condições gerais** e usam o
+**mesmo número de processo**. A franquia não consta no clausulado — só na
+apólice. Logo, a franquia válida é a que a API devolve em `txtfranq`, que é a
+que exibimos.
 
 ---
 

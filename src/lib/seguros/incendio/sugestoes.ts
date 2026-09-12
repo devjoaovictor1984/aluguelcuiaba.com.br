@@ -86,12 +86,21 @@ export function sugerirOpcional(
 export const PARCELA_MINIMA = 60
 
 /**
- * Quantas parcelas cabem sem furar o mínimo, respeitando o teto de 6 da
- * API. Evita o corretor escolher 6× e a seguradora recusar.
+ * Teto de parcelas da Alfa **v2**, dito pela corretora em 11/09/2026: a v1
+ * ia até 6×, a v2 vai até 4×. Fica registrado porque é o limite que o
+ * `qtpar` do `/contratar` aceita — mas hoje a plataforma emite à vista, ver
+ * `opcoesParcelamento`.
+ */
+export const MAX_PARCELAS_ALFA_V2 = 4
+
+/**
+ * Quantas parcelas caberiam sem furar o mínimo, dentro do teto da v2.
+ * Não é usada na tela hoje (a plataforma emite à vista); serve de
+ * referência pra quando o parcelamento voltar.
  */
 export function parcelasPossiveis(premio: number): number {
   if (!(premio > 0)) return 1
-  return Math.max(1, Math.min(6, Math.floor(premio / PARCELA_MINIMA)))
+  return Math.max(1, Math.min(MAX_PARCELAS_ALFA_V2, Math.floor(premio / PARCELA_MINIMA)))
 }
 
 export interface OpcaoParcelamento {
@@ -101,42 +110,45 @@ export interface OpcaoParcelamento {
 }
 
 /**
- * O parcelamento, quando a API não manda nenhum.
+ * O pagamento, quando a API não manda nenhuma opção: **à vista, só**.
  *
  * Medido em 16/08/2026: o `/calculo` da Alfa devolve `listaFormasPagto`
  * VAZIA — nas duas vigências, com e sem assistência. Como a nossa tela só
  * oferecia o que vinha nessa lista, a cotação calculava e não dava pra
  * contratar: não havia o que escolher.
  *
- * O painel da corretora não depende dela. Ele deriva do prêmio e da
- * parcela mínima: prêmio de R$ 210,83 vira 1× 210,83, 2× 105,41 e
- * 3× 70,28 — para em 3 porque a quarta cairia abaixo de R$ 60. É a mesma
- * conta daqui.
+ * A saída era derivar o parcelamento do prêmio, com a mesma conta do painel
+ * da corretora. Em 11/09/2026 eles esclareceram por que a conta não fecha:
+ * a v1 ia até 6×, a **v2 vai até 4×**, e a API **não devolve o valor da
+ * parcela**. Parcelar sem esse dado é chutar o boleto do cliente.
+ *
+ * Então a plataforma emite à vista e ponto. Quando a API passar a devolver
+ * as parcelas, a lista dela volta a mandar — o código que lê
+ * `listaFormasPagto` continua no lugar e tem preferência.
  *
  * A escolha derivada vai sem `cod_forma_pagto`, campo que o `/contratar`
- * trata como opcional. Se a corretora confirmar quais códigos valem, a
- * lista da API volta a ter preferência.
+ * trata como opcional.
  */
 export function opcoesParcelamento(premio: number): OpcaoParcelamento[] {
   if (!(premio > 0)) return []
-  const maximo = parcelasPossiveis(premio)
-  return Array.from({ length: maximo }, (_, i) => {
-    const n = i + 1
-    return {
-      descricao: n === 1 ? 'À vista' : `${n}× sem juros`,
-      qtdParcelas: n,
-      // Centavos para baixo: a soma das parcelas nunca pode passar do prêmio.
-      valorParcela: Math.floor((premio / n) * 100) / 100,
-    }
-  })
+  return [{
+    descricao: 'À vista',
+    qtdParcelas: 1,
+    valorParcela: Math.round(premio * 100) / 100,
+  }]
 }
 
 /**
- * Percentual de pró-labore padrão sobre o prêmio.
+ * Percentual de comissão (pró-labore) da imobiliária sobre o prêmio.
  *
- * Lido do painel da corretora, onde a coluna "Pró-labore %/R$" mostra 20%
- * nas apólices de incêndio. É ESTIMATIVA: a API não devolve esse valor, e
- * a tela sempre rotula como tal.
+ * Confirmado pela corretora em 11/09/2026, e é mais do que um número de
+ * coluna: **a comissão entra no preço do seguro**. A API cota com a
+ * comissão cadastrada para aquele CNPJ e não aceita outra — mexer nela só
+ * no portal deles. Para a IMOBILIATTO está cadastrada em 20%, então toda
+ * cotação nossa já sai com esses 20% embutidos no prêmio.
+ *
+ * A API continua não devolvendo o valor, então o que a tela mostra é a
+ * conta de 20% sobre o prêmio, não um campo lido da resposta.
  */
 export const PRO_LABORE_PADRAO = 0.20
 

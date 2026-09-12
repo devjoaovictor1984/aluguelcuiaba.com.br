@@ -1,5 +1,6 @@
 import 'server-only'
 import { dataPtBr, separarDdd } from '../maximiza/mapper'
+import { MAX_PARCELAS_ALFA_V2 } from './sugestoes'
 import type {
   BoletoParcela, CalculoIncendioInput, ContratacaoIncendioInput,
   DocumentosProposta, Faturamento, ItemFatura, Ocupacao, PacoteAssistencia,
@@ -107,7 +108,9 @@ export function montarContratacaoIncendio(
   return {
     ...corpoBase(i, ambiente),
     sexo_inquilino: i.inquilino.sexo ?? 'M',
-    qtpar: Math.max(1, Math.min(6, i.qtdParcelas)),
+    // Teto da Alfa v2 é 4 (a v1 ia até 6), dito pela corretora em 11/09/2026.
+    // Hoje a tela só oferece à vista, mas o limite fica aqui de rede.
+    qtpar: Math.max(1, Math.min(MAX_PARCELAS_ALFA_V2, i.qtdParcelas)),
     ...(i.formaPagtoCodigo ? { cod_forma_pagto: i.formaPagtoCodigo } : {}),
     ...(i.formaPagtoDescricao ? { desc_forma_pagto: i.formaPagtoDescricao } : {}),
   }

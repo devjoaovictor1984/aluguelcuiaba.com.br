@@ -1,6 +1,6 @@
 # Seguro incêndio — o que falta pra ligar
 
-*AluguelCuiabá × Maximiza · 30/08/2026, revisto em 11/09/2026*
+*AluguelCuiabá × Maximiza · 30/08/2026, revisto em 11/09/2026 (2ª)*
 
 Este documento é só de **incêndio**. As pendências de fiança seguem em
 `perguntas-pendentes.md` e não bloqueiam nada aqui: o que restou lá —
@@ -224,21 +224,29 @@ nome na constante.
    `seguradora` parou de ter efeito e não achamos substituto. Como passamos a
    vender só Alfa (item 6), isso deixa de bloquear a escolha, mas precisamos
    da confirmação por escrito de que o preço que sai é o da Alfa v2.
-2. **Condições gerais e número do processo SUSEP da Alfa v2** — é o documento
-   que o segurado tem direito de receber, e hoje não temos.
-3. **O campo "Tabela" (1 a 20)** (item 3.1) — se ele mexe em preço ou em
+2. **O campo "Tabela" (1 a 20)** (item 3.1) — se ele mexe em preço ou em
    comissão, estamos cotando sempre no padrão sem saber.
-4. **Confirmar a parcela mínima de R$ 60,00 e o teto de 6 parcelas**
-   (item 4.1) — hoje derivamos isso por conta, porque a `listaFormasPagto`
-   volta vazia.
+3. ~~Condições gerais e processo SUSEP da v2~~ ✅ **respondido em 11/09**:
+   as duas versões apontam para as **mesmas** condições gerais e o **mesmo**
+   número de processo. A franquia não consta no clausulado, só na apólice —
+   é o `txtfranq` que já exibimos. Não há documento novo a pedir.
+4. ~~Parcela mínima e teto de parcelas~~ ✅ **respondido em 11/09**: a v1 ia
+   até 6×, a **v2 vai até 4×**, e a **API não devolve o valor da parcela**.
+   Decisão nossa: a plataforma **emite à vista**. Parcelar sem esse dado é
+   chutar o boleto do cliente; quem quiser parcelar fecha pelo canal da
+   corretora.
 5. **Cancelamento: prazo limite e estorno** do prêmio e da comissão (item 2).
+   Não impede de ligar, mas é a primeira pergunta de quem desiste.
 
 **Precisa antes de vender, não antes de emitir:**
 
 6. **Data em que a Alfa v1 é desligada**, e se o painel de vocês segue
    vendendo v1 enquanto isso. Quem tem apólice v1 renova em v2 com preço e
    franquia diferentes — o cliente precisa ser avisado antes.
-7. **O pró-labore de 20% vale igual na v2?** E varia por seguradora?
+7. ~~O pró-labore de 20% vale igual na v2?~~ ✅ **respondido em 11/09, e é
+   mais do que pró-labore**: a comissão **entra no preço**, a API cota com a
+   comissão cadastrada naquele CNPJ (20% na IMOBILIATTO) e não aceita outra —
+   mexer nela é no portal da corretora. Ver item 7 abaixo.
 8. **Contrato de parceria e tabela de comissionamento.**
 
 **Segue aberto, mas é da fiança, não do incêndio:**
@@ -248,6 +256,31 @@ nome na constante.
 10. **A fiança também é só em produção?** O cálculo de incêndio era; se valer
     igual para a fiança, dizer antes — transmitir análise em produção cria
     proposta real, e não fazemos isso por conta própria.
+
+---
+
+## 7. A comissão entra no preço (11/09/2026)
+
+> *"A comissão impacta diretamente no preço do seguro. A API hoje pega a
+> comissão cadastrada para aquela imobiliária. Como o seguro é muito barato
+> ele não mexe pela API, apenas pelo portal deles. Então no nosso sempre com
+> a comissão 20."*
+
+Muda duas coisas.
+
+**Como lemos a divergência de preço.** A comparação com a apólice 607987 do
+painel tinha duas variáveis, não uma: v1 contra v2 **e** a comissão daquela
+emissão contra os 20% da IMOBILIATTO. Comparar preço entre os dois lados sem
+fixar a comissão não prova nada — o que encerra a investigação aberta em
+08/09.
+
+**Como a tela fala.** Os 20% deixaram de ser "estimativa": são a comissão
+cadastrada, já embutida no prêmio. Continua sendo conta nossa, porque a API
+não devolve o valor, e a tela diz isso com todas as letras.
+
+Fica uma pergunta para a hora de multi-imobiliária: **como pedimos o cadastro
+de uma comissão diferente** para uma imobiliária nova que entrar pela
+plataforma? Hoje é no portal de vocês, um a um?
 
 ---
 
