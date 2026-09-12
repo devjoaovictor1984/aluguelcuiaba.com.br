@@ -165,6 +165,24 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
   const [vRespCivil, setVRespCivil] = useState(centavos(d?.valores?.respCivil))
   const [vConteudo, setVConteudo] = useState(centavos(d?.valores?.conteudo))
 
+  /**
+   * Quais coberturas adicionais estão marcadas.
+   *
+   * Antes isto era deduzido do valor: marcada = valor > 0. Funcionava nas
+   * duas que têm sugestão (responsabilidade civil e danos elétricos, que
+   * nascem preenchidas), e não funcionava em nenhuma das outras — vendaval,
+   * vazamento e conteúdo entram em branco de propósito, então a caixa
+   * marcava e desmarcava sozinha no mesmo clique. Parecia restrição da
+   * seguradora e era só o estado errado.
+   */
+  const [extras, setExtras] = useState<Record<string, boolean>>(() => ({
+    vendaval: (d?.valores?.vendaval ?? 0) > 0,
+    respCivil: (d?.valores?.respCivil ?? 0) > 0,
+    danosEletricos: (d?.valores?.danosEletricos ?? 0) > 0,
+    vazamento: (d?.valores?.vazamento ?? 0) > 0,
+    conteudo: (d?.valores?.conteudo ?? 0) > 0,
+  }))
+
   const [idsCrm, setIdsCrm] = useState<{
     imovelId: string | null; inquilinoId: string | null; proprietarioId: string | null
   }>({
@@ -351,6 +369,26 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
      * foi recusado em 17/08) e não foi medido onde fica. Barrar com um
      * número que talvez não valha ali seria trocar uma recusa por outra.
      */
+    /**
+     * Cobertura marcada sem valor não é cobertura: a API recebe zero e a
+     * apólice sai sem ela, calada. Melhor barrar aqui do que o corretor
+     * descobrir na emissão.
+     */
+    const semValor = ([
+      ['vendaval', 'Vendaval', vVendaval],
+      ['respCivil', 'Responsabilidade civil', vRespCivil],
+      ['danosEletricos', 'Danos elétricos', vDanosEletricos],
+      ['vazamento', 'Vazamento', vVazamento],
+      ['conteudo', 'Conteúdo', vConteudo],
+    ] as const).filter(([id, , v]) => extras[id] && parseMoney(v) <= 0)
+
+    if (semValor.length) {
+      return setErro(
+        `${semValor.map(([, n]) => n).join(', ')} ${semValor.length > 1 ? 'estão marcadas' : 'está marcada'} ` +
+        'sem valor. Informe o limite de cada uma ou desmarque a cobertura.',
+      )
+    }
+
     const lmi = parseMoney(vIncendio)
     const acima = ([
       ['Perda de aluguel', parseMoney(vPerdaAluguel)],
@@ -654,24 +692,28 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
           </p>
 
           {([
-            ['Vendaval, furacão, ciclone, tornado, granizo', vVendaval, setVVendaval, null],
-            ['Responsabilidade civil', vRespCivil, setVRespCivil, 'respCivil'],
-            ['Danos elétricos', vDanosEletricos, setVDanosEletricos, 'danosEletricos'],
-            ['Vazamento', vVazamento, setVVazamento, null],
+            ['vendaval', 'Vendaval, furacão, ciclone, tornado, granizo', vVendaval, setVVendaval, null],
+            ['respCivil', 'Responsabilidade civil', vRespCivil, setVRespCivil, 'respCivil'],
+            ['danosEletricos', 'Danos elétricos', vDanosEletricos, setVDanosEletricos, 'danosEletricos'],
+            ['vazamento', 'Vazamento', vVazamento, setVVazamento, null],
             ...(tipoCobertura !== 3
-              ? [['Conteúdo', vConteudo, setVConteudo, null] as const]
+              ? [['conteudo', 'Conteúdo', vConteudo, setVConteudo, null] as const]
               : []),
-          ] as const).map(([rotulo, valor, setter, chave]) => {
-            const marcada = parseMoney(valor) > 0
+          ] as const).map(([id, rotulo, valor, setter, chave]) => {
+            // Digitar um valor também marca: quem já sabe o número não
+            // precisa clicar na caixa antes.
+            const marcada = extras[id] || parseMoney(valor) > 0
+            const faltaValor = marcada && parseMoney(valor) <= 0
             return (
-              <div key={rotulo} className="flex items-center gap-2.5">
+              <div key={id} className="flex items-center gap-2.5">
                 <input
                   type="checkbox"
                   checked={marcada}
                   onChange={e => {
+                    setExtras(m => ({ ...m, [id]: e.target.checked }))
                     if (!e.target.checked) { setter(''); return }
                     const base = parseMoney(vIncendio)
-                    setter(chave && base > 0 ? cent(sugerirOpcional(chave, base)) : '')
+                    if (chave && base > 0) setter(cent(sugerirOpcional(chave, base)))
                   }}
                   className="w-4 h-4 shrink-0 accent-orange-600"
                 />
@@ -687,10 +729,13 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
                 <div className="w-36 shrink-0">
                   <input
                     value={valor}
-                    onChange={e => setter(maskMoney(e.target.value))}
-                    className={`${input} ${marcada ? '' : 'opacity-40'}`}
+                    onChange={e => {
+                      setter(maskMoney(e.target.value))
+                      if (parseMoney(e.target.value) > 0) setExtras(m => ({ ...m, [id]: true }))
+                    }}
+                    className={`${input} ${marcada ? '' : 'opacity-40'} ${faltaValor ? 'ring-2 ring-amber-400' : ''}`}
                     inputMode="numeric"
-                    placeholder="0,00"
+                    placeholder={faltaValor ? 'informe o valor' : '0,00'}
                   />
                 </div>
               </div>
@@ -700,9 +745,10 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
           <p className="text-[11px] text-gray-500 leading-snug pt-0.5">
             O painel sugere <strong>10%</strong> do valor do imóvel para
             responsabilidade civil e <strong>1%</strong> para danos elétricos.
-            Vendaval e vazamento entram em branco: não vimos o valor que eles
-            sugerem, e chutar aqui é o que nos tirou do lugar antes. Cada
-            cobertura é limitada a 30% do valor de incêndio.
+            Vendaval, vazamento e conteúdo entram em branco: não vimos o valor
+            que eles sugerem, e chutar aqui é o que nos tirou do lugar antes.
+            Marque a caixa e digite o limite. Cada cobertura é limitada a 30%
+            do valor de incêndio.
           </p>
 
           <p className="text-[11px] text-amber-800 leading-snug">
