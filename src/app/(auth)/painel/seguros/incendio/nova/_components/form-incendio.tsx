@@ -113,6 +113,19 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
   const [buscaSeguradoras, setBuscaSeguradoras] =
     useState<'carregando' | 'ok' | 'falhou'>('carregando')
   const [erroSeguradoras, setErroSeguradoras] = useState('')
+  /**
+   * O contrato que preenche a tela quando a cotação nasce da ficha dele
+   * (/nova?contrato=<id>).
+   *
+   * Antes o `contratoInicial` só deixava o contrato selecionado no seletor:
+   * quem preenche os campos é o `onChange`, e ele nunca dispara quando a
+   * escolha já vem pronta. Resultado: contrato escolhido, campos em branco,
+   * e o corretor redigitando nome, documento e sexo que já estavam no
+   * cadastro. `base` (refazer cotação) manda mais, porque ali os valores
+   * são os da cotação anterior.
+   */
+  const doContrato = base ? null : (contratos.find(c => c.id === contratoInicial) ?? null)
+
   const [seguradora, setSeguradora] = useState(d?.seguradora ?? '')
   const [ocupacoes, setOcupacoes] = useState<Ocupacao[]>([])
   const [pacotes, setPacotes] = useState<PacoteAssistencia[]>([])
@@ -131,39 +144,56 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
     base?.pacoteAssist != null ? String(base.pacoteAssist) : '',
   )
 
-  const [aluguel, setAluguel] = useState(centavos(d?.aluguel))
-  const [inicio, setInicio] = useState(d?.inicioVigencia ?? hoje())
-  const [fim, setFim] = useState(d?.fimVigencia ?? somarMeses(hoje(), 12))
+  const [aluguel, setAluguel] = useState(centavos(d?.aluguel ?? doContrato?.aluguel))
+  const [inicio, setInicio] = useState(d?.inicioVigencia ?? doContrato?.dataInicio ?? hoje())
+  const [fim, setFim] = useState(
+    d?.fimVigencia ?? somarMeses(doContrato?.dataInicio || hoje(), 12),
+  )
 
-  const [cep, setCep] = useState(d?.endereco?.cep ? maskCep(d.endereco.cep) : '')
-  const [endereco, setEndereco] = useState(d?.endereco?.endereco ?? '')
-  const [numero, setNumero] = useState(d?.endereco?.numero ?? '')
-  const [complemento, setComplemento] = useState(d?.endereco?.complemento ?? '')
+  const [cep, setCep] = useState(() => {
+    const v = d?.endereco?.cep ?? doContrato?.endereco.cep ?? ''
+    return v ? maskCep(v) : ''
+  })
+  const [endereco, setEndereco] = useState(d?.endereco?.endereco ?? doContrato?.endereco.endereco ?? '')
+  const [numero, setNumero] = useState(d?.endereco?.numero ?? doContrato?.endereco.numero ?? '')
+  const [complemento, setComplemento] = useState(d?.endereco?.complemento ?? doContrato?.endereco.complemento ?? '')
   /** Referência interna da imobiliária — "Controle / CTRL-PASTA" no painel deles. */
   const [controle, setControle] = useState(base?.controle ?? '')
-  const [bairro, setBairro] = useState(d?.endereco?.bairro ?? '')
-  const [cidade, setCidade] = useState(d?.endereco?.cidade ?? 'Cuiabá')
-  const [uf, setUf] = useState(d?.endereco?.uf ?? 'MT')
+  const [bairro, setBairro] = useState(d?.endereco?.bairro ?? doContrato?.endereco.bairro ?? '')
+  const [cidade, setCidade] = useState(d?.endereco?.cidade ?? doContrato?.endereco.cidade ?? 'Cuiabá')
+  const [uf, setUf] = useState(d?.endereco?.uf ?? doContrato?.endereco.uf ?? 'MT')
 
-  const [inqNome, setInqNome] = useState(d?.inquilino?.nome ?? '')
-  const [inqDoc, setInqDoc] = useState(
-    d?.inquilino?.cpfCnpj ? maskCpfCnpj(d.inquilino.cpfCnpj) : '',
-  )
-  const [inqEmail, setInqEmail] = useState(d?.inquilino?.email ?? '')
-  const [inqFone, setInqFone] = useState(
-    d?.inquilino?.telefone ? maskTelefone(d.inquilino.telefone) : '',
-  )
-  const [inqNasc, setInqNasc] = useState(d?.inquilino?.dataNascimento ?? '')
-  const [inqSexo, setInqSexo] = useState<'M' | 'F' | ''>(d?.inquilino?.sexo ?? '')
+  const [inqNome, setInqNome] = useState(d?.inquilino?.nome ?? doContrato?.inquilino?.nome ?? '')
+  const [inqDoc, setInqDoc] = useState(() => {
+    const v = d?.inquilino?.cpfCnpj ?? doContrato?.inquilino?.cpfCnpj ?? ''
+    return v ? maskCpfCnpj(v) : ''
+  })
+  const [inqEmail, setInqEmail] = useState(d?.inquilino?.email ?? doContrato?.inquilino?.email ?? '')
+  const [inqFone, setInqFone] = useState(() => {
+    const v = d?.inquilino?.telefone ?? doContrato?.inquilino?.telefone ?? ''
+    return v ? maskTelefone(v) : ''
+  })
+  const [inqNasc, setInqNasc] = useState(d?.inquilino?.dataNascimento ?? doContrato?.inquilino?.dataNascimento ?? '')
+  const [inqSexo, setInqSexo] = useState<'M' | 'F' | ''>(d?.inquilino?.sexo ?? doContrato?.inquilino?.sexo ?? '')
 
-  const [propNome, setPropNome] = useState(d?.proprietario?.nome ?? '')
-  const [propDoc, setPropDoc] = useState(
-    d?.proprietario?.cpfCnpj ? maskCpfCnpj(d.proprietario.cpfCnpj) : '',
-  )
+  const [propNome, setPropNome] = useState(d?.proprietario?.nome ?? doContrato?.proprietario?.nome ?? '')
+  const [propDoc, setPropDoc] = useState(() => {
+    const v = d?.proprietario?.cpfCnpj ?? doContrato?.proprietario?.cpfCnpj ?? ''
+    return v ? maskCpfCnpj(v) : ''
+  })
 
-  // Limites das coberturas, em centavos mascarados.
-  const [vIncendio, setVIncendio] = useState(centavos(d?.valores?.incendio))
-  const [vPerdaAluguel, setVPerdaAluguel] = useState(centavos(d?.valores?.perdaAluguel))
+  // Limites das coberturas, em centavos mascarados. Vindo da ficha do
+  // contrato, já nascem sugeridos a partir do aluguel — as duas obrigatórias
+  // só, como no "Sugerir valores" do painel da corretora.
+  const sugeridoDoContrato = doContrato ? sugerirValores(doContrato.aluguel, 2) : null
+  const centSug = (n?: number) => (n && n > 0 ? maskMoney(String(Math.round(n * 100))) : '')
+
+  const [vIncendio, setVIncendio] = useState(
+    centavos(d?.valores?.incendio) || centSug(sugeridoDoContrato?.incendio),
+  )
+  const [vPerdaAluguel, setVPerdaAluguel] = useState(
+    centavos(d?.valores?.perdaAluguel) || centSug(sugeridoDoContrato?.perdaAluguel),
+  )
   const [vVendaval, setVVendaval] = useState(centavos(d?.valores?.vendaval))
   const [vDanosEletricos, setVDanosEletricos] = useState(centavos(d?.valores?.danosEletricos))
   const [vVazamento, setVVazamento] = useState(centavos(d?.valores?.vazamento))
@@ -191,9 +221,9 @@ export function FormIncendio({ contratos, contratoInicial, base }: Props) {
   const [idsCrm, setIdsCrm] = useState<{
     imovelId: string | null; inquilinoId: string | null; proprietarioId: string | null
   }>({
-    imovelId: base?.imovelId ?? null,
-    inquilinoId: base?.inquilinoId ?? null,
-    proprietarioId: base?.proprietarioId ?? null,
+    imovelId: base?.imovelId ?? doContrato?.imovelId ?? null,
+    inquilinoId: base?.inquilinoId ?? doContrato?.inquilino?.id ?? null,
+    proprietarioId: base?.proprietarioId ?? doContrato?.proprietario?.id ?? null,
   })
 
   const cent = (n: number) => (n > 0 ? maskMoney(String(Math.round(n * 100))) : '')
