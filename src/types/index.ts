@@ -130,6 +130,16 @@ export interface Imovel {
   hidrometro_leitura_inicial: string | null
   medidor_energia_numero: string | null
   medidor_energia_leitura_inicial: string | null
+  // ── Garantias aceitas na locação (aparecem no anúncio) ──
+  garantia_fianca: boolean
+  /** Valor MENSAL aproximado do seguro fiança, digitado pelo anunciante. */
+  garantia_fianca_valor: number | null
+  garantia_caucao: boolean
+  /** 1, 2 ou 3 aluguéis. NULL quando não aceita caução. */
+  garantia_caucao_meses: number | null
+  garantia_fiador: boolean
+  /** Exigência da locação, cobrada à parte do aluguel. */
+  seguro_incendio_obrigatorio: boolean
   created_at: string
   updated_at: string
   bairro?: Bairro

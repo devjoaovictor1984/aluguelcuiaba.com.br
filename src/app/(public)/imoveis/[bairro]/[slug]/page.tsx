@@ -14,6 +14,7 @@ import { realEstateJsonLd, breadcrumbJsonLd } from '@/lib/seo/jsonld'
 import { htmlParaTextoPlano, sanitizeHtmlContent } from '@/lib/seo/sanitize'
 import { JsonLd } from '@/components/json-ld'
 import { PrecoImovel } from '@/components/preco-imovel'
+import { GarantiasChips } from '@/components/garantias-imovel'
 import {
   MapPin, BedDouble, Bath, Car, Maximize2,
   PawPrint, Sofa, ChevronRight, CalendarClock, Eye,
@@ -176,7 +177,10 @@ export default async function ImovelPage({ params }: Props) {
                 )}
               </div>
 
-              <h1 className="text-xl font-bold text-gray-900 mt-2 leading-snug">
+              {/* Logo abaixo do preço: quem procura decide a visita por aqui. */}
+              <GarantiasChips imovel={imovel} className="mt-2.5" />
+
+              <h1 className="text-xl font-bold text-gray-900 mt-3 leading-snug">
                 {imovel.titulo}
               </h1>
 

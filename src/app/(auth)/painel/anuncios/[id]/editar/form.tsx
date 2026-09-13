@@ -12,6 +12,10 @@ import { DadosContratoSection } from '../../_components/dados-contrato-section'
 import { revalidarImovel } from '../../../actions'
 import { dadosContratoDeImovel, dadosContratoParaDb, type DadosContrato } from '../../_components/dados-contrato'
 import {
+  GarantiasSection, garantiasDoDb, garantiasParaDb, validarGarantias,
+  type GarantiasForm,
+} from '../../_components/garantias-section'
+import {
   ChevronLeft, Camera, X, Plus, Loader2, AlertCircle, Trash2,
   ChevronDown, Home, Building2, Layers, Briefcase, MapPin,
   DollarSign, Droplets, Zap, Flame, Package, SplitSquareHorizontal, Lock, Star,
@@ -192,6 +196,9 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
 
   // ── dados pro contrato (opcional) ──
   const [dadosContrato, setDadosContrato] = useState<DadosContrato>(() => dadosContratoDeImovel(imovel))
+  const [garantias, setGarantias] = useState<GarantiasForm>(
+    () => garantiasDoDb(imovel as unknown as Record<string, unknown>),
+  )
 
   /**
    * O CEP do imóvel é UM só, e mora na coluna `endereco_cep` — a mesma que
@@ -272,6 +279,8 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
     if (!precoNum || precoNum <= 0) { setErro('Informe o valor do aluguel.'); return }
     const whatsappLimpo = whatsapp.replace(/\D/g, '')
     if (!validarWhatsApp(whatsappLimpo)) { setErro('WhatsApp inválido. Use o formato: (65) 99988-7766'); return }
+    const erroGarantia = validarGarantias(garantias, precoNum)
+    if (erroGarantia) { setErro(erroGarantia); return }
 
     setEnviando(true)
     try {
@@ -310,6 +319,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
         luz_inclusa: luzInclusa,
         whatsapp: whatsappLimpo,
         ...dadosContratoParaDb(dadosContrato),
+        ...garantiasParaDb(garantias),
       }).eq('id', imovel.id)
 
       if (updateErr) throw new Error(updateErr.message)
@@ -682,6 +692,12 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
           <p className="text-xs text-gray-400">Número do seu cadastro · altere no <Link href="/painel/perfil" className="underline text-violet-600">perfil</Link>.</p>
         </Campo>
       </Secao>
+
+      <GarantiasSection
+        value={garantias}
+        onChange={setGarantias}
+        aluguel={parseFloat(preco.replace(',', '.')) || 0}
+      />
 
       <DadosContratoSection value={dadosContrato} onChange={setDadosContrato} />
 

@@ -4,6 +4,7 @@ import { MapPin, BedDouble, Bath, Car } from 'lucide-react'
 import { gerarLinkWhatsApp, gerarMensagemWhatsApp, tempoRelativo, buildImovelUrl, labelComodo } from '@/lib/utils'
 import { PrecoImovel } from '@/components/preco-imovel'
 import { BotaoFavorito } from '@/components/botao-favorito'
+import { GarantiasIcones } from '@/components/garantias-imovel'
 import type { Imovel } from '@/types'
 
 interface Props {
@@ -62,6 +63,9 @@ export function ImovelCard({ imovel }: Props) {
 
       <div className="p-2.5 sm:p-3">
         <PrecoImovel preco={imovel.preco} precoAntigo={imovel.preco_antigo} size="md" perMes />
+
+        {/* Só o ícone: no card o texto brigaria com preço, título e bairro. */}
+        <GarantiasIcones imovel={imovel} className="mt-1" />
 
         <Link
           href={buildImovelUrl(imovel)}
