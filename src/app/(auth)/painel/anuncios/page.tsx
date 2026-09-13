@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Plus, ArrowLeft, Home } from 'lucide-react'
+import { Plus, ArrowLeft, Home, CheckCircle2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getMeusImoveis } from '@/lib/supabase/queries'
 import { PainelImovelCard } from '../imovel-card'
@@ -25,9 +25,9 @@ interface ImovelLista {
 export default async function ListarAnunciosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>
+  searchParams: Promise<{ status?: string; atualizado?: string }>
 }) {
-  const { status: statusFiltro = 'todos' } = await searchParams
+  const { status: statusFiltro = 'todos', atualizado } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/entrar')
@@ -54,6 +54,15 @@ export default async function ListarAnunciosPage({
 
   return (
     <main className="max-w-4xl mx-auto px-4 py-8 pb-24">
+      {/* Volta da edição: o aviso vive aqui porque é aqui que se cai depois
+          de salvar, e não mais no painel inteiro. */}
+      {atualizado === '1' && (
+        <div className="flex items-center gap-2.5 bg-blue-50 border border-blue-200 text-blue-800 text-sm rounded-2xl px-4 py-3.5 mb-6">
+          <CheckCircle2 size={18} className="text-blue-600 shrink-0" />
+          <span className="font-medium">Anúncio atualizado com sucesso!</span>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between gap-3 mb-5 flex-wrap">
         <div>

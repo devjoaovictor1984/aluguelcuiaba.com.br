@@ -404,7 +404,10 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
         body: JSON.stringify({ imovel_id: imovel.id }),
       }).catch(() => {})
 
-      router.push('/painel?atualizado=1')
+      // Volta pra listagem, que é de onde se entra na edição. Antes caía no
+      // painel inteiro, e quem estava conferindo vários anúncios perdia o
+      // lugar e o filtro a cada salvamento.
+      router.push('/painel/anuncios?atualizado=1')
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro inesperado.')
       setEnviando(false)
@@ -417,10 +420,19 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
 
       {/* Header */}
       <div className="flex items-center gap-3 mb-2">
-        <Link href="/painel" className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors shrink-0">
+        <Link
+          href="/painel/anuncios"
+          title="Voltar para meus anúncios"
+          className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 hover:bg-gray-200 transition-colors shrink-0"
+        >
           <ChevronLeft size={20} />
         </Link>
-        <h1 className="text-xl font-bold text-gray-900">Editar anúncio</h1>
+        <div className="min-w-0">
+          <Link href="/painel/anuncios" className="text-xs text-gray-400 hover:text-violet-700">
+            Meus anúncios
+          </Link>
+          <h1 className="text-xl font-bold text-gray-900 leading-tight">Editar anúncio</h1>
+        </div>
       </div>
 
       {/* ── Fotos ── */}
@@ -709,7 +721,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
             if (!confirm('Excluir este anúncio permanentemente?')) return
             const supabase = createClient()
             await supabase.from('imoveis').delete().eq('id', imovel.id)
-            router.push('/painel')
+            router.push('/painel/anuncios')
           }}
           className="text-sm text-red-500 hover:text-red-700 hover:underline flex items-center gap-1.5 mx-auto"
         >
