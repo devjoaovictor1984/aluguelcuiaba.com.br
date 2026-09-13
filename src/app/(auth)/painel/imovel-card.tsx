@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { RefreshCw, CheckCircle2, Pause, RotateCcw, Pencil, Eye } from 'lucide-react'
 import { PrecoImovel } from '@/components/preco-imovel'
 import { GarantiasIcones } from '@/components/garantias-imovel'
+import { InclusosLinha } from '@/components/inclusos-imovel'
 import { renovarAnuncio, mudarStatusImovel } from './actions'
 
 interface CardImovel {
@@ -18,6 +19,11 @@ interface CardImovel {
   garantia_caucao_meses?: number | null
   garantia_fiador?: boolean | null
   seguro_incendio_obrigatorio?: boolean | null
+  seguro_incendio_valor?: number | null
+  custo_tipo?: string | null
+  gas_incluso?: boolean | null
+  agua_inclusa?: boolean | null
+  luz_inclusa?: boolean | null
   status: string
   expira_em: string
   visualizacoes: number
@@ -86,6 +92,7 @@ export function PainelImovelCard({ imovel }: { imovel: CardImovel }) {
         <div className="flex-1 min-w-0">
           <p className="font-semibold text-gray-900 truncate text-sm">{imovel.titulo}</p>
           <PrecoImovel preco={imovel.preco} precoAntigo={imovel.preco_antigo} size="sm" />
+          <InclusosLinha imovel={imovel} className="mt-0.5" />
           <GarantiasIcones imovel={imovel} className="mt-0.5" />
           <p className="text-xs text-gray-400">{imovel.bairro?.nome ?? '—'}</p>
         </div>

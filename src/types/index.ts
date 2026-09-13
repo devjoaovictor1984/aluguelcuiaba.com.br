@@ -140,6 +140,8 @@ export interface Imovel {
   garantia_fiador: boolean
   /** Exigência da locação, cobrada à parte do aluguel. */
   seguro_incendio_obrigatorio: boolean
+  /** Valor ANUAL aproximado do seguro incêndio. */
+  seguro_incendio_valor: number | null
   created_at: string
   updated_at: string
   bairro?: Bairro

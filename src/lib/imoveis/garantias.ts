@@ -16,6 +16,8 @@ export interface GarantiasImovel {
   garantia_caucao_meses?: number | null
   garantia_fiador?: boolean | null
   seguro_incendio_obrigatorio?: boolean | null
+  /** Valor ANUAL aproximado — é assim que a apólice de incêndio é vendida. */
+  seguro_incendio_valor?: number | null
 }
 
 export type TipoGarantia = 'fianca' | 'caucao' | 'fiador' | 'incendio'
@@ -79,11 +81,15 @@ export function resumirGarantias(i: GarantiasImovel): GarantiaResumo[] {
   }
 
   if (i.seguro_incendio_obrigatorio) {
+    // Anual, não mensal: é como a apólice de incêndio é vendida e cobrada.
+    const valor = Number(i.seguro_incendio_valor) || 0
     lista.push({
       tipo: 'incendio',
       rotulo: 'Seguro incêndio',
-      detalhe: 'obrigatório',
-      descricao: 'Seguro incêndio obrigatório, cobrado à parte do aluguel',
+      detalhe: valor > 0 ? `~${brl(valor)}/ano · obrigatório` : 'obrigatório',
+      descricao: valor > 0
+        ? `Seguro incêndio obrigatório, por volta de ${brl(valor)} por ano (valor aproximado), cobrado à parte do aluguel`
+        : 'Seguro incêndio obrigatório, cobrado à parte do aluguel',
     })
   }
 

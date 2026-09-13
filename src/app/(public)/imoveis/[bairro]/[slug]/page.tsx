@@ -15,6 +15,7 @@ import { htmlParaTextoPlano, sanitizeHtmlContent } from '@/lib/seo/sanitize'
 import { JsonLd } from '@/components/json-ld'
 import { PrecoImovel } from '@/components/preco-imovel'
 import { GarantiasChips } from '@/components/garantias-imovel'
+import { InclusosChips } from '@/components/inclusos-imovel'
 import {
   MapPin, BedDouble, Bath, Car, Maximize2,
   PawPrint, Sofa, ChevronRight, CalendarClock, Eye,
@@ -177,8 +178,11 @@ export default async function ImovelPage({ params }: Props) {
                 )}
               </div>
 
-              {/* Logo abaixo do preço: quem procura decide a visita por aqui. */}
-              <GarantiasChips imovel={imovel} className="mt-2.5" />
+              {/* Logo abaixo do preço: quem procura decide a visita por aqui.
+                  Primeiro o que já está dentro do valor, depois o que vai
+                  precisar apresentar pra alugar. */}
+              <InclusosChips imovel={imovel} className="mt-2.5" />
+              <GarantiasChips imovel={imovel} className="mt-1.5" />
 
               <h1 className="text-xl font-bold text-gray-900 mt-3 leading-snug">
                 {imovel.titulo}
@@ -440,6 +444,12 @@ function AnuncianteCard({
               + {formatarPreco(imovel.iptu)}/ano de IPTU
             </p>
           )}
+
+          {/* Quem chega por aqui decide mandar mensagem olhando esta caixa.
+              O que está incluso e o que vai ser exigido pesam tanto quanto o
+              valor, e não podem ficar só lá em cima. */}
+          <InclusosChips imovel={imovel} className="mt-2.5" />
+          <GarantiasChips imovel={imovel} className="mt-1.5" />
         </div>
       )}
 
