@@ -334,7 +334,7 @@ function ModalReajuste({
 
           <div className="bg-amber-50 border border-amber-100 text-amber-800 text-xs rounded-lg px-3 py-2 flex gap-2">
             <AlertCircle size={14} className="shrink-0 mt-0.5" />
-            <span>Só parcelas <strong>não pagas</strong> serão reescritas. O valor de referência do contrato e a próxima data de reajuste (+12 meses) também são atualizados.</span>
+            <span>Só parcelas <strong>não pagas</strong> serão reescritas. Os valores de referência do contrato também são atualizados, e a próxima data de reajuste vai pra +12 meses quando o aluguel muda.</span>
           </div>
 
           {erro && <p className="text-xs text-red-600">{erro}</p>}
