@@ -24,6 +24,8 @@ export interface LinhaParcela {
   bairro: string | null
   vencimento: string
   valor: number
+  iptu: number
+  condominio: number
   repasse: number
   status: string
   statusRepasse: string
@@ -237,7 +239,20 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
                     <td className="px-3 py-2 text-center text-gray-700 text-xs">
                       dia <strong className="text-gray-900">{diaVenc}</strong>
                     </td>
-                    <td className="px-3 py-2 text-right font-medium text-gray-900">{formatarBRL(p.valor)}</td>
+                    <td className="px-3 py-2 text-right font-medium text-gray-900">
+                      {formatarBRL(p.valor)}
+                      {/* Encargos à parte: discrimina. Pacote (IPTU e condomínio
+                          dentro do aluguel) fica só o total, com o fiança junto.
+                          "Aluguel + fiança" é o resto do total, pra linha sempre
+                          fechar com o boleto. */}
+                      {(p.iptu > 0 || p.condominio > 0) && (
+                        <span className="block text-[11px] font-normal text-gray-400 whitespace-nowrap">
+                          Aluguel + fiança {formatarBRL(p.valor - p.iptu - p.condominio)}
+                          {p.iptu > 0 && <> · IPTU {formatarBRL(p.iptu)}</>}
+                          {p.condominio > 0 && <> · Cond. {formatarBRL(p.condominio)}</>}
+                        </span>
+                      )}
+                    </td>
                     <td className="px-3 py-2 text-right">
                       <span className="font-bold text-blue-700" title="Repasse ao proprietário (aluguel − comissão, sem o seguro)">
                         {formatarBRL(p.repasse)}
