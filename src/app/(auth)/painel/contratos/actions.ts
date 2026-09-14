@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { textoAditivoReajuste } from '@/lib/crm/texto-aditivo-reajuste'
 import {
   gerarParcelas, montarCodigo, calcularComissao, calcularRepasse,
   type InputCalculoParcelas, type BaseComissao,
@@ -745,6 +746,26 @@ export interface AplicarReajusteInput {
   data_efetiva: string           // YYYY-MM-DD — primeira parcela afetada (mes_referencia)
   indice_usado?: string          // IGPM / IPCA / INPC / manual
   observacao?: string
+
+  /**
+   * Novos valores de IPTU e condomínio, quando também mudam.
+   *
+   * Vêm separados do aluguel de propósito: o aluguel é receita da locação
+   * e base da comissão; estes são encargo do proprietário, que a
+   * imobiliária só cobra junto e repassa. Somar os três num número só
+   * quebraria comissão e repasse na mesma conta.
+   *
+   * `undefined` = não mexe. É diferente de `0`, que zera a cobrança.
+   */
+  novo_iptu_mensal?: number
+  novo_condominio_mensal?: number
+
+  /**
+   * Gerar o termo aditivo junto. Padrão da casa: reajuste sem termo é
+   * mudança de valor que o contrato não registra. O texto sai pronto de
+   * `textoAditivoReajuste`.
+   */
+  gerar_aditivo?: boolean
 }
 
 function round2(n: number): number {
@@ -761,7 +782,7 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
   // 1. Contrato (precisa pegar taxa_admin pra recalcular comissão)
   const { data: contrato, error: errCtr } = await supabase
     .from('contratos_locacao')
-    .select('id, valor_aluguel, taxa_admin_tipo, taxa_admin_valor, taxa_admin_base, data_proximo_reajuste')
+    .select('id, codigo, valor_aluguel, iptu_mensal, condominio_mensal, taxa_admin_tipo, taxa_admin_valor, taxa_admin_base, data_proximo_reajuste')
     .eq('id', input.contrato_id)
     .eq('user_id', acesso.userId)
     .single()
@@ -769,7 +790,26 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
 
   const valorAntigo = Number(contrato.valor_aluguel)
   const valorNovo = round2(input.novo_valor_aluguel)
-  if (valorNovo === valorAntigo) return { error: 'Novo valor é igual ao atual.' }
+
+  // Encargos: `undefined` é "não mexe", e é diferente de 0, que zera a
+  // cobrança. Por isso o teste é contra undefined, não contra falsy.
+  const iptuAntigo = round2(Number(contrato.iptu_mensal) || 0)
+  const condoAntigo = round2(Number(contrato.condominio_mensal) || 0)
+  const iptuNovo = input.novo_iptu_mensal === undefined
+    ? iptuAntigo
+    : round2(input.novo_iptu_mensal)
+  const condoNovo = input.novo_condominio_mensal === undefined
+    ? condoAntigo
+    : round2(input.novo_condominio_mensal)
+
+  if (iptuNovo < 0 || condoNovo < 0) return { error: 'Encargo não pode ser negativo.' }
+
+  const mudouAluguel = valorNovo !== valorAntigo
+  const mudouIptu = iptuNovo !== iptuAntigo
+  const mudouCondo = condoNovo !== condoAntigo
+  if (!mudouAluguel && !mudouIptu && !mudouCondo) {
+    return { error: 'Nada mudou: aluguel, IPTU e condomínio estão iguais aos atuais.' }
+  }
 
   const percentual = round2(((valorNovo / valorAntigo) - 1) * 100)
 
@@ -793,8 +833,12 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
 
   for (const p of parcelas) {
     const seguro = Number(p.valor_seguro) || 0
-    const iptu = Number(p.valor_iptu) || 0
-    const condo = Number(p.valor_condominio) || 0
+    // Encargo que não foi reajustado mantém o que já estava NA PARCELA, e
+    // não o do contrato: parcela pode ter sido ajustada à mão (IPTU de um
+    // mês só, condomínio extra), e o reajuste do aluguel não é hora de
+    // apagar isso.
+    const iptu = mudouIptu ? iptuNovo : (Number(p.valor_iptu) || 0)
+    const condo = mudouCondo ? condoNovo : (Number(p.valor_condominio) || 0)
     const encargos = round2(iptu + condo)
     const total = round2(valorNovo + seguro + encargos)
     const comissao = calcularComissao(valorNovo, tipo, taxa, encargos, base)
@@ -804,6 +848,8 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
       .from('parcelas_aluguel')
       .update({
         valor_aluguel: valorNovo,
+        valor_iptu: iptu,
+        valor_condominio: condo,
         valor_total: total,
         valor_comissao: comissao,
         valor_repasse_proprietario: repasse,
@@ -823,7 +869,11 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
     .from('contratos_locacao')
     .update({
       valor_aluguel: valorNovo,
-      data_proximo_reajuste: proxReajuste,
+      ...(mudouIptu ? { iptu_mensal: iptuNovo } : {}),
+      ...(mudouCondo ? { condominio_mensal: condoNovo } : {}),
+      // Só o reajuste do ALUGUEL abre a próxima janela anual. IPTU novo da
+      // prefeitura no meio do ano não pode empurrar o reajuste do aluguel.
+      ...(mudouAluguel ? { data_proximo_reajuste: proxReajuste } : {}),
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.contrato_id)
@@ -841,12 +891,79 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
       indice_usado: input.indice_usado ?? null,
       parcelas_afetadas: parcelas.length,
       observacao: input.observacao ?? null,
+      // Só grava o encargo que MUDOU: NULL no histórico diz "este reajuste
+      // não mexeu nisso", que é diferente de ter mexido e deixado igual.
+      ...(mudouIptu ? { iptu_antigo: iptuAntigo, iptu_novo: iptuNovo } : {}),
+      ...(mudouCondo ? { condominio_antigo: condoAntigo, condominio_novo: condoNovo } : {}),
     })
   if (errHist) return { error: errHist.message }
 
+  /**
+   * O termo aditivo, junto.
+   *
+   * Reajuste sem termo é mudança de valor que o contrato não registra: o
+   * sistema passa a cobrar outro valor e o instrumento assinado continua
+   * dizendo o antigo. O texto sai pronto, incluindo a frase sobre o que
+   * NÃO muda — prazo, datas, vencimento, garantia —, que é justamente a
+   * parte que ninguém lembra de escrever.
+   *
+   * Falha aqui não derruba o reajuste: as parcelas já foram reescritas, e
+   * o aditivo pode ser criado à mão depois.
+   */
+  let aditivoId: string | null = null
+  let aditivoNumero: number | null = null
+  if (input.gerar_aditivo) {
+    const objeto = textoAditivoReajuste({
+      valorAntigo,
+      valorNovo,
+      percentual,
+      dataEfetiva: input.data_efetiva,
+      indice: input.indice_usado ?? null,
+      iptuAntigo: mudouIptu ? iptuAntigo : null,
+      iptuNovo: mudouIptu ? iptuNovo : null,
+      condominioAntigo: mudouCondo ? condoAntigo : null,
+      condominioNovo: mudouCondo ? condoNovo : null,
+      observacao: input.observacao ?? null,
+    })
+
+    const { count } = await supabase
+      .from('contratos_aditivos')
+      .select('id', { count: 'exact', head: true })
+      .eq('contrato_id', input.contrato_id)
+
+    const numero = (count ?? 0) + 1
+    const { data: aditivo } = await supabase
+      .from('contratos_aditivos')
+      .insert({
+        contrato_id: input.contrato_id,
+        user_id: acesso.userId,
+        numero,
+        tipo: 'reajuste',
+        titulo: mudouAluguel
+          ? `Reajuste do aluguel — ${input.indice_usado || 'acordo entre as partes'}`
+          : `Ajuste de ${[mudouIptu && 'IPTU', mudouCondo && 'condomínio'].filter(Boolean).join(' e ')}`,
+        data_aditivo: new Date().toISOString().slice(0, 10),
+        objeto,
+      })
+      .select('id')
+      .maybeSingle()
+
+    if (aditivo) {
+      aditivoId = aditivo.id
+      aditivoNumero = numero
+    }
+  }
+
   revalidatePath(`/painel/contratos/${input.contrato_id}`)
   revalidatePath('/painel/financeiro')
-  return { ok: true, parcelas_afetadas: parcelas.length, percentual }
+  revalidatePath('/painel/inicio')
+  return {
+    ok: true,
+    parcelas_afetadas: parcelas.length,
+    percentual,
+    aditivo_id: aditivoId,
+    aditivo_numero: aditivoNumero,
+  }
 }
 
 // ───────────────── Pessoas vinculadas ao contrato ─────────────────

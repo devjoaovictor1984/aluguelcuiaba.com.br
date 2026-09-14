@@ -28,6 +28,9 @@ interface Props {
   contratoId: string
   contratoCodigo: string
   valorAluguelAtual: number
+  /** Encargos mensais de hoje. O reajuste anual costuma mexer no IPTU junto. */
+  iptuAtual: number
+  condominioAtual: number
   dataProximoReajuste: string | null
   /** Aniversário do contrato, quando não há data gravada. Só pra exibição. */
   dataReajusteEstimada: string | null
@@ -143,8 +146,8 @@ export function ReajusteSecao(props: Props) {
 }
 
 function ModalReajuste({
-  contratoId, contratoCodigo, valorAluguelAtual, dataProximoReajuste,
-  parcelasFuturas, proximaParcelaMesRef, onFechar,
+  contratoId, contratoCodigo, valorAluguelAtual, iptuAtual, condominioAtual,
+  dataProximoReajuste, parcelasFuturas, proximaParcelaMesRef, onFechar,
 }: Props & { onFechar: () => void }) {
   const router = useRouter()
   const defaultData = proximaParcelaMesRef ?? dataProximoReajuste ?? new Date().toISOString().slice(0, 10)
@@ -156,6 +159,13 @@ function ModalReajuste({
   const [dataEfetiva, setDataEfetiva] = useState(defaultData)
   const [indice, setIndice] = useState('IGPM')
   const [observacao, setObs] = useState('')
+  // Encargos: vêm preenchidos com o valor de hoje. Quem não mexer, mantém —
+  // e é exatamente o caso mais comum, o IPTU que continua o mesmo.
+  const money = (v: number) =>
+    v > 0 ? v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : ''
+  const [iptuNovo, setIptuNovo] = useState(money(iptuAtual))
+  const [condoNovo, setCondoNovo] = useState(money(condominioAtual))
+  const [gerarAditivo, setGerarAditivo] = useState(true)
   const [erro, setErro] = useState('')
   const [ok, setOk] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -183,10 +193,16 @@ function ModalReajuste({
   const diferenca = valor - valorAluguelAtual
   const pctReal = valorAluguelAtual ? (diferenca / valorAluguelAtual) * 100 : 0
 
+  const iptu = parseMoney(iptuNovo)
+  const condo = parseMoney(condoNovo)
+  const mudouIptu = iptu !== iptuAtual
+  const mudouCondo = condo !== condominioAtual
+  const nadaMudou = valor === valorAluguelAtual && !mudouIptu && !mudouCondo
+
   const confirmar = () => {
     setErro('')
     if (!valor) { setErro('Valor novo inválido.'); return }
-    if (valor === valorAluguelAtual) { setErro('Novo valor é igual ao atual.'); return }
+    if (nadaMudou) { setErro('Nada mudou: aluguel, IPTU e condomínio estão iguais aos atuais.'); return }
 
     const payload: AplicarReajusteInput = {
       contrato_id: contratoId,
@@ -194,12 +210,24 @@ function ModalReajuste({
       data_efetiva: dataEfetiva,
       indice_usado: indice || undefined,
       observacao: observacao || undefined,
+      // Só manda o que mudou: `undefined` significa "não mexe" do outro lado.
+      novo_iptu_mensal: mudouIptu ? iptu : undefined,
+      novo_condominio_mensal: mudouCondo ? condo : undefined,
+      gerar_aditivo: gerarAditivo,
     }
     startTransition(async () => {
       const r = await aplicarReajuste(payload)
       if (r.error) { setErro(r.error); return }
-      setOk(`Reajuste aplicado em ${r.parcelas_afetadas} parcela${r.parcelas_afetadas === 1 ? '' : 's'} (+${r.percentual?.toFixed(2).replace('.', ',')}%)`)
-      setTimeout(() => { onFechar(); router.refresh() }, 1200)
+      const pct = r.percentual ?? 0
+      setOk(
+        `Reajuste aplicado em ${r.parcelas_afetadas} parcela${r.parcelas_afetadas === 1 ? '' : 's'}`
+        + ` (${pct >= 0 ? '+' : ''}${pct.toFixed(2).replace('.', ',')}%)`
+        + (r.aditivo_numero ? ` · ${r.aditivo_numero}º termo aditivo gerado` : ''),
+      )
+      // Abre o PDF do aditivo recém-criado, que é o documento que as partes
+      // assinam. Sem isto, ele nasce e ninguém vê.
+      if (r.aditivo_id) window.open(`/api/contratos/aditivos/${r.aditivo_id}/pdf`, '_blank')
+      setTimeout(() => { onFechar(); router.refresh() }, 1400)
     })
   }
 
@@ -238,6 +266,30 @@ function ModalReajuste({
             </div>
           )}
 
+          {/* Encargos: separados do aluguel de propósito. O aluguel é base da
+              comissão; IPTU e condomínio são encargo do proprietário que a
+              imobiliária só cobra junto. */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">
+                IPTU mensal {mudouIptu && <span className="text-violet-600 font-normal">(alterado)</span>}
+              </label>
+              <InputMoeda value={iptuNovo} onChange={setIptuNovo} className={inputCls} />
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                hoje {formatarBRL(iptuAtual)} · deixe como está pra manter
+              </p>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-gray-600 block mb-1">
+                Condomínio mensal {mudouCondo && <span className="text-violet-600 font-normal">(alterado)</span>}
+              </label>
+              <InputMoeda value={condoNovo} onChange={setCondoNovo} className={inputCls} />
+              <p className="text-[11px] text-gray-400 mt-0.5">
+                hoje {formatarBRL(condominioAtual)} · deixe como está pra manter
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">A partir de *</label>
@@ -263,6 +315,23 @@ function ModalReajuste({
               placeholder="Ex: IGP-M acumulado em 12 meses (5,32%)" />
           </div>
 
+          <label className="flex items-start gap-2 cursor-pointer bg-violet-50 border border-violet-100 rounded-lg px-3 py-2.5">
+            <input
+              type="checkbox"
+              checked={gerarAditivo}
+              onChange={e => setGerarAditivo(e.target.checked)}
+              className="w-4 h-4 accent-violet-600 mt-0.5 shrink-0"
+            />
+            <span className="text-xs text-gray-700">
+              <strong>Gerar o termo aditivo</strong> deste reajuste
+              <span className="block text-[11px] text-gray-500 mt-0.5">
+                Sai pronto, com os valores antigo e novo, e dizendo que prazo,
+                datas, vencimento e garantia continuam os mesmos. O PDF abre
+                em seguida, pra assinatura.
+              </span>
+            </span>
+          </label>
+
           <div className="bg-amber-50 border border-amber-100 text-amber-800 text-xs rounded-lg px-3 py-2 flex gap-2">
             <AlertCircle size={14} className="shrink-0 mt-0.5" />
             <span>Só parcelas <strong>não pagas</strong> serão reescritas. O valor de referência do contrato e a próxima data de reajuste (+12 meses) também são atualizados.</span>
@@ -277,7 +346,7 @@ function ModalReajuste({
             className="text-sm text-gray-500 hover:text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-100">
             Cancelar
           </button>
-          <button onClick={confirmar} disabled={isPending || !valor || valor === valorAluguelAtual}
+          <button onClick={confirmar} disabled={isPending || !valor || nadaMudou}
             className="flex items-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-sm font-semibold px-5 py-2 rounded-lg">
             {isPending && <Loader2 size={14} className="animate-spin" />}
             Confirmar reajuste

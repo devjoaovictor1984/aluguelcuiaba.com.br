@@ -311,6 +311,8 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         contratoId={id}
         contratoCodigo={contrato.codigo}
         valorAluguelAtual={contrato.valor_aluguel}
+        iptuAtual={Number(contrato.iptu_mensal ?? 0)}
+        condominioAtual={Number(contrato.condominio_mensal ?? 0)}
         dataProximoReajuste={contrato.data_proximo_reajuste}
         dataReajusteEstimada={janelaReajuste(contrato)?.data ?? null}
         jaEncerrado={['encerrado', 'rescindido'].includes(contrato.status)}
