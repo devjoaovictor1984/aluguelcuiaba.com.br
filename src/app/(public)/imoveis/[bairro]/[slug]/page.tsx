@@ -18,7 +18,7 @@ import { GarantiasChips } from '@/components/garantias-imovel'
 import { InclusosChips } from '@/components/inclusos-imovel'
 import {
   MapPin, BedDouble, Bath, Car, Maximize2,
-  PawPrint, Sofa, ChevronRight, CalendarClock, Eye,
+  PawPrint, Sofa, ChevronRight, CalendarClock, Eye, Ban,
 } from 'lucide-react'
 import type { Imovel } from '@/types'
 import { AvisarAlugado } from '@/components/avisar-alugado'
@@ -141,7 +141,32 @@ export default async function ImovelPage({ params }: Props) {
       ]} />
       <Navbar />
 
-      <GaleriaFotos fotos={imovel.fotos ?? []} titulo={imovel.titulo} />
+      {/* Imóvel alugado continua no ar por 30 dias, pra quem chega por link
+          antigo ou busca. Sem a tarja, a pessoa lê o anúncio inteiro, manda
+          mensagem e só então descobre. Na listagem o card já avisa; aqui
+          não avisava nada. */}
+      {imovel.status === 'alugado' && (
+        <div className="bg-red-600 text-white">
+          <div className="max-w-5xl mx-auto px-4 py-2.5 flex items-center justify-center gap-2 text-sm font-bold uppercase tracking-wide">
+            <Ban size={16} className="shrink-0" aria-hidden />
+            Imóvel alugado
+          </div>
+        </div>
+      )}
+
+      <div className="relative">
+        <GaleriaFotos fotos={imovel.fotos ?? []} titulo={imovel.titulo} />
+        {imovel.status === 'alugado' && (
+          <>
+            <div className="absolute inset-0 bg-black/25 pointer-events-none z-10" />
+            <div className="absolute top-0 right-0 w-40 h-40 overflow-hidden pointer-events-none z-20">
+              <div className="absolute top-[34px] -right-[44px] w-52 rotate-45 bg-red-600 text-white text-center py-1.5 text-xs font-extrabold uppercase tracking-widest shadow-lg ring-1 ring-red-900/30">
+                Alugado
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
       <div className="max-w-5xl mx-auto px-4 pb-32 lg:pb-16">
         <div className="lg:grid lg:grid-cols-5 lg:gap-10 lg:mt-8">
