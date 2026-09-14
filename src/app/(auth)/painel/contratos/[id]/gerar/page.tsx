@@ -84,7 +84,7 @@ async function renderizarEditor(contratoId: string) {
   const { data: contrato, error: contratoErr } = await supabase
     .from('contratos_locacao')
     .select(`
-      id, codigo, garantia_tipo, valor_aluguel, data_inicio, data_termino,
+      id, codigo, garantia_tipo, valor_aluguel, data_inicio, data_termino, importado,
       qtd_chaves, qtd_controles, qtd_tags, conjuge_inquilino_papel, anotacoes_corretor,
       imovel_id, tipo_atuacao, taxa_admin_valor,
       inquilino:pessoas!inquilino_id(id, nome, conjuge_nome, email),
@@ -284,6 +284,19 @@ async function renderizarEditor(contratoId: string) {
           </p>
         </div>
       </div>
+
+      {contrato.importado && (
+        <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-4">
+          <h2 className="text-sm font-bold text-amber-900 mb-1">
+            Este contrato foi assinado fora da plataforma
+          </h2>
+          <p className="text-xs text-amber-800">
+            O instrumento que vale é o original. Em vez de gerar um contrato novo
+            aqui, anexe o PDF assinado abaixo — ele passa a ser a via do contrato
+            no sistema, e os reajustes e termos aditivos saem daqui em cima dele.
+          </p>
+        </div>
+      )}
 
       {dadosImovelFaltando.length > 0 && contrato.imovel_id && (
         <div className="mb-4 bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3">

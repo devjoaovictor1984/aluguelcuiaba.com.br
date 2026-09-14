@@ -42,6 +42,25 @@ export interface ContratoInput {
   duracao_meses: number
   dia_vencimento: number
 
+  /**
+   * Contrato assinado FORA da plataforma, cadastrado aqui pra receber
+   * reajuste e aditivo. Não muda o comportamento de nada — é marca pra
+   * quem for ler o contrato depois saber que o instrumento original está
+   * anexado, e não foi gerado aqui.
+   */
+  importado?: boolean
+
+  /**
+   * Quantas parcelas gerar, quando for diferente do prazo do contrato.
+   *
+   * Num contrato importado esses dois números não são o mesmo: o prazo é
+   * o do contrato assinado (30 meses, digamos), e as parcelas começam no
+   * mês em que a cobrança passa pela plataforma. Sem separar, ou o prazo
+   * sai errado na ficha e no PDF, ou o financeiro nasce com dois anos de
+   * parcelas vencidas.
+   */
+  parcelas_qtd?: number
+
   forma_pagamento: 'boleto' | 'pix' | 'transferencia' | 'dinheiro' | 'cheque'
   observacoes: string | null
   clausulas_extras: string | null
@@ -169,6 +188,7 @@ export async function criarContrato(input: ContratoInput) {
       data_termino: input.data_termino,
       duracao_meses: input.duracao_meses,
       dia_vencimento: input.dia_vencimento,
+      importado: input.importado ?? false,
       status: 'ativo',
       forma_pagamento: input.forma_pagamento,
       observacoes: input.observacoes,
@@ -198,7 +218,11 @@ export async function criarContrato(input: ContratoInput) {
 
   // 3. Gera as parcelas
   const calcInput: InputCalculoParcelas = {
-    duracao_meses: input.duracao_meses,
+    // Contrato importado gera só as parcelas que ainda serão cobradas aqui;
+    // o prazo do contrato continua sendo o do instrumento assinado.
+    duracao_meses: input.parcelas_qtd && input.parcelas_qtd > 0
+      ? input.parcelas_qtd
+      : input.duracao_meses,
     data_primeiro_aluguel: input.data_primeiro_aluguel,
     dia_vencimento: input.dia_vencimento,
     valor_aluguel: input.valor_aluguel,
@@ -208,7 +232,10 @@ export async function criarContrato(input: ContratoInput) {
     taxa_admin_tipo: input.taxa_admin_tipo,
     taxa_admin_valor: input.taxa_admin_valor,
     taxa_admin_base: input.taxa_admin_base,
-    primeira_parcela_cheia: input.primeira_parcela_cheia,
+    // Num contrato importado a primeira parcela daqui não é a primeira do
+    // contrato: a comissão de entrada já foi cobrada lá atrás, e repeti-la
+    // tiraria um aluguel inteiro do proprietário.
+    primeira_parcela_cheia: input.importado ? false : input.primeira_parcela_cheia,
   }
   const parcelas = gerarParcelas(calcInput)
   // Pagamento à vista: parcelas entram já quitadas na data do pagamento.

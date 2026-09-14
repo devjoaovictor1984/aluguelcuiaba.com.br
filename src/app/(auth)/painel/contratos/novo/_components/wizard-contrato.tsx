@@ -49,6 +49,13 @@ const ETAPAS = [
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
 
+/** "2026-10-01" -> "01/10/2026". Vazio vira vazio, sem quebrar a tela. */
+function fmtDataBr(iso: string): string {
+  if (!iso) return ''
+  const [a, m, d] = iso.slice(0, 10).split('-')
+  return `${d}/${m}/${a}`
+}
+
 function fmtBRL(v: number): string {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v)
 }
@@ -96,6 +103,9 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
   //  - sem_garantia           → no mesmo mês da entrada (no dia de vencimento)
   useEffect(() => {
     if (primeiroAluguelManual) return
+    // Em contrato importado a data não sai da entrada: quem escolhe é o
+    // corretor, e é o mês em que a cobrança passa a ser feita aqui.
+    if (s.importado) return
     if (!s.data_inicio || !s.dia_vencimento) return
 
     const dia = parseInt(s.dia_vencimento)
@@ -113,7 +123,27 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
     if (iso !== s.data_primeiro_aluguel) {
       set(prev => ({ ...prev, data_primeiro_aluguel: iso }))
     }
-  }, [s.data_inicio, s.dia_vencimento, s.garantia_tipo, primeiroAluguelManual, s.data_primeiro_aluguel])
+  }, [s.data_inicio, s.dia_vencimento, s.garantia_tipo, s.importado, primeiroAluguelManual, s.data_primeiro_aluguel])
+
+  /**
+   * Contrato importado: término e quantas parcelas gerar.
+   *
+   * O prazo continua sendo o do instrumento assinado (30 meses, digamos),
+   * e as parcelas nascem só do mês em que a cobrança passa pela
+   * plataforma até o fim da vigência. Sem separar os dois, ou a ficha
+   * mente sobre o prazo, ou o financeiro nasce com anos de atraso.
+   */
+  const prazoMeses = parseInt(s.duracao_meses) || 0
+  const terminoImportado = s.data_inicio && prazoMeses > 0
+    ? somarMeses(s.data_inicio, prazoMeses)
+    : ''
+  const parcelasImportado = (() => {
+    if (!s.importado || !terminoImportado || !s.data_primeiro_aluguel) return 0
+    const a = new Date(s.data_primeiro_aluguel + 'T00:00:00')
+    const b = new Date(terminoImportado + 'T00:00:00')
+    const meses = (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+    return Math.max(0, meses)
+  })()
 
   // Data do próximo reajuste: quando não escolhem uma, vale o aniversário do
   // contrato (+12 meses, a periodicidade legal). Deixar em branco custava o
@@ -216,6 +246,14 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
       if (!s.data_primeiro_aluguel) return 'Informe a data do 1º aluguel.'
       if (!parseInt(s.duracao_meses)) return 'Informe a duração em meses.'
       if (!parseInt(s.dia_vencimento)) return 'Informe o dia de vencimento.'
+      if (s.importado) {
+        if (s.data_primeiro_aluguel < s.data_inicio) {
+          return 'A primeira parcela a cobrar aqui não pode ser anterior ao início do contrato.'
+        }
+        if (parcelasImportado <= 0) {
+          return 'A primeira parcela a cobrar aqui cai depois do fim do contrato. Confira o início, a duração e o mês escolhido.'
+        }
+      }
     }
     return null
   }
@@ -253,7 +291,9 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
       seguro_fianca_apolice: s.garantia_tipo === 'seguro_fianca' ? s.seguro_fianca_apolice : null,
       data_inicio: s.data_inicio,
       data_primeiro_aluguel: s.data_primeiro_aluguel,
-      data_termino: s.data_termino || null,
+      data_termino: s.data_termino || (s.importado ? terminoImportado : '') || null,
+      importado: s.importado,
+      parcelas_qtd: s.importado ? parcelasImportado : undefined,
       duracao_meses: parseInt(s.duracao_meses),
       dia_vencimento: parseInt(s.dia_vencimento),
       forma_pagamento: s.forma_pagamento,
@@ -835,15 +875,61 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
             </label>
           </div>
 
+          {/* Contrato que já existe no papel */}
+          <div className={`rounded-xl border p-3 mt-3 ${s.importado ? 'border-amber-200 bg-amber-50/60' : 'border-gray-100'}`}>
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={s.importado}
+                onChange={e => setField('importado', e.target.checked)}
+                className="w-4 h-4 rounded accent-amber-600 mt-0.5 shrink-0"
+              />
+              <span className="text-sm text-gray-800">
+                <strong>Contrato já assinado fora da plataforma</strong>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Para trazer um contrato antigo e poder fazer reajuste e termo
+                  aditivo aqui. O prazo continua sendo o do contrato assinado, e
+                  as parcelas começam no mês que você escolher.
+                </p>
+              </span>
+            </label>
+
+            {s.importado && (
+              <div className="mt-2.5 pl-6 space-y-1.5 text-[11px] text-amber-900">
+                <p>
+                  Preencha <strong>Início</strong> e <strong>Duração</strong> com o que está no
+                  contrato assinado, e <strong>1ª parcela</strong> com o primeiro mês que você vai
+                  cobrar por aqui.
+                </p>
+                {terminoImportado && (
+                  <p>
+                    Vigência até <strong>{fmtDataBr(terminoImportado)}</strong>
+                    {parcelasImportado > 0 && (
+                      <> · serão geradas <strong>{parcelasImportado} parcela{parcelasImportado === 1 ? '' : 's'}</strong>, a partir de {fmtDataBr(s.data_primeiro_aluguel)}</>
+                    )}
+                  </p>
+                )}
+                <p className="text-amber-700">
+                  Depois de salvar, anexe o PDF do contrato original em
+                  &quot;Gerar contrato&quot; → contrato assinado.
+                </p>
+              </div>
+            )}
+          </div>
+
           <div className="grid sm:grid-cols-4 gap-3 pt-3 border-t border-gray-50">
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Início *</label>
               <input type="date" value={s.data_inicio} onChange={e => setField('data_inicio', e.target.value)} className={inputCls} />
+              {s.importado && (
+                <p className="text-[10px] text-gray-400 mt-0.5">Do contrato assinado, mesmo que no passado.</p>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">
-                1º aluguel * {!primeiroAluguelManual && s.data_primeiro_aluguel && (
-                  <span className="text-violet-600 font-normal">(automático)</span>
+                {s.importado ? '1ª parcela a cobrar aqui *' : '1º aluguel *'}
+                {!s.importado && !primeiroAluguelManual && s.data_primeiro_aluguel && (
+                  <span className="text-violet-600 font-normal"> (automático)</span>
                 )}
               </label>
               <input
@@ -853,9 +939,11 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
                 className={inputCls}
               />
               <p className="text-[10px] text-gray-400 mt-0.5">
-                {s.garantia_tipo === 'seguro_fianca' || s.garantia_tipo === 'fiador'
-                  ? 'Com seguro fiança/fiador, o 1º aluguel vence 1 mês após a entrada.'
-                  : 'Sem caução adicional, o 1º aluguel vence no mês da entrada.'}
+                {s.importado
+                  ? 'O primeiro mês que passa a ser cobrado pela plataforma. O que veio antes fica fora.'
+                  : s.garantia_tipo === 'seguro_fianca' || s.garantia_tipo === 'fiador'
+                    ? 'Com seguro fiança/fiador, o 1º aluguel vence 1 mês após a entrada.'
+                    : 'Sem caução adicional, o 1º aluguel vence no mês da entrada.'}
                 {primeiroAluguelManual && (
                   <button type="button" onClick={() => setPrimeiroAluguelManual(false)} className="text-violet-600 hover:underline ml-1">
                     voltar ao automático
@@ -866,6 +954,9 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Duração (meses) *</label>
               <input value={s.duracao_meses} onChange={e => setField('duracao_meses', e.target.value)} placeholder="12" className={inputCls} />
+              {s.importado && (
+                <p className="text-[10px] text-gray-400 mt-0.5">O prazo do contrato assinado, não o que falta.</p>
+              )}
             </div>
             <div>
               <label className="text-xs font-medium text-gray-600 block mb-1">Dia vencimento *</label>

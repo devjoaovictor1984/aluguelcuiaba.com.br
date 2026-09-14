@@ -63,6 +63,8 @@ export interface WizardState {
   taxa_admin_valor: string
   taxa_admin_base: BaseComissao
   primeira_parcela_cheia: boolean
+  /** Contrato assinado fora da plataforma, entrando só pra receber aditivos. */
+  importado: boolean
   data_inicio: string
   data_primeiro_aluguel: string
   data_termino: string
@@ -109,6 +111,7 @@ export const ESTADO_INICIAL: WizardState = {
   taxa_admin_valor: '10',
   taxa_admin_base: 'aluguel',
   primeira_parcela_cheia: false,
+  importado: false,
   data_inicio: '',
   data_primeiro_aluguel: '',
   data_termino: '',

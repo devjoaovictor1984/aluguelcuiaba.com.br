@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import {
   ArrowLeft, Home, User, Shield, Calendar, DollarSign, Pencil, Repeat, XCircle, FileSignature, FileText, KeyRound,
+  FileInput,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
@@ -188,6 +189,14 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
               {contrato.status}
             </span>
             {marco && <BadgeMarco marco={marco} longo />}
+            {contrato.importado && (
+              <span
+                className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-800"
+                title="Assinado fora da plataforma. O instrumento original é o PDF anexado; daqui saem os reajustes e aditivos."
+              >
+                <FileInput size={12} /> Importado
+              </span>
+            )}
             <span className="text-xs text-gray-400">
               {pagas}/{lista.length} parcelas pagas
               {atrasadas > 0 && <span className="text-red-600 font-semibold ml-2">· {atrasadas} atrasada{atrasadas === 1 ? '' : 's'}</span>}
