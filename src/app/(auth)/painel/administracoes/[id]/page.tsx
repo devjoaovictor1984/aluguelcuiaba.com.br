@@ -49,10 +49,17 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
 
   const { data: aditivos } = await supabase
     .from('contratos_administracao_aditivos')
-    .select('id, numero, data_aditivo, tipo, titulo, objeto')
+    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids')
     .eq('contrato_id', id)
     .eq('user_id', acesso.userId)
     .order('numero', { ascending: true })
+
+  // Cadastro de pessoas, pra escolher as testemunhas do aditivo
+  const { data: pessoas } = await supabase
+    .from('pessoas')
+    .select('id, nome, tipo, cpf_cnpj')
+    .eq('user_id', acesso.userId)
+    .order('nome', { ascending: true })
 
   const prop = unwrap(contrato.proprietario) as { nome: string; cpf_cnpj: string | null; telefone: string | null; email: string | null } | null
   const imovel = unwrap(contrato.imovel) as { titulo: string; endereco_resumido: string | null; endereco_completo: string | null } | null
@@ -250,7 +257,11 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
         </div>
       )}
 
-      <AditivosAdmSecao contratoId={id} aditivos={(aditivos ?? []) as AditivoAdmRow[]} />
+      <AditivosAdmSecao
+        contratoId={id}
+        aditivos={(aditivos ?? []) as AditivoAdmRow[]}
+        pessoas={pessoas ?? []}
+      />
 
       <BotaoExcluirAdm contratoAdmId={id} codigo={contrato.codigo} />
     </div>
