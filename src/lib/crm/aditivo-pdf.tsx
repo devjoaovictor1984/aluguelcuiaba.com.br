@@ -37,7 +37,12 @@ export interface AditivoPDFData {
 
   // Contrato original
   contrato_codigo: string
-  contrato_data_assinatura: string | null  // dd/mm/yyyy (texto pronto)
+  /**
+   * Como citar o contrato originário: "nº X, firmado em dd/mm/aaaa" ou o que
+   * o corretor escreveu. null = sem número ("celebrado entre as partes") —
+   * ver contrato-originario.ts.
+   */
+  contrato_referencia: string | null
   imovel_endereco: string
   finalidade?: 'residencial' | 'comercial' | 'misto'
 
@@ -58,6 +63,8 @@ export interface AditivoPDFData {
   fiador_cpf: string | null
 
   testemunhas: Array<{ nome: string; cpf: string | null; rg: string | null }>
+  /** Assinaturas desenhadas na plataforma (base64), achadas pelo nome de quem assina a linha. */
+  assinaturas?: Array<{ nome: string; imagem: string }>
 
   // O aditivo em si
   numero: number
@@ -133,6 +140,27 @@ function numerarObjeto(num: number, corpo: string): string[] {
   }).filter(Boolean)
 }
 
+/**
+ * Assinatura desenhada de quem assina uma linha. Pelo NOME, não pelo papel:
+ * o papel do signatário é texto livre no painel, o nome é o mesmo que o PDF
+ * imprime embaixo da linha (as sugestões do painel saem daqui).
+ */
+function assinaturaDe(lista: Array<{ nome: string; imagem: string }> | undefined, nome: string | null | undefined): string | null {
+  const alvo = (nome ?? '').trim().toLowerCase()
+  if (!alvo || !lista) return null
+  return lista.find(a => a.nome.trim().toLowerCase() === alvo)?.imagem ?? null
+}
+
+/** Linha de assinatura, com a assinatura desenhada por cima quando houver. */
+function LinhaAssinatura({ imagem }: { imagem: string | null }) {
+  return (
+    <>
+      {imagem && <Image src={imagem} style={{ height: 34, width: 150, objectFit: 'contain', marginBottom: -2 }} />}
+      <View style={styles.assinaturaLinha} />
+    </>
+  )
+}
+
 export function AditivoDocument({ data }: { data: AditivoPDFData }) {
   const nomeInst = data.anunciante_razao_social ?? data.anunciante_nome
   const cidadeUf = data.anunciante_cidade_uf ?? 'Cuiabá-MT'
@@ -191,7 +219,9 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
         <Text style={styles.titulo}>
           {ordinal} Termo Aditivo ao Contrato de {tipoContrato}
         </Text>
-        <Text style={styles.subtitulo}>Contrato originário nº {data.contrato_codigo}</Text>
+        {data.contrato_referencia && (
+          <Text style={styles.subtitulo}>Contrato originário {data.contrato_referencia}</Text>
+        )}
         <Text style={styles.subtitulo}>Objeto: {tipoLabel}</Text>
 
         {/* Preâmbulo */}
@@ -209,9 +239,8 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
             <Text>, e ainda <Text style={styles.parteNome}>{data.fiador_nome}{data.fiador_cpf ? `, CPF nº ${data.fiador_cpf}` : ''}</Text>, na qualidade de FIADOR(A)</Text>
           )}
           , têm entre si justo e acordado o presente{' '}
-          <Text style={styles.parteNome}>{ordinal} TERMO ADITIVO</Text> ao Contrato de Locação nº{' '}
-          {data.contrato_codigo}
-          {data.contrato_data_assinatura ? `, firmado em ${data.contrato_data_assinatura}` : ''}, que tem
+          <Text style={styles.parteNome}>{ordinal} TERMO ADITIVO</Text> ao Contrato de Locação
+          {data.contrato_referencia ? ` ${data.contrato_referencia}` : ' celebrado entre as partes'}, que tem
           por objeto o imóvel situado à {data.imovel_endereco || '[ENDEREÇO DO IMÓVEL]'}, mediante as
           cláusulas e condições a seguir, com fundamento na Lei nº 8.245/1991 (Lei do Inquilinato) e no
           Código Civil Brasileiro.
@@ -260,7 +289,10 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
         <View wrap={false}>
           {/* Locador / administradora */}
           <View style={styles.assinaturaBloco}>
-            <View style={styles.assinaturaLinha} />
+            <LinhaAssinatura imagem={assinaturaDe(
+              data.assinaturas,
+              data.tem_administracao && data.admin_responsavel_nome ? data.admin_responsavel_nome : data.locador_nome,
+            )} />
             {data.tem_administracao && data.admin_responsavel_nome ? (
               <>
                 <Text style={styles.assinaturaPapel}>Locador(a) — p.p. administradora</Text>
@@ -280,7 +312,7 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
 
           {/* Locatário */}
           <View style={styles.assinaturaBloco}>
-            <View style={styles.assinaturaLinha} />
+            <LinhaAssinatura imagem={assinaturaDe(data.assinaturas, data.locatario_nome)} />
             <Text style={styles.assinaturaPapel}>Locatário(a)</Text>
             <Text style={styles.assinaturaNome}>{data.locatario_nome}</Text>
             {data.locatario_cpf && <Text style={styles.assinaturaCpf}>CPF {data.locatario_cpf}</Text>}
@@ -289,7 +321,7 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
           {/* Cônjuge solidário */}
           {data.conjuge_nome && data.conjuge_papel !== 'nao_participa' && (
             <View style={styles.assinaturaBloco}>
-              <View style={styles.assinaturaLinha} />
+              <LinhaAssinatura imagem={assinaturaDe(data.assinaturas, data.conjuge_nome)} />
               <Text style={styles.assinaturaPapel}>
                 {data.conjuge_papel === 'solidario' ? 'Locatário(a) solidário(a) / cônjuge' : 'Cônjuge anuente'}
               </Text>
@@ -301,7 +333,7 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
           {/* Fiador */}
           {data.fiador_nome && (
             <View style={styles.assinaturaBloco}>
-              <View style={styles.assinaturaLinha} />
+              <LinhaAssinatura imagem={assinaturaDe(data.assinaturas, data.fiador_nome)} />
               <Text style={styles.assinaturaPapel}>Fiador(a)</Text>
               <Text style={styles.assinaturaNome}>{data.fiador_nome}</Text>
               {data.fiador_cpf && <Text style={styles.assinaturaCpf}>CPF {data.fiador_cpf}</Text>}
@@ -312,7 +344,7 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
           <Text style={styles.testemunhaTit}>Testemunhas</Text>
           {(data.testemunhas.length > 0 ? data.testemunhas : [null, null]).map((t, i) => (
             <View key={i} style={styles.assinaturaBloco}>
-              <View style={styles.assinaturaLinha} />
+              <LinhaAssinatura imagem={t ? assinaturaDe(data.assinaturas, t.nome) : null} />
               {t ? (
                 <>
                   <Text style={styles.assinaturaNome}>{t.nome}</Text>
@@ -355,7 +387,8 @@ export interface AditivoAdmPDFData {
   anunciante_cidade_uf: string | null
 
   contrato_codigo: string
-  contrato_data_assinatura: string | null
+  /** Ver AditivoPDFData.contrato_referencia. */
+  contrato_referencia: string | null
   imovel_endereco: string
 
   proprietario_nome: string
@@ -364,6 +397,8 @@ export interface AditivoAdmPDFData {
   admin_responsavel_creci: string | null
 
   testemunhas: Array<{ nome: string; cpf: string | null; rg: string | null }>
+  /** Assinaturas desenhadas na plataforma (base64), achadas pelo nome de quem assina a linha. */
+  assinaturas?: Array<{ nome: string; imagem: string }>
 
   numero: number
   data_aditivo: string
@@ -420,7 +455,9 @@ export function AditivoAdmDocument({ data }: { data: AditivoAdmPDFData }) {
 
         <Text style={styles.selo}>INSTRUMENTO PARTICULAR</Text>
         <Text style={styles.titulo}>{ordinal} Termo Aditivo ao Contrato de Administração de Imóvel</Text>
-        <Text style={styles.subtitulo}>Contrato originário nº {data.contrato_codigo}</Text>
+        {data.contrato_referencia && (
+          <Text style={styles.subtitulo}>Contrato originário {data.contrato_referencia}</Text>
+        )}
         <Text style={styles.subtitulo}>Objeto: {tipoLabel}</Text>
 
         {/* Preâmbulo */}
@@ -434,9 +471,8 @@ export function AditivoAdmDocument({ data }: { data: AditivoAdmPDFData }) {
           , e de outro lado{' '}
           <Text style={styles.parteNome}>{propQuali}</Text>, doravante designado(a){' '}
           <Text style={styles.parteNome}>PROPRIETÁRIA</Text>, têm entre si justo e acordado o presente{' '}
-          <Text style={styles.parteNome}>{ordinal} TERMO ADITIVO</Text> ao Contrato de Administração de Imóvel nº{' '}
-          {data.contrato_codigo}
-          {data.contrato_data_assinatura ? `, firmado em ${data.contrato_data_assinatura}` : ''}, relativo ao
+          <Text style={styles.parteNome}>{ordinal} TERMO ADITIVO</Text> ao Contrato de Administração de Imóvel
+          {data.contrato_referencia ? ` ${data.contrato_referencia}` : ' celebrado entre as partes'}, relativo ao
           imóvel situado à {data.imovel_endereco || '[ENDEREÇO DO IMÓVEL]'}, mediante as cláusulas e condições a
           seguir, com fundamento na Lei nº 8.245/1991 e no Código Civil Brasileiro.
         </Text>
@@ -477,7 +513,7 @@ export function AditivoAdmDocument({ data }: { data: AditivoAdmPDFData }) {
         <View wrap={false}>
           {/* Administradora */}
           <View style={styles.assinaturaBloco}>
-            <View style={styles.assinaturaLinha} />
+            <LinhaAssinatura imagem={assinaturaDe(data.assinaturas, data.admin_responsavel_nome || nomeInst)} />
             <Text style={styles.assinaturaPapel}>Administradora</Text>
             <Text style={styles.assinaturaNome}>{data.admin_responsavel_nome || nomeInst}</Text>
             <Text style={styles.assinaturaCpf}>
@@ -487,7 +523,7 @@ export function AditivoAdmDocument({ data }: { data: AditivoAdmPDFData }) {
 
           {/* Proprietária */}
           <View style={styles.assinaturaBloco}>
-            <View style={styles.assinaturaLinha} />
+            <LinhaAssinatura imagem={assinaturaDe(data.assinaturas, data.proprietario_nome)} />
             <Text style={styles.assinaturaPapel}>Proprietária / Contratante</Text>
             <Text style={styles.assinaturaNome}>{data.proprietario_nome}</Text>
             {data.proprietario_cpf && <Text style={styles.assinaturaCpf}>CPF/CNPJ {data.proprietario_cpf}</Text>}
@@ -496,7 +532,7 @@ export function AditivoAdmDocument({ data }: { data: AditivoAdmPDFData }) {
           <Text style={styles.testemunhaTit}>Testemunhas</Text>
           {(data.testemunhas.length > 0 ? data.testemunhas : [null, null]).map((t, i) => (
             <View key={i} style={styles.assinaturaBloco}>
-              <View style={styles.assinaturaLinha} />
+              <LinhaAssinatura imagem={t ? assinaturaDe(data.assinaturas, t.nome) : null} />
               {t ? (
                 <>
                   <Text style={styles.assinaturaNome}>{t.nome}</Text>

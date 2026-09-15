@@ -1,4 +1,5 @@
 import type { createAdminClient } from '@/lib/supabase/admin'
+import type { TipoAssinatura } from './assinatura-tipos'
 
 /**
  * Valida o token de um signatário e confirma que ele aponta para o
@@ -8,7 +9,7 @@ import type { createAdminClient } from '@/lib/supabase/admin'
 export async function validarTokenAssinatura(
   admin: ReturnType<typeof createAdminClient>,
   token: string,
-  tipoContrato: 'locacao' | 'administracao',
+  tipoContrato: TipoAssinatura,
   contratoId: string,
 ): Promise<string | null> {
   const { data } = await admin

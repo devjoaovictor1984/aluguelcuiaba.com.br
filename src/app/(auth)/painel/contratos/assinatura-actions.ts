@@ -5,6 +5,8 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { enviarEmail } from '@/lib/email/sender'
+import { ehAditivo, nomeDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
+import { situacaoAssinaturaAditivo } from '@/lib/crm/assinatura-lock'
 
 function gerarToken(): string {
   return randomBytes(24).toString('base64url')
@@ -18,15 +20,15 @@ async function baseUrl(): Promise<string> {
   return process.env.NEXT_PUBLIC_APP_URL ?? ''
 }
 
-function emailConvite(nome: string, papel: string | null, titulo: string, url: string, emitente: string, exigirOtp = true): string {
+function emailConvite(nome: string, papel: string | null, titulo: string, url: string, emitente: string, exigirOtp = true, documento = 'contrato'): string {
   const comoFunciona = exigirOtp
     ? 'É rápido e seguro: você confere o documento, informa seu e-mail e celular, recebe um código por e-mail, tira uma selfie e assina na tela.'
     : 'É rápido e seguro: você confere o documento, informa seu e-mail e celular, tira uma selfie e assina na tela.'
   return `
     <div style="font-family:Arial,sans-serif;max-width:520px;margin:0 auto;color:#1f2937">
-      <h2 style="color:#6d28d9">Assinatura de contrato</h2>
+      <h2 style="color:#6d28d9">Assinatura de ${documento}</h2>
       <p>Olá ${nome},</p>
-      <p>${emitente} solicitou sua assinatura no contrato <strong>${titulo}</strong>${papel ? ` (como <strong>${papel}</strong>)` : ''}.</p>
+      <p>${emitente} solicitou sua assinatura no ${documento} <strong>${titulo}</strong>${papel ? ` (como <strong>${papel}</strong>)` : ''}.</p>
       <p>${comoFunciona}</p>
       <p style="margin:24px 0">
         <a href="${url}" style="background:#6d28d9;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Revisar e assinar</a>
@@ -43,8 +45,8 @@ export interface SignatarioInput {
 }
 
 export interface CriarProcessoInput {
-  tipo_contrato: 'locacao' | 'administracao'
-  contrato_id: string // chave do PDF (geração p/ locação, contrato p/ administração)
+  tipo_contrato: TipoAssinatura
+  contrato_id: string // chave do PDF — ver assinatura-tipos.ts
   titulo: string
   signatarios: SignatarioInput[]
   exigirOtp?: boolean // default true — quando false, assina só com selfie + assinatura
@@ -58,6 +60,15 @@ export async function criarProcessoAssinatura(input: CriarProcessoInput) {
   const signatarios = (input.signatarios ?? []).filter(s => s.nome?.trim() && /\S+@\S+\.\S+/.test(s.email ?? ''))
   if (signatarios.length === 0) return { error: 'Adicione pelo menos 1 signatário com nome e e-mail válido.' }
   const exigirOtp = input.exigirOtp !== false
+
+  // Aditivo tem um processo só por vez: dois em paralelo seriam duas
+  // trilhas pro mesmo documento, e a assinatura desenhada no PDF viria de
+  // um ou de outro conforme a hora.
+  if (ehAditivo(input.tipo_contrato)) {
+    const situacao = await situacaoAssinaturaAditivo(supabase, input.tipo_contrato, input.contrato_id)
+    if (situacao === 'concluido') return { error: 'Este aditivo já foi assinado por todas as partes.' }
+    if (situacao === 'enviado') return { error: 'Este aditivo já está em assinatura. Cancele o envio atual antes de mandar de novo.' }
+  }
 
   const { data: proc, error } = await supabase
     .from('contrato_assinaturas')
@@ -101,7 +112,7 @@ export async function criarProcessoAssinatura(input: CriarProcessoInput) {
     await enviarEmail({
       to: s.email,
       subject: `Assinatura — ${input.titulo}`,
-      html: emailConvite(s.nome, s.papel, input.titulo, url, emitente, exigirOtp),
+      html: emailConvite(s.nome, s.papel, input.titulo, url, emitente, exigirOtp, nomeDocumento(input.tipo_contrato)),
       canal: 'assinatura_convite',
     })
   }
@@ -120,10 +131,10 @@ export async function atualizarEmailSignatario(signatarioId: string, email: stri
 
   const { data: s } = await supabase
     .from('contrato_assinatura_signatarios')
-    .select('id, nome, papel, token, status, assinatura:contrato_assinaturas!inner(user_id, titulo, status)')
+    .select('id, nome, papel, token, status, assinatura:contrato_assinaturas!inner(user_id, titulo, status, tipo_contrato)')
     .eq('id', signatarioId)
     .maybeSingle()
-  const a = (Array.isArray(s?.assinatura) ? s?.assinatura[0] : s?.assinatura) as { user_id: string; titulo: string | null; status: string } | undefined
+  const a = (Array.isArray(s?.assinatura) ? s?.assinatura[0] : s?.assinatura) as { user_id: string; titulo: string | null; status: string; tipo_contrato: TipoAssinatura } | undefined
   if (!s || a?.user_id !== acesso.userId) return { error: 'Signatário não encontrado.' }
   if (s.status === 'assinado') return { error: 'Este signatário já assinou.' }
   if (a?.status === 'cancelado') return { error: 'Processo cancelado.' }
@@ -141,7 +152,7 @@ export async function atualizarEmailSignatario(signatarioId: string, email: stri
     await enviarEmail({
       to: emailLimpo,
       subject: `Assinatura — ${a?.titulo ?? 'Contrato'}`,
-      html: emailConvite(s.nome, s.papel, a?.titulo ?? 'Contrato', url, emitente),
+      html: emailConvite(s.nome, s.papel, a?.titulo ?? 'Contrato', url, emitente, true, nomeDocumento(a?.tipo_contrato ?? 'locacao')),
       canal: 'assinatura_convite',
     })
   }
@@ -155,10 +166,10 @@ export async function reenviarConviteSignatario(signatarioId: string) {
 
   const { data: s } = await supabase
     .from('contrato_assinatura_signatarios')
-    .select('nome, email, papel, token, status, assinatura:contrato_assinaturas!inner(user_id, titulo, status)')
+    .select('nome, email, papel, token, status, assinatura:contrato_assinaturas!inner(user_id, titulo, status, tipo_contrato)')
     .eq('id', signatarioId)
     .maybeSingle()
-  const a = (Array.isArray(s?.assinatura) ? s?.assinatura[0] : s?.assinatura) as { user_id: string; titulo: string | null; status: string } | undefined
+  const a = (Array.isArray(s?.assinatura) ? s?.assinatura[0] : s?.assinatura) as { user_id: string; titulo: string | null; status: string; tipo_contrato: TipoAssinatura } | undefined
   if (!s || a?.user_id !== acesso.userId) return { error: 'Signatário não encontrado.' }
   if (s.status === 'assinado') return { error: 'Este signatário já assinou.' }
   if (a?.status === 'cancelado') return { error: 'Processo cancelado.' }
@@ -169,7 +180,7 @@ export async function reenviarConviteSignatario(signatarioId: string) {
   const r = await enviarEmail({
     to: s.email,
     subject: `Assinatura — ${a?.titulo ?? 'Contrato'}`,
-    html: emailConvite(s.nome, s.papel, a?.titulo ?? 'Contrato', url, emitente),
+    html: emailConvite(s.nome, s.papel, a?.titulo ?? 'Contrato', url, emitente, true, nomeDocumento(a?.tipo_contrato ?? 'locacao')),
     canal: 'assinatura_convite',
   })
   if (r.error) return { error: `Falha ao enviar: ${r.error}` }

@@ -5,6 +5,7 @@ import { Footer } from '@/components/footer'
 import { ShieldCheck, ShieldX, ChevronRight, CheckCircle2 } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { normalizarCodigo } from '@/lib/crm/validacao-codigo'
+import { rotuloDocumento } from '@/lib/crm/assinatura-tipos'
 import { ConferirArquivo } from './_components/conferir-arquivo'
 
 export const metadata: Metadata = {
@@ -106,7 +107,7 @@ export default async function ResultadoValidacaoPage({
                 <div className="flex flex-wrap gap-x-2">
                   <dt className="text-gray-400 w-32 shrink-0">Tipo</dt>
                   <dd className="text-gray-700">
-                    {proc.tipo_contrato === 'administracao' ? 'Contrato de Administração' : 'Contrato de Locação'}
+                    {rotuloDocumento(proc.tipo_contrato)}
                   </dd>
                 </div>
                 <div className="flex flex-wrap gap-x-2">

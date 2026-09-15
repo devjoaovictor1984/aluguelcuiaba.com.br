@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CertificadoAssinaturaDocument } from '@/lib/crm/certificado-assinatura-pdf'
 import { montarCertificado } from '@/lib/crm/certificado-dados'
+import type { TipoAssinatura } from '@/lib/crm/assinatura-tipos'
 import { garantirCodigoValidacao } from '@/lib/crm/validacao-codigo'
 import { carimbarValidacao } from '@/lib/crm/carimbo-validacao'
 import { PDFDocument } from 'pdf-lib'
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { cert } = await montarCertificado(admin, {
       id: proc.id,
       user_id: proc.user_id,
-      tipo_contrato: proc.tipo_contrato as 'locacao' | 'administracao',
+      tipo_contrato: proc.tipo_contrato as TipoAssinatura,
       titulo: proc.titulo,
       concluido_em: proc.concluido_em,
     }, {

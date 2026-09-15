@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download, MessageCircle, Pencil, Mail, ShieldCheck } from 'lucide-react'
 import { criarProcessoAssinatura, cancelarProcessoAssinatura, atualizarEmailSignatario, reenviarConviteSignatario } from '../assinatura-actions'
 import { ConfirmarEnvioAssinatura } from './confirmar-envio-assinatura'
+import { ehAditivo, nomeDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
 
 interface Sugestao { nome: string; email: string; papel: string }
 interface SignatarioStatus {
@@ -36,7 +37,7 @@ const fmtDataHora = (iso: string | null) =>
   iso ? new Date(iso).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'medium' }) : '—'
 
 interface Props {
-  tipoContrato: 'locacao' | 'administracao'
+  tipoContrato: TipoAssinatura
   contratoId: string
   titulo: string
   baseUrl: string
@@ -48,6 +49,7 @@ interface Linha { nome: string; email: string; papel: string }
 
 export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, sugestoes, processos }: Props) {
   const router = useRouter()
+  const documento = nomeDocumento(tipoContrato)
   // Toda parte do contrato entra pré-preenchida, inclusive quem está sem
   // e-mail cadastrado: a linha aparece com nome e papel, o campo de e-mail
   // fica destacado e o envio explica o que falta antes de sair. Esconder a
@@ -126,7 +128,7 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
   const copiar = (token: string) => copiarTexto(`${origin}/assinar/${token}`, token)
 
   const whatsapp = (s: SignatarioStatus) => {
-    const msg = `Olá ${s.nome.split(' ')[0]}, segue o link para você assinar o contrato ${titulo}${s.papel ? ` (como ${s.papel})` : ''}:\n\n${origin}/assinar/${s.token}`
+    const msg = `Olá ${s.nome.split(' ')[0]}, segue o link para você assinar o ${documento} ${titulo}${s.papel ? ` (como ${s.papel})` : ''}:\n\n${origin}/assinar/${s.token}`
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
   }
 
@@ -147,6 +149,7 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
         <ConfirmarEnvioAssinatura
           signatarios={confirmando}
           exigirOtp={exigirOtp}
+          aditivo={ehAditivo(tipoContrato)}
           enviando={isPending}
           onConfirmar={confirmarEnvio}
           onCancelar={() => setConfirmando(null)}
@@ -206,7 +209,7 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
           <span className="block text-[11px] text-gray-500 leading-tight mt-0.5">
             {exigirOtp
               ? 'Cada parte confirma um código enviado ao e-mail antes de assinar (mais seguro).'
-              : 'Desmarcado: a pessoa assina só com selfie + assinatura (sem código). O e-mail ainda é registrado e recebe o contrato final quando todos assinarem.'}
+              : `Desmarcado: a pessoa assina só com selfie + assinatura (sem código). O e-mail ainda é registrado e recebe o ${documento} final quando todos assinarem.`}
           </span>
         </span>
       </label>

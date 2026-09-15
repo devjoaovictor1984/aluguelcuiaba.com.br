@@ -1,5 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { cartaoLinkImage, nomeCurto, OG_SIZE, OG_CONTENT_TYPE } from '@/lib/og/cartao-link'
+import { nomeDocumento } from '@/lib/crm/assinatura-tipos'
 
 export const alt = 'Contrato para assinatura eletrônica'
 export const size = OG_SIZE
@@ -19,21 +20,23 @@ export default async function Image({ params }: { params: Promise<{ token: strin
   let papel = ''
   let titulo = ''
   let emitente = 'AluguelCuiabá'
+  let documento: string = 'contrato'
 
   try {
     const admin = createAdminClient()
     const { data: sig } = await admin
       .from('contrato_assinatura_signatarios')
-      .select('nome, papel, assinatura:contrato_assinaturas!inner(titulo, user_id)')
+      .select('nome, papel, assinatura:contrato_assinaturas!inner(titulo, user_id, tipo_contrato)')
       .eq('token', token)
       .maybeSingle()
 
     if (sig) {
       const proc = (Array.isArray(sig.assinatura) ? sig.assinatura[0] : sig.assinatura) as
-        { titulo: string | null; user_id: string } | undefined
+        { titulo: string | null; user_id: string; tipo_contrato: string } | undefined
       nome = nomeCurto(sig.nome)
       papel = sig.papel ?? ''
       titulo = proc?.titulo ?? ''
+      documento = nomeDocumento(proc?.tipo_contrato ?? 'locacao')
       if (proc?.user_id) {
         const { data: perfil } = await admin
           .from('perfis').select('razao_social, nome').eq('id', proc.user_id).maybeSingle()
@@ -45,9 +48,9 @@ export default async function Image({ params }: { params: Promise<{ token: strin
   }
 
   return cartaoLinkImage({
-    rotulo: 'ASSINATURA ELETRÔNICA DE CONTRATO',
-    destaque: nome ? `${nome},` : 'Contrato para assinar',
-    linha: nome ? 'seu contrato está pronto para assinatura.' : 'toque para conferir e assinar.',
+    rotulo: `ASSINATURA ELETRÔNICA DE ${documento.toUpperCase()}`,
+    destaque: nome ? `${nome},` : (documento === 'contrato' ? 'Contrato para assinar' : 'Termo aditivo para assinar'),
+    linha: nome ? `seu ${documento} está pronto para assinatura.` : 'toque para conferir e assinar.',
     detalhe: [titulo, papel].filter(Boolean).join('  ·  ') || undefined,
     acao: 'Toque para assinar',
     emitente,

@@ -3,6 +3,8 @@ import { renderToBuffer, type DocumentProps } from '@react-pdf/renderer'
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
+import { referenciaOriginario, referenciaOriginarioPadrao } from '@/lib/crm/contrato-originario'
 import { AditivoDocument, type AditivoPDFData } from '@/lib/crm/aditivo-pdf'
 import React from 'react'
 
@@ -24,14 +26,8 @@ function fmtCnpj(s: string | null | undefined): string | null {
   return s
 }
 
-function fmtData(iso: string | null | undefined): string | null {
-  if (!iso) return null
-  const s = iso.slice(0, 10)
-  const [y, m, d] = s.split('-')
-  return `${d}/${m}/${y}`
-}
-
-async function carimbarPaginacao(pdfBytes: Uint8Array, codigo: string): Promise<Uint8Array> {
+/** `codigo` null = contrato não assinado pela plataforma: o rodapé não cita o código interno. */
+async function carimbarPaginacao(pdfBytes: Uint8Array, codigo: string | null): Promise<Uint8Array> {
   try {
     const pdf = await PDFDocument.load(pdfBytes)
     const font = await pdf.embedFont(StandardFonts.Helvetica)
@@ -39,7 +35,7 @@ async function carimbarPaginacao(pdfBytes: Uint8Array, codigo: string): Promise<
     const total = paginas.length
     paginas.forEach((page, i) => {
       const { width } = page.getSize()
-      const texto = `Termo Aditivo · Contrato ${codigo}  ·  AluguelCuiaba.com.br  ·  Página ${i + 1} de ${total}`
+      const texto = `Termo Aditivo${codigo ? ` · Contrato ${codigo}` : ''}  ·  AluguelCuiaba.com.br  ·  Página ${i + 1} de ${total}`
       const size = 7
       const larguraTexto = font.widthOfTextAtSize(texto, size)
       page.drawText(texto, { x: (width - larguraTexto) / 2, y: 22, size, font, color: rgb(0.6, 0.6, 0.64) })
@@ -58,19 +54,24 @@ export async function GET(
   try {
     const supabase = await createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
-
     const { aditivoId } = await params
     const admin = createAdminClient()
+
+    // Token de signatário (?st=) primeiro, login depois — mesma regra do PDF
+    // do contrato: quem abre o link de assinatura pode estar logado no portal
+    // com a própria conta. O token é amarrado a ESTE aditivo, não amplia acesso.
+    const st = new URL(request.url).searchParams.get('st')
+    const ownerId = (st ? await validarTokenAssinatura(admin, st, 'aditivo_locacao', aditivoId) : null) ?? user?.id ?? null
+    if (!ownerId) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 })
 
     // 1. Carrega o aditivo
     const { data: aditivo } = await admin
       .from('contratos_aditivos')
-      .select('id, user_id, contrato_id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids')
+      .select('id, user_id, contrato_id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids, contrato_originario_ref')
       .eq('id', aditivoId)
       .maybeSingle()
 
-    if (!aditivo || aditivo.user_id !== user.id) {
+    if (!aditivo || aditivo.user_id !== ownerId) {
       return NextResponse.json({ error: 'Aditivo não encontrado' }, { status: 404 })
     }
 
@@ -82,7 +83,7 @@ export async function GET(
           .from('pessoas')
           .select('id, nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf')
           .in('id', testemunhaIds)
-          .eq('user_id', user.id)
+          .eq('user_id', ownerId)
       : { data: [] as Array<{ id: string; nome: string; cpf_cnpj: string | null; rg: string | null; rg_orgao_emissor: string | null; rg_uf: string | null }> }
     const testemunhas = testemunhaIds
       .map(tid => (testemunhasRaw ?? []).find(t => t.id === tid))
@@ -92,6 +93,21 @@ export async function GET(
         cpf: fmtCpf(t.cpf_cnpj),
         rg: t.rg ? [t.rg, t.rg_orgao_emissor, t.rg_uf].filter(Boolean).join(' ') : null,
       }))
+
+    // 1c. Assinaturas desenhadas na plataforma → por cima da linha de cada parte
+    const { data: procAssin } = await admin
+      .from('contrato_assinaturas')
+      .select('id')
+      .eq('tipo_contrato', 'aditivo_locacao').eq('contrato_id', aditivoId).neq('status', 'cancelado')
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+    const { data: sigsAssin } = procAssin
+      ? await admin
+          .from('contrato_assinatura_signatarios')
+          .select('nome, assinatura_b64').eq('assinatura_id', procAssin.id).eq('status', 'assinado')
+      : { data: [] as Array<{ nome: string; assinatura_b64: string | null }> }
+    const assinaturas = (sigsAssin ?? [])
+      .filter(s => s.assinatura_b64)
+      .map(s => ({ nome: s.nome as string, imagem: s.assinatura_b64 as string }))
 
     // 2. Carrega contrato + partes + imóvel
     const { data: contrato, error: contratoErr } = await admin
@@ -125,7 +141,7 @@ export async function GET(
         endereco_logradouro, endereco_numero, endereco_bairro,
         endereco_cidade, endereco_uf, endereco_cep
       `)
-      .eq('id', user.id)
+      .eq('id', ownerId)
       .maybeSingle()
 
     const inq = Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino
@@ -159,8 +175,10 @@ export async function GET(
 
     const temAdministracao = (contrato.taxa_admin_valor ?? 0) > 0
 
-    // Data do contrato originário (registro)
-    const dataAssinatura = fmtData(contrato.created_at ?? null)
+    // Contrato originário: número e data só se foi assinado pela plataforma,
+    // ou o que o corretor escreveu no aditivo (contrato-originario.ts)
+    const originarioPadrao = await referenciaOriginarioPadrao(admin, 'locacao', { id: contrato.id, codigo: contrato.codigo })
+    const referencia = referenciaOriginario(aditivo.contrato_originario_ref, originarioPadrao)
 
     const data: AditivoPDFData = {
       anunciante_nome: perfil?.nome ?? 'AluguelCuiabá',
@@ -174,7 +192,7 @@ export async function GET(
         ? `${perfil.endereco_cidade}-${perfil.endereco_uf}` : null,
 
       contrato_codigo: contrato.codigo,
-      contrato_data_assinatura: dataAssinatura,
+      contrato_referencia: referencia,
       imovel_endereco: endereco,
       finalidade: (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto',
 
@@ -194,6 +212,7 @@ export async function GET(
       fiador_cpf: contrato.garantia_tipo === 'fiador' ? fmtCpf(fia?.cpf_cnpj) : null,
 
       testemunhas,
+      assinaturas,
 
       numero: aditivo.numero,
       data_aditivo: aditivo.data_aditivo,
@@ -204,7 +223,7 @@ export async function GET(
 
     const element = React.createElement(AditivoDocument, { data }) as unknown as React.ReactElement<DocumentProps>
     const buffer = await renderToBuffer(element)
-    const finalBytes = await carimbarPaginacao(new Uint8Array(buffer), contrato.codigo)
+    const finalBytes = await carimbarPaginacao(new Uint8Array(buffer), originarioPadrao ? contrato.codigo : null)
 
     const filename = `aditivo-${aditivo.numero}-${contrato.codigo}.pdf`
     return new Response(finalBytes as unknown as BodyInit, {

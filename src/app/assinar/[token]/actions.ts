@@ -6,6 +6,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { enviarEmail } from '@/lib/email/sender'
 import { subirSelfieBase64 } from '@/lib/storage/selfies'
 import { garantirCodigoValidacao } from '@/lib/crm/validacao-codigo'
+import { nomeDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
 
 function hashOtp(code: string): string {
   return createHash('sha256').update(code).digest('hex')
@@ -16,7 +17,7 @@ interface ProcRow {
   status: string
   titulo: string | null
   exigir_otp: boolean | null
-  tipo_contrato: 'locacao' | 'administracao'
+  tipo_contrato: TipoAssinatura
   contrato_id: string
 }
 
@@ -177,7 +178,9 @@ export async function confirmarAssinatura(token: string, payload: {
       await admin.from('contrato_geracoes')
         .update({ status: 'assinado', assinado_em: agora })
         .eq('id', proc.contrato_id)
-    } else {
+    } else if (proc.tipo_contrato === 'administracao') {
+      // Aditivo não tem geração pra marcar: a trava dele é o próprio
+      // processo concluído (situacaoAssinaturaAditivo).
       await admin.from('contrato_admin_geracoes')
         .update({ status: 'assinado', assinado_em: agora })
         .eq('contrato_admin_id', proc.contrato_id)
@@ -188,6 +191,8 @@ export async function confirmarAssinatura(token: string, payload: {
     const proto = hdrs.get('x-forwarded-proto') ?? 'https'
     const base = host ? `${proto}://${host}` : (process.env.NEXT_PUBLIC_APP_URL ?? '')
     const titulo = proc.titulo ?? 'Contrato'
+    const doc = nomeDocumento(proc.tipo_contrato)
+    const Doc = doc === 'contrato' ? 'Contrato' : 'Termo aditivo'
     const { data: todos } = await admin
       .from('contrato_assinatura_signatarios')
       .select('nome, email, token')
@@ -196,17 +201,17 @@ export async function confirmarAssinatura(token: string, payload: {
       const dl = `${base}/api/assinaturas/${sig.assinatura_id}/pdf-final?st=${t.token}`
       await enviarEmail({
         to: t.email,
-        subject: `Contrato assinado — ${titulo}`,
+        subject: `${Doc} assinado — ${titulo}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#1f2937">
-            <h2 style="color:#16a34a">Contrato assinado por todas as partes ✅</h2>
+            <h2 style="color:#16a34a">${Doc} assinado por todas as partes ✅</h2>
             <p>Olá ${t.nome},</p>
-            <p>O contrato <strong>${titulo}</strong> foi assinado por todos. Baixe a via final (contrato + certificado de assinatura):</p>
-            <p style="margin:24px 0"><a href="${dl}" style="background:#6d28d9;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Baixar contrato assinado</a></p>
+            <p>O ${doc} <strong>${titulo}</strong> foi assinado por todos. Baixe a via final (${doc} + certificado de assinatura):</p>
+            <p style="margin:24px 0"><a href="${dl}" style="background:#6d28d9;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Baixar ${doc} assinado</a></p>
             <p style="font-size:12px;color:#6b7280">Se o botão não abrir, copie e cole:<br>${dl}</p>
             ${codigoValidacao ? `<p style="font-size:12px;color:#6b7280;border-top:1px solid #e5e7eb;padding-top:12px">
               Código de validação: <strong style="font-family:monospace;color:#1f2937">${codigoValidacao}</strong><br>
-              Qualquer pessoa confere a autenticidade do contrato em ${base}/validar — sem precisar de conta.
+              Qualquer pessoa confere a autenticidade do ${doc} em ${base}/validar — sem precisar de conta.
             </p>` : ''}
           </div>
         `,

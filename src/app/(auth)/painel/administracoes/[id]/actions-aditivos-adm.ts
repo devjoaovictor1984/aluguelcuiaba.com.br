@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { situacaoAssinaturaAditivo, msgAditivoTravado } from '@/lib/crm/assinatura-lock'
 
 export type TipoAditivoAdm = 'taxa' | 'prorrogacao' | 'exclusividade' | 'repasse' | 'clausula' | 'outro'
 
@@ -14,6 +15,8 @@ export interface AditivoAdmInput {
   objeto: string
   /** Até 2 IDs em pessoas. Aparecem com nome e CPF na folha de assinatura. */
   testemunha_ids?: string[]
+  /** Como citar o contrato originário. Vazio = regra automática (contrato-originario.ts). */
+  contrato_originario_ref?: string | null
 }
 
 function validar(input: AditivoAdmInput): string | null {
@@ -56,6 +59,7 @@ export async function criarAditivoAdm(input: AditivoAdmInput) {
       data_aditivo: input.data_aditivo,
       objeto: input.objeto.trim(),
       testemunha_ids: input.testemunha_ids ?? [],
+      contrato_originario_ref: input.contrato_originario_ref?.trim() || null,
     })
     .select('id')
     .single()
@@ -76,6 +80,9 @@ export async function atualizarAditivoAdm(id: string, input: AditivoAdmInput) {
   const invalido = validar(input)
   if (invalido) return { error: invalido }
 
+  const situacao = await situacaoAssinaturaAditivo(supabase, 'aditivo_administracao', id)
+  if (situacao) return { error: msgAditivoTravado(situacao) }
+
   const { data, error } = await supabase
     .from('contratos_administracao_aditivos')
     .update({
@@ -84,6 +91,7 @@ export async function atualizarAditivoAdm(id: string, input: AditivoAdmInput) {
       data_aditivo: input.data_aditivo,
       objeto: input.objeto.trim(),
       testemunha_ids: input.testemunha_ids ?? [],
+      contrato_originario_ref: input.contrato_originario_ref?.trim() || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
@@ -101,6 +109,9 @@ export async function atualizarAditivoAdm(id: string, input: AditivoAdmInput) {
 export async function excluirAditivoAdm(id: string, contratoId: string) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+
+  const situacao = await situacaoAssinaturaAditivo(supabase, 'aditivo_administracao', id)
+  if (situacao) return { error: msgAditivoTravado(situacao) }
   const { error } = await supabase
     .from('contratos_administracao_aditivos')
     .delete()

@@ -1,5 +1,6 @@
 /* eslint-disable jsx-a11y/alt-text */
 import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/renderer'
+import { rotuloDocumento, type TipoAssinatura } from './assinatura-tipos'
 
 export interface CertificadoSignatario {
   nome: string
@@ -46,7 +47,7 @@ function fmtCel(c: string | null): string {
 
 export interface CertificadoData {
   titulo: string
-  tipo_contrato: 'locacao' | 'administracao'
+  tipo_contrato: TipoAssinatura
   emitente_nome: string
   concluido_em: string | null
   hash: string | null
@@ -92,7 +93,7 @@ export function CertificadoAssinaturaDocument({ data }: { data: CertificadoData 
       <Page size="A4" style={styles.page}>
         <Text style={styles.selo}>ASSINATURA ELETRÔNICA</Text>
         <Text style={styles.titulo}>Certificado de Assinatura</Text>
-        <Text style={styles.sub}>{data.titulo} · {data.tipo_contrato === 'administracao' ? 'Contrato de Administração' : 'Contrato de Locação'}</Text>
+        <Text style={styles.sub}>{data.titulo} · {rotuloDocumento(data.tipo_contrato)}</Text>
         <Text style={styles.sub}>
           {data.parcial
             ? `Emitido em ${fmt(new Date().toISOString())}`

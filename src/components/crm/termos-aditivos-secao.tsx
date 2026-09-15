@@ -2,13 +2,17 @@
 
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { FilePlus2, Plus, Trash2, Loader2, X, FileText, Download, Pencil, Users } from 'lucide-react'
+import {
+  FilePlus2, Plus, Trash2, Loader2, X, FileText, Download, Pencil, Users, PenLine, CheckCircle2, Clock,
+} from 'lucide-react'
+import { PainelAssinatura } from '@/app/(auth)/painel/contratos/_components/painel-assinatura'
+import type { ProcessoPainel } from '@/lib/crm/assinatura-painel'
 
 /**
  * Seção "Termos aditivos", compartilhada entre o contrato de locação e o
- * de administração. Muda só o que é de cada um — tipos, textos, actions e
- * a rota do PDF —, que vêm dos wrappers `aditivos-secao` e
- * `aditivos-adm-secao`.
+ * de administração. Muda só o que é de cada um — tipos, textos, actions,
+ * rota do PDF e tipo de assinatura —, que vêm dos wrappers
+ * `aditivos-secao` e `aditivos-adm-secao`.
  */
 
 export interface TermoAditivoRow {
@@ -19,6 +23,7 @@ export interface TermoAditivoRow {
   titulo: string | null
   objeto: string
   testemunha_ids: string[] | null
+  contrato_originario_ref?: string | null
 }
 
 export interface PessoaTestemunha {
@@ -41,12 +46,29 @@ export interface TermoAditivoInput {
   data_aditivo: string
   objeto: string
   testemunha_ids: string[]
+  contrato_originario_ref: string
+}
+
+export interface SugestaoSignatario { nome: string; email: string; papel: string }
+
+/** Assinatura eletrônica de cada aditivo: processos já abertos + quem assina. */
+export interface AssinaturaAditivos {
+  tipo: 'aditivo_locacao' | 'aditivo_administracao'
+  baseUrl: string
+  porAditivo: Record<string, { processos: ProcessoPainel[]; sugestoes: SugestaoSignatario[] }>
 }
 
 type Resultado = { error?: string; id?: string }
 
 interface Props {
   contratoId: string
+  /** Código do contrato, pro título do processo de assinatura. */
+  codigoContrato: string
+  /**
+   * Como o aditivo cita o contrato originário quando o campo fica em branco:
+   * "nº X, firmado em dd/mm/aaaa" se foi assinado pela plataforma; null se não.
+   */
+  originarioPadrao: string | null
   aditivos: TermoAditivoRow[]
   pessoas: PessoaTestemunha[]
   tipos: TipoTermo[]
@@ -55,6 +77,7 @@ interface Props {
   textoVazio: string
   subtitulo: string
   placeholderTitulo: string
+  assinatura: AssinaturaAditivos
   criar: (input: TermoAditivoInput) => Promise<Resultado>
   atualizar: (id: string, input: TermoAditivoInput) => Promise<Resultado>
   excluir: (id: string, contratoId: string) => Promise<Resultado>
@@ -76,11 +99,18 @@ function fmtCpf(s: string | null): string {
   return s
 }
 
+/** Mesma regra de situacaoAssinaturaAditivo (servidor), a partir dos processos já carregados. */
+function situacaoDe(processos: ProcessoPainel[] | undefined): 'concluido' | 'enviado' | null {
+  const ativos = (processos ?? []).filter(p => p.status !== 'cancelado')
+  if (ativos.some(p => p.status === 'concluido')) return 'concluido'
+  return ativos.length > 0 ? 'enviado' : null
+}
+
 const hoje = () => new Date().toISOString().slice(0, 10)
 
 export function TermosAditivosSecao({
-  contratoId, aditivos, pessoas, tipos, pdfBase, textoVazio, subtitulo, placeholderTitulo,
-  criar, atualizar, excluir,
+  contratoId, codigoContrato, originarioPadrao, aditivos, pessoas, tipos, pdfBase, textoVazio, subtitulo, placeholderTitulo,
+  assinatura, criar, atualizar, excluir,
 }: Props) {
   const router = useRouter()
   const tipoPadrao = tipos[0]
@@ -92,8 +122,12 @@ export function TermosAditivosSecao({
   const [dataAditivo, setDataAditivo] = useState(hoje)
   const [objeto, setObjeto] = useState('')
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>([])
+  const [originario, setOriginario] = useState('')
   const [erro, setErro] = useState('')
+  const [erroLista, setErroLista] = useState('')
   const [removendo, setRemovendo] = useState<string | null>(null)
+  // Aditivo com o painel de assinatura aberto (um por vez)
+  const [assinandoId, setAssinandoId] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
 
   const proximoNumero = aditivos.length + 1
@@ -116,7 +150,7 @@ export function TermosAditivosSecao({
 
   const abrirNovo = () => {
     setEditando(null)
-    setTitulo(''); setErro(''); setTestemunhaIds([])
+    setTitulo(''); setErro(''); setTestemunhaIds([]); setOriginario('')
     setDataAditivo(hoje())
     setTipo(tipoPadrao.valor)
     setObjeto(tipoPadrao.modelo)
@@ -130,6 +164,7 @@ export function TermosAditivosSecao({
     setDataAditivo(a.data_aditivo.slice(0, 10))
     setObjeto(a.objeto)
     setTestemunhaIds(a.testemunha_ids ?? [])
+    setOriginario(a.contrato_originario_ref ?? '')
     setErro('')
     setModalAberto(true)
   }
@@ -148,7 +183,10 @@ export function TermosAditivosSecao({
   const salvar = () => {
     setErro('')
     if (!objeto.trim()) { setErro('Descreva o que está sendo aditado.'); return }
-    const input = { contrato_id: contratoId, tipo, titulo, data_aditivo: dataAditivo, objeto, testemunha_ids: testemunhaIds }
+    const input = {
+      contrato_id: contratoId, tipo, titulo, data_aditivo: dataAditivo, objeto,
+      testemunha_ids: testemunhaIds, contrato_originario_ref: originario,
+    }
     startTransition(async () => {
       const r = editando ? await atualizar(editando.id, input) : await criar(input)
       if (r.error) { setErro(r.error); return }
@@ -162,11 +200,12 @@ export function TermosAditivosSecao({
 
   const remover = (id: string) => {
     if (!confirm('Excluir este termo aditivo? Esta ação não pode ser desfeita.')) return
+    setErroLista('')
     setRemovendo(id)
     startTransition(async () => {
       const r = await excluir(id, contratoId)
       setRemovendo(null)
-      if (r.error) { alert(r.error); return }
+      if (r.error) { setErroLista(r.error); return }
       router.refresh()
     })
   }
@@ -190,55 +229,107 @@ export function TermosAditivosSecao({
         </button>
       </div>
 
+      {erroLista && <p className="text-xs text-rose-600 mb-2">{erroLista}</p>}
+
       {aditivos.length === 0 ? (
         <p className="text-xs text-gray-400">{textoVazio}</p>
       ) : (
         <ul className="space-y-2">
           {aditivos.map(a => {
             const testemunhas = (a.testemunha_ids ?? []).map(id => nomePorId.get(id)).filter(Boolean)
+            const dadosAss = assinatura.porAditivo[a.id]
+            const situacao = situacaoDe(dadosAss?.processos)
+            // Em assinatura ou assinado, o texto não muda mais (ver msgAditivoTravado)
+            const motivoTrava = situacao === 'concluido'
+              ? 'Já assinado por todas as partes — para mudar algo, faça um novo aditivo'
+              : situacao === 'enviado'
+                ? 'Em assinatura — cancele o envio no painel de assinatura para editar'
+                : null
+            const assinando = assinandoId === a.id
             return (
-              <li key={a.id} className="flex items-start justify-between gap-2 border border-gray-100 rounded-xl p-3">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{a.numero}º aditivo</span>
-                    {a.titulo?.trim() || tipoLabel[a.tipo] || 'Aditamento'}
-                    <span className="text-[11px] font-normal text-gray-400">· {fmtData(a.data_aditivo)}</span>
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1 line-clamp-2 whitespace-pre-wrap">{a.objeto}</p>
-                  <p className={`text-[11px] mt-1 flex items-center gap-1 ${testemunhas.length ? 'text-gray-500' : 'text-amber-600'}`}>
-                    <Users size={11} />
-                    {testemunhas.length ? `Testemunhas: ${testemunhas.join(', ')}` : 'Sem testemunhas — o PDF sai com as linhas em branco'}
-                  </p>
+              <li key={a.id} className="border border-gray-100 rounded-xl p-3">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] bg-violet-100 text-violet-700 px-1.5 py-0.5 rounded-full font-bold">{a.numero}º aditivo</span>
+                      {a.titulo?.trim() || tipoLabel[a.tipo] || 'Aditamento'}
+                      <span className="text-[11px] font-normal text-gray-400">· {fmtData(a.data_aditivo)}</span>
+                      {situacao === 'concluido' && (
+                        <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                          <CheckCircle2 size={10} /> Assinado
+                        </span>
+                      )}
+                      {situacao === 'enviado' && (
+                        <span className="text-[10px] bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-0.5">
+                          <Clock size={10} /> Em assinatura
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1 line-clamp-2 whitespace-pre-wrap">{a.objeto}</p>
+                    <p className={`text-[11px] mt-1 flex items-center gap-1 ${testemunhas.length ? 'text-gray-500' : 'text-amber-600'}`}>
+                      <Users size={11} />
+                      {testemunhas.length ? `Testemunhas: ${testemunhas.join(', ')}` : 'Sem testemunhas — o PDF sai com as linhas em branco'}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setAssinandoId(assinando ? null : a.id)}
+                      className={`flex items-center gap-1 text-xs px-2 py-1.5 rounded-lg ${
+                        assinando ? 'bg-violet-100 text-violet-800' : 'text-violet-700 hover:bg-violet-50'
+                      }`}
+                      title="Assinatura eletrônica: selfie, código por e-mail e assinatura desenhada"
+                    >
+                      <PenLine size={13} /> Assinatura
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => abrirEdicao(a)}
+                      disabled={isPending || !!motivoTrava}
+                      className="flex items-center gap-1 text-xs text-gray-600 hover:bg-gray-100 px-2 py-1.5 rounded-lg disabled:opacity-40 disabled:hover:bg-transparent"
+                      title={motivoTrava ?? 'Editar texto, data e testemunhas'}
+                    >
+                      <Pencil size={13} /> Editar
+                    </button>
+                    <a
+                      href={`${pdfBase}/${a.id}/pdf`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1 text-xs text-violet-700 hover:bg-violet-50 px-2 py-1.5 rounded-lg"
+                      title="Abrir PDF do aditivo"
+                    >
+                      <FileText size={13} /> PDF
+                    </a>
+                    <button
+                      type="button"
+                      onClick={() => remover(a.id)}
+                      disabled={isPending || !!motivoTrava}
+                      className="text-gray-300 hover:text-rose-600 p-1.5 disabled:opacity-40 disabled:hover:text-gray-300"
+                      title={motivoTrava ?? 'Excluir aditivo'}
+                    >
+                      {removendo === a.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => abrirEdicao(a)}
-                    disabled={isPending}
-                    className="flex items-center gap-1 text-xs text-gray-600 hover:bg-gray-100 px-2 py-1.5 rounded-lg disabled:opacity-50"
-                    title="Editar texto, data e testemunhas"
-                  >
-                    <Pencil size={13} /> Editar
-                  </button>
-                  <a
-                    href={`${pdfBase}/${a.id}/pdf`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-1 text-xs text-violet-700 hover:bg-violet-50 px-2 py-1.5 rounded-lg"
-                    title="Abrir PDF do aditivo"
-                  >
-                    <FileText size={13} /> PDF
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => remover(a.id)}
-                    disabled={isPending}
-                    className="text-gray-300 hover:text-rose-600 p-1.5 disabled:opacity-50"
-                    title="Excluir aditivo"
-                  >
-                    {removendo === a.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
-                  </button>
-                </div>
+
+                {assinando && (
+                  <div className="mt-3">
+                    {!situacao && testemunhas.length === 0 && (
+                      <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-2">
+                        Este aditivo está sem testemunhas. Escolha em <strong>Editar</strong> antes de enviar — depois
+                        de enviado, não dá mais pra mudar.
+                      </p>
+                    )}
+                    <PainelAssinatura
+                      tipoContrato={assinatura.tipo}
+                      contratoId={a.id}
+                      titulo={`${codigoContrato} · ${a.numero}º aditivo`}
+                      baseUrl={assinatura.baseUrl}
+                      sugestoes={dadosAss?.sugestoes ?? []}
+                      processos={dadosAss?.processos ?? []}
+                    />
+                  </div>
+                )}
               </li>
             )
           })}
@@ -277,6 +368,23 @@ export function TermosAditivosSecao({
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Título (opcional)</label>
                 <input value={titulo} onChange={e => setTitulo(e.target.value)} placeholder={placeholderTitulo} className={inputCls} />
               </div>
+            </div>
+
+            {/* Como citar o contrato originário. Número e data da plataforma só
+                valem pra contrato assinado por ela — ver contrato-originario.ts. */}
+            <div className="mb-3">
+              <label className="block text-xs font-semibold text-gray-600 mb-1">Contrato originário</label>
+              <input
+                value={originario}
+                onChange={e => setOriginario(e.target.value)}
+                placeholder={originarioPadrao ?? 'Ex: nº 045/2023, firmado em 10/01/2023'}
+                className={inputCls}
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                {originarioPadrao
+                  ? <>Em branco, sai <strong>&ldquo;{originarioPadrao}&rdquo;</strong> — o contrato foi assinado pela plataforma.</>
+                  : <>Este contrato não foi assinado pela plataforma. Em branco, o aditivo cita só <strong>&ldquo;o contrato celebrado entre as partes&rdquo;</strong>, sem número. Se quiser, escreva como está no papel.</>}
+              </p>
             </div>
 
             <label className="block text-xs font-semibold text-gray-600 mb-1">O que está sendo aditado *</label>

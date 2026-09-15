@@ -16,10 +16,12 @@ interface Props {
   exigirOtp: boolean
   emailInicial: string
   celularInicial: string
+  /** "contrato" ou "termo aditivo" — só muda o texto. */
+  documento?: string
 }
 
-const TERMO =
-  'Declaro que li e concordo com o conteúdo do contrato acima e assino-o eletronicamente. ' +
+const termoConsentimento = (documento: string) =>
+  `Declaro que li e concordo com o conteúdo do ${documento} acima e assino-o eletronicamente. ` +
   'Autorizo o registro do meu e-mail, celular, selfie e dos dados de acesso ' +
   '(data, hora, IP e localização) como prova da minha autoria, nos termos da MP 2.200-2/2001 e da LGPD.'
 
@@ -31,7 +33,7 @@ function fmtCelular(v: string): string {
   return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`
 }
 
-export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado, exigirOtp, emailInicial, celularInicial }: Props) {
+export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado, exigirOtp, emailInicial, celularInicial, documento = 'contrato' }: Props) {
   const [email, setEmail] = useState(emailInicial)
   const [celular, setCelular] = useState(fmtCelular(celularInicial))
   const [contatoOk, setContatoOk] = useState(false)
@@ -103,7 +105,7 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
           <Check size={30} className="text-green-600" />
         </div>
         <h2 className="text-xl font-bold text-gray-900 mb-1">Assinatura registrada!</h2>
-        <p className="text-sm text-gray-500">Obrigado, {nome}. Quando todas as partes assinarem, o contrato assinado é enviado por e-mail.</p>
+        <p className="text-sm text-gray-500">Obrigado, {nome}. Quando todas as partes assinarem, o {documento} assinado é enviado por e-mail.</p>
       </div>
     )
   }
@@ -115,12 +117,12 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
   return (
     <div className="space-y-5">
       <div className="bg-violet-50 border border-violet-100 rounded-xl px-4 py-3 text-sm text-violet-900">
-        Olá <strong>{nome}</strong>{papel ? ` (${papel})` : ''} — você vai assinar o contrato <strong>{titulo}</strong>.
+        Olá <strong>{nome}</strong>{papel ? ` (${papel})` : ''} — você vai assinar o {documento} <strong>{titulo}</strong>.
       </div>
 
       {/* Contrato */}
       <div className="rounded-2xl border border-gray-100 overflow-hidden">
-        <iframe src={pdfUrl} title="Contrato" className="w-full" style={{ height: '60vh', border: 'none' }} />
+        <iframe src={pdfUrl} title={documento} className="w-full" style={{ height: '60vh', border: 'none' }} />
         <div className="px-4 py-2 border-t border-gray-100 text-center bg-gray-50">
           <a href={pdfUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-violet-700 hover:underline">Abrir o PDF em nova aba</a>
         </div>
@@ -131,7 +133,7 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
         <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 mb-2">
           <UserCheck size={14} className="text-violet-600" /> {passo()}. Seus dados
         </h3>
-        <p className="text-xs text-gray-500 mb-3">Confirme seu e-mail e celular — usados pra validar sua identidade{exigirOtp ? ', enviar o código' : ''} e te mandar o contrato assinado.</p>
+        <p className="text-xs text-gray-500 mb-3">Confirme seu e-mail e celular — usados pra validar sua identidade{exigirOtp ? ', enviar o código' : ''} e te mandar o {documento} assinado.</p>
         <div className="grid sm:grid-cols-2 gap-2">
           <input
             type="email"
@@ -199,7 +201,7 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
       <section className="bg-white rounded-2xl border border-gray-100 p-4">
         <label className="flex items-start gap-2 cursor-pointer">
           <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} className="mt-0.5 accent-violet-600 shrink-0" />
-          <span className="text-xs text-gray-600">{TERMO}</span>
+          <span className="text-xs text-gray-600">{termoConsentimento(documento)}</span>
         </label>
       </section>
 
@@ -216,7 +218,7 @@ export function FluxoAssinatura({ token, pdfUrl, nome, papel, titulo, jaAssinado
         className="w-full flex items-center justify-center gap-2 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white font-bold py-3.5 rounded-2xl"
       >
         {isPending ? <Loader2 size={18} className="animate-spin" /> : <PenLine size={18} />}
-        Assinar contrato
+        Assinar {documento}
       </button>
     </div>
   )

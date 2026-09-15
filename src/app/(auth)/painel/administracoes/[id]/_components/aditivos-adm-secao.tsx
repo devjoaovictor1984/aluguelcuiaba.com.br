@@ -2,6 +2,7 @@
 
 import {
   TermosAditivosSecao, type TermoAditivoRow, type TermoAditivoInput, type PessoaTestemunha, type TipoTermo,
+  type AssinaturaAditivos,
 } from '@/components/crm/termos-aditivos-secao'
 import { criarAditivoAdm, atualizarAditivoAdm, excluirAditivoAdm, type TipoAditivoAdm } from '../actions-aditivos-adm'
 
@@ -18,15 +19,20 @@ const TIPOS: TipoTermo[] = [
 
 const comTipo = (i: TermoAditivoInput) => ({ ...i, tipo: i.tipo as TipoAditivoAdm })
 
-export function AditivosAdmSecao({ contratoId, aditivos, pessoas }: {
+export function AditivosAdmSecao({ contratoId, codigoContrato, originarioPadrao, aditivos, pessoas, assinatura }: {
   contratoId: string
+  codigoContrato: string
+  originarioPadrao: string | null
   aditivos: AditivoAdmRow[]
   /** Cadastro de pessoas, pra escolher as testemunhas. */
   pessoas: PessoaTestemunha[]
+  assinatura: Omit<AssinaturaAditivos, 'tipo'>
 }) {
   return (
     <TermosAditivosSecao
       contratoId={contratoId}
+      codigoContrato={codigoContrato}
+      originarioPadrao={originarioPadrao}
       aditivos={aditivos}
       pessoas={pessoas}
       tipos={TIPOS}
@@ -34,6 +40,7 @@ export function AditivosAdmSecao({ contratoId, aditivos, pessoas }: {
       textoVazio="Nenhum aditivo. Use depois que o contrato de administração já está assinado e algo precisa mudar — alteração de taxa, prorrogação de prazo, mudança de exclusividade ou inclusão de cláusula. Gera um PDF próprio que referencia o contrato e é assinado pela administradora e proprietária."
       subtitulo="Vincula ao contrato de administração e gera um PDF assinável. As demais cláusulas permanecem inalteradas."
       placeholderTitulo="Ex: Nova taxa 2027"
+      assinatura={{ ...assinatura, tipo: 'aditivo_administracao' }}
       criar={i => criarAditivoAdm(comTipo(i))}
       atualizar={(id, i) => atualizarAditivoAdm(id, comTipo(i))}
       excluir={excluirAditivoAdm}

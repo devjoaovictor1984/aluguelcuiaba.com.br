@@ -2,6 +2,7 @@
 
 import {
   TermosAditivosSecao, type TermoAditivoRow, type TermoAditivoInput, type PessoaTestemunha, type TipoTermo,
+  type AssinaturaAditivos,
 } from '@/components/crm/termos-aditivos-secao'
 import { criarAditivo, atualizarAditivo, excluirAditivo, type TipoAditivo } from '../actions-aditivos'
 
@@ -18,15 +19,20 @@ const TIPOS: TipoTermo[] = [
 
 const comTipo = (i: TermoAditivoInput) => ({ ...i, tipo: i.tipo as TipoAditivo })
 
-export function AditivosSecao({ contratoId, aditivos, pessoas }: {
+export function AditivosSecao({ contratoId, codigoContrato, originarioPadrao, aditivos, pessoas, assinatura }: {
   contratoId: string
+  codigoContrato: string
+  originarioPadrao: string | null
   aditivos: AditivoRow[]
   /** Cadastro de pessoas, pra escolher as testemunhas. */
   pessoas: PessoaTestemunha[]
+  assinatura: Omit<AssinaturaAditivos, 'tipo'>
 }) {
   return (
     <TermosAditivosSecao
       contratoId={contratoId}
+      codigoContrato={codigoContrato}
+      originarioPadrao={originarioPadrao}
       aditivos={aditivos}
       pessoas={pessoas}
       tipos={TIPOS}
@@ -34,6 +40,7 @@ export function AditivosSecao({ contratoId, aditivos, pessoas }: {
       textoVazio="Nenhum aditivo. Use depois que o contrato já está assinado e algo precisa mudar — reajuste fora de época, prorrogação de prazo, troca de garantia ou inclusão de cláusula. Gera um PDF próprio que referencia o contrato e é assinado pelas partes (Lei 8.245/91)."
       subtitulo="Vincula ao contrato e gera um PDF assinável. As demais cláusulas do contrato permanecem inalteradas."
       placeholderTitulo="Ex: Prorrogação 2027"
+      assinatura={{ ...assinatura, tipo: 'aditivo_locacao' }}
       criar={i => criarAditivo(comTipo(i))}
       atualizar={(id, i) => atualizarAditivo(id, comTipo(i))}
       excluir={excluirAditivo}

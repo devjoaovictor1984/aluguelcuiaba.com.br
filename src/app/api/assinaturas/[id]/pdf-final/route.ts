@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CertificadoAssinaturaDocument } from '@/lib/crm/certificado-assinatura-pdf'
 import { montarCertificado } from '@/lib/crm/certificado-dados'
+import { ehAditivo, rotaPdfDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
 import { garantirCodigoValidacao } from '@/lib/crm/validacao-codigo'
 import { carimbarValidacao } from '@/lib/crm/carimbo-validacao'
 import { baixarViaFinal, subirViaFinal, caminhoViaFinal } from '@/lib/storage/contratos-assinados'
@@ -54,10 +55,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     if (!autorizado) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
 
     if (proc.status !== 'concluido') {
-      return NextResponse.json({ error: 'O contrato ainda não foi assinado por todas as partes.' }, { status: 400 })
+      return NextResponse.json({ error: 'O documento ainda não foi assinado por todas as partes.' }, { status: 400 })
     }
 
-    const nomeArquivo = `contrato-assinado-${proc.titulo ?? proc.id}.pdf`
+    const nomeArquivo = `${ehAditivo(proc.tipo_contrato) ? 'aditivo' : 'contrato'}-assinado-${proc.titulo ?? proc.id}.pdf`
 
     // Já congelada (v84): serve o MESMO arquivo, sem remontar. É o que faz o
     // hash do certificado valer alguma coisa — remontar produzia bytes novos
@@ -75,7 +76,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const { cert, tokenInterno } = await montarCertificado(admin, {
       id: proc.id,
       user_id: proc.user_id,
-      tipo_contrato: proc.tipo_contrato as 'locacao' | 'administracao',
+      tipo_contrato: proc.tipo_contrato as TipoAssinatura,
       titulo: proc.titulo,
       concluido_em: proc.concluido_em,
     }, { hash: null, parcial: false })
@@ -85,12 +86,10 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const proto = request.headers.get('x-forwarded-proto') ?? 'https'
     const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host')
     const base = `${proto}://${host}`
-    const pdfPath = proc.tipo_contrato === 'administracao'
-      ? `/api/contratos-admin/${proc.contrato_id}/pdf?st=${tokenInterno}`
-      : `/api/contratos/${proc.contrato_id}/pdf?st=${tokenInterno}`
+    const pdfPath = rotaPdfDocumento(proc.tipo_contrato as TipoAssinatura, proc.contrato_id, tokenInterno)
 
     const resp = await fetch(`${base}${pdfPath}`, { cache: 'no-store' })
-    if (!resp.ok) return NextResponse.json({ error: 'Falha ao carregar o contrato.' }, { status: 502 })
+    if (!resp.ok) return NextResponse.json({ error: 'Falha ao carregar o documento.' }, { status: 502 })
     const contratoBytes = new Uint8Array(await resp.arrayBuffer())
 
     // Hash de integridade (grava na 1ª vez)

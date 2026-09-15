@@ -20,9 +20,11 @@ import { AlertTriangle, X, Send, Loader2, Mail, ShieldCheck } from 'lucide-react
 
 interface Signatario { nome: string; email: string; papel: string }
 
-export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, enviando, onConfirmar, onCancelar }: {
+export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, aditivo = false, enviando, onConfirmar, onCancelar }: {
   signatarios: Signatario[]
   exigirOtp: boolean
+  /** Termo aditivo em vez de contrato: muda o que vale conferir. */
+  aditivo?: boolean
   enviando: boolean
   onConfirmar: () => void
   onCancelar: () => void
@@ -36,7 +38,7 @@ export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, enviando, onC
           <div>
             <h2 className="text-base font-bold text-gray-900">Antes de enviar</h2>
             <p className="text-[11px] text-gray-500 mt-0.5">
-              Depois disso o cliente recebe o link e lê o contrato como ele está.
+              Depois disso o cliente recebe o link e lê o {aditivo ? 'aditivo' : 'contrato'} como ele está.
             </p>
           </div>
           <button type="button" onClick={onCancelar} className="text-gray-400 hover:text-gray-600 p-1">
@@ -74,11 +76,19 @@ export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, enviando, onC
               <AlertTriangle size={12} className="text-amber-600" />
               O que só você pode conferir
             </p>
-            <ul className="text-[11px] text-gray-600 leading-snug mt-1.5 space-y-1 list-disc pl-4">
-              <li>o prazo, o valor do aluguel e a data de início</li>
-              <li>a cláusula de garantia — é a que mais muda de um contrato pro outro</li>
-              <li>as cláusulas que você editou ou adicionou à mão</li>
-            </ul>
+            {aditivo ? (
+              <ul className="text-[11px] text-gray-600 leading-snug mt-1.5 space-y-1 list-disc pl-4">
+                <li>os valores antigo e novo, e a data a partir de quando valem</li>
+                <li>o que o aditivo diz que NÃO muda — prazo, vencimento, garantia</li>
+                <li>as testemunhas: depois de enviado, o aditivo não pode mais ser editado</li>
+              </ul>
+            ) : (
+              <ul className="text-[11px] text-gray-600 leading-snug mt-1.5 space-y-1 list-disc pl-4">
+                <li>o prazo, o valor do aluguel e a data de início</li>
+                <li>a cláusula de garantia — é a que mais muda de um contrato pro outro</li>
+                <li>as cláusulas que você editou ou adicionou à mão</li>
+              </ul>
+            )}
           </div>
 
           <label className="flex items-start gap-2 cursor-pointer rounded-xl ring-1 ring-violet-200 bg-violet-50 px-3 py-3">
@@ -89,8 +99,9 @@ export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, enviando, onC
               className="mt-0.5 accent-violet-600 shrink-0"
             />
             <span className="text-xs text-violet-900 leading-snug">
-              Li o contrato gerado e conferi as cláusulas. Estou ciente de que o
-              cliente vai lê-lo exatamente como está.
+              {aditivo
+                ? 'Li o aditivo gerado e conferi o texto. Estou ciente de que o cliente vai lê-lo exatamente como está.'
+                : 'Li o contrato gerado e conferi as cláusulas. Estou ciente de que o cliente vai lê-lo exatamente como está.'}
             </span>
           </label>
 

@@ -1,6 +1,7 @@
 import 'server-only'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { assinarUrlSelfie } from '@/lib/storage/selfies'
+import type { TipoAssinatura } from './assinatura-tipos'
 
 /**
  * Carrega os processos de assinatura de um contrato PRA EXIBIR NO PAINEL,
@@ -54,7 +55,7 @@ interface SigRow {
 
 export async function carregarProcessosAssinatura(
   userId: string,
-  tipoContrato: 'locacao' | 'administracao',
+  tipoContrato: TipoAssinatura,
   contratoId: string,
 ): Promise<ProcessoPainel[]> {
   const admin = createAdminClient()

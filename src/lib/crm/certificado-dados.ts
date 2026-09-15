@@ -2,13 +2,14 @@ import 'server-only'
 import type { createAdminClient } from '@/lib/supabase/admin'
 import { assinarUrlSelfie } from '@/lib/storage/selfies'
 import type { CertificadoData } from './certificado-assinatura-pdf'
+import type { TipoAssinatura } from './assinatura-tipos'
 
 type Admin = ReturnType<typeof createAdminClient>
 
 export interface ProcessoCertificado {
   id: string
   user_id: string
-  tipo_contrato: 'locacao' | 'administracao'
+  tipo_contrato: TipoAssinatura
   titulo: string | null
   concluido_em: string | null
 }

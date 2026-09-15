@@ -11,6 +11,9 @@ import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
 import { InventarioSecao, type ItemInventario } from './_components/inventario-secao'
 import { AditivosSecao, type AditivoRow } from './_components/aditivos-secao'
+import type { AssinaturaAditivos, SugestaoSignatario } from '@/components/crm/termos-aditivos-secao'
+import { carregarProcessosAssinatura } from '@/lib/crm/assinatura-painel'
+import { referenciaOriginarioPadrao } from '@/lib/crm/contrato-originario'
 import { ReajusteSecao, type ReajusteRow } from './_components/reajuste-secao'
 import { RegerarParcelasBotao } from './_components/regerar-parcelas'
 import { BASE_COMISSAO_LABEL, type BaseComissao } from '@/lib/crm/calculos'
@@ -56,9 +59,9 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     .select(`
       *,
       imovel:imoveis(id, titulo, endereco_resumido, bairro:bairros(nome)),
-      inquilino:pessoas!inquilino_id(id, nome, cpf_cnpj, telefone, whatsapp, email),
-      proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj, telefone, pix_tipo, pix_chave),
-      fiador:pessoas!fiador_id(id, nome, cpf_cnpj, telefone)
+      inquilino:pessoas!inquilino_id(id, nome, cpf_cnpj, telefone, whatsapp, email, conjuge_nome),
+      proprietario:pessoas!proprietario_id(id, nome, cpf_cnpj, telefone, pix_tipo, pix_chave, email),
+      fiador:pessoas!fiador_id(id, nome, cpf_cnpj, telefone, email)
     `)
     .eq('id', id)
     .eq('user_id', acesso.userId)
@@ -138,9 +141,62 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   // Termos aditivos do contrato
   const { data: aditivosRaw } = await supabase
     .from('contratos_aditivos')
-    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids')
+    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids, contrato_originario_ref')
     .eq('contrato_id', id)
     .order('numero', { ascending: true })
+  // Assinatura eletrônica dos aditivos: processos de cada um + quem assina.
+  // As sugestões seguem os blocos de assinatura do PDF do aditivo
+  // (aditivo-pdf.tsx) — o NOME tem que bater, é por ele que a assinatura
+  // desenhada cai na linha certa.
+  const aditivosLista = (aditivosRaw ?? []) as AditivoRow[]
+  const baseUrlAss = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  const assinaturaAditivos: AssinaturaAditivos['porAditivo'] = {}
+  // Número e data do contrato só entram no aditivo se ele foi assinado aqui
+  const originarioPadrao = await referenciaOriginarioPadrao(supabase, 'locacao', { id, codigo: contrato.codigo })
+  if (aditivosLista.length > 0) {
+    type ParteAss = { nome: string; email?: string | null; conjuge_nome?: string | null }
+    const um = (v: unknown): ParteAss | null =>
+      (Array.isArray(v) ? (v[0] ?? null) : (v ?? null)) as ParteAss | null
+    const inqAss = um(contrato.inquilino)
+    const propAss = um(contrato.proprietario)
+    const fiaAss = um(contrato.fiador)
+
+    const { data: { user: userAss } } = await supabase.auth.getUser()
+    const { data: perfilAss } = await supabase
+      .from('perfis').select('nome').eq('id', acesso.userId).maybeSingle()
+    const idsTest = [...new Set(aditivosLista.flatMap(a => a.testemunha_ids ?? []))]
+    const { data: testAss } = idsTest.length > 0
+      ? await supabase.from('pessoas').select('id, nome, email').in('id', idsTest).eq('user_id', acesso.userId)
+      : { data: [] as Array<{ id: string; nome: string; email: string | null }> }
+    const processosPorAditivo = await Promise.all(
+      aditivosLista.map(a => carregarProcessosAssinatura(acesso.userId, 'aditivo_locacao', a.id)),
+    )
+
+    // Com administração, a linha do locador é do corretor responsável (perfil.nome), igual ao PDF
+    const temAdmAss = Number(contrato.taxa_admin_valor ?? 0) > 0
+    const papelConjuge = contrato.conjuge_inquilino_papel ?? 'solidario'
+    const partesAss = [
+      temAdmAss && perfilAss?.nome
+        ? { nome: perfilAss.nome, email: userAss?.email ?? '', papel: 'Locador(a) — p.p. administradora' }
+        : propAss?.nome ? { nome: propAss.nome, email: propAss.email ?? '', papel: 'Locador(a)' } : null,
+      inqAss?.nome ? { nome: inqAss.nome, email: inqAss.email ?? '', papel: 'Locatário(a)' } : null,
+      inqAss?.conjuge_nome && papelConjuge !== 'nao_participa'
+        ? { nome: inqAss.conjuge_nome, email: '', papel: papelConjuge === 'solidario' ? 'Locatário(a) solidário(a)' : 'Cônjuge anuente' }
+        : null,
+      contrato.garantia_tipo === 'fiador' && fiaAss?.nome
+        ? { nome: fiaAss.nome, email: fiaAss.email ?? '', papel: 'Fiador(a)' }
+        : null,
+    ].filter((s): s is SugestaoSignatario => !!s)
+
+    aditivosLista.forEach((a, i) => {
+      const testemunhas = (a.testemunha_ids ?? [])
+        .map(tid => (testAss ?? []).find(t => t.id === tid))
+        .filter((t): t is { id: string; nome: string; email: string | null } => !!t)
+        .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' }))
+      assinaturaAditivos[a.id] = { processos: processosPorAditivo[i], sugestoes: [...partesAss, ...testemunhas] }
+    })
+  }
+
   const reajustes: ReajusteRow[] = ((reajustesRaw ?? []) as ReajusteRow[]).map(r => ({
     ...r,
     percentual: Number(r.percentual),
@@ -333,8 +389,11 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
 
       <AditivosSecao
         contratoId={id}
-        aditivos={(aditivosRaw ?? []) as AditivoRow[]}
+        codigoContrato={contrato.codigo}
+        aditivos={aditivosLista}
         pessoas={pessoasDisponiveis}
+        assinatura={{ baseUrl: baseUrlAss, porAditivo: assinaturaAditivos }}
+        originarioPadrao={originarioPadrao}
       />
 
       <TimelineEventos eventos={eventos} />

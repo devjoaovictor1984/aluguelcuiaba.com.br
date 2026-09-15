@@ -4,6 +4,9 @@ import { ChevronLeft, Briefcase, User, Home, Calendar, Percent, FileDown, Eye, P
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { BotaoExcluirAdm } from './_components/botao-excluir-adm'
 import { AditivosAdmSecao, type AditivoAdmRow } from './_components/aditivos-adm-secao'
+import type { AssinaturaAditivos, SugestaoSignatario } from '@/components/crm/termos-aditivos-secao'
+import { carregarProcessosAssinatura } from '@/lib/crm/assinatura-painel'
+import { referenciaOriginarioPadrao } from '@/lib/crm/contrato-originario'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import {
@@ -49,7 +52,7 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
 
   const { data: aditivos } = await supabase
     .from('contratos_administracao_aditivos')
-    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids')
+    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids, contrato_originario_ref')
     .eq('contrato_id', id)
     .eq('user_id', acesso.userId)
     .order('numero', { ascending: true })
@@ -60,6 +63,43 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
     .select('id, nome, tipo, cpf_cnpj')
     .eq('user_id', acesso.userId)
     .order('nome', { ascending: true })
+
+  // Assinatura eletrônica dos aditivos: processos de cada um + quem assina.
+  // As sugestões seguem os blocos do PDF (AditivoAdmDocument) — o NOME tem
+  // que bater, é por ele que a assinatura desenhada cai na linha certa.
+  const aditivosLista = (aditivos ?? []) as AditivoAdmRow[]
+  const baseUrlAss = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
+  const assinaturaAditivos: AssinaturaAditivos['porAditivo'] = {}
+  // Número e data do contrato só entram no aditivo se ele foi assinado aqui
+  const originarioPadrao = await referenciaOriginarioPadrao(supabase, 'administracao', { id, codigo: contrato.codigo })
+  if (aditivosLista.length > 0) {
+    const { data: { user: userAss } } = await supabase.auth.getUser()
+    const { data: perfilAss } = await supabase
+      .from('perfis').select('nome, razao_social').eq('id', acesso.userId).maybeSingle()
+    const idsTest = [...new Set(aditivosLista.flatMap(a => a.testemunha_ids ?? []))]
+    const { data: testAss } = idsTest.length > 0
+      ? await supabase.from('pessoas').select('id, nome, email').in('id', idsTest).eq('user_id', acesso.userId)
+      : { data: [] as Array<{ id: string; nome: string; email: string | null }> }
+    const processosPorAditivo = await Promise.all(
+      aditivosLista.map(a => carregarProcessosAssinatura(acesso.userId, 'aditivo_administracao', a.id)),
+    )
+
+    const propAss = unwrap(contrato.proprietario) as { nome: string; email: string | null } | null
+    // PDF: admin_responsavel_nome (perfil.nome) || razão social
+    const adminNomeAss = perfilAss?.nome || perfilAss?.razao_social || null
+    const partesAss = [
+      adminNomeAss ? { nome: adminNomeAss, email: userAss?.email ?? '', papel: 'Administradora' } : null,
+      propAss?.nome ? { nome: propAss.nome, email: propAss.email ?? '', papel: 'Proprietária(o)' } : null,
+    ].filter((s): s is SugestaoSignatario => !!s)
+
+    aditivosLista.forEach((a, i) => {
+      const testemunhas = (a.testemunha_ids ?? [])
+        .map(tid => (testAss ?? []).find(t => t.id === tid))
+        .filter((t): t is { id: string; nome: string; email: string | null } => !!t)
+        .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' }))
+      assinaturaAditivos[a.id] = { processos: processosPorAditivo[i], sugestoes: [...partesAss, ...testemunhas] }
+    })
+  }
 
   const prop = unwrap(contrato.proprietario) as { nome: string; cpf_cnpj: string | null; telefone: string | null; email: string | null } | null
   const imovel = unwrap(contrato.imovel) as { titulo: string; endereco_resumido: string | null; endereco_completo: string | null } | null
@@ -259,8 +299,11 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
 
       <AditivosAdmSecao
         contratoId={id}
-        aditivos={(aditivos ?? []) as AditivoAdmRow[]}
+        codigoContrato={contrato.codigo}
+        aditivos={aditivosLista}
         pessoas={pessoas ?? []}
+        assinatura={{ baseUrl: baseUrlAss, porAditivo: assinaturaAditivos }}
+        originarioPadrao={originarioPadrao}
       />
 
       <BotaoExcluirAdm contratoAdmId={id} codigo={contrato.codigo} />

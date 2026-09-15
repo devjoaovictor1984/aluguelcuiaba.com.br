@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { AlertOctagon } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { nomeDocumento, rotaPdfDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
 import { FluxoAssinatura } from './_components/fluxo-assinatura'
 
 export const dynamic = 'force-dynamic'
@@ -31,18 +32,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     const admin = createAdminClient()
     const { data: sig } = await admin
       .from('contrato_assinatura_signatarios')
-      .select('nome, papel, assinatura:contrato_assinaturas!inner(titulo)')
+      .select('nome, papel, assinatura:contrato_assinaturas!inner(titulo, tipo_contrato)')
       .eq('token', token)
       .maybeSingle()
 
     if (sig) {
       const proc = (Array.isArray(sig.assinatura) ? sig.assinatura[0] : sig.assinatura) as
-        { titulo: string | null } | undefined
+        { titulo: string | null; tipo_contrato: string } | undefined
       const primeiroNome = (sig.nome ?? '').trim().split(/\s+/)[0]
       const doc = proc?.titulo ? ` ${proc.titulo}` : ''
+      const nomeDoc = nomeDocumento(proc?.tipo_contrato ?? 'locacao')
       titulo = primeiroNome
-        ? `${primeiroNome}, assine o contrato${doc}`
-        : `Assinatura do contrato${doc}`
+        ? `${primeiroNome}, assine o ${nomeDoc}${doc}`
+        : `Assinatura do ${nomeDoc}${doc}`
       descricao = `Confira o documento, confirme o código enviado por e-mail, tire a selfie e assine${
         sig.papel ? ` como ${sig.papel}` : ''
       }. Link pessoal e intransferível.`
@@ -86,23 +88,22 @@ export default async function AssinarPage({ params }: Props) {
 
   if (!sig) return <PaginaErro titulo="Link inválido" mensagem="Este link de assinatura não existe ou foi removido." />
   const proc = (Array.isArray(sig.assinatura) ? sig.assinatura[0] : sig.assinatura) as
-    { user_id: string; tipo_contrato: 'locacao' | 'administracao'; contrato_id: string; titulo: string | null; status: string; exigir_otp: boolean | null } | undefined
+    { user_id: string; tipo_contrato: TipoAssinatura; contrato_id: string; titulo: string | null; status: string; exigir_otp: boolean | null } | undefined
   if (!proc) return <PaginaErro titulo="Processo não encontrado" mensagem="Não foi possível localizar este contrato." />
   if (proc.status === 'cancelado') return <PaginaErro titulo="Solicitação cancelada" mensagem="O solicitante cancelou esta assinatura. Peça um novo link." />
 
   const { data: anunc } = await admin.from('perfis').select('razao_social, nome').eq('id', proc.user_id).maybeSingle()
   const nomeAnunc = anunc?.razao_social || anunc?.nome || 'AluguelCuiabá'
 
-  const pdfUrl = proc.tipo_contrato === 'administracao'
-    ? `/api/contratos-admin/${proc.contrato_id}/pdf?st=${token}`
-    : `/api/contratos/${proc.contrato_id}/pdf?st=${token}`
+  const pdfUrl = rotaPdfDocumento(proc.tipo_contrato, proc.contrato_id, token)
+  const documento = nomeDocumento(proc.tipo_contrato)
 
   return (
     <main className="min-h-screen bg-gray-50 py-8 px-4">
       <div className="max-w-2xl mx-auto">
         <div className="bg-gradient-to-r from-violet-600 to-indigo-600 rounded-3xl p-6 text-white shadow-sm mb-5">
           <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{nomeAnunc}</p>
-          <h1 className="text-2xl font-bold mt-1">Assinatura de contrato</h1>
+          <h1 className="text-2xl font-bold mt-1">Assinatura de {documento}</h1>
           <p className="text-sm text-violet-100 mt-2">Confira o documento, confirme o código por e-mail, tire a selfie e assine.</p>
         </div>
 
@@ -112,6 +113,7 @@ export default async function AssinarPage({ params }: Props) {
           nome={sig.nome}
           papel={sig.papel}
           titulo={proc.titulo ?? 'Contrato'}
+          documento={documento}
           jaAssinado={sig.status === 'assinado'}
           exigirOtp={proc.exigir_otp !== false}
           emailInicial={(sig as { email?: string | null }).email ?? ''}
