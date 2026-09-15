@@ -138,7 +138,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   // Termos aditivos do contrato
   const { data: aditivosRaw } = await supabase
     .from('contratos_aditivos')
-    .select('id, numero, data_aditivo, tipo, titulo, objeto')
+    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids')
     .eq('contrato_id', id)
     .order('numero', { ascending: true })
   const reajustes: ReajusteRow[] = ((reajustesRaw ?? []) as ReajusteRow[]).map(r => ({
@@ -331,7 +331,11 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
 
       <InventarioSecao contratoId={id} itens={(inventarioRaw ?? []) as ItemInventario[]} />
 
-      <AditivosSecao contratoId={id} aditivos={(aditivosRaw ?? []) as AditivoRow[]} />
+      <AditivosSecao
+        contratoId={id}
+        aditivos={(aditivosRaw ?? []) as AditivoRow[]}
+        pessoas={pessoasDisponiveis}
+      />
 
       <TimelineEventos eventos={eventos} />
 

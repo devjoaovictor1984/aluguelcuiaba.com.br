@@ -12,14 +12,23 @@ export interface AditivoInput {
   titulo?: string | null
   data_aditivo: string  // YYYY-MM-DD
   objeto: string
+  /** Até 2 IDs em pessoas. Aparecem com nome e CPF na folha de assinatura. */
+  testemunha_ids?: string[]
+}
+
+function validar(input: AditivoInput): string | null {
+  if (!input.objeto?.trim()) return 'Descreva o que está sendo aditado.'
+  if (!input.data_aditivo) return 'Informe a data do aditivo.'
+  if ((input.testemunha_ids?.length ?? 0) > 2) return 'Máximo 2 testemunhas.'
+  return null
 }
 
 export async function criarAditivo(input: AditivoInput) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
-  if (!input.objeto?.trim()) return { error: 'Descreva o que está sendo aditado.' }
-  if (!input.data_aditivo) return { error: 'Informe a data do aditivo.' }
+  const invalido = validar(input)
+  if (invalido) return { error: invalido }
 
   // Confirma posse do contrato
   const { data: contrato } = await supabase
@@ -46,6 +55,7 @@ export async function criarAditivo(input: AditivoInput) {
       titulo: input.titulo?.trim() || null,
       data_aditivo: input.data_aditivo,
       objeto: input.objeto.trim(),
+      testemunha_ids: input.testemunha_ids ?? [],
     })
     .select('id')
     .single()
@@ -53,6 +63,42 @@ export async function criarAditivo(input: AditivoInput) {
 
   revalidatePath(`/painel/contratos/${input.contrato_id}`)
   return { ok: true, id: novo.id }
+}
+
+/**
+ * Edita um aditivo já criado — inclusive o que o reajuste gera sozinho.
+ *
+ * O aditivo de locação não passa pela assinatura eletrônica: é impresso e
+ * assinado. Então não há trava — o que vale é o PDF que as partes assinarem.
+ * O número (1º, 2º…) não muda: é a ordem dos aditivos do contrato.
+ */
+export async function atualizarAditivo(id: string, input: AditivoInput) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const invalido = validar(input)
+  if (invalido) return { error: invalido }
+
+  const { data, error } = await supabase
+    .from('contratos_aditivos')
+    .update({
+      tipo: input.tipo,
+      titulo: input.titulo?.trim() || null,
+      data_aditivo: input.data_aditivo,
+      objeto: input.objeto.trim(),
+      testemunha_ids: input.testemunha_ids ?? [],
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id)
+    .eq('contrato_id', input.contrato_id)
+    .eq('user_id', acesso.userId)
+    .select('id')
+    .maybeSingle()
+  if (error) return { error: error.message }
+  if (!data) return { error: 'Aditivo não encontrado.' }
+
+  revalidatePath(`/painel/contratos/${input.contrato_id}`)
+  return { ok: true, id: data.id }
 }
 
 export async function excluirAditivo(id: string, contratoId: string) {

@@ -66,13 +66,32 @@ export async function GET(
     // 1. Carrega o aditivo
     const { data: aditivo } = await admin
       .from('contratos_aditivos')
-      .select('id, user_id, contrato_id, numero, data_aditivo, tipo, titulo, objeto')
+      .select('id, user_id, contrato_id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids')
       .eq('id', aditivoId)
       .maybeSingle()
 
     if (!aditivo || aditivo.user_id !== user.id) {
       return NextResponse.json({ error: 'Aditivo não encontrado' }, { status: 404 })
     }
+
+    // 1b. Testemunhas escolhidas (mesma montagem do PDF do contrato). Filtra
+    // por user_id: o admin client ignora RLS.
+    const testemunhaIds = ((aditivo.testemunha_ids ?? []) as string[]).slice(0, 2)
+    const { data: testemunhasRaw } = testemunhaIds.length > 0
+      ? await admin
+          .from('pessoas')
+          .select('id, nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf')
+          .in('id', testemunhaIds)
+          .eq('user_id', user.id)
+      : { data: [] as Array<{ id: string; nome: string; cpf_cnpj: string | null; rg: string | null; rg_orgao_emissor: string | null; rg_uf: string | null }> }
+    const testemunhas = testemunhaIds
+      .map(tid => (testemunhasRaw ?? []).find(t => t.id === tid))
+      .filter((t): t is NonNullable<typeof t> => !!t)
+      .map(t => ({
+        nome: t.nome,
+        cpf: fmtCpf(t.cpf_cnpj),
+        rg: t.rg ? [t.rg, t.rg_orgao_emissor, t.rg_uf].filter(Boolean).join(' ') : null,
+      }))
 
     // 2. Carrega contrato + partes + imóvel
     const { data: contrato, error: contratoErr } = await admin
@@ -174,7 +193,7 @@ export async function GET(
       fiador_nome: contrato.garantia_tipo === 'fiador' ? (fia?.nome ?? null) : null,
       fiador_cpf: contrato.garantia_tipo === 'fiador' ? fmtCpf(fia?.cpf_cnpj) : null,
 
-      testemunhas: [],
+      testemunhas,
 
       numero: aditivo.numero,
       data_aditivo: aditivo.data_aditivo,

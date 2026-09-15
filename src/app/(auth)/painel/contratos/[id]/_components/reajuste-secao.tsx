@@ -222,12 +222,13 @@ function ModalReajuste({
       setOk(
         `Reajuste aplicado em ${r.parcelas_afetadas} parcela${r.parcelas_afetadas === 1 ? '' : 's'}`
         + ` (${pct >= 0 ? '+' : ''}${pct.toFixed(2).replace('.', ',')}%)`
-        + (r.aditivo_numero ? ` · ${r.aditivo_numero}º termo aditivo gerado` : ''),
+        + (r.aditivo_numero
+          ? ` · ${r.aditivo_numero}º termo aditivo gerado. Revise o texto e escolha as testemunhas em Termos aditivos.`
+          : ''),
       )
-      // Abre o PDF do aditivo recém-criado, que é o documento que as partes
-      // assinam. Sem isto, ele nasce e ninguém vê.
-      if (r.aditivo_id) window.open(`/api/contratos/aditivos/${r.aditivo_id}/pdf`, '_blank')
-      setTimeout(() => { onFechar(); router.refresh() }, 1400)
+      // O PDF não abre aqui: o aditivo sai sem testemunhas e com texto a
+      // revisar. Fica na seção Termos aditivos, com Editar e PDF.
+      setTimeout(() => { onFechar(); router.refresh() }, r.aditivo_numero ? 3000 : 1400)
     })
   }
 
@@ -326,8 +327,8 @@ function ModalReajuste({
               <strong>Gerar o termo aditivo</strong> deste reajuste
               <span className="block text-[11px] text-gray-500 mt-0.5">
                 Sai pronto, com os valores antigo e novo, e dizendo que prazo,
-                datas, vencimento e garantia continuam os mesmos. O PDF abre
-                em seguida, pra assinatura.
+                datas, vencimento e garantia continuam os mesmos. Depois você
+                revisa o texto e escolhe as testemunhas em Termos aditivos.
               </span>
             </span>
           </label>
