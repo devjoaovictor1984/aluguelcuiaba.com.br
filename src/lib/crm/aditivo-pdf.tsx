@@ -3,6 +3,7 @@ import { Document, Page, Text, View, StyleSheet, Image } from '@react-pdf/render
 // Importar daqui também dispara o registro da fonte Poppins (side-effect no
 // topo de contrato-pdf.tsx). Reusamos a mesma família pra manter a identidade.
 import { FAMILIA } from './contrato-pdf'
+import { clausulasPadraoAditivo, FECHAMENTO_PADRAO_ADITIVO, type ClausulaAditivo } from './aditivo-clausulas'
 
 const COR = {
   texto: '#1f2937',
@@ -65,6 +66,10 @@ export interface AditivoPDFData {
   testemunhas: Array<{ nome: string; cpf: string | null; rg: string | null }>
   /** Assinaturas desenhadas na plataforma (base64), achadas pelo nome de quem assina a linha. */
   assinaturas?: Array<{ nome: string; imagem: string }>
+  /** Cláusulas da 2ª em diante. null = padrão (aditivo-clausulas.ts). */
+  clausulas?: ClausulaAditivo[] | null
+  /** Parágrafo antes da data. null = padrão. */
+  fechamento?: string | null
 
   // O aditivo em si
   numero: number
@@ -151,6 +156,28 @@ function assinaturaDe(lista: Array<{ nome: string; imagem: string }> | undefined
   return lista.find(a => a.nome.trim().toLowerCase() === alvo)?.imagem ?? null
 }
 
+/** Cláusulas da 2ª em diante, numeradas (N.1, N.2…), e o fechamento. */
+function ClausulasSeguintes({ clausulas, fechamento }: { clausulas: ClausulaAditivo[]; fechamento: string }) {
+  return (
+    <>
+      {clausulas.map((c, i) => {
+        const numero = i + 2
+        return (
+          <View key={i} style={styles.clausulaWrap}>
+            <Text style={styles.clausulaTitulo}>
+              CLÁUSULA {numero}ª{c.titulo ? ` — ${c.titulo.toUpperCase()}` : ''}
+            </Text>
+            {numerarObjeto(numero, c.texto).map((par, j) => (
+              <Text key={j} style={styles.clausulaCorpo}>{par}</Text>
+            ))}
+          </View>
+        )
+      })}
+      <Text style={[styles.clausulaCorpo, { marginTop: 14 }]}>{fechamento}</Text>
+    </>
+  )
+}
+
 /** Linha de assinatura, com a assinatura desenhada por cima quando houver. */
 function LinhaAssinatura({ imagem }: { imagem: string | null }) {
   return (
@@ -175,6 +202,8 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
 
   const objetoParagrafos = numerarObjeto(1, data.objeto)
   const tipoLabel = data.titulo?.trim() || TIPO_LABEL[data.tipo] || TIPO_LABEL.outro
+  const clausulasDoc = data.clausulas?.length ? data.clausulas : clausulasPadraoAditivo('locacao', cidadeUf)
+  const fechamentoDoc = data.fechamento?.trim() || FECHAMENTO_PADRAO_ADITIVO
 
   // Qualificação curta das partes pro preâmbulo
   const locadorQuali = `${data.locador_nome}${data.locador_cpf ? `, inscrito(a) no CPF/CNPJ sob nº ${data.locador_cpf}` : ''}`
@@ -254,33 +283,8 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
           ))}
         </View>
 
-        {/* Cláusula 2 — Ratificação */}
-        <View style={styles.clausulaWrap}>
-          <Text style={styles.clausulaTitulo}>CLÁUSULA 2ª — DA RATIFICAÇÃO</Text>
-          <Text style={styles.clausulaCorpo}>
-            2.1. Permanecem em pleno vigor, ratificadas e inalteradas, todas as demais cláusulas,
-            condições e obrigações do contrato originário e de eventuais aditivos anteriores que não
-            tenham sido expressamente modificadas por este instrumento.
-          </Text>
-          <Text style={styles.clausulaCorpo}>
-            2.2. Este Termo Aditivo passa a integrar o contrato de locação para todos os fins de direito,
-            como se nele estivesse transcrito.
-          </Text>
-        </View>
-
-        {/* Cláusula 3 — Foro */}
-        <View style={styles.clausulaWrap}>
-          <Text style={styles.clausulaTitulo}>CLÁUSULA 3ª — DO FORO</Text>
-          <Text style={styles.clausulaCorpo}>
-            3.1. As partes elegem o foro da Comarca de {cidadeUf.replace('-', '/')} para dirimir quaisquer
-            controvérsias oriundas deste Termo Aditivo, com renúncia a qualquer outro, por mais
-            privilegiado que seja.
-          </Text>
-          <Text style={styles.clausulaCorpo}>
-            E, por estarem assim justas e acordadas, as partes assinam o presente em 2 (duas) vias de igual
-            teor e forma, na presença das testemunhas abaixo.
-          </Text>
-        </View>
+        {/* Cláusulas 2ª em diante — editáveis no aditivo, padrão em aditivo-clausulas.ts */}
+        <ClausulasSeguintes clausulas={clausulasDoc} fechamento={fechamentoDoc} />
 
         {/* Data */}
         <Text style={styles.data}>{cidadeUf}, {dataExtenso}.</Text>
@@ -399,6 +403,10 @@ export interface AditivoAdmPDFData {
   testemunhas: Array<{ nome: string; cpf: string | null; rg: string | null }>
   /** Assinaturas desenhadas na plataforma (base64), achadas pelo nome de quem assina a linha. */
   assinaturas?: Array<{ nome: string; imagem: string }>
+  /** Cláusulas da 2ª em diante. null = padrão (aditivo-clausulas.ts). */
+  clausulas?: ClausulaAditivo[] | null
+  /** Parágrafo antes da data. null = padrão. */
+  fechamento?: string | null
 
   numero: number
   data_aditivo: string
@@ -415,6 +423,8 @@ export function AditivoAdmDocument({ data }: { data: AditivoAdmPDFData }) {
 
   const objetoParagrafos = numerarObjeto(1, data.objeto)
   const tipoLabel = data.titulo?.trim() || TIPO_LABEL_ADM[data.tipo] || TIPO_LABEL_ADM.outro
+  const clausulasDoc = data.clausulas?.length ? data.clausulas : clausulasPadraoAditivo('administracao', cidadeUf)
+  const fechamentoDoc = data.fechamento?.trim() || FECHAMENTO_PADRAO_ADITIVO
 
   const adminQuali = `${nomeInst}${data.anunciante_cnpj ? `, inscrita no CNPJ sob nº ${data.anunciante_cnpj}` : ''}${data.anunciante_creci_juridico ? `, CRECI-J ${data.anunciante_creci_juridico}` : ''}`
   const propQuali = `${data.proprietario_nome}${data.proprietario_cpf ? `, inscrito(a) no CPF/CNPJ sob nº ${data.proprietario_cpf}` : ''}`
@@ -484,29 +494,8 @@ export function AditivoAdmDocument({ data }: { data: AditivoAdmPDFData }) {
           ))}
         </View>
 
-        <View style={styles.clausulaWrap}>
-          <Text style={styles.clausulaTitulo}>CLÁUSULA 2ª — DA RATIFICAÇÃO</Text>
-          <Text style={styles.clausulaCorpo}>
-            2.1. Permanecem em pleno vigor, ratificadas e inalteradas, todas as demais cláusulas, condições e
-            obrigações do contrato de administração originário e de eventuais aditivos anteriores que não tenham
-            sido expressamente modificadas por este instrumento.
-          </Text>
-          <Text style={styles.clausulaCorpo}>
-            2.2. Este Termo Aditivo passa a integrar o contrato de administração para todos os fins de direito.
-          </Text>
-        </View>
-
-        <View style={styles.clausulaWrap}>
-          <Text style={styles.clausulaTitulo}>CLÁUSULA 3ª — DO FORO</Text>
-          <Text style={styles.clausulaCorpo}>
-            3.1. As partes elegem o foro da Comarca de {cidadeUf.replace('-', '/')} para dirimir quaisquer
-            controvérsias oriundas deste Termo Aditivo, com renúncia a qualquer outro.
-          </Text>
-          <Text style={styles.clausulaCorpo}>
-            E, por estarem assim justas e acordadas, as partes assinam o presente em 2 (duas) vias de igual teor
-            e forma, na presença das testemunhas abaixo.
-          </Text>
-        </View>
+        {/* Cláusulas 2ª em diante — editáveis no aditivo, padrão em aditivo-clausulas.ts */}
+        <ClausulasSeguintes clausulas={clausulasDoc} fechamento={fechamentoDoc} />
 
         <Text style={styles.data}>{cidadeUf}, {dataExtenso}.</Text>
 

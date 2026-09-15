@@ -141,7 +141,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   // Termos aditivos do contrato
   const { data: aditivosRaw } = await supabase
     .from('contratos_aditivos')
-    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids, contrato_originario_ref')
+    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids, contrato_originario_ref, clausulas, fechamento')
     .eq('contrato_id', id)
     .order('numero', { ascending: true })
   // Assinatura eletrônica dos aditivos: processos de cada um + quem assina.
@@ -153,6 +153,11 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   const assinaturaAditivos: AssinaturaAditivos['porAditivo'] = {}
   // Número e data do contrato só entram no aditivo se ele foi assinado aqui
   const originarioPadrao = await referenciaOriginarioPadrao(supabase, 'locacao', { id, codigo: contrato.codigo })
+  // Foro do texto padrão das cláusulas: mesma regra do PDF (cidade da imobiliária, senão Cuiabá)
+  const { data: perfilForo } = await supabase
+    .from('perfis').select('endereco_cidade, endereco_uf').eq('id', acesso.userId).maybeSingle()
+  const cidadeUfAditivo = perfilForo?.endereco_cidade && perfilForo?.endereco_uf
+    ? `${perfilForo.endereco_cidade}-${perfilForo.endereco_uf}` : 'Cuiabá-MT'
   if (aditivosLista.length > 0) {
     type ParteAss = { nome: string; email?: string | null; conjuge_nome?: string | null }
     const um = (v: unknown): ParteAss | null =>
@@ -394,6 +399,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         pessoas={pessoasDisponiveis}
         assinatura={{ baseUrl: baseUrlAss, porAditivo: assinaturaAditivos }}
         originarioPadrao={originarioPadrao}
+        cidadeUf={cidadeUfAditivo}
       />
 
       <TimelineEventos eventos={eventos} />

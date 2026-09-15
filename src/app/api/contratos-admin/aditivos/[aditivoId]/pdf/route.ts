@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
 import { referenciaOriginario, referenciaOriginarioPadrao } from '@/lib/crm/contrato-originario'
+import { lerClausulas } from '@/lib/crm/aditivo-clausulas'
 import { AditivoAdmDocument, type AditivoAdmPDFData } from '@/lib/crm/aditivo-pdf'
 import React from 'react'
 
@@ -67,7 +68,7 @@ export async function GET(
     // 1. Aditivo
     const { data: aditivo } = await admin
       .from('contratos_administracao_aditivos')
-      .select('id, user_id, contrato_id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids, contrato_originario_ref')
+      .select('id, user_id, contrato_id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids, contrato_originario_ref, clausulas, fechamento')
       .eq('id', aditivoId)
       .maybeSingle()
 
@@ -181,6 +182,8 @@ export async function GET(
 
       testemunhas,
       assinaturas,
+      clausulas: lerClausulas(aditivo.clausulas),
+      fechamento: aditivo.fechamento ?? null,
 
       numero: aditivo.numero,
       data_aditivo: aditivo.data_aditivo,

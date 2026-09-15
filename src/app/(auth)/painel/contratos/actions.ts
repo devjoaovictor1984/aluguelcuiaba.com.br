@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
-import { textoAditivoReajuste } from '@/lib/crm/texto-aditivo-reajuste'
+import { textoAditivoReajuste, indiceDoReajuste } from '@/lib/crm/texto-aditivo-reajuste'
 import {
   gerarParcelas, montarCodigo, calcularComissao, calcularRepasse,
   type InputCalculoParcelas, type BaseComissao,
@@ -940,7 +940,7 @@ export async function aplicarReajuste(input: AplicarReajusteInput) {
         numero,
         tipo: 'reajuste',
         titulo: mudouAluguel
-          ? `Reajuste do aluguel — ${input.indice_usado || 'acordo entre as partes'}`
+          ? `Reajuste do aluguel — ${indiceDoReajuste(input.indice_usado) ?? 'acordo entre as partes'}`
           : `Ajuste de ${[mudouIptu && 'IPTU', mudouCondo && 'condomínio'].filter(Boolean).join(' e ')}`,
         data_aditivo: new Date().toISOString().slice(0, 10),
         objeto,

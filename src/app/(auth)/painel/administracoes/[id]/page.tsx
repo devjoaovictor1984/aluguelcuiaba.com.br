@@ -52,7 +52,7 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
 
   const { data: aditivos } = await supabase
     .from('contratos_administracao_aditivos')
-    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids, contrato_originario_ref')
+    .select('id, numero, data_aditivo, tipo, titulo, objeto, testemunha_ids, contrato_originario_ref, clausulas, fechamento')
     .eq('contrato_id', id)
     .eq('user_id', acesso.userId)
     .order('numero', { ascending: true })
@@ -72,6 +72,11 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
   const assinaturaAditivos: AssinaturaAditivos['porAditivo'] = {}
   // Número e data do contrato só entram no aditivo se ele foi assinado aqui
   const originarioPadrao = await referenciaOriginarioPadrao(supabase, 'administracao', { id, codigo: contrato.codigo })
+  // Foro do texto padrão das cláusulas: mesma regra do PDF (cidade da imobiliária, senão Cuiabá)
+  const { data: perfilForo } = await supabase
+    .from('perfis').select('endereco_cidade, endereco_uf').eq('id', acesso.userId).maybeSingle()
+  const cidadeUfAditivo = perfilForo?.endereco_cidade && perfilForo?.endereco_uf
+    ? `${perfilForo.endereco_cidade}-${perfilForo.endereco_uf}` : 'Cuiabá-MT'
   if (aditivosLista.length > 0) {
     const { data: { user: userAss } } = await supabase.auth.getUser()
     const { data: perfilAss } = await supabase
@@ -304,6 +309,7 @@ export default async function DetalheAdmPage({ params }: { params: Promise<{ id:
         pessoas={pessoas ?? []}
         assinatura={{ baseUrl: baseUrlAss, porAditivo: assinaturaAditivos }}
         originarioPadrao={originarioPadrao}
+        cidadeUf={cidadeUfAditivo}
       />
 
       <BotaoExcluirAdm contratoAdmId={id} codigo={contrato.codigo} />

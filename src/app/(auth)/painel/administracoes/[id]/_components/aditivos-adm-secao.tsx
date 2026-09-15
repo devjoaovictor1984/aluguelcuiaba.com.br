@@ -19,10 +19,11 @@ const TIPOS: TipoTermo[] = [
 
 const comTipo = (i: TermoAditivoInput) => ({ ...i, tipo: i.tipo as TipoAditivoAdm })
 
-export function AditivosAdmSecao({ contratoId, codigoContrato, originarioPadrao, aditivos, pessoas, assinatura }: {
+export function AditivosAdmSecao({ contratoId, codigoContrato, originarioPadrao, cidadeUf, aditivos, pessoas, assinatura }: {
   contratoId: string
   codigoContrato: string
   originarioPadrao: string | null
+  cidadeUf: string
   aditivos: AditivoAdmRow[]
   /** Cadastro de pessoas, pra escolher as testemunhas. */
   pessoas: PessoaTestemunha[]
@@ -33,6 +34,7 @@ export function AditivosAdmSecao({ contratoId, codigoContrato, originarioPadrao,
       contratoId={contratoId}
       codigoContrato={codigoContrato}
       originarioPadrao={originarioPadrao}
+      cidadeUf={cidadeUf}
       aditivos={aditivos}
       pessoas={pessoas}
       tipos={TIPOS}

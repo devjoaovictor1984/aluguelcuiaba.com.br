@@ -41,8 +41,43 @@ const dataBr = (iso: string) => {
 const pct = (v: number) =>
   `${Math.abs(v).toFixed(2).replace('.', ',')}%`
 
-/** "R$ 1.950,00 (mil novecentos e cinquenta reais)" */
-const porExtenso = (v: number) => `${brl(v)} (${valorPorExtenso(v)})`
+/** "R$ 1.950,00 (mil novecentos e cinquenta reais)" — minúsculo, que é como vai no meio da frase. */
+const porExtenso = (v: number) => {
+  const ext = valorPorExtenso(v)
+  return `${brl(v)} (${ext.charAt(0).toLowerCase()}${ext.slice(1)})`
+}
+
+const INDICE_ROTULO: Record<string, string> = { IGPM: 'IGP-M', IPCA: 'IPCA', INPC: 'INPC' }
+
+/**
+ * Índice de verdade (IGP-M, IPCA…) ou null. "manual" é o "Manual / Acordo"
+ * do modal: não é índice, é acordo — e "variação do manual" não é frase.
+ */
+export function indiceDoReajuste(indice: string | null | undefined): string | null {
+  const t = indice?.trim()
+  if (!t || t.toLowerCase() === 'manual') return null
+  return INDICE_ROTULO[t.toUpperCase()] ?? t
+}
+
+/**
+ * Parágrafo de um encargo (IPTU, condomínio). Zero de um lado não é
+ * "ajuste de R$ 0,00 para R$ 100,00": é passar a cobrar, ou deixar de cobrar.
+ */
+function paragrafoEncargo(o: {
+  nome: string; antigo: number; novo: number; desde: string; motivo: string; igualmente: boolean
+}): string {
+  const tambem = o.igualmente ? 'igualmente ' : ''
+  if (o.antigo === 0) {
+    return `Fica ${tambem}incluído na cobrança mensal, juntamente com o aluguel, ${o.nome} no valor de `
+      + `${porExtenso(o.novo)}, com efeitos a partir de ${o.desde}, ${o.motivo}.`
+  }
+  if (o.novo === 0) {
+    return `Deixa de ser cobrado juntamente com o aluguel ${o.nome}, até então no valor de `
+      + `${porExtenso(o.antigo)}, com efeitos a partir de ${o.desde}.`
+  }
+  return `Fica ${tambem}ajustado o valor mensal d${o.nome} cobrado juntamente com o aluguel, de `
+    + `${porExtenso(o.antigo)} para ${porExtenso(o.novo)}, com efeitos a partir de ${o.desde}, ${o.motivo}.`
+}
 
 export function textoAditivoReajuste(d: DadosTextoReajuste): string {
   const paragrafos: string[] = []
@@ -53,9 +88,10 @@ export function textoAditivoReajuste(d: DadosTextoReajuste): string {
   // tem este parágrafo: "de R$ 1.600 para R$ 1.600, acréscimo de 0%" não
   // é cláusula, é ruído.
   const aluguelMudou = d.valorNovo !== d.valorAntigo
-  const base = d.indice?.trim()
-    ? `, com base na variação do ${d.indice.trim()} acumulada no período`
-    : ''
+  const indice = indiceDoReajuste(d.indice)
+  const base = indice
+    ? `, com base na variação do ${indice} acumulada no período`
+    : ', conforme acordo entre as partes'
   if (aluguelMudou) {
     paragrafos.push(
       `Fica ${aumentou ? 'reajustado' : 'reduzido'} o valor do aluguel mensal de `
@@ -69,21 +105,19 @@ export function textoAditivoReajuste(d: DadosTextoReajuste): string {
   // aluguel e não podem ser somadas a ele.
   const iptuMudou = d.iptuNovo != null && d.iptuAntigo != null && d.iptuNovo !== d.iptuAntigo
   if (iptuMudou) {
-    paragrafos.push(
-      `Fica ${aluguelMudou ? 'igualmente ' : ''}ajustado o valor mensal do IPTU cobrado juntamente com o aluguel, de `
-      + `${porExtenso(d.iptuAntigo!)} para ${porExtenso(d.iptuNovo!)}, com efeitos a partir de ${desde}, `
-      + `em razão do lançamento do exercício pelo Município.`,
-    )
+    paragrafos.push(paragrafoEncargo({
+      nome: 'o IPTU', antigo: d.iptuAntigo!, novo: d.iptuNovo!, desde,
+      motivo: 'em razão do lançamento do exercício pelo Município', igualmente: aluguelMudou,
+    }))
   }
 
   const condoMudou = d.condominioNovo != null && d.condominioAntigo != null
     && d.condominioNovo !== d.condominioAntigo
   if (condoMudou) {
-    paragrafos.push(
-      `Fica ajustado o valor mensal da taxa de condomínio cobrada juntamente com o aluguel, de `
-      + `${porExtenso(d.condominioAntigo!)} para ${porExtenso(d.condominioNovo!)}, `
-      + `com efeitos a partir de ${desde}, conforme deliberação do condomínio.`,
-    )
+    paragrafos.push(paragrafoEncargo({
+      nome: 'o condomínio', antigo: d.condominioAntigo!, novo: d.condominioNovo!, desde,
+      motivo: 'conforme deliberação do condomínio', igualmente: aluguelMudou || iptuMudou,
+    }))
   }
 
   // 4. O que NÃO muda. É a razão de existir deste gerador: a frase que

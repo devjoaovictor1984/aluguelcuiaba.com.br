@@ -7,6 +7,9 @@ import {
 } from 'lucide-react'
 import { PainelAssinatura } from '@/app/(auth)/painel/contratos/_components/painel-assinatura'
 import type { ProcessoPainel } from '@/lib/crm/assinatura-painel'
+import {
+  clausulasPadraoAditivo, normalizarClausulas, mesmasClausulas, FECHAMENTO_PADRAO_ADITIVO, type ClausulaAditivo,
+} from '@/lib/crm/aditivo-clausulas'
 
 /**
  * Seção "Termos aditivos", compartilhada entre o contrato de locação e o
@@ -24,6 +27,8 @@ export interface TermoAditivoRow {
   objeto: string
   testemunha_ids: string[] | null
   contrato_originario_ref?: string | null
+  clausulas?: ClausulaAditivo[] | null
+  fechamento?: string | null
 }
 
 export interface PessoaTestemunha {
@@ -47,6 +52,9 @@ export interface TermoAditivoInput {
   objeto: string
   testemunha_ids: string[]
   contrato_originario_ref: string
+  /** null = igual ao padrão (não congela cópia). */
+  clausulas: ClausulaAditivo[] | null
+  fechamento: string | null
 }
 
 export interface SugestaoSignatario { nome: string; email: string; papel: string }
@@ -69,6 +77,8 @@ interface Props {
    * "nº X, firmado em dd/mm/aaaa" se foi assinado pela plataforma; null se não.
    */
   originarioPadrao: string | null
+  /** Cidade do foro no texto padrão, formato "Cuiabá-MT" (mesma regra do PDF). */
+  cidadeUf: string
   aditivos: TermoAditivoRow[]
   pessoas: PessoaTestemunha[]
   tipos: TipoTermo[]
@@ -109,7 +119,7 @@ function situacaoDe(processos: ProcessoPainel[] | undefined): 'concluido' | 'env
 const hoje = () => new Date().toISOString().slice(0, 10)
 
 export function TermosAditivosSecao({
-  contratoId, codigoContrato, originarioPadrao, aditivos, pessoas, tipos, pdfBase, textoVazio, subtitulo, placeholderTitulo,
+  contratoId, codigoContrato, originarioPadrao, cidadeUf, aditivos, pessoas, tipos, pdfBase, textoVazio, subtitulo, placeholderTitulo,
   assinatura, criar, atualizar, excluir,
 }: Props) {
   const router = useRouter()
@@ -123,6 +133,10 @@ export function TermosAditivosSecao({
   const [objeto, setObjeto] = useState('')
   const [testemunhaIds, setTestemunhaIds] = useState<string[]>([])
   const [originario, setOriginario] = useState('')
+  const contratoTipo = assinatura.tipo === 'aditivo_administracao' ? 'administracao' : 'locacao'
+  const clausulasPadrao = useMemo(() => clausulasPadraoAditivo(contratoTipo, cidadeUf), [contratoTipo, cidadeUf])
+  const [clausulas, setClausulas] = useState<ClausulaAditivo[]>([])
+  const [fechamento, setFechamento] = useState('')
   const [erro, setErro] = useState('')
   const [erroLista, setErroLista] = useState('')
   const [removendo, setRemovendo] = useState<string | null>(null)
@@ -151,6 +165,7 @@ export function TermosAditivosSecao({
   const abrirNovo = () => {
     setEditando(null)
     setTitulo(''); setErro(''); setTestemunhaIds([]); setOriginario('')
+    setClausulas(clausulasPadrao); setFechamento(FECHAMENTO_PADRAO_ADITIVO)
     setDataAditivo(hoje())
     setTipo(tipoPadrao.valor)
     setObjeto(tipoPadrao.modelo)
@@ -165,6 +180,8 @@ export function TermosAditivosSecao({
     setObjeto(a.objeto)
     setTestemunhaIds(a.testemunha_ids ?? [])
     setOriginario(a.contrato_originario_ref ?? '')
+    setClausulas(a.clausulas?.length ? a.clausulas : clausulasPadrao)
+    setFechamento(a.fechamento?.trim() || FECHAMENTO_PADRAO_ADITIVO)
     setErro('')
     setModalAberto(true)
   }
@@ -180,12 +197,21 @@ export function TermosAditivosSecao({
     }
   }
 
+  const setClausula = (i: number, campo: keyof ClausulaAditivo, v: string) =>
+    setClausulas(prev => prev.map((c, j) => (j === i ? { ...c, [campo]: v } : c)))
+
   const salvar = () => {
     setErro('')
     if (!objeto.trim()) { setErro('Descreva o que está sendo aditado.'); return }
+    // Igual ao padrão grava null: o aditivo segue acompanhando o texto padrão
+    // (e o foro da imobiliária) em vez de congelar uma cópia dele.
+    const clausulasLimpas = normalizarClausulas(clausulas)
+    const fechamentoLimpo = fechamento.trim()
     const input = {
       contrato_id: contratoId, tipo, titulo, data_aditivo: dataAditivo, objeto,
       testemunha_ids: testemunhaIds, contrato_originario_ref: originario,
+      clausulas: mesmasClausulas(clausulasLimpas, clausulasPadrao) ? null : clausulasLimpas,
+      fechamento: !fechamentoLimpo || fechamentoLimpo === FECHAMENTO_PADRAO_ADITIVO ? null : fechamentoLimpo,
     }
     startTransition(async () => {
       const r = editando ? await atualizar(editando.id, input) : await criar(input)
@@ -387,7 +413,7 @@ export function TermosAditivosSecao({
               </p>
             </div>
 
-            <label className="block text-xs font-semibold text-gray-600 mb-1">O que está sendo aditado *</label>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">Cláusula 1ª — O que está sendo aditado *</label>
             <textarea
               value={objeto}
               onChange={e => setObjeto(e.target.value)}
@@ -396,9 +422,72 @@ export function TermosAditivosSecao({
               className={`${inputCls} resize-y leading-relaxed`}
             />
             <p className="text-[10px] text-gray-400 mt-1">
-              Linha em branco entre parágrafos numera cada item (1.1, 1.2…). Ratificação, foro, data e assinaturas
-              o PDF já coloca sozinho.
+              Linha em branco entre parágrafos numera cada item (1.1, 1.2…). Preâmbulo com as partes, data e
+              assinaturas o PDF monta sozinho.
             </p>
+
+            {/* Cláusulas 2ª em diante: já vêm com o texto padrão (ratificação,
+                assinatura eletrônica, foro). Igual ao padrão não é gravado. */}
+            <div className="mt-4">
+              <div className="flex items-baseline justify-between gap-2 flex-wrap mb-1">
+                <label className="text-xs font-semibold text-gray-600">Demais cláusulas</label>
+                <button
+                  type="button"
+                  onClick={() => { setClausulas(clausulasPadrao); setFechamento(FECHAMENTO_PADRAO_ADITIVO) }}
+                  className="text-[11px] text-violet-700 hover:underline"
+                >
+                  Restaurar texto padrão
+                </button>
+              </div>
+              <div className="space-y-2">
+                {clausulas.map((c, i) => (
+                  <div key={i} className="border border-gray-100 rounded-lg p-2">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <span className="text-[11px] font-bold text-gray-500 shrink-0">Cláusula {i + 2}ª —</span>
+                      <input
+                        value={c.titulo}
+                        onChange={e => setClausula(i, 'titulo', e.target.value)}
+                        placeholder="Título (ex: Da ratificação)"
+                        className={`${inputCls} py-1`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setClausulas(prev => prev.filter((_, j) => j !== i))}
+                        className="text-gray-300 hover:text-rose-600 p-1 shrink-0"
+                        title="Remover cláusula"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                    <textarea
+                      value={c.texto}
+                      onChange={e => setClausula(i, 'texto', e.target.value)}
+                      rows={4}
+                      className={`${inputCls} resize-y leading-relaxed`}
+                    />
+                  </div>
+                ))}
+              </div>
+              <button
+                type="button"
+                onClick={() => setClausulas(prev => [...prev, { titulo: '', texto: '' }])}
+                className="mt-2 flex items-center gap-1 text-xs font-semibold text-violet-700 hover:text-violet-800"
+              >
+                <Plus size={12} /> Adicionar cláusula
+              </button>
+
+              <label className="block text-xs font-semibold text-gray-600 mt-3 mb-1">Fechamento</label>
+              <textarea
+                value={fechamento}
+                onChange={e => setFechamento(e.target.value)}
+                rows={2}
+                className={`${inputCls} resize-y leading-relaxed`}
+              />
+              <p className="text-[10px] text-gray-400 mt-1">
+                Vem logo antes da data e das assinaturas. Assinado pela plataforma, o certificado de assinatura sai
+                anexo ao PDF final.
+              </p>
+            </div>
 
             {/* Testemunhas — até 2 do cadastro, igual ao contrato */}
             <div className="mt-4">

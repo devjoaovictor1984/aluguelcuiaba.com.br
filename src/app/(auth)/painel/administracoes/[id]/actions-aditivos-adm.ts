@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { situacaoAssinaturaAditivo, msgAditivoTravado } from '@/lib/crm/assinatura-lock'
+import { lerClausulas, type ClausulaAditivo } from '@/lib/crm/aditivo-clausulas'
 
 export type TipoAditivoAdm = 'taxa' | 'prorrogacao' | 'exclusividade' | 'repasse' | 'clausula' | 'outro'
 
@@ -17,6 +18,10 @@ export interface AditivoAdmInput {
   testemunha_ids?: string[]
   /** Como citar o contrato originário. Vazio = regra automática (contrato-originario.ts). */
   contrato_originario_ref?: string | null
+  /** Cláusulas da 2ª em diante. null = texto padrão (aditivo-clausulas.ts). */
+  clausulas?: ClausulaAditivo[] | null
+  /** Fechamento antes da data. null = padrão. */
+  fechamento?: string | null
 }
 
 function validar(input: AditivoAdmInput): string | null {
@@ -60,6 +65,8 @@ export async function criarAditivoAdm(input: AditivoAdmInput) {
       objeto: input.objeto.trim(),
       testemunha_ids: input.testemunha_ids ?? [],
       contrato_originario_ref: input.contrato_originario_ref?.trim() || null,
+      clausulas: lerClausulas(input.clausulas),
+      fechamento: input.fechamento?.trim() || null,
     })
     .select('id')
     .single()
@@ -92,6 +99,8 @@ export async function atualizarAditivoAdm(id: string, input: AditivoAdmInput) {
       objeto: input.objeto.trim(),
       testemunha_ids: input.testemunha_ids ?? [],
       contrato_originario_ref: input.contrato_originario_ref?.trim() || null,
+      clausulas: lerClausulas(input.clausulas),
+      fechamento: input.fechamento?.trim() || null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', id)
