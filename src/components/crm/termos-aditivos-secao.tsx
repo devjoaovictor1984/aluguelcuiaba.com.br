@@ -3,7 +3,17 @@
 import { useMemo, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove, SortableContext, sortableKeyboardCoordinates,
+  useSortable, verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import {
   FilePlus2, Plus, Trash2, Loader2, X, FileText, Download, Pencil, Users, PenLine, CheckCircle2, Clock,
+  GripVertical,
 } from 'lucide-react'
 import { PainelAssinatura } from '@/app/(auth)/painel/contratos/_components/painel-assinatura'
 import type { ProcessoPainel } from '@/lib/crm/assinatura-painel'
@@ -116,6 +126,20 @@ function situacaoDe(processos: ProcessoPainel[] | undefined): 'concluido' | 'env
   return ativos.length > 0 ? 'enviado' : null
 }
 
+/**
+ * As cláusulas do aditivo não têm id no banco (é um JSONB de {titulo, texto}),
+ * mas o dnd-kit precisa de uma chave estável pra arrastar sem embaralhar o
+ * texto que está sendo digitado. Então o modal carrega cada uma com um `uid`
+ * só de tela, que some de novo na hora de salvar.
+ */
+type ClausulaEdit = ClausulaAditivo & { uid: string }
+
+let seqUid = 0
+const comUid = (lista: ClausulaAditivo[]): ClausulaEdit[] =>
+  lista.map(c => ({ ...c, uid: `cl${++seqUid}` }))
+const semUid = (lista: ClausulaEdit[]): ClausulaAditivo[] =>
+  lista.map(({ titulo, texto }) => ({ titulo, texto }))
+
 const hoje = () => new Date().toISOString().slice(0, 10)
 
 export function TermosAditivosSecao({
@@ -135,7 +159,7 @@ export function TermosAditivosSecao({
   const [originario, setOriginario] = useState('')
   const contratoTipo = assinatura.tipo === 'aditivo_administracao' ? 'administracao' : 'locacao'
   const clausulasPadrao = useMemo(() => clausulasPadraoAditivo(contratoTipo, cidadeUf), [contratoTipo, cidadeUf])
-  const [clausulas, setClausulas] = useState<ClausulaAditivo[]>([])
+  const [clausulas, setClausulas] = useState<ClausulaEdit[]>([])
   const [fechamento, setFechamento] = useState('')
   const [erro, setErro] = useState('')
   const [erroLista, setErroLista] = useState('')
@@ -165,7 +189,7 @@ export function TermosAditivosSecao({
   const abrirNovo = () => {
     setEditando(null)
     setTitulo(''); setErro(''); setTestemunhaIds([]); setOriginario('')
-    setClausulas(clausulasPadrao); setFechamento(FECHAMENTO_PADRAO_ADITIVO)
+    setClausulas(comUid(clausulasPadrao)); setFechamento(FECHAMENTO_PADRAO_ADITIVO)
     setDataAditivo(hoje())
     setTipo(tipoPadrao.valor)
     setObjeto(tipoPadrao.modelo)
@@ -180,7 +204,7 @@ export function TermosAditivosSecao({
     setObjeto(a.objeto)
     setTestemunhaIds(a.testemunha_ids ?? [])
     setOriginario(a.contrato_originario_ref ?? '')
-    setClausulas(a.clausulas?.length ? a.clausulas : clausulasPadrao)
+    setClausulas(comUid(a.clausulas?.length ? a.clausulas : clausulasPadrao))
     setFechamento(a.fechamento?.trim() || FECHAMENTO_PADRAO_ADITIVO)
     setErro('')
     setModalAberto(true)
@@ -197,15 +221,31 @@ export function TermosAditivosSecao({
     }
   }
 
-  const setClausula = (i: number, campo: keyof ClausulaAditivo, v: string) =>
-    setClausulas(prev => prev.map((c, j) => (j === i ? { ...c, [campo]: v } : c)))
+  const setClausula = (uid: string, campo: keyof ClausulaAditivo, v: string) =>
+    setClausulas(prev => prev.map(c => (c.uid === uid ? { ...c, [campo]: v } : c)))
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  // Só reordena na tela; a ordem nova vai junto no salvar, como o resto do texto.
+  const aoArrastar = (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    setClausulas(prev => {
+      const de = prev.findIndex(c => c.uid === active.id)
+      const para = prev.findIndex(c => c.uid === over.id)
+      return de < 0 || para < 0 ? prev : arrayMove(prev, de, para)
+    })
+  }
 
   const salvar = () => {
     setErro('')
     if (!objeto.trim()) { setErro('Descreva o que está sendo aditado.'); return }
     // Igual ao padrão grava null: o aditivo segue acompanhando o texto padrão
     // (e o foro da imobiliária) em vez de congelar uma cópia dele.
-    const clausulasLimpas = normalizarClausulas(clausulas)
+    const clausulasLimpas = normalizarClausulas(semUid(clausulas))
     const fechamentoLimpo = fechamento.trim()
     const input = {
       contrato_id: contratoId, tipo, titulo, data_aditivo: dataAditivo, objeto,
@@ -433,48 +473,38 @@ export function TermosAditivosSecao({
                 <label className="text-xs font-semibold text-gray-600">Demais cláusulas</label>
                 <button
                   type="button"
-                  onClick={() => { setClausulas(clausulasPadrao); setFechamento(FECHAMENTO_PADRAO_ADITIVO) }}
+                  onClick={() => { setClausulas(comUid(clausulasPadrao)); setFechamento(FECHAMENTO_PADRAO_ADITIVO) }}
                   className="text-[11px] text-violet-700 hover:underline"
                 >
                   Restaurar texto padrão
                 </button>
               </div>
-              <div className="space-y-2">
-                {clausulas.map((c, i) => (
-                  <div key={i} className="border border-gray-100 rounded-lg p-2">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <span className="text-[11px] font-bold text-gray-500 shrink-0">Cláusula {i + 2}ª —</span>
-                      <input
-                        value={c.titulo}
-                        onChange={e => setClausula(i, 'titulo', e.target.value)}
-                        placeholder="Título (ex: Da ratificação)"
-                        className={`${inputCls} py-1`}
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={aoArrastar}>
+                <SortableContext items={clausulas.map(c => c.uid)} strategy={verticalListSortingStrategy}>
+                  <div className="space-y-2">
+                    {clausulas.map((c, i) => (
+                      <ClausulaCard
+                        key={c.uid}
+                        clausula={c}
+                        numero={i + 2}
+                        onChange={(campo, v) => setClausula(c.uid, campo, v)}
+                        onRemover={() => setClausulas(prev => prev.filter(x => x.uid !== c.uid))}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setClausulas(prev => prev.filter((_, j) => j !== i))}
-                        className="text-gray-300 hover:text-rose-600 p-1 shrink-0"
-                        title="Remover cláusula"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
-                    <textarea
-                      value={c.texto}
-                      onChange={e => setClausula(i, 'texto', e.target.value)}
-                      rows={4}
-                      className={`${inputCls} resize-y leading-relaxed`}
-                    />
+                    ))}
                   </div>
-                ))}
-              </div>
+                </SortableContext>
+              </DndContext>
               <button
                 type="button"
-                onClick={() => setClausulas(prev => [...prev, { titulo: '', texto: '' }])}
+                onClick={() => setClausulas(prev => [...prev, ...comUid([{ titulo: '', texto: '' }])])}
                 className="mt-2 flex items-center gap-1 text-xs font-semibold text-violet-700 hover:text-violet-800"
               >
                 <Plus size={12} /> Adicionar cláusula
               </button>
+              <p className="text-[10px] text-gray-400 mt-1">
+                A cláusula nova entra no fim. Arraste pela alça <GripVertical size={10} className="inline -mt-0.5" />
+                {' '}pra colocar na ordem que deve sair no PDF.
+              </p>
 
               <label className="block text-xs font-semibold text-gray-600 mt-3 mb-1">Fechamento</label>
               <textarea
@@ -547,5 +577,66 @@ export function TermosAditivosSecao({
         </div>
       )}
     </section>
+  )
+}
+
+// ── Uma cláusula do aditivo no modal: arrastável pela alça, editável inline ──
+function ClausulaCard({
+  clausula, numero, onChange, onRemover,
+}: {
+  clausula: ClausulaEdit
+  numero: number
+  onChange: (campo: keyof ClausulaAditivo, v: string) => void
+  onRemover: () => void
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: clausula.uid })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  }
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`border rounded-lg p-2 bg-white ${isDragging ? 'border-violet-300 shadow-md' : 'border-gray-100'}`}
+    >
+      <div className="flex items-center gap-2 mb-1.5">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-600 p-1 -ml-1 shrink-0 touch-none"
+          aria-label={`Arrastar a cláusula ${numero}ª pra reordenar`}
+          title="Arrastar pra reordenar"
+        >
+          <GripVertical size={14} />
+        </button>
+        <span className="text-[11px] font-bold text-gray-500 shrink-0">Cláusula {numero}ª —</span>
+        <input
+          value={clausula.titulo}
+          onChange={e => onChange('titulo', e.target.value)}
+          placeholder="Título (ex: Da ratificação)"
+          className={`${inputCls} py-1`}
+        />
+        <button
+          type="button"
+          onClick={onRemover}
+          className="text-gray-300 hover:text-rose-600 p-1 shrink-0"
+          title="Remover cláusula"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
+      <textarea
+        value={clausula.texto}
+        onChange={e => onChange('texto', e.target.value)}
+        rows={4}
+        className={`${inputCls} resize-y leading-relaxed`}
+      />
+    </div>
   )
 }
