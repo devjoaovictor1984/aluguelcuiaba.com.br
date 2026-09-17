@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   Home, User, Shield, DollarSign, Check, ArrowRight, ArrowLeft,
-  AlertCircle, Loader2, FileSignature, Sofa, ShieldCheck,
+  AlertCircle, Loader2, FileSignature, Sofa, ShieldCheck, RotateCcw, X,
 } from 'lucide-react'
+import { useRascunhoLocal, tempoDesde } from '@/lib/hooks/rascunho-local'
 import { criarContrato, type ContratoInput } from '../../actions'
 import { vincularAnaliseAoContrato } from '../../../seguros/actions'
 import { gerarParcelas, resumirParcelas, calcularComissao, calcularRepasse } from '@/lib/crm/calculos'
@@ -49,6 +50,20 @@ const ETAPAS = [
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
 
+/**
+ * O wizard inteiro cabe num rascunho: fora o estado do formulário, só a
+ * etapa em que a pessoa parou e as duas escolhas que mudam o comportamento
+ * das etapas seguintes.
+ */
+interface RascunhoWizard {
+  s: WizardState
+  etapa: number
+  cotacaoVinculada: string | null
+  primeiroAluguelManual: boolean
+}
+
+const CHAVE_RASCUNHO = 'wizard-contrato'
+
 /** "2026-10-01" -> "01/10/2026". Vazio vira vazio, sem quebrar a tela. */
 function fmtDataBr(iso: string): string {
   if (!iso) return ''
@@ -88,6 +103,7 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
 
+
   const setField = <K extends keyof WizardState>(k: K, v: WizardState[K]) => {
     set(prev => ({ ...prev, [k]: v }))
   }
@@ -95,6 +111,47 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
   // Marca se o usuário editou manualmente data_primeiro_aluguel — pra parar de
   // sobrescrever com o cálculo automático.
   const [primeiroAluguelManual, setPrimeiroAluguelManual] = useState(false)
+
+  // ── Rascunho automático ──
+  // O que foi digitado sobrevive a sair da página. Não restaura sozinho:
+  // aparece um aviso pra retomar, senão um rascunho antigo cairia por cima
+  // do tipo de contrato que a pessoa acabou de escolher no menu.
+  const { rascunho, carregado, salvar: salvarRascunho, descartar } =
+    useRascunhoLocal<RascunhoWizard>(CHAVE_RASCUNHO)
+  const [avisoAberto, setAvisoAberto] = useState(true)
+
+  const estadoInicial = useMemo(
+    () => ({ ...ESTADO_INICIAL, ...(templateDefaults ?? {}) }),
+    [templateDefaults],
+  )
+  // "Sujo" = tem algo que valha a pena guardar. Sem isto, abrir e fechar a
+  // tela deixaria um rascunho vazio pra sempre oferecendo retomada.
+  const sujo = etapa > 1 || JSON.stringify(s) !== JSON.stringify(estadoInicial)
+
+  useEffect(() => {
+    if (!carregado || !sujo) return
+    salvarRascunho({ s, etapa, cotacaoVinculada, primeiroAluguelManual })
+  }, [carregado, sujo, s, etapa, cotacaoVinculada, primeiroAluguelManual, salvarRascunho])
+
+  // Fechar a aba ou dar F5 não passa pelo debounce — o navegador pergunta.
+  useEffect(() => {
+    if (!sujo) return
+    const aoSair = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', aoSair)
+    return () => window.removeEventListener('beforeunload', aoSair)
+  }, [sujo])
+
+  const retomarRascunho = () => {
+    if (!rascunho) return
+    set(rascunho.dados.s)
+    setEtapa(rascunho.dados.etapa)
+    setCotacaoVinculada(rascunho.dados.cotacaoVinculada)
+    setPrimeiroAluguelManual(rascunho.dados.primeiroAluguelManual)
+    setAvisoAberto(false)
+  }
+
+  // Só oferece retomar o que ainda não foi retomado nem sobrescrito nesta tela.
+  const mostrarAviso = avisoAberto && !!rascunho && !sujo
 
   // Auto-calcula data_primeiro_aluguel sempre que data_inicio, dia_vencimento ou
   // garantia mudam. Regras de mercado:
@@ -330,6 +387,8 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
         await vincularAnaliseAoContrato(cotacaoVinculada.split(':')[0], r.id)
       }
 
+      // Contrato criado: o rascunho cumpriu o papel e sai do caminho.
+      descartar()
       router.push(`/painel/contratos/${r.id}`)
       router.refresh()
     })
@@ -337,6 +396,39 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
 
   return (
     <div className="max-w-4xl space-y-6 pb-10">
+      {/* Rascunho de uma sessão anterior */}
+      {mostrarAviso && rascunho && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
+              <RotateCcw size={14} /> Você tem um contrato começado
+            </p>
+            <p className="text-[11px] text-amber-800 mt-0.5">
+              Salvo automaticamente {tempoDesde(rascunho.salvoEm)}, na etapa{' '}
+              <strong>{ETAPAS.find(e => e.id === rascunho.dados.etapa)?.label ?? rascunho.dados.etapa}</strong>.
+              Retomar traz tudo de volta como estava.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={retomarRascunho}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded-lg"
+            >
+              Retomar
+            </button>
+            <button
+              type="button"
+              onClick={() => { descartar(); setAvisoAberto(false) }}
+              className="text-amber-700 hover:text-amber-900 text-xs px-2 py-2 flex items-center gap-1"
+              title="Descartar o rascunho"
+            >
+              <X size={13} /> Descartar
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Stepper */}
       <div className="flex items-center justify-between bg-white rounded-2xl border border-gray-100 shadow-sm p-3">
         {ETAPAS.map((et, i) => {
