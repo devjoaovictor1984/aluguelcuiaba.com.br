@@ -106,8 +106,48 @@ export async function uploadApolice(formData: FormData) {
     return { error: `Falha ao registrar: ${dbErr.message}` }
   }
 
+  await preencherApoliceNoContrato(
+    admin, contratoId, acesso.userId, tipo as TipoApolice,
+    limparTexto(formData.get('apolice_numero'), 60),
+    limparTexto(formData.get('seguradora'), 120),
+  )
+
   revalidatePath(`/painel/contratos/${contratoId}`)
   return { ok: true }
+}
+
+/**
+ * Fecha o ciclo do seguro fiança: o contrato nasce sem o número da apólice
+ * (a emissão é posterior), e o checklist trava a geração do PDF até ele
+ * existir. Anexar a apólice aqui é justamente quando o número aparece —
+ * então ele desce pro contrato em vez de exigir que alguém vá digitar no
+ * mesmo número de novo, em outra tela, pra destravar.
+ *
+ * Só preenche o que está em branco: número já informado à mão (ou vindo do
+ * webhook da seguradora) não é sobrescrito pelo que se digitou no anexo.
+ */
+async function preencherApoliceNoContrato(
+  admin: ReturnType<typeof createAdminClient>,
+  contratoId: string,
+  userId: string,
+  tipo: TipoApolice,
+  numero: string | null,
+  seguradora: string | null,
+) {
+  if (tipo !== 'apolice_fianca' || !numero) return
+
+  const { data: c } = await admin
+    .from('contratos_locacao')
+    .select('id, garantia_tipo, seguro_fianca_apolice, seguro_fianca_seguradora')
+    .eq('id', contratoId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!c || c.garantia_tipo !== 'seguro_fianca' || c.seguro_fianca_apolice?.trim()) return
+
+  const patch: Record<string, string> = { seguro_fianca_apolice: numero }
+  if (seguradora && !c.seguro_fianca_seguradora?.trim()) patch.seguro_fianca_seguradora = seguradora
+
+  await admin.from('contratos_locacao').update(patch).eq('id', contratoId).eq('user_id', userId)
 }
 
 /** Edita só os dados cadastrais — o PDF em si é substituído por novo upload. */

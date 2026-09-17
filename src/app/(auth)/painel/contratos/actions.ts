@@ -103,8 +103,13 @@ function valida(input: ContratoInput): string | null {
   if (input.garantia_tipo === 'fiador' && !input.fiador_id) return 'Selecione o fiador.'
   if (input.garantia_tipo === 'caucao' && (!input.caucao_valor || input.caucao_valor <= 0)) return 'Valor de caução inválido.'
   if (input.garantia_tipo === 'seguro_fianca') {
+    // Seguradora sim: ela se sabe na contratação, sai no orçamento.
+    // O NÚMERO da apólice, não: a emissão é posterior, e exigir aqui
+    // obrigava a inventar número ou a esperar dias pra começar o
+    // contrato. Quem cobra é o checklist, antes de gerar o PDF final
+    // (checklist.ts, item 'seguro') — que é a hora em que o número
+    // precisa mesmo existir, porque vai impresso no documento.
     if (!input.seguro_fianca_seguradora?.trim()) return 'Informe a seguradora.'
-    if (!input.seguro_fianca_apolice?.trim()) return 'Informe o número da apólice.'
   }
   return null
 }

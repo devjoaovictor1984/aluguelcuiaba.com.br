@@ -289,12 +289,9 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
       if (s.garantia_tipo === 'caucao' && !parseNumero(s.caucao_valor)) return 'Informe o valor da caução.'
       if (s.garantia_tipo === 'seguro_fianca') {
         if (!s.seguro_fianca_seguradora.trim()) return 'Informe a seguradora.'
-        // A apólice só existe depois da emissão, que é posterior ao
-        // contrato. Com cotação aprovada vinculada, segue sem o número —
-        // o checklist do PDF cobra antes de gerar o documento final.
-        if (!s.seguro_fianca_apolice.trim() && !cotacaoVinculada) {
-          return 'Informe o número da apólice ou vincule uma cotação aprovada.'
-        }
+        // O número da apólice NÃO trava aqui: a emissão sai depois da
+        // contratação, e o contrato vai sendo montado enquanto isso. Quem
+        // cobra é o checklist, antes de gerar o PDF pra assinatura.
       }
     }
     if (etapa === 5) {
@@ -789,13 +786,19 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-600 block mb-1">
-                    Nº da Apólice {cotacaoVinculada ? '' : '*'}
+                    Nº da Apólice <span className="font-normal text-gray-400">(quando sair)</span>
                   </label>
-                  <input value={s.seguro_fianca_apolice} onChange={e => setField('seguro_fianca_apolice', e.target.value)} className={inputCls} />
-                  {cotacaoVinculada && !s.seguro_fianca_apolice.trim() && (
+                  <input
+                    value={s.seguro_fianca_apolice}
+                    onChange={e => setField('seguro_fianca_apolice', e.target.value)}
+                    placeholder="Ainda não emitida"
+                    className={inputCls}
+                  />
+                  {!s.seguro_fianca_apolice.trim() && (
                     <p className="text-[11px] text-violet-700 mt-1 leading-snug">
-                      Pode deixar em branco — a apólice só é emitida depois da
-                      contratação, e o número entra sozinho quando sair.
+                      {cotacaoVinculada
+                        ? 'Pode deixar em branco — o número entra sozinho quando a seguradora emitir.'
+                        : 'Pode deixar em branco. A apólice sai depois da contratação; o número é cobrado antes de gerar o contrato pra assinatura.'}
                     </p>
                   )}
                 </div>
