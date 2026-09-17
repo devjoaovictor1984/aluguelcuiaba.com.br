@@ -10,6 +10,7 @@ import { ParcelaRow, type Parcela } from './_components/parcela-row'
 import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
 import { InventarioSecao, type ItemInventario } from './_components/inventario-secao'
+import { ApolicesSecao, type ApoliceRow } from './_components/apolices-secao'
 import { AditivosSecao, type AditivoRow } from './_components/aditivos-secao'
 import type { AssinaturaAditivos, SugestaoSignatario } from '@/components/crm/termos-aditivos-secao'
 import { carregarProcessosAssinatura } from '@/lib/crm/assinatura-painel'
@@ -137,6 +138,19 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     .select('id, descricao, quantidade, marca_modelo, estado, observacao')
     .eq('contrato_id', id)
     .order('ordem', { ascending: true })
+
+  // Apólices anexadas (incêndio e fiança). Uma por tipo: a mais recente
+  // ganha a vaga, então reanexar depois da renovação já mostra a nova.
+  const { data: apolicesRaw } = await supabase
+    .from('contratos_documentos')
+    .select('id, tipo, origem, nome, nome_original, seguradora, apolice_numero, vigencia_inicio, vigencia_fim, observacoes, tamanho_bytes, created_at')
+    .eq('contrato_id', id)
+    .in('tipo', ['apolice_incendio', 'apolice_fianca'])
+    .order('created_at', { ascending: false })
+  const apolices: ApoliceRow[] = []
+  for (const a of (apolicesRaw ?? []) as ApoliceRow[]) {
+    if (!apolices.some(x => x.tipo === a.tipo)) apolices.push(a)
+  }
 
   // Termos aditivos do contrato
   const { data: aditivosRaw } = await supabase
@@ -391,6 +405,8 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
       />
 
       <InventarioSecao contratoId={id} itens={(inventarioRaw ?? []) as ItemInventario[]} />
+
+      <ApolicesSecao contratoId={id} apolices={apolices} garantiaTipo={contrato.garantia_tipo} />
 
       <AditivosSecao
         contratoId={id}
