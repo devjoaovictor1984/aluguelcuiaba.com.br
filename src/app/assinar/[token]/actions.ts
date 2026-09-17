@@ -180,7 +180,7 @@ export async function confirmarAssinatura(token: string, payload: {
         .eq('id', proc.contrato_id)
     } else if (proc.tipo_contrato === 'administracao') {
       // Aditivo não tem geração pra marcar: a trava dele é o próprio
-      // processo concluído (situacaoAssinaturaAditivo).
+      // processo concluído (situacaoAssinaturaDocumento).
       await admin.from('contrato_admin_geracoes')
         .update({ status: 'assinado', assinado_em: agora })
         .eq('contrato_admin_id', proc.contrato_id)

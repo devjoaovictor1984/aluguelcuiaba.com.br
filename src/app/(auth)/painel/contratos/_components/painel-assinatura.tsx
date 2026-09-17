@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { PenLine, Plus, Trash2, Loader2, Send, Copy, Check, Clock, CheckCircle2, X, Download, MessageCircle, Pencil, Mail, ShieldCheck } from 'lucide-react'
 import { criarProcessoAssinatura, cancelarProcessoAssinatura, atualizarEmailSignatario, reenviarConviteSignatario } from '../assinatura-actions'
 import { ConfirmarEnvioAssinatura } from './confirmar-envio-assinatura'
-import { ehAditivo, nomeDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
+import { nomeDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
 
 interface Sugestao { nome: string; email: string; papel: string }
 interface SignatarioStatus {
@@ -149,7 +149,7 @@ export function PainelAssinatura({ tipoContrato, contratoId, titulo, baseUrl, su
         <ConfirmarEnvioAssinatura
           signatarios={confirmando}
           exigirOtp={exigirOtp}
-          aditivo={ehAditivo(tipoContrato)}
+          documento={documento}
           enviando={isPending}
           onConfirmar={confirmarEnvio}
           onCancelar={() => setConfirmando(null)}

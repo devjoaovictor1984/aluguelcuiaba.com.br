@@ -11,6 +11,7 @@ import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
 import { InventarioSecao, type ItemInventario } from './_components/inventario-secao'
 import { ApolicesSecao, type ApoliceRow } from './_components/apolices-secao'
+import { DistratoSecao, type DistratoRow } from './_components/distrato-secao'
 import { AditivosSecao, type AditivoRow } from './_components/aditivos-secao'
 import type { AssinaturaAditivos, SugestaoSignatario } from '@/components/crm/termos-aditivos-secao'
 import { carregarProcessosAssinatura } from '@/lib/crm/assinatura-painel'
@@ -172,49 +173,76 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     .from('perfis').select('endereco_cidade, endereco_uf').eq('id', acesso.userId).maybeSingle()
   const cidadeUfAditivo = perfilForo?.endereco_cidade && perfilForo?.endereco_uf
     ? `${perfilForo.endereco_cidade}-${perfilForo.endereco_uf}` : 'Cuiabá-MT'
-  if (aditivosLista.length > 0) {
-    type ParteAss = { nome: string; email?: string | null; conjuge_nome?: string | null }
-    const um = (v: unknown): ParteAss | null =>
-      (Array.isArray(v) ? (v[0] ?? null) : (v ?? null)) as ParteAss | null
-    const inqAss = um(contrato.inquilino)
-    const propAss = um(contrato.proprietario)
-    const fiaAss = um(contrato.fiador)
+  // Distrato do contrato — um por contrato (UNIQUE em contratos_distratos).
+  const { data: distratoRaw } = await supabase
+    .from('contratos_distratos')
+    .select(
+      'id, data_distrato, data_desocupacao, motivo, titulo, objeto, ' +
+      'multa_valor, multa_dispensada, debitos_valor, caucao_devolver, acerto_observacao, ' +
+      'quitacao_reciproca, testemunha_ids, contrato_originario_ref, clausulas, fechamento',
+    )
+    .eq('contrato_id', id)
+    .maybeSingle()
+  const distrato = (distratoRaw ?? null) as DistratoRow | null
 
-    const { data: { user: userAss } } = await supabase.auth.getUser()
-    const { data: perfilAss } = await supabase
-      .from('perfis').select('nome').eq('id', acesso.userId).maybeSingle()
-    const idsTest = [...new Set(aditivosLista.flatMap(a => a.testemunha_ids ?? []))]
-    const { data: testAss } = idsTest.length > 0
-      ? await supabase.from('pessoas').select('id, nome, email').in('id', idsTest).eq('user_id', acesso.userId)
-      : { data: [] as Array<{ id: string; nome: string; email: string | null }> }
+  // Quem assina: as mesmas partes que o PDF imprime embaixo de cada linha
+  // (o NOME tem que bater, é por ele que a assinatura desenhada cai no
+  // lugar certo). Serve ao aditivo e ao distrato — montado uma vez só.
+  type ParteAss = { nome: string; email?: string | null; conjuge_nome?: string | null }
+  const um = (v: unknown): ParteAss | null =>
+    (Array.isArray(v) ? (v[0] ?? null) : (v ?? null)) as ParteAss | null
+  const inqAss = um(contrato.inquilino)
+  const propAss = um(contrato.proprietario)
+  const fiaAss = um(contrato.fiador)
+
+  const { data: { user: userAss } } = await supabase.auth.getUser()
+  const { data: perfilAss } = await supabase
+    .from('perfis').select('nome').eq('id', acesso.userId).maybeSingle()
+
+  // Com administração, a linha do locador é do corretor responsável (perfil.nome), igual ao PDF
+  const temAdmAss = Number(contrato.taxa_admin_valor ?? 0) > 0
+  const papelConjuge = contrato.conjuge_inquilino_papel ?? 'solidario'
+  const partesAss = [
+    temAdmAss && perfilAss?.nome
+      ? { nome: perfilAss.nome, email: userAss?.email ?? '', papel: 'Locador(a) — p.p. administradora' }
+      : propAss?.nome ? { nome: propAss.nome, email: propAss.email ?? '', papel: 'Locador(a)' } : null,
+    inqAss?.nome ? { nome: inqAss.nome, email: inqAss.email ?? '', papel: 'Locatário(a)' } : null,
+    inqAss?.conjuge_nome && papelConjuge !== 'nao_participa'
+      ? { nome: inqAss.conjuge_nome, email: '', papel: papelConjuge === 'solidario' ? 'Locatário(a) solidário(a)' : 'Cônjuge anuente' }
+      : null,
+    contrato.garantia_tipo === 'fiador' && fiaAss?.nome
+      ? { nome: fiaAss.nome, email: fiaAss.email ?? '', papel: 'Fiador(a)' }
+      : null,
+  ].filter((s): s is SugestaoSignatario => !!s)
+
+  // Testemunhas escolhidas em qualquer um dos documentos, numa busca só.
+  const idsTest = [...new Set([
+    ...aditivosLista.flatMap(a => a.testemunha_ids ?? []),
+    ...(distrato?.testemunha_ids ?? []),
+  ])]
+  const { data: testAss } = idsTest.length > 0
+    ? await supabase.from('pessoas').select('id, nome, email').in('id', idsTest).eq('user_id', acesso.userId)
+    : { data: [] as Array<{ id: string; nome: string; email: string | null }> }
+  const sugestoesTestemunhas = (ids: string[] | null) => (ids ?? [])
+    .map(tid => (testAss ?? []).find(t => t.id === tid))
+    .filter((t): t is { id: string; nome: string; email: string | null } => !!t)
+    .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' }))
+
+  if (aditivosLista.length > 0) {
     const processosPorAditivo = await Promise.all(
       aditivosLista.map(a => carregarProcessosAssinatura(acesso.userId, 'aditivo_locacao', a.id)),
     )
-
-    // Com administração, a linha do locador é do corretor responsável (perfil.nome), igual ao PDF
-    const temAdmAss = Number(contrato.taxa_admin_valor ?? 0) > 0
-    const papelConjuge = contrato.conjuge_inquilino_papel ?? 'solidario'
-    const partesAss = [
-      temAdmAss && perfilAss?.nome
-        ? { nome: perfilAss.nome, email: userAss?.email ?? '', papel: 'Locador(a) — p.p. administradora' }
-        : propAss?.nome ? { nome: propAss.nome, email: propAss.email ?? '', papel: 'Locador(a)' } : null,
-      inqAss?.nome ? { nome: inqAss.nome, email: inqAss.email ?? '', papel: 'Locatário(a)' } : null,
-      inqAss?.conjuge_nome && papelConjuge !== 'nao_participa'
-        ? { nome: inqAss.conjuge_nome, email: '', papel: papelConjuge === 'solidario' ? 'Locatário(a) solidário(a)' : 'Cônjuge anuente' }
-        : null,
-      contrato.garantia_tipo === 'fiador' && fiaAss?.nome
-        ? { nome: fiaAss.nome, email: fiaAss.email ?? '', papel: 'Fiador(a)' }
-        : null,
-    ].filter((s): s is SugestaoSignatario => !!s)
-
     aditivosLista.forEach((a, i) => {
-      const testemunhas = (a.testemunha_ids ?? [])
-        .map(tid => (testAss ?? []).find(t => t.id === tid))
-        .filter((t): t is { id: string; nome: string; email: string | null } => !!t)
-        .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' }))
-      assinaturaAditivos[a.id] = { processos: processosPorAditivo[i], sugestoes: [...partesAss, ...testemunhas] }
+      assinaturaAditivos[a.id] = {
+        processos: processosPorAditivo[i],
+        sugestoes: [...partesAss, ...sugestoesTestemunhas(a.testemunha_ids ?? null)],
+      }
     })
   }
+
+  const processosDistrato = distrato
+    ? await carregarProcessosAssinatura(acesso.userId, 'distrato_locacao', distrato.id)
+    : []
 
   const reajustes: ReajusteRow[] = ((reajustesRaw ?? []) as ReajusteRow[]).map(r => ({
     ...r,
@@ -416,6 +444,22 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         assinatura={{ baseUrl: baseUrlAss, porAditivo: assinaturaAditivos }}
         originarioPadrao={originarioPadrao}
         cidadeUf={cidadeUfAditivo}
+      />
+
+      <DistratoSecao
+        contratoId={id}
+        codigoContrato={contrato.codigo}
+        originarioPadrao={originarioPadrao}
+        cidadeUf={cidadeUfAditivo}
+        distrato={distrato}
+        pessoas={pessoasDisponiveis}
+        statusContrato={contrato.status}
+        caucaoValor={Number(contrato.caucao_valor ?? 0)}
+        assinatura={{
+          baseUrl: baseUrlAss,
+          processos: processosDistrato,
+          sugestoes: [...partesAss, ...sugestoesTestemunhas(distrato?.testemunha_ids ?? null)],
+        }}
       />
 
       <TimelineEventos eventos={eventos} />

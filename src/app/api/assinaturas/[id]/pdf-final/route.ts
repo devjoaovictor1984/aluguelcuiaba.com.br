@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { CertificadoAssinaturaDocument } from '@/lib/crm/certificado-assinatura-pdf'
 import { montarCertificado } from '@/lib/crm/certificado-dados'
-import { ehAditivo, rotaPdfDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
+import { nomeDocumento, rotaPdfDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
 import { garantirCodigoValidacao } from '@/lib/crm/validacao-codigo'
 import { carimbarValidacao } from '@/lib/crm/carimbo-validacao'
 import { baixarViaFinal, subirViaFinal, caminhoViaFinal } from '@/lib/storage/contratos-assinados'
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'O documento ainda não foi assinado por todas as partes.' }, { status: 400 })
     }
 
-    const nomeArquivo = `${ehAditivo(proc.tipo_contrato) ? 'aditivo' : 'contrato'}-assinado-${proc.titulo ?? proc.id}.pdf`
+    const nomeArquivo = `${nomeDocumento(proc.tipo_contrato).replace('termo aditivo', 'aditivo')}-assinado-${proc.titulo ?? proc.id}.pdf`
 
     // Já congelada (v84): serve o MESMO arquivo, sem remontar. É o que faz o
     // hash do certificado valer alguma coisa — remontar produzia bytes novos

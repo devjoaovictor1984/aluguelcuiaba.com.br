@@ -5,8 +5,8 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { enviarEmail } from '@/lib/email/sender'
-import { ehAditivo, nomeDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
-import { situacaoAssinaturaAditivo } from '@/lib/crm/assinatura-lock'
+import { processoUnico, nomeDocumento, type TipoAssinatura } from '@/lib/crm/assinatura-tipos'
+import { situacaoAssinaturaDocumento } from '@/lib/crm/assinatura-lock'
 
 function gerarToken(): string {
   return randomBytes(24).toString('base64url')
@@ -61,13 +61,18 @@ export async function criarProcessoAssinatura(input: CriarProcessoInput) {
   if (signatarios.length === 0) return { error: 'Adicione pelo menos 1 signatário com nome e e-mail válido.' }
   const exigirOtp = input.exigirOtp !== false
 
-  // Aditivo tem um processo só por vez: dois em paralelo seriam duas
-  // trilhas pro mesmo documento, e a assinatura desenhada no PDF viria de
-  // um ou de outro conforme a hora.
-  if (ehAditivo(input.tipo_contrato)) {
-    const situacao = await situacaoAssinaturaAditivo(supabase, input.tipo_contrato, input.contrato_id)
-    if (situacao === 'concluido') return { error: 'Este aditivo já foi assinado por todas as partes.' }
-    if (situacao === 'enviado') return { error: 'Este aditivo já está em assinatura. Cancele o envio atual antes de mandar de novo.' }
+  // Aditivo e distrato têm um processo só por vez: dois em paralelo seriam
+  // duas trilhas pro mesmo documento, e a assinatura desenhada no PDF viria
+  // de um ou de outro conforme a hora.
+  if (processoUnico(input.tipo_contrato)) {
+    const doc = nomeDocumento(input.tipo_contrato)
+    const situacao = await situacaoAssinaturaDocumento(
+      supabase,
+      input.tipo_contrato as 'aditivo_locacao' | 'aditivo_administracao' | 'distrato_locacao',
+      input.contrato_id,
+    )
+    if (situacao === 'concluido') return { error: `Este ${doc} já foi assinado por todas as partes.` }
+    if (situacao === 'enviado') return { error: `Este ${doc} já está em assinatura. Cancele o envio atual antes de mandar de novo.` }
   }
 
   const { data: proc, error } = await supabase

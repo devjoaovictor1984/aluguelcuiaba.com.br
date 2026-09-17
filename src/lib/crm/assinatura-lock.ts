@@ -28,16 +28,17 @@ export async function contratoAssinado(
 }
 
 /**
- * Situação da assinatura eletrônica de um termo aditivo.
+ * Situação da assinatura eletrônica de um documento avulso — termo aditivo
+ * ou distrato.
  *
- * Aditivo com processo em andamento ou concluído não pode ser editado nem
+ * Documento com processo em andamento ou concluído não pode ser editado nem
  * excluído: o texto que cada parte lê — e que o hash do certificado prende —
  * tem que ser o mesmo do primeiro ao último signatário. Em andamento,
- * cancelar o processo destrava; concluído, só um novo aditivo.
+ * cancelar o processo destrava; concluído, não destrava mais.
  */
-export async function situacaoAssinaturaAditivo(
+export async function situacaoAssinaturaDocumento(
   supabase: SB,
-  tipo: 'aditivo_locacao' | 'aditivo_administracao',
+  tipo: 'aditivo_locacao' | 'aditivo_administracao' | 'distrato_locacao',
   aditivoId: string,
 ): Promise<'concluido' | 'enviado' | null> {
   const { data } = await supabase
@@ -51,10 +52,17 @@ export async function situacaoAssinaturaAditivo(
   return lista.length > 0 ? 'enviado' : null
 }
 
-export function msgAditivoTravado(situacao: 'concluido' | 'enviado'): string {
+/** `documento`: "aditivo" ou "distrato" — entra na frase que o corretor lê. */
+export function msgDocumentoTravado(
+  situacao: 'concluido' | 'enviado',
+  documento: 'aditivo' | 'distrato' = 'aditivo',
+): string {
+  const saida = documento === 'distrato'
+    ? 'Para corrigir, cancele o distrato e faça um novo.'
+    : 'Para mudar algo, faça um novo aditivo.'
   return situacao === 'concluido'
-    ? 'Aditivo já assinado por todas as partes — não pode mais ser editado nem excluído. Para mudar algo, faça um novo aditivo.'
-    : 'Aditivo em assinatura. Cancele o envio no painel de assinatura antes de editar ou excluir.'
+    ? `${documento === 'distrato' ? 'Distrato' : 'Aditivo'} já assinado por todas as partes — não pode mais ser editado nem excluído. ${saida}`
+    : `${documento === 'distrato' ? 'Distrato' : 'Aditivo'} em assinatura. Cancele o envio no painel de assinatura antes de editar ou excluir.`
 }
 
 export const MSG_CONTRATO_TRAVADO =

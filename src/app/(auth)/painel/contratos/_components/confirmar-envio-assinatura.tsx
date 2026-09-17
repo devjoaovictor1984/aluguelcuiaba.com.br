@@ -20,16 +20,18 @@ import { AlertTriangle, X, Send, Loader2, Mail, ShieldCheck } from 'lucide-react
 
 interface Signatario { nome: string; email: string; papel: string }
 
-export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, aditivo = false, enviando, onConfirmar, onCancelar }: {
+export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, documento = 'contrato', enviando, onConfirmar, onCancelar }: {
   signatarios: Signatario[]
   exigirOtp: boolean
-  /** Termo aditivo em vez de contrato: muda o que vale conferir. */
-  aditivo?: boolean
+  /** Qual documento vai ser assinado: muda o que vale conferir antes. */
+  documento?: 'contrato' | 'termo aditivo' | 'distrato'
   enviando: boolean
   onConfirmar: () => void
   onCancelar: () => void
 }) {
   const [conferi, setConferi] = useState(false)
+  // "o aditivo", "o distrato", "o contrato" — a frase é a mesma, o artigo também.
+  const nomeCurto = documento === 'termo aditivo' ? 'aditivo' : documento
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-0 sm:p-4">
@@ -38,7 +40,7 @@ export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, aditivo = fal
           <div>
             <h2 className="text-base font-bold text-gray-900">Antes de enviar</h2>
             <p className="text-[11px] text-gray-500 mt-0.5">
-              Depois disso o cliente recebe o link e lê o {aditivo ? 'aditivo' : 'contrato'} como ele está.
+              Depois disso o cliente recebe o link e lê o {nomeCurto} como ele está.
             </p>
           </div>
           <button type="button" onClick={onCancelar} className="text-gray-400 hover:text-gray-600 p-1">
@@ -76,11 +78,18 @@ export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, aditivo = fal
               <AlertTriangle size={12} className="text-amber-600" />
               O que só você pode conferir
             </p>
-            {aditivo ? (
+            {documento === 'termo aditivo' ? (
               <ul className="text-[11px] text-gray-600 leading-snug mt-1.5 space-y-1 list-disc pl-4">
                 <li>os valores antigo e novo, e a data a partir de quando valem</li>
                 <li>o que o aditivo diz que NÃO muda — prazo, vencimento, garantia</li>
                 <li>as testemunhas: depois de enviado, o aditivo não pode mais ser editado</li>
+              </ul>
+            ) : documento === 'distrato' ? (
+              <ul className="text-[11px] text-gray-600 leading-snug mt-1.5 space-y-1 list-disc pl-4">
+                <li>a data da desocupação — é a partir dela que param os aluguéis</li>
+                <li>o acerto de contas: multa (cobrada ou dispensada), débitos e caução a devolver</li>
+                <li>a quitação recíproca, e o fiador na lista de quem assina — é o que o exonera</li>
+                <li>as testemunhas: depois de enviado, o distrato não pode mais ser editado</li>
               </ul>
             ) : (
               <ul className="text-[11px] text-gray-600 leading-snug mt-1.5 space-y-1 list-disc pl-4">
@@ -99,9 +108,9 @@ export function ConfirmarEnvioAssinatura({ signatarios, exigirOtp, aditivo = fal
               className="mt-0.5 accent-violet-600 shrink-0"
             />
             <span className="text-xs text-violet-900 leading-snug">
-              {aditivo
-                ? 'Li o aditivo gerado e conferi o texto. Estou ciente de que o cliente vai lê-lo exatamente como está.'
-                : 'Li o contrato gerado e conferi as cláusulas. Estou ciente de que o cliente vai lê-lo exatamente como está.'}
+              {documento === 'contrato'
+                ? 'Li o contrato gerado e conferi as cláusulas. Estou ciente de que o cliente vai lê-lo exatamente como está.'
+                : `Li o ${nomeCurto} gerado e conferi o texto. Estou ciente de que o cliente vai lê-lo exatamente como está.`}
             </span>
           </label>
 

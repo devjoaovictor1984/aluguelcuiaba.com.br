@@ -119,7 +119,7 @@ function fmtCpf(s: string | null): string {
   return s
 }
 
-/** Mesma regra de situacaoAssinaturaAditivo (servidor), a partir dos processos já carregados. */
+/** Mesma regra de situacaoAssinaturaDocumento (servidor), a partir dos processos já carregados. */
 function situacaoDe(processos: ProcessoPainel[] | undefined): 'concluido' | 'enviado' | null {
   const ativos = (processos ?? []).filter(p => p.status !== 'cancelado')
   if (ativos.some(p => p.status === 'concluido')) return 'concluido'
@@ -305,7 +305,7 @@ export function TermosAditivosSecao({
             const testemunhas = (a.testemunha_ids ?? []).map(id => nomePorId.get(id)).filter(Boolean)
             const dadosAss = assinatura.porAditivo[a.id]
             const situacao = situacaoDe(dadosAss?.processos)
-            // Em assinatura ou assinado, o texto não muda mais (ver msgAditivoTravado)
+            // Em assinatura ou assinado, o texto não muda mais (ver msgDocumentoTravado)
             const motivoTrava = situacao === 'concluido'
               ? 'Já assinado por todas as partes — para mudar algo, faça um novo aditivo'
               : situacao === 'enviado'

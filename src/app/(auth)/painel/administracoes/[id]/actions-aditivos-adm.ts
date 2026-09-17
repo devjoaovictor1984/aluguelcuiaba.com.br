@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
-import { situacaoAssinaturaAditivo, msgAditivoTravado } from '@/lib/crm/assinatura-lock'
+import { situacaoAssinaturaDocumento, msgDocumentoTravado } from '@/lib/crm/assinatura-lock'
 import { lerClausulas, type ClausulaAditivo } from '@/lib/crm/aditivo-clausulas'
 
 export type TipoAditivoAdm = 'taxa' | 'prorrogacao' | 'exclusividade' | 'repasse' | 'clausula' | 'outro'
@@ -87,8 +87,8 @@ export async function atualizarAditivoAdm(id: string, input: AditivoAdmInput) {
   const invalido = validar(input)
   if (invalido) return { error: invalido }
 
-  const situacao = await situacaoAssinaturaAditivo(supabase, 'aditivo_administracao', id)
-  if (situacao) return { error: msgAditivoTravado(situacao) }
+  const situacao = await situacaoAssinaturaDocumento(supabase, 'aditivo_administracao', id)
+  if (situacao) return { error: msgDocumentoTravado(situacao) }
 
   const { data, error } = await supabase
     .from('contratos_administracao_aditivos')
@@ -119,8 +119,8 @@ export async function excluirAditivoAdm(id: string, contratoId: string) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
-  const situacao = await situacaoAssinaturaAditivo(supabase, 'aditivo_administracao', id)
-  if (situacao) return { error: msgAditivoTravado(situacao) }
+  const situacao = await situacaoAssinaturaDocumento(supabase, 'aditivo_administracao', id)
+  if (situacao) return { error: msgDocumentoTravado(situacao) }
   const { error } = await supabase
     .from('contratos_administracao_aditivos')
     .delete()
