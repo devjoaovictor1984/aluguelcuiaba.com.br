@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Loader2, AlertCircle, Save } from 'lucide-react'
+import { Loader2, AlertCircle, Save, RotateCcw, X } from 'lucide-react'
 import { criarContratoAdmin } from '../actions'
 import { SecaoSeguros, SEGUROS_PADRAO, type ValoresSeguros } from '../_components/secao-seguros'
+import { useRascunhoLocal, tempoDesde } from '@/lib/hooks/rascunho-local'
 
 const inputCls = "w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-gray-900 text-sm transition"
 
@@ -12,6 +13,30 @@ interface Props {
   pessoas: Array<{ id: string; nome: string; cpf_cnpj: string | null; tipo: string }>
   imoveis: Array<{ id: string; titulo: string; endereco_resumido: string | null }>
 }
+
+/** Tudo que o formulário pergunta — o rascunho guarda o conjunto inteiro. */
+interface RascunhoAdm {
+  proprietarioId: string
+  representanteId: string
+  representanteQual: string
+  imovelId: string
+  dataInicio: string
+  prazoSel: string
+  prazoMesesCustom: string
+  renovacaoAuto: boolean
+  taxaTipo: 'percentual' | 'fixo'
+  taxaValor: string
+  primeiraCheia: boolean
+  diaRepasse: string
+  recebimentoComissao: 'mensal' | 'pagamento_unico'
+  exclusividade: boolean
+  multaMeses: string
+  avisoPrevio: string
+  observacoes: string
+  seguros: ValoresSeguros
+}
+
+const CHAVE_RASCUNHO = 'form-administracao'
 
 export function FormNovoAdm({ pessoas, imoveis }: Props) {
   const router = useRouter()
@@ -37,6 +62,64 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
 
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
+
+  // ── Rascunho automático ──
+  // Mesmo motivo do wizard de contrato: sair da página é uma navegação
+  // client-side comum, que desmonta o formulário sem perguntar nada.
+  const { rascunho, carregado, salvar: salvarRascunho, descartar } =
+    useRascunhoLocal<RascunhoAdm>(CHAVE_RASCUNHO)
+  const [avisoAberto, setAvisoAberto] = useState(true)
+
+  const atual: RascunhoAdm = {
+    proprietarioId, representanteId, representanteQual, imovelId, dataInicio,
+    prazoSel, prazoMesesCustom, renovacaoAuto, taxaTipo, taxaValor, primeiraCheia,
+    diaRepasse, recebimentoComissao, exclusividade, multaMeses, avisoPrevio,
+    observacoes, seguros,
+  }
+  // Congela a foto de abertura no primeiro render: é contra ela que se
+  // decide se há algo digitado que valha guardar.
+  const [inicialJson] = useState(() => JSON.stringify(atual))
+  const atualJson = JSON.stringify(atual)
+  const sujo = atualJson !== inicialJson
+
+  useEffect(() => {
+    if (!carregado || !sujo) return
+    salvarRascunho(JSON.parse(atualJson) as RascunhoAdm)
+  }, [carregado, sujo, atualJson, salvarRascunho])
+
+  // Fechar a aba ou dar F5 não passa pelo debounce — o navegador pergunta.
+  useEffect(() => {
+    if (!sujo) return
+    const aoSair = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    window.addEventListener('beforeunload', aoSair)
+    return () => window.removeEventListener('beforeunload', aoSair)
+  }, [sujo])
+
+  const retomarRascunho = () => {
+    if (!rascunho) return
+    const d = rascunho.dados
+    setProprietarioId(d.proprietarioId)
+    setRepresentanteId(d.representanteId)
+    setRepresentanteQual(d.representanteQual)
+    setImovelId(d.imovelId)
+    setDataInicio(d.dataInicio)
+    setPrazoSel(d.prazoSel)
+    setPrazoMesesCustom(d.prazoMesesCustom)
+    setRenovacaoAuto(d.renovacaoAuto)
+    setTaxaTipo(d.taxaTipo)
+    setTaxaValor(d.taxaValor)
+    setPrimeiraCheia(d.primeiraCheia)
+    setDiaRepasse(d.diaRepasse)
+    setRecebimentoComissao(d.recebimentoComissao)
+    setExclusividade(d.exclusividade)
+    setMultaMeses(d.multaMeses)
+    setAvisoPrevio(d.avisoPrevio)
+    setObservacoes(d.observacoes)
+    setSeguros(d.seguros)
+    setAvisoAberto(false)
+  }
+
+  const mostrarAviso = avisoAberto && !!rascunho && !sujo
 
   const proprietarios = pessoas.filter(p => p.tipo === 'proprietario' || p.tipo === 'outro')
 
@@ -74,12 +157,44 @@ export function FormNovoAdm({ pessoas, imoveis }: Props) {
         observacoes: observacoes.trim() || null,
       })
       if (r.error || !r.id) { setErro(r.error ?? 'Falha ao criar.'); return }
+      // Criado: o rascunho cumpriu o papel e sai do caminho.
+      descartar()
       router.push(`/painel/administracoes/${r.id}`)
     })
   }
 
   return (
     <div className="space-y-4">
+      {mostrarAviso && rascunho && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-start justify-between gap-3 flex-wrap">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-amber-900 flex items-center gap-1.5">
+              <RotateCcw size={14} /> Você tem uma administração começada
+            </p>
+            <p className="text-[11px] text-amber-800 mt-0.5">
+              Salva automaticamente {tempoDesde(rascunho.salvoEm)}. Retomar traz tudo de volta como estava.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={retomarRascunho}
+              className="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded-lg"
+            >
+              Retomar
+            </button>
+            <button
+              type="button"
+              onClick={() => { descartar(); setAvisoAberto(false) }}
+              className="text-amber-700 hover:text-amber-900 text-xs px-2 py-2 flex items-center gap-1"
+              title="Descartar o rascunho"
+            >
+              <X size={13} /> Descartar
+            </button>
+          </div>
+        </div>
+      )}
+
       <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-3">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide">Partes</h2>
         <label className="block">
