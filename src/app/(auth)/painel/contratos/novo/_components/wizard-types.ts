@@ -20,6 +20,16 @@ export interface PessoaLite {
   cpf_cnpj: string | null
 }
 
+/**
+ * Etapas do wizard, na ordem. Mora aqui, e não no componente, porque a
+ * página que apresenta o wizard também precisa saber quantas são — e o
+ * texto dela ficou anos dizendo "4 etapas" enquanto o stepper mostrava 6.
+ * O ícone de cada uma continua no componente: é coisa de tela.
+ */
+export const ETAPAS_LABELS = ['Imóvel', 'Pessoas', 'Perfil', 'Garantia', 'Valores', 'Revisão'] as const
+
+export const TOTAL_ETAPAS = ETAPAS_LABELS.length
+
 export interface WizardState {
   // Etapa 1
   imovel_id: string

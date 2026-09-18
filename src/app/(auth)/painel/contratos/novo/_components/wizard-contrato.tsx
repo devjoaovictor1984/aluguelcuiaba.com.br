@@ -15,7 +15,7 @@ import { InputMoeda, InputPercentual } from '@/components/inputs/input-mascarado
 import { parseMoney, parsePercentual, formatarBRL } from '@/lib/formatters'
 import { somarMeses } from '@/lib/contratos/reajuste'
 import type { ImovelLite, PessoaLite, WizardState } from './wizard-types'
-import { ESTADO_INICIAL } from './wizard-types'
+import { ESTADO_INICIAL, ETAPAS_LABELS } from './wizard-types'
 
 /** Cotação de fiança já aprovada, pronta pra vincular ao contrato. */
 export interface CotacaoFianca {
@@ -39,14 +39,13 @@ interface Props {
   segurosHabilitado?: boolean
 }
 
-const ETAPAS = [
-  { id: 1, label: 'Imóvel',     icon: Home },
-  { id: 2, label: 'Pessoas',    icon: User },
-  { id: 3, label: 'Perfil',     icon: Sofa },
-  { id: 4, label: 'Garantia',   icon: Shield },
-  { id: 5, label: 'Valores',    icon: DollarSign },
-  { id: 6, label: 'Revisão',    icon: Check },
-]
+const ICONES_ETAPA = [Home, User, Sofa, Shield, DollarSign, Check]
+
+const ETAPAS = ETAPAS_LABELS.map((label, i) => ({
+  id: i + 1,
+  label,
+  icon: ICONES_ETAPA[i],
+}))
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
 

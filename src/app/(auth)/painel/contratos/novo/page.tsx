@@ -9,6 +9,7 @@ import { statusAprovado } from '@/lib/seguros/tabelas'
 import { segurosConfigurado } from '@/lib/seguros/acesso'
 import { PLANOS } from '@/lib/constants'
 import { WizardContrato } from './_components/wizard-contrato'
+import { TOTAL_ETAPAS } from './_components/wizard-types'
 
 interface TemplateDefaults {
   tipo_atuacao: 'administracao' | 'intermediacao' | 'direto'
@@ -157,7 +158,7 @@ export default async function NovoContratoPage({
       </Link>
       <h1 className="text-xl font-bold text-gray-900">Novo contrato</h1>
       <p className="text-sm text-gray-500 mb-4">
-        Wizard em 4 etapas. Você pode voltar a qualquer momento.
+        Wizard em {TOTAL_ETAPAS} etapas. Você pode voltar a qualquer momento.
         {limite < 999 && acesso.role !== 'admin' && (
           <span className="ml-1 text-gray-400">· {totalContratos}/{limite} no plano {PLANOS[plano]?.nome}</span>
         )}
