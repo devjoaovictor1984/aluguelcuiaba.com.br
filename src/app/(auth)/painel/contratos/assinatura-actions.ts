@@ -75,6 +75,21 @@ export async function criarProcessoAssinatura(input: CriarProcessoInput) {
     if (situacao === 'enviado') return { error: `Este ${doc} já está em assinatura. Cancele o envio atual antes de mandar de novo.` }
   }
 
+  // O contrato de locação com seguro fiança não vai pra assinatura sem o
+  // número da apólice: ele é impresso na cláusula de garantia da via que as
+  // partes assinam, e assinado o contrato trava (só muda por aditivo). Antes
+  // disso — gerar o PDF, mandar o cliente ler — segue liberado, porque é
+  // lendo o contrato que ele decide contratar o seguro.
+  if (input.tipo_contrato === 'locacao') {
+    const faltando = await apoliceFaltandoNaGeracao(supabase, input.contrato_id, acesso.userId)
+    if (faltando) {
+      return {
+        error: 'Falta o número da apólice do seguro fiança. Preencha em "Seguro fiança" na tela de geração — '
+          + 'ele sai impresso na cláusula de garantia, e depois de assinado o contrato só muda por aditivo.',
+      }
+    }
+  }
+
   const { data: proc, error } = await supabase
     .from('contrato_assinaturas')
     .insert({
@@ -202,4 +217,26 @@ export async function cancelarProcessoAssinatura(processoId: string) {
     .eq('user_id', acesso.userId)
   if (error) return { error: error.message }
   return { ok: true }
+}
+
+/**
+ * true quando a geração é de um contrato com garantia de seguro fiança e o
+ * número da apólice ainda está em branco. `contratoId` aqui é o id da
+ * GERAÇÃO — ver assinatura-tipos.ts.
+ */
+async function apoliceFaltandoNaGeracao(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  geracaoId: string,
+  userId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('contrato_geracoes')
+    .select('contrato:contratos_locacao!inner(garantia_tipo, seguro_fianca_apolice)')
+    .eq('id', geracaoId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (!data) return false
+  const c = (Array.isArray(data.contrato) ? data.contrato[0] : data.contrato) as
+    { garantia_tipo: string; seguro_fianca_apolice: string | null } | undefined
+  return !!c && c.garantia_tipo === 'seguro_fianca' && !c.seguro_fianca_apolice?.trim()
 }

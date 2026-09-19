@@ -100,12 +100,22 @@ export function rodarChecklist(d: DadosChecklist): ItemChecklist[] {
       mensagem: 'Garantia é fiador mas nenhum fiador foi selecionado',
     })
   } else if (d.garantia_tipo === 'seguro_fianca') {
+    // A apólice só existe depois da biometria, e o cliente costuma LER o
+    // contrato antes de contratar o seguro — é lendo que ele decide. Travar
+    // a geração aqui obrigava a gerar tudo com "?force=1", o que também
+    // apagava os bloqueios de verdade (CPF faltando, endereço vazio) do
+    // caminho. Então aqui é aviso; quem barra é o envio pra assinatura
+    // (assinatura-actions.ts), porque aí o número vai impresso na via que
+    // as partes assinam.
     itens.push({
       id: 'seguro',
       rotulo: 'Seguro fiança',
-      severidade: d.seguro_fianca_seguradora && d.seguro_fianca_apolice ? 'ok' : 'block',
+      severidade: !d.seguro_fianca_seguradora ? 'block'
+        : !d.seguro_fianca_apolice ? 'warn' : 'ok',
       mensagem: !d.seguro_fianca_seguradora ? 'Seguradora em branco'
-        : !d.seguro_fianca_apolice ? 'Número da apólice em branco' : undefined,
+        : !d.seguro_fianca_apolice
+          ? 'Apólice ainda não emitida — dá pra gerar e mandar o cliente ler; o número é exigido antes de enviar pra assinatura'
+          : undefined,
     })
   } else if (d.garantia_tipo === 'caucao') {
     itens.push({

@@ -872,6 +872,41 @@ export async function atualizarConjugePapel(
   return { ok: true }
 }
 
+/**
+ * Preenche seguradora e número da apólice do seguro fiança.
+ *
+ * Mora aqui, e não só no formulário de edição do contrato, porque é nesta
+ * tela que a falta aparece: a apólice chega dias depois da biometria, e a
+ * pessoa está justamente gerando o contrato pra mandar assinar. Fazer ela
+ * sair, achar o contrato, editar e voltar é o tipo de ida e volta que
+ * termina em "gerar mesmo assim".
+ */
+export async function atualizarSeguroFianca(
+  contratoId: string,
+  dados: { seguradora: string; apolice: string },
+) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const seguradora = dados.seguradora.trim()
+  const apolice = dados.apolice.trim()
+  if (!seguradora) return { error: 'Informe a seguradora.' }
+
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({
+      seguro_fianca_seguradora: seguradora.slice(0, 120),
+      seguro_fianca_apolice: apolice ? apolice.slice(0, 60) : null,
+    })
+    .eq('id', contratoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/contratos/${contratoId}/gerar`)
+  revalidatePath(`/painel/contratos/${contratoId}`)
+  return { ok: true }
+}
+
 /** Salva (ou limpa) as anotações internas do corretor sobre o contrato. */
 export async function atualizarAnotacoesCorretor(contratoId: string, texto: string) {
   const acesso = await exigirAcessoCRM()

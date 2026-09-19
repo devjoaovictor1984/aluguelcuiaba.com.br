@@ -14,7 +14,7 @@ import { CSS } from '@dnd-kit/utilities'
 import {
   GripVertical, Save, FileDown, Loader2, AlertCircle, X, Plus,
   Settings, Eye, Upload, FileCheck, CheckCircle2, Star, Key, StickyNote, Trash2,
-  Highlighter,
+  Highlighter, Shield,
 } from 'lucide-react'
 import {
   atualizarOpcoesGeracao, atualizarOrdemClausulas,
@@ -25,6 +25,7 @@ import {
   atualizarIncluirCapa, atualizarConjugePapel, atualizarAnotacoesCorretor,
   atualizarCapaOverrides,
   atualizarClausulaModificada, atualizarMostrarModificacoes, atualizarModificacoesTexto,
+  atualizarSeguroFianca,
 } from '../actions'
 import { CapaOverridesEditor } from '@/components/capa-overrides-editor'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
@@ -64,6 +65,8 @@ interface Props {
   codigo: string
   travado?: boolean
   garantiaTipo: string
+  seguroFiancaSeguradora?: string | null
+  seguroFiancaApolice?: string | null
   qtdChavesInicial?: number
   qtdControlesInicial?: number
   qtdTagsInicial?: number
@@ -112,7 +115,7 @@ const CAMPOS_CAPA_LOCACAO: Array<{ key: string; label: string; multiline?: boole
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 text-sm transition"
 
-export function EditorContrato({ contratoId, codigo, travado = false, garantiaTipo, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes, capaAuto = {} }: Props) {
+export function EditorContrato({ contratoId, codigo, travado = false, garantiaTipo, seguroFiancaSeguradora, seguroFiancaApolice, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes, capaAuto = {} }: Props) {
   const router = useRouter()
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
@@ -467,22 +470,33 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
 
   // Checklist de validação — carrega do servidor e bloqueia "Gerar" se houver pendência
   const [checklistBloqueios, setChecklistBloqueios] = useState<Array<{ rotulo: string; mensagem: string }>>([])
+  // Apólice preenchida aqui mesmo; `apoliceSalva` reexecuta o checklist.
+  const [seguradoraEdit, setSeguradoraEdit] = useState(seguroFiancaSeguradora ?? '')
+  const [apoliceEdit, setApoliceEdit] = useState(seguroFiancaApolice ?? '')
+  const [apoliceSalva, setApoliceSalva] = useState(0)
+
+  const [checklistAvisos, setChecklistAvisos] = useState<Array<{ rotulo: string; mensagem: string }>>([])
   const [checklistCarregado, setChecklistCarregado] = useState(false)
   useEffect(() => {
     let ativo = true
+    const mapear = (i: { rotulo: string; mensagem?: string }) =>
+      ({ rotulo: i.rotulo, mensagem: i.mensagem ?? i.rotulo })
     fetch(`/api/contratos/${geracao.id}/checklist`)
       .then(r => r.json())
       .then(d => {
         if (!ativo) return
-        const bloqueios = (d.itens ?? []).filter((i: { severidade: string }) => i.severidade === 'block')
-          .map((i: { rotulo: string; mensagem?: string }) => ({ rotulo: i.rotulo, mensagem: i.mensagem ?? i.rotulo }))
-        setChecklistBloqueios(bloqueios)
+        const itens = (d.itens ?? []) as Array<{ severidade: string; rotulo: string; mensagem?: string }>
+        setChecklistBloqueios(itens.filter(i => i.severidade === 'block').map(mapear))
+        // Avisos ficavam invisíveis: só bloqueio aparecia. Some com eles e a
+        // apólice pendente — que agora é aviso — sumiria da tela justamente
+        // de quem precisa lembrar de preencher.
+        setChecklistAvisos(itens.filter(i => i.severidade === 'warn').map(mapear))
         setChecklistCarregado(true)
       })
       .catch(() => setChecklistCarregado(true))
     return () => { ativo = false }
     // Recarrega quando muda cláusula (pode afetar dados); geracao.id é estável
-  }, [geracao.id, clausulas.length])
+  }, [geracao.id, clausulas.length, apoliceSalva])
 
   const temBloqueio = checklistBloqueios.length > 0
 
@@ -955,6 +969,80 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
               ))}
             </ul>
             <p className="text-[10px] text-rose-600">Corrija no cadastro do contrato/pessoas ou gere mesmo assim por sua conta.</p>
+          </section>
+        )}
+
+        {/* Avisos: geram normalmente, mas convém resolver antes de assinar */}
+        {checklistCarregado && checklistAvisos.length > 0 && (
+          <section className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+              <AlertCircle size={12} /> Pendências antes de assinar ({checklistAvisos.length})
+            </h2>
+            <ul className="text-[11px] text-amber-800 space-y-1">
+              {checklistAvisos.map((a, i) => (
+                <li key={i} className="flex items-start gap-1.5">
+                  <span className="mt-0.5 shrink-0">•</span>
+                  <span><strong>{a.rotulo}:</strong> {a.mensagem}</span>
+                </li>
+              ))}
+            </ul>
+            <p className="text-[10px] text-amber-700">
+              O PDF sai normalmente — dá pra mandar o cliente ler. Resolva antes de enviar pra assinatura.
+            </p>
+          </section>
+        )}
+
+        {/* Apólice do seguro fiança: preenchida aqui, que é onde ela falta */}
+        {garantiaTipo === 'seguro_fianca' && !travado && (
+          <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+              <Shield size={12} className="text-violet-600" /> Seguro fiança
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-2">
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-600 mb-1">Seguradora</label>
+                <input
+                  value={seguradoraEdit}
+                  onChange={e => setSeguradoraEdit(e.target.value)}
+                  placeholder="Ex: Pottencial"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-gray-600 mb-1">Nº da apólice</label>
+                <input
+                  value={apoliceEdit}
+                  onChange={e => setApoliceEdit(e.target.value)}
+                  placeholder="Ainda não emitida"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
+                />
+              </div>
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                type="button"
+                onClick={() => {
+                  setErro('')
+                  startTransition(async () => {
+                    const r = await atualizarSeguroFianca(contratoId, {
+                      seguradora: seguradoraEdit,
+                      apolice: apoliceEdit,
+                    })
+                    if (r.error) { setErro(r.error); return }
+                    setApoliceSalva(v => v + 1)
+                    router.refresh()
+                  })
+                }}
+                disabled={isPending || !seguradoraEdit.trim()}
+                className="flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 disabled:opacity-50 text-white text-xs font-semibold px-3 py-2 rounded-lg"
+              >
+                {isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Salvar
+              </button>
+              <p className="text-[10px] text-gray-400">
+                A apólice sai depois da biometria. Sem ela dá pra gerar o PDF e mandar o cliente ler — o número
+                é exigido só na hora de enviar pra assinatura, porque vai impresso na cláusula de garantia.
+              </p>
+            </div>
           </section>
         )}
 
