@@ -38,18 +38,25 @@ export async function gerarLinkRevisao(input: GerarLinkRevisaoInput) {
   const expira = new Date(Date.now() + horas * 3600 * 1000).toISOString()
   const token = gerarToken()
 
-  const { error } = await supabase.from('contrato_revisao_links').insert({
-    user_id: acesso.userId,
-    tipo_contrato: input.tipo_contrato,
-    contrato_id: input.contrato_id,
-    token,
-    titulo: input.titulo ?? null,
-    expira_em: expira,
-  })
-  if (error) return { error: error.message }
+  // Devolve o `id` junto: quem chama precisa dele pra cancelar o link sem
+  // recarregar a página. Sem isso o painel caía no token, que não é UUID —
+  // e o cancelamento morria em "invalid input syntax for type uuid".
+  const { data: criado, error } = await supabase
+    .from('contrato_revisao_links')
+    .insert({
+      user_id: acesso.userId,
+      tipo_contrato: input.tipo_contrato,
+      contrato_id: input.contrato_id,
+      token,
+      titulo: input.titulo ?? null,
+      expira_em: expira,
+    })
+    .select('id')
+    .single()
+  if (error || !criado) return { error: error?.message ?? 'Falha ao gerar o link.' }
 
   const baseUrl = await baseUrlDaRequisicao()
-  return { ok: true, token, url: `${baseUrl}/revisar-contrato/${token}`, expira_em: expira }
+  return { ok: true, id: criado.id, token, url: `${baseUrl}/revisar-contrato/${token}`, expira_em: expira }
 }
 
 export async function revogarLinkRevisao(linkId: string) {

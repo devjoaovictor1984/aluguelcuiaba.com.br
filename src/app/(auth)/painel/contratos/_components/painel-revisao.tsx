@@ -42,8 +42,8 @@ export function PainelRevisao({ tipoContrato, contratoId, titulo, baseUrl, links
     setErro('')
     startTransition(async () => {
       const r = await gerarLinkRevisao({ tipo_contrato: tipoContrato, contrato_id: contratoId, titulo, horas_validade: 168 })
-      if (r.error || !r.token) { setErro(r.error ?? 'Falha ao gerar link.'); return }
-      setLinks(prev => [{ id: r.token!, token: r.token!, expira_em: r.expira_em!, revogado_em: null }, ...prev])
+      if (r.error || !r.token || !r.id) { setErro(r.error ?? 'Falha ao gerar link.'); return }
+      setLinks(prev => [{ id: r.id!, token: r.token!, expira_em: r.expira_em!, revogado_em: null }, ...prev])
     })
   }
 
