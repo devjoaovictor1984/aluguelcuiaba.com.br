@@ -33,6 +33,7 @@ export async function GET(
       qtd_chaves_inquilino, qtd_controles_inquilino,
       assinada_em, assinada_ip,
       assinatura_inquilino_url, selfie_inquilino_url, inquilino_observacoes,
+      assinatura_locador_url, selfie_locador_url, assinada_locador_em, assinada_locador_ip,
       contrato:contratos_locacao!vistorias_contrato_id_fkey(
         codigo,
         inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
@@ -177,6 +178,7 @@ export async function GET(
 
   // Selfie em bucket privado → URL assinada (curta) só pro render do PDF.
   const selfieInquilinoUrl = await assinarUrlSelfie(admin, vistoria.selfie_inquilino_url, 300)
+  const selfieLocadorUrl = await assinarUrlSelfie(admin, vistoria.selfie_locador_url, 300)
 
   const dados: VistoriaPDFData = {
     tipo: vistoria.tipo as 'entrada' | 'saida',
@@ -191,6 +193,13 @@ export async function GET(
       ? vistoria.assinatura_inquilino_url.split('?')[0]  // remove cache-buster
       : null,
     selfie_inquilino_url: selfieInquilinoUrl,
+    assinatura_locador_url: vistoria.assinatura_locador_url
+      ? vistoria.assinatura_locador_url.split('?')[0]
+      : null,
+    selfie_locador_url: selfieLocadorUrl,
+    assinada_locador_em: vistoria.assinada_locador_em,
+    assinada_locador_ip: vistoria.assinada_locador_ip,
+    locador_assinante_nome: perfil?.nome ?? null,
     assinada_em: vistoria.assinada_em,
     assinada_ip: vistoria.assinada_ip,
     anunciante_nome: perfil?.nome ?? 'AluguelCuiabá',

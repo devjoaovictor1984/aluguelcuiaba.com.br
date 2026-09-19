@@ -159,6 +159,7 @@ export default async function VistoriaPage({ params, searchParams }: Props) {
 
   // Selfie em bucket privado → URL assinada (1h) pra exibir no painel.
   const selfieUrl = await assinarUrlSelfie(admin, vistoria.selfie_inquilino_url ?? null)
+  const selfieLocadorUrl = await assinarUrlSelfie(admin, vistoria.selfie_locador_url ?? null)
 
   return (
     <div className="p-4 sm:p-6 space-y-4 max-w-5xl mx-auto pb-32">
@@ -191,6 +192,9 @@ export default async function VistoriaPage({ params, searchParams }: Props) {
         inquilinoObservacoes={vistoria.inquilino_observacoes}
         assinaturaUrl={vistoria.assinatura_inquilino_url}
         selfieUrl={selfieUrl}
+        assinaturaLocadorUrl={vistoria.assinatura_locador_url}
+        selfieLocadorUrl={selfieLocadorUrl}
+        assinadaLocadorEm={vistoria.assinada_locador_em}
         whatsappInquilino={inquilino?.whatsapp ?? inquilino?.telefone ?? null}
         nomeInquilino={inquilino?.nome ?? null}
         itens={itens}

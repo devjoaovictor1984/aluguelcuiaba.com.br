@@ -27,6 +27,13 @@ export interface VistoriaPDFData {
   selfie_inquilino_url: string | null
   assinada_em: string | null
   assinada_ip: string | null
+  // Contra-assinatura da administradora (v99). Null enquanto pendente.
+  assinatura_locador_url: string | null
+  selfie_locador_url: string | null
+  assinada_locador_em: string | null
+  assinada_locador_ip: string | null
+  /** Quem assina pela administradora — nome do perfil. */
+  locador_assinante_nome: string | null
   // Emitente
   anunciante_nome: string
   anunciante_razao_social: string | null
@@ -616,6 +623,36 @@ export function VistoriaDocument({ data }: { data: VistoriaPDFData }) {
               <Text>{data.inquilino_observacoes}</Text>
             </View>
           )}
+        </View>
+
+        {/* Contra-assinatura da administradora. Ausente, a linha fica em
+            branco: o laudo mostra que falta, em vez de esconder. */}
+        <View style={styles.assinaturaBox} wrap={false}>
+          <Text style={styles.assinaturaTitulo}>Assinatura da administradora</Text>
+          {data.selfie_locador_url && (
+            <Image
+              src={data.selfie_locador_url}
+              style={{ width: 56, height: 56, borderRadius: 4, objectFit: 'cover', alignSelf: 'center', marginBottom: 4 }}
+            />
+          )}
+          {data.assinatura_locador_url ? (
+            <Image
+              src={data.assinatura_locador_url}
+              style={{ width: 200, height: 70, objectFit: 'contain', alignSelf: 'center', marginVertical: 4 }}
+            />
+          ) : (
+            <Text style={{ fontSize: 8, color: cinza, textAlign: 'center', paddingVertical: 16 }}>
+              (sem assinatura registrada)
+            </Text>
+          )}
+          <Text style={{ fontSize: 8, textAlign: 'center', color: '#111827', fontWeight: 'bold', marginTop: 4 }}>
+            {data.locador_assinante_nome ?? data.anunciante_razao_social ?? data.anunciante_nome}
+          </Text>
+          <Text style={{ fontSize: 7, textAlign: 'center', color: cinza }}>
+            {data.assinada_locador_em
+              ? `Assinada em ${fmtDataHora(data.assinada_locador_em)}${data.assinada_locador_ip ? ` · IP ${data.assinada_locador_ip}` : ''}`
+              : 'Pela administradora / locador'}
+          </Text>
         </View>
 
         <Text style={styles.rodape}>

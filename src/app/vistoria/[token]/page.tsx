@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { AlertOctagon, CheckCircle2, ClipboardCheck } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { VistoriaInquilino, type ItemPub, type FotoPub } from './_components/vistoria-inquilino'
+import { inquilinoAssinou } from '@/lib/crm/vistoria-status'
 
 export const dynamic = 'force-dynamic'
 
@@ -70,7 +71,7 @@ export default async function VistoriaPublicaPage({ params }: Props) {
 
   if (!vistoria) return <Erro titulo="Link inválido" mensagem="Esse link de vistoria não existe ou foi removido." />
   if (vistoria.status === 'recusada') return <Erro titulo="Vistoria recusada" mensagem="Você já recusou essa vistoria. Entre em contato com o anunciante." />
-  if (vistoria.status === 'assinada') {
+  if (inquilinoAssinou(vistoria.status)) {
     const quando = vistoria.assinada_em ? new Date(vistoria.assinada_em).toLocaleString('pt-BR') : '—'
     return (
       <Sucesso
@@ -79,7 +80,9 @@ export default async function VistoriaPublicaPage({ params }: Props) {
       />
     )
   }
-  if (vistoria.status !== 'enviada') return <Erro titulo="Indisponível" mensagem="Esta vistoria ainda está em rascunho. Peça pro responsável enviar novamente." />
+  if (vistoria.status !== 'enviada' && vistoria.status !== 'assinada_locador') {
+    return <Erro titulo="Indisponível" mensagem="Esta vistoria ainda está em rascunho. Peça pro responsável enviar novamente." />
+  }
   if (vistoria.expira_em && expirou(vistoria.expira_em)) {
     return <Erro titulo="Link expirado" mensagem="Esse link passou da validade. Peça um novo." />
   }

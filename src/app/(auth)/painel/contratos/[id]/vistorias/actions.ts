@@ -7,11 +7,34 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { ITENS_PADRAO, type EstadoItem } from '@/lib/vistorias/modelos'
+import { subirSelfieBase64 } from '@/lib/storage/selfies'
+import { podeLocadorAssinar, statusAposAssinaturaVistoria } from '@/lib/crm/vistoria-status'
+import { headers } from 'next/headers'
 
 const ESTADOS_VALIDOS: EstadoItem[] = ['perfeito', 'bom', 'regular', 'danificado', 'nao_aplicavel']
 const BUCKET = 'vistorias-fotos'
 const MAX_FILE = 5 * 1024 * 1024
 const MIMES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic']
+
+/** Sobe um dataURL de canvas/câmera e devolve a URL pública. */
+async function subirImagemBase64(
+  admin: ReturnType<typeof createAdminClient>,
+  dataUrl: string,
+  basePath: string,
+  limite: number,
+): Promise<{ url?: string; error?: string }> {
+  const m = dataUrl.match(/^data:image\/(\w+);base64,(.+)$/)
+  if (!m) return { error: 'Formato de imagem inválido.' }
+  const ext = m[1].toLowerCase() === 'jpeg' ? 'jpg' : m[1].toLowerCase()
+  const bytes = Buffer.from(m[2], 'base64')
+  if (bytes.length > limite) return { error: 'Imagem muito grande.' }
+  const path = `${basePath}.${ext}`
+  const { error } = await admin.storage.from(BUCKET)
+    .upload(path, bytes, { contentType: `image/${ext}`, upsert: true })
+  if (error) return { error: error.message }
+  const { data } = admin.storage.from(BUCKET).getPublicUrl(path)
+  return { url: data.publicUrl }
+}
 
 function gerarToken(): string {
   return randomBytes(24).toString('base64url')
@@ -404,6 +427,74 @@ export async function revogarEnvioVistoria(vistoriaId: string) {
     expira_em: null,
   }).eq('id', vistoriaId)
   if (error) return { error: error.message }
+  revalidatePath(`/painel/contratos/${contratoId}/vistorias/${vistoriaId}`)
+  return { ok: true }
+}
+
+/**
+ * Contra-assinatura da administradora (v99).
+ *
+ * Pode vir antes ou depois da do inquilino — quem assina por último fecha a
+ * vistoria em 'concluida'. Só não pode vir antes do envio: é o envio que
+ * congela os itens, e assinar um laudo que ainda pode mudar não vale nada.
+ *
+ * A selfie é opcional deste lado, ao contrário do inquilino: quem assina
+ * aqui já entrou com login na plataforma, então a identidade não depende
+ * da foto. Ela é reforço, não prova principal.
+ */
+export async function assinarVistoriaComoLocador(vistoriaId: string, input: {
+  assinatura_dataurl: string
+  selfie_dataurl?: string | null
+}) {
+  const acesso = await exigirAcessoCRM()
+  const contratoId = await checarPosseVistoria(vistoriaId, acesso.userId)
+  if (!contratoId) return { error: 'Vistoria não encontrada.' }
+
+  if (!input.assinatura_dataurl?.startsWith('data:image/')) {
+    return { error: 'Assinatura inválida.' }
+  }
+
+  const admin = createAdminClient()
+  const { data: vist } = await admin
+    .from('vistorias')
+    .select('id, status')
+    .eq('id', vistoriaId)
+    .maybeSingle()
+  if (!vist) return { error: 'Vistoria não encontrada.' }
+
+  if (!podeLocadorAssinar(vist.status)) {
+    return {
+      error: vist.status === 'rascunho'
+        ? 'Envie a vistoria ao inquilino antes de assinar — é o envio que congela os itens.'
+        : 'Esta vistoria não está disponível para assinatura.',
+    }
+  }
+
+  const ass = await subirImagemBase64(
+    admin, input.assinatura_dataurl, `${acesso.userId}/${vistoriaId}/assinatura-locador`, 2 * 1024 * 1024,
+  )
+  if (ass.error || !ass.url) return { error: ass.error ?? 'Falha ao salvar assinatura.' }
+
+  let selfiePath: string | null = null
+  if (input.selfie_dataurl?.startsWith('data:image/')) {
+    // Selfie vai pro bucket privado; guardamos o caminho, não a URL.
+    const s = await subirSelfieBase64(admin, input.selfie_dataurl, `${acesso.userId}/${vistoriaId}/selfie-locador`)
+    if (s.error) return { error: s.error }
+    selfiePath = s.path ?? null
+  }
+
+  const hdrs = await headers()
+  const ip = hdrs.get('x-forwarded-for')?.split(',')[0].trim() ?? hdrs.get('x-real-ip') ?? null
+
+  const { error } = await admin.from('vistorias').update({
+    status: statusAposAssinaturaVistoria(vist.status, 'locador'),
+    assinatura_locador_url: ass.url,
+    selfie_locador_url: selfiePath,
+    assinada_locador_em: new Date().toISOString(),
+    assinada_locador_ip: ip,
+  }).eq('id', vistoriaId)
+  if (error) return { error: error.message }
+
   revalidatePath(`/painel/contratos/${contratoId}/vistorias/${vistoriaId}`)
   return { ok: true }
 }

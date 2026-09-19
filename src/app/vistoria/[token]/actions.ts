@@ -3,6 +3,7 @@
 import { headers } from 'next/headers'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { subirSelfieBase64 } from '@/lib/storage/selfies'
+import { inquilinoAssinou, statusAposAssinaturaVistoria } from '@/lib/crm/vistoria-status'
 import { limitePorIp } from '@/lib/rate-limit'
 
 const BUCKET = 'vistorias-fotos'
@@ -25,9 +26,15 @@ async function carregarPorToken(token: string): Promise<{ vist?: VistoriaAuth; e
     .eq('token', token)
     .maybeSingle()
   if (!data) return { error: 'Link inválido ou não encontrado.' }
-  if (data.status === 'assinada') return { error: 'Esta vistoria já foi assinada.' }
+  // 'assinada_locador' = a administradora assinou primeiro; o inquilino
+  // ainda precisa assinar, então o link continua valendo.
+  if (inquilinoAssinou(data.status)) return { error: 'Esta vistoria já foi assinada.' }
   if (data.status === 'recusada') return { error: 'Esta vistoria foi recusada anteriormente.' }
-  if (data.status !== 'enviada') return { error: 'Vistoria não está disponível pra assinatura.' }
+  // 'assinada_locador': a administradora assinou primeiro (v99) e o link
+  // segue válido — é justamente o inquilino que falta.
+  if (data.status !== 'enviada' && data.status !== 'assinada_locador') {
+    return { error: 'Vistoria não está disponível pra assinatura.' }
+  }
   if (data.expira_em && new Date(data.expira_em).getTime() < Date.now()) {
     return { error: 'Link expirado. Peça um novo ao solicitante.' }
   }
@@ -143,7 +150,8 @@ export async function inquilinoAssinar(token: string, input: {
   const ip = hdrs.get('x-forwarded-for')?.split(',')[0].trim() ?? hdrs.get('x-real-ip') ?? null
 
   const { error: e } = await admin.from('vistorias').update({
-    status: 'assinada',
+    // Fecha em 'concluida' quando a administradora já tinha assinado.
+    status: statusAposAssinaturaVistoria(vist.status, 'inquilino'),
     assinada_em: new Date().toISOString(),
     assinada_ip: ip,
     assinatura_inquilino_url: ass.url,

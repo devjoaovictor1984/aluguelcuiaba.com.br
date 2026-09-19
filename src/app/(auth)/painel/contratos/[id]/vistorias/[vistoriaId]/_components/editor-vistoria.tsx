@@ -24,6 +24,8 @@ import {
   renomearComodoVistoria, removerComodoVistoria, reordenarComodosVistoria,
 } from '../../actions'
 import { comprimirImagem, PERFIL_FOTO_VISTORIA } from '@/lib/imagens/comprimir'
+import { inquilinoAssinou, locadorAssinou } from '@/lib/crm/vistoria-status'
+import { AssinaturaLocador } from './assinatura-locador'
 
 export interface ItemRow {
   id: string
@@ -60,6 +62,9 @@ interface Props {
   inquilinoObservacoes: string | null
   assinaturaUrl: string | null
   selfieUrl: string | null
+  assinaturaLocadorUrl: string | null
+  selfieLocadorUrl: string | null
+  assinadaLocadorEm: string | null
   whatsappInquilino: string | null
   nomeInquilino: string | null
   itens: ItemRow[]
@@ -124,7 +129,8 @@ export function EditorVistoria(props: Props) {
   const apagar = () => {
     let msg = 'Apagar essa vistoria? Todos os itens e fotos vão junto.'
     if (props.status === 'enviada') msg = '⚠️ A vistoria está com link ativo. O inquilino perderá o acesso. Confirmar apagar?'
-    if (props.status === 'assinada') msg = '⚠️ ATENÇÃO: vistoria JÁ ASSINADA pelo inquilino. Apagar exclui o registro de assinatura. Não tem volta. Confirmar?'
+    if (inquilinoAssinou(props.status)) msg = '⚠️ ATENÇÃO: vistoria JÁ ASSINADA pelo inquilino. Apagar exclui o registro de assinatura. Não tem volta. Confirmar?'
+    else if (locadorAssinou(props.status)) msg = '⚠️ ATENÇÃO: você já assinou esta vistoria. Apagar exclui o registro. Não tem volta. Confirmar?'
     if (!confirm(msg)) return
     if (props.status === 'assinada') {
       const typed = prompt('Digite "APAGAR" pra confirmar a exclusão da vistoria assinada:')
@@ -207,6 +213,7 @@ const LS_DIAS_VALIDADE = 'vistoria_dias_validade_padrao'
 function BlocoStatus({
   vistoriaId, status, token, expiraEm, enviadaEm, assinadaEm, inquilinoObservacoes,
   assinaturaUrl, selfieUrl, whatsappInquilino, nomeInquilino, baseUrl, editavel,
+  assinaturaLocadorUrl, selfieLocadorUrl, assinadaLocadorEm,
 }: Props & { isPending: boolean; startTransition: ReturnType<typeof useTransition>[1]; router: ReturnType<typeof useRouter>; editavel: boolean }) {
   const router = useRouter()
 
@@ -298,12 +305,19 @@ function BlocoStatus({
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  if (status === 'assinada') {
+  if (inquilinoAssinou(status)) {
+    const faltaLocador = !locadorAssinou(status)
     return (
-      <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+      <div className={`${faltaLocador ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'} border rounded-2xl p-4`}>
         <div className="flex items-start justify-between gap-3 flex-wrap">
-          <p className="text-sm font-bold text-green-900 flex items-center gap-2">
-            <CheckCircle2 size={15} /> Vistoria assinada em {assinadaEm ? new Date(assinadaEm).toLocaleString('pt-BR') : '—'}
+          <p className={`text-sm font-bold flex items-center gap-2 ${faltaLocador ? 'text-amber-900' : 'text-green-900'}`}>
+            <CheckCircle2 size={15} />
+            {faltaLocador
+              ? 'Inquilino assinou — falta a sua assinatura'
+              : `Vistoria concluída · assinada pelas duas partes`}
+            <span className="text-xs font-normal">
+              · inquilino em {assinadaEm ? new Date(assinadaEm).toLocaleString('pt-BR') : '—'}
+            </span>
           </p>
           <a
             href={`/api/vistorias/${vistoriaId}`}
@@ -338,16 +352,26 @@ function BlocoStatus({
             )}
           </div>
         )}
+
+        <div className="mt-3">
+          <AssinaturaLocador
+            vistoriaId={vistoriaId}
+            assinadaEm={assinadaLocadorEm}
+            assinaturaUrl={assinaturaLocadorUrl}
+            selfieUrl={selfieLocadorUrl}
+          />
+        </div>
       </div>
     )
   }
 
-  if (status === 'enviada' && link) {
+  if ((status === 'enviada' || status === 'assinada_locador') && link) {
     return (
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-3">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <p className="text-sm font-semibold text-amber-900 flex items-center gap-2">
             <Clock size={15} /> Aguardando inquilino assinar
+            {locadorAssinou(status) && <span className="text-xs font-normal">· você já assinou</span>}
             {link.expira && <span className="text-xs font-normal">· expira em {new Date(link.expira).toLocaleDateString('pt-BR')}</span>}
           </p>
           {BotaoPreviewPDF}
@@ -366,6 +390,12 @@ function BlocoStatus({
             <RotateCcw size={11} /> Cancelar envio
           </button>
         </div>
+        <AssinaturaLocador
+          vistoriaId={vistoriaId}
+          assinadaEm={assinadaLocadorEm}
+          assinaturaUrl={assinaturaLocadorUrl}
+          selfieUrl={selfieLocadorUrl}
+        />
       </div>
     )
   }
