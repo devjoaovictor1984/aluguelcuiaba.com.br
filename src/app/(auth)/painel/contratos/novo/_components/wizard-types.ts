@@ -60,7 +60,7 @@ export interface WizardState {
   fiador_id: string
   caucao_valor: string
   seguro_fianca_seguradora: string
-  seguro_fianca_apolice: string
+  seguro_fianca_contratacao: string
 
   // Etapa 4 — valores e datas
   valor_aluguel: string
@@ -110,7 +110,7 @@ export const ESTADO_INICIAL: WizardState = {
   fiador_id: '',
   caucao_valor: '',
   seguro_fianca_seguradora: '',
-  seguro_fianca_apolice: '',
+  seguro_fianca_contratacao: '',
   valor_aluguel: '',
   valor_seguro_fianca_mensal: '',
   valor_seguro_incendio_anual: '',

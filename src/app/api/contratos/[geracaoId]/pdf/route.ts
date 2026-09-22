@@ -158,6 +158,7 @@ function montarResumoCapa(
     data_termino?: string | null
     duracao_meses?: number | null
     seguro_fianca_seguradora?: string | null
+    seguro_fianca_contratacao?: string | null
     seguro_fianca_apolice?: string | null
     valor_seguro_fianca_mensal?: number | null
   },
@@ -200,7 +201,13 @@ function montarResumoCapa(
   // Garantia: label legível
   let garantia = '—'
   if (c.garantia_tipo === 'seguro_fianca') {
-    garantia = `Seguro fiança${c.seguro_fianca_seguradora ? ` — ${c.seguro_fianca_seguradora}` : ''}${c.seguro_fianca_apolice ? ` · apólice ${c.seguro_fianca_apolice}` : ''}`
+    // Na capa vale o número que EXISTE: a contratação sai na hora, a
+    // apólice só dias depois. Quando as duas existem, as duas aparecem.
+    const numeros = [
+      c.seguro_fianca_contratacao ? `contratação ${c.seguro_fianca_contratacao}` : null,
+      c.seguro_fianca_apolice ? `apólice ${c.seguro_fianca_apolice}` : null,
+    ].filter(Boolean)
+    garantia = `Seguro fiança${c.seguro_fianca_seguradora ? ` — ${c.seguro_fianca_seguradora}` : ''}${numeros.length ? ` · ${numeros.join(' · ')}` : ''}`
   } else if (c.garantia_tipo === 'fiador') garantia = 'Fiador'
   else if (c.garantia_tipo === 'caucao') garantia = c.caucao_valor ? `Caução · ${fmtBRL(c.caucao_valor)}` : 'Caução'
   else if (c.garantia_tipo === 'sem_garantia') garantia = 'Sem garantia'
@@ -422,7 +429,7 @@ export async function GET(
       id, codigo, valor_aluguel, iptu_mensal, condominio_mensal,
       data_inicio, data_primeiro_aluguel, data_termino, duracao_meses, dia_vencimento,
       garantia_tipo, caucao_valor,
-      seguro_fianca_seguradora, seguro_fianca_apolice,
+      seguro_fianca_seguradora, seguro_fianca_contratacao, seguro_fianca_apolice,
       valor_seguro_fianca_mensal, valor_seguro_incendio_anual,
       taxa_admin_tipo, taxa_admin_valor,
       tipo_atuacao, intermediador_assina, tipo_mobilia, tem_inventario_bens, aceita_pet, finalidade, conjuge_inquilino_papel,
@@ -560,6 +567,7 @@ export async function GET(
       dia_vencimento: contrato.dia_vencimento,
       caucao_valor: contrato.caucao_valor,
       seguro_fianca_seguradora: contrato.seguro_fianca_seguradora,
+      seguro_fianca_contratacao: contrato.seguro_fianca_contratacao,
       seguro_fianca_apolice: contrato.seguro_fianca_apolice,
       valor_seguro_fianca_mensal: contrato.valor_seguro_fianca_mensal,
       valor_seguro_incendio_anual: contrato.valor_seguro_incendio_anual,
@@ -823,7 +831,7 @@ export async function GET(
       garantia_tipo: contrato.garantia_tipo ?? null,
       fiador_nome: fia?.nome ?? null,
       seguro_fianca_seguradora: contrato.seguro_fianca_seguradora ?? null,
-      seguro_fianca_apolice: contrato.seguro_fianca_apolice ?? null,
+      seguro_fianca_contratacao: contrato.seguro_fianca_contratacao ?? null,
       caucao_valor: contrato.caucao_valor ?? null,
       data_inicio: contrato.data_inicio ?? null,
       data_termino: contrato.data_termino ?? null,

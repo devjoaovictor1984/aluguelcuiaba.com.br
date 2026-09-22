@@ -84,7 +84,7 @@ async function renderizarEditor(contratoId: string) {
   const { data: contrato, error: contratoErr } = await supabase
     .from('contratos_locacao')
     .select(`
-      id, codigo, garantia_tipo, seguro_fianca_seguradora, seguro_fianca_apolice,
+      id, codigo, garantia_tipo, seguro_fianca_seguradora, seguro_fianca_contratacao,
       valor_aluguel, data_inicio, data_termino, importado,
       qtd_chaves, qtd_controles, qtd_tags, conjuge_inquilino_papel, anotacoes_corretor,
       imovel_id, tipo_atuacao, taxa_admin_valor,
@@ -344,7 +344,7 @@ async function renderizarEditor(contratoId: string) {
         travado={travado}
         garantiaTipo={contrato.garantia_tipo}
         seguroFiancaSeguradora={contrato.seguro_fianca_seguradora}
-        seguroFiancaApolice={contrato.seguro_fianca_apolice}
+        seguroFiancaContratacao={contrato.seguro_fianca_contratacao}
         qtdChavesInicial={contrato.qtd_chaves ?? 0}
         qtdControlesInicial={contrato.qtd_controles ?? 0}
         qtdTagsInicial={contrato.qtd_tags ?? 0}

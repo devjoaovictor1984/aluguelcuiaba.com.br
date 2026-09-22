@@ -66,7 +66,7 @@ interface Props {
   travado?: boolean
   garantiaTipo: string
   seguroFiancaSeguradora?: string | null
-  seguroFiancaApolice?: string | null
+  seguroFiancaContratacao?: string | null
   qtdChavesInicial?: number
   qtdControlesInicial?: number
   qtdTagsInicial?: number
@@ -115,7 +115,7 @@ const CAMPOS_CAPA_LOCACAO: Array<{ key: string; label: string; multiline?: boole
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 text-sm transition"
 
-export function EditorContrato({ contratoId, codigo, travado = false, garantiaTipo, seguroFiancaSeguradora, seguroFiancaApolice, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes, capaAuto = {} }: Props) {
+export function EditorContrato({ contratoId, codigo, travado = false, garantiaTipo, seguroFiancaSeguradora, seguroFiancaContratacao, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes, capaAuto = {} }: Props) {
   const router = useRouter()
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
@@ -470,10 +470,10 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
 
   // Checklist de validação — carrega do servidor e bloqueia "Gerar" se houver pendência
   const [checklistBloqueios, setChecklistBloqueios] = useState<Array<{ rotulo: string; mensagem: string }>>([])
-  // Apólice preenchida aqui mesmo; `apoliceSalva` reexecuta o checklist.
+  // Dados do seguro preenchidos aqui mesmo; `seguroSalvo` reexecuta o checklist.
   const [seguradoraEdit, setSeguradoraEdit] = useState(seguroFiancaSeguradora ?? '')
-  const [apoliceEdit, setApoliceEdit] = useState(seguroFiancaApolice ?? '')
-  const [apoliceSalva, setApoliceSalva] = useState(0)
+  const [contratacaoEdit, setContratacaoEdit] = useState(seguroFiancaContratacao ?? '')
+  const [seguroSalvo, setSeguroSalvo] = useState(0)
 
   const [checklistAvisos, setChecklistAvisos] = useState<Array<{ rotulo: string; mensagem: string }>>([])
   const [checklistCarregado, setChecklistCarregado] = useState(false)
@@ -496,7 +496,7 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
       .catch(() => setChecklistCarregado(true))
     return () => { ativo = false }
     // Recarrega quando muda cláusula (pode afetar dados); geracao.id é estável
-  }, [geracao.id, clausulas.length, apoliceSalva])
+  }, [geracao.id, clausulas.length, seguroSalvo])
 
   const temBloqueio = checklistBloqueios.length > 0
 
@@ -992,7 +992,7 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
           </section>
         )}
 
-        {/* Apólice do seguro fiança: preenchida aqui, que é onde ela falta */}
+        {/* Dados do seguro fiança: preenchidos aqui, que é onde eles faltam */}
         {garantiaTipo === 'seguro_fianca' && !travado && (
           <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-2">
             <h2 className="text-xs font-bold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
@@ -1009,11 +1009,11 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-semibold text-gray-600 mb-1">Nº da apólice</label>
+                <label className="block text-[11px] font-semibold text-gray-600 mb-1">Nº da contratação</label>
                 <input
-                  value={apoliceEdit}
-                  onChange={e => setApoliceEdit(e.target.value)}
-                  placeholder="Ainda não emitida"
+                  value={contratacaoEdit}
+                  onChange={e => setContratacaoEdit(e.target.value)}
+                  placeholder="Ex: 227638"
                   className="w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
                 />
               </div>
@@ -1026,10 +1026,10 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
                   startTransition(async () => {
                     const r = await atualizarSeguroFianca(contratoId, {
                       seguradora: seguradoraEdit,
-                      apolice: apoliceEdit,
+                      contratacao: contratacaoEdit,
                     })
                     if (r.error) { setErro(r.error); return }
-                    setApoliceSalva(v => v + 1)
+                    setSeguroSalvo(v => v + 1)
                     router.refresh()
                   })
                 }}
@@ -1039,8 +1039,9 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
                 {isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />} Salvar
               </button>
               <p className="text-[10px] text-gray-400">
-                A apólice sai depois da biometria. Sem ela dá pra gerar o PDF e mandar o cliente ler — o número
-                é exigido só na hora de enviar pra assinatura, porque vai impresso na cláusula de garantia.
+                O nº da contratação sai na hora do fechamento e é o que vai impresso na cláusula de garantia.
+                A apólice não é pedida aqui: a seguradora emite depois e manda por e-mail — anexe o PDF em
+                &ldquo;Apólices&rdquo;, na tela do contrato, quando chegar.
               </p>
             </div>
           </section>

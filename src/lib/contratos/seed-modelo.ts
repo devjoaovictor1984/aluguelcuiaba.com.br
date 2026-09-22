@@ -348,7 +348,7 @@ Parágrafo sexto. O LOCADOR e/ou a ADMINISTRADORA poderão exigir documentos pes
   // SEGURO FIANÇA (texto detalhado do prompt)
   {
     tipo: 'seguro_fianca', categoria: 'garantia', titulo: 'Da garantia locatícia por seguro-fiança', numero: 10,
-    corpo: `A garantia locatícia deste contrato será prestada mediante seguro-fiança locatícia, contratado junto à seguradora {{SEGURO_SEGURADORA}}, apólice nº {{SEGURO_APOLICE}}, conforme proposta, coberturas, condições gerais e critérios de aceitação da seguradora.
+    corpo: `A garantia locatícia deste contrato será prestada mediante seguro-fiança locatícia, contratado junto à seguradora {{SEGURO_SEGURADORA}}, sob o nº de contratação {{SEGURO_CONTRATACAO}}, conforme proposta, coberturas, condições gerais e critérios de aceitação da seguradora. A apólice é emitida pela seguradora após a contratação e será enviada por e-mail ao LOCATÁRIO e à ADMINISTRADORA, passando a integrar este contrato independentemente de aditivo; até a emissão, a garantia é comprovada pelo número de contratação acima.
 
 Parágrafo primeiro. O custo do seguro-fiança será de responsabilidade exclusiva do LOCATÁRIO, podendo ser cobrado mensalmente, de forma destacada ou juntamente com os demais encargos locatícios, conforme operacionalização da seguradora e/ou da ADMINISTRADORA.
 
@@ -366,7 +366,7 @@ Parágrafo sexto. O seguro-fiança não isenta o LOCATÁRIO de cumprir todas as 
   // Responsabilidade pelo pagamento do seguro fiança + quem mora no imóvel
   {
     tipo: 'seguro_fianca', categoria: 'garantia', titulo: 'Da responsabilidade pelo pagamento e da ocupação do imóvel', numero: 11,
-    corpo: `O custo mensal do seguro-fiança contratado junto à seguradora {{SEGURO_SEGURADORA}}, apólice nº {{SEGURO_APOLICE}}, é de responsabilidade financeira do LOCATÁRIO {{LOCATARIO_NOME}}, portador(a) do CPF nº {{LOCATARIO_CPF}}, que arcará com o pagamento integral do prêmio enquanto vigente esta locação.
+    corpo: `O custo mensal do seguro-fiança contratado junto à seguradora {{SEGURO_SEGURADORA}}, sob o nº de contratação {{SEGURO_CONTRATACAO}}, é de responsabilidade financeira do LOCATÁRIO {{LOCATARIO_NOME}}, portador(a) do CPF nº {{LOCATARIO_CPF}}, que arcará com o pagamento integral do prêmio enquanto vigente esta locação.
 
 Parágrafo primeiro. A ocupação efetiva do IMÓVEL será exercida pelo LOCATÁRIO {{LOCATARIO_NOME}} e seus dependentes diretos. Quaisquer co-locatários, moradores adicionais ou responsáveis financeiros distintos deverão constar nas assinaturas finais com sua respectiva qualificação, respondendo solidariamente pelas obrigações deste contrato.
 

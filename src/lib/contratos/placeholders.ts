@@ -110,7 +110,8 @@ export const PLACEHOLDERS: Placeholder[] = [
 
   // ── Seguro fiança / incêndio ──
   { chave: 'SEGURO_SEGURADORA', label: 'Nome da seguradora', exemplo: 'Porto Seguro', origem: 'seguro' },
-  { chave: 'SEGURO_APOLICE', label: 'Número da apólice', exemplo: '00.000.000.0000', origem: 'seguro' },
+  { chave: 'SEGURO_CONTRATACAO', label: 'Número da contratação do seguro', exemplo: '227638', origem: 'seguro' },
+  { chave: 'SEGURO_APOLICE', label: 'Número da apólice (sai depois)', exemplo: '00.000.000.0000', origem: 'seguro' },
   { chave: 'SEGURO_VALOR', label: 'Valor da cobertura', exemplo: 'R$ 100.000,00', origem: 'seguro' },
   { chave: 'SEGURO_VIGENCIA', label: 'Vigência da apólice', exemplo: '12 meses', origem: 'seguro' },
 

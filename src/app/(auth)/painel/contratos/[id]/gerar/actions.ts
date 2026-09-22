@@ -873,30 +873,33 @@ export async function atualizarConjugePapel(
 }
 
 /**
- * Preenche seguradora e número da apólice do seguro fiança.
+ * Preenche seguradora e número da contratação do seguro fiança.
  *
  * Mora aqui, e não só no formulário de edição do contrato, porque é nesta
- * tela que a falta aparece: a apólice chega dias depois da biometria, e a
- * pessoa está justamente gerando o contrato pra mandar assinar. Fazer ela
- * sair, achar o contrato, editar e voltar é o tipo de ida e volta que
- * termina em "gerar mesmo assim".
+ * tela que a falta aparece: a pessoa está justamente gerando o contrato pra
+ * mandar assinar. Fazer ela sair, achar o contrato, editar e voltar é o tipo
+ * de ida e volta que termina em "gerar mesmo assim".
+ *
+ * É a CONTRATAÇÃO, não a apólice: o número da contratação sai na hora do
+ * fechamento (Maximiza: "Contratação Seguro: 227638"); a apólice a
+ * seguradora emite depois e manda por e-mail (v100).
  */
 export async function atualizarSeguroFianca(
   contratoId: string,
-  dados: { seguradora: string; apolice: string },
+  dados: { seguradora: string; contratacao: string },
 ) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
 
   const seguradora = dados.seguradora.trim()
-  const apolice = dados.apolice.trim()
+  const contratacao = dados.contratacao.trim()
   if (!seguradora) return { error: 'Informe a seguradora.' }
 
   const { error } = await supabase
     .from('contratos_locacao')
     .update({
       seguro_fianca_seguradora: seguradora.slice(0, 120),
-      seguro_fianca_apolice: apolice ? apolice.slice(0, 60) : null,
+      seguro_fianca_contratacao: contratacao ? contratacao.slice(0, 60) : null,
     })
     .eq('id', contratoId)
     .eq('user_id', acesso.userId)

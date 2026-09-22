@@ -341,7 +341,7 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
       fiador_id: s.garantia_tipo === 'fiador' ? s.fiador_id : null,
       caucao_valor: s.garantia_tipo === 'caucao' ? parseNumero(s.caucao_valor) : null,
       seguro_fianca_seguradora: s.garantia_tipo === 'seguro_fianca' ? s.seguro_fianca_seguradora : null,
-      seguro_fianca_apolice: s.garantia_tipo === 'seguro_fianca' ? s.seguro_fianca_apolice : null,
+      seguro_fianca_contratacao: s.garantia_tipo === 'seguro_fianca' ? s.seguro_fianca_contratacao : null,
       data_inicio: s.data_inicio,
       data_primeiro_aluguel: s.data_primeiro_aluguel,
       data_termino: s.data_termino || (s.importado ? terminoImportado : '') || null,
@@ -785,21 +785,19 @@ export function WizardContrato({ imoveis, pessoas, templateDefaults, cotacoesFia
                 </div>
                 <div>
                   <label className="text-xs font-medium text-gray-600 block mb-1">
-                    Nº da Apólice <span className="font-normal text-gray-400">(quando sair)</span>
+                    Nº da contratação <span className="font-normal text-gray-400">(o que sai na hora)</span>
                   </label>
                   <input
-                    value={s.seguro_fianca_apolice}
-                    onChange={e => setField('seguro_fianca_apolice', e.target.value)}
-                    placeholder="Ainda não emitida"
+                    value={s.seguro_fianca_contratacao}
+                    onChange={e => setField('seguro_fianca_contratacao', e.target.value)}
+                    placeholder="Ex: 227638"
                     className={inputCls}
                   />
-                  {!s.seguro_fianca_apolice.trim() && (
-                    <p className="text-[11px] text-violet-700 mt-1 leading-snug">
-                      {cotacaoVinculada
-                        ? 'Pode deixar em branco — o número entra sozinho quando a seguradora emitir.'
-                        : 'Pode deixar em branco. A apólice sai depois da contratação; o número é cobrado antes de gerar o contrato pra assinatura.'}
-                    </p>
-                  )}
+                  <p className="text-[11px] text-violet-700 mt-1 leading-snug">
+                    É o número que a intermediadora devolve ao fechar o seguro
+                    (&quot;Contratação Seguro: 227638&quot;). A apólice não é pedida aqui:
+                    a seguradora emite depois e manda por e-mail — o contrato já avisa isso.
+                  </p>
                 </div>
               </div>
             </div>

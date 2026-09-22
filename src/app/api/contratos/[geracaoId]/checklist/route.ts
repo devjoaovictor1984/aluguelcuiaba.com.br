@@ -36,7 +36,7 @@ export async function GET(
     .select(`
       tipo_atuacao, tipo_mobilia, tem_inventario_bens, aceita_pet,
       garantia_tipo, caucao_valor,
-      seguro_fianca_seguradora, seguro_fianca_apolice,
+      seguro_fianca_seguradora, seguro_fianca_contratacao,
       data_inicio, data_termino, duracao_meses, valor_aluguel, dia_vencimento,
       proprietario:pessoas!proprietario_id(nome, cpf_cnpj),
       inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
@@ -78,7 +78,7 @@ export async function GET(
     garantia_tipo: contrato.garantia_tipo ?? null,
     fiador_nome: fia?.nome ?? null,
     seguro_fianca_seguradora: contrato.seguro_fianca_seguradora ?? null,
-    seguro_fianca_apolice: contrato.seguro_fianca_apolice ?? null,
+    seguro_fianca_contratacao: contrato.seguro_fianca_contratacao ?? null,
     caucao_valor: contrato.caucao_valor ?? null,
     data_inicio: contrato.data_inicio ?? null,
     data_termino: contrato.data_termino ?? null,

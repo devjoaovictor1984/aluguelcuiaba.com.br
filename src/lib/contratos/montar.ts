@@ -135,6 +135,7 @@ export interface DadosContrato {
     dia_vencimento?: number | null
     caucao_valor?: number | null
     seguro_fianca_seguradora?: string | null
+    seguro_fianca_contratacao?: string | null
     seguro_fianca_apolice?: string | null
     valor_seguro_fianca_mensal?: number | null
     valor_seguro_incendio_anual?: number | null
@@ -623,6 +624,7 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
 
     // ── Seguro ──
     case 'SEGURO_SEGURADORA': return dados.contrato?.seguro_fianca_seguradora ?? FALLBACK
+    case 'SEGURO_CONTRATACAO': return dados.contrato?.seguro_fianca_contratacao ?? FALLBACK
     case 'SEGURO_APOLICE': return dados.contrato?.seguro_fianca_apolice ?? FALLBACK
     case 'SEGURO_VALOR': return fmtBRL(dados.contrato?.valor_seguro_fianca_mensal)
     case 'SEGURO_VIGENCIA': return '12 meses'

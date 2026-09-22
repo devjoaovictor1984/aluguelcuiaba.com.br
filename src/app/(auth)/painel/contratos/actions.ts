@@ -35,7 +35,7 @@ export interface ContratoInput {
   fiador_id: string | null
   caucao_valor: number | null
   seguro_fianca_seguradora: string | null
-  seguro_fianca_apolice: string | null
+  seguro_fianca_contratacao: string | null
 
   data_inicio: string
   data_primeiro_aluguel: string
@@ -188,7 +188,7 @@ export async function criarContrato(input: ContratoInput) {
       fiador_id: input.fiador_id,
       caucao_valor: input.caucao_valor,
       seguro_fianca_seguradora: input.seguro_fianca_seguradora,
-      seguro_fianca_apolice: input.seguro_fianca_apolice,
+      seguro_fianca_contratacao: input.seguro_fianca_contratacao,
       data_inicio: input.data_inicio,
       data_primeiro_aluguel: input.data_primeiro_aluguel,
       data_termino: input.data_termino,
@@ -1186,7 +1186,7 @@ export async function renovarContrato(input: RenovarContratoInput) {
       fiador_id: anterior.fiador_id,
       caucao_valor: anterior.caucao_valor,
       seguro_fianca_seguradora: anterior.seguro_fianca_seguradora,
-      seguro_fianca_apolice: anterior.seguro_fianca_apolice,
+      seguro_fianca_contratacao: anterior.seguro_fianca_contratacao,
       data_inicio: input.data_inicio,
       data_primeiro_aluguel: input.data_primeiro_aluguel,
       data_termino: dataTermino,
