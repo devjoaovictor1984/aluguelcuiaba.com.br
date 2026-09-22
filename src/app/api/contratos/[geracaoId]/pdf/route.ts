@@ -9,7 +9,7 @@ import { rodarChecklist, bloqueiaGeracao, type DadosChecklist } from '@/lib/cont
 import { validarTokenRevisao } from '@/lib/crm/revisao-token'
 import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
 import { montarEnderecoImovel } from '@/lib/crm/endereco-imovel'
-import { urlsFotosInventario } from '@/lib/crm/inventario-fotos'
+import { urlsFotosInventario, LARGURA_PDF } from '@/lib/crm/inventario-fotos'
 import React from 'react'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
@@ -675,6 +675,7 @@ export async function GET(
   const fotosInventario = await urlsFotosInventario(
     admin,
     (inventarioRaw ?? []).map(it => it.foto_path),
+    { largura: LARGURA_PDF },
   )
 
   // 7. Endereço da admin
