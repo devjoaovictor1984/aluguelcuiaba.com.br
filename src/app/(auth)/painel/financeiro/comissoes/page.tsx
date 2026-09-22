@@ -8,6 +8,7 @@ import { FiltroMesAno, type ModoPeriodo } from '../_components/filtro-mes-ano'
 import { BotaoImprimir } from './_components/botao-imprimir'
 import { BotaoNfProprietario } from './_components/botao-nf'
 import { ComissaoSeguros, type ComissaoSeguroView } from './_components/comissao-seguros'
+import { CampoCopia } from '@/components/campo-copia'
 
 interface ParcelaRow {
   id: string
@@ -189,6 +190,7 @@ export default async function ComissoesPage({ searchParams }: Props) {
     inquilino: string
     imovel: string
     imovelEndereco: string | null
+    imovelNumero: string | null
     imovelCep: string | null
     parcelas: number
     comissao: number
@@ -247,7 +249,9 @@ export default async function ComissoesPage({ searchParams }: Props) {
 
     let lc = g.contratos.get(c.id)
     if (!lc) {
-      // Quick view pra emissão de nota: CEP do imóvel + endereço breve
+      // Dados que o Notas Cuiabá pede, na ordem em que ele pede: CEP,
+      // endereço e número. O endereço do CONTRATO (endereco_completo) vem
+      // antes do resumido do anúncio, que é aproximado de propósito.
       const enderecoImovel = imo?.endereco_completo ?? imo?.endereco_resumido ?? null
       const cepImovel = imo?.endereco_cep ?? null
       lc = {
@@ -256,6 +260,7 @@ export default async function ComissoesPage({ searchParams }: Props) {
         inquilino: inq?.nome ?? '—',
         imovel: imo?.titulo ?? '—',
         imovelEndereco: enderecoImovel,
+        imovelNumero: imo?.endereco_numero ?? null,
         imovelCep: cepImovel,
         parcelas: 0,
         comissao: 0,
@@ -364,9 +369,12 @@ export default async function ComissoesPage({ searchParams }: Props) {
                     <p className="text-xs text-gray-500">
                       {g.cpfCnpj && (
                         <>
-                          <span className="font-mono select-all" title="Clique pra selecionar — útil pra colar na nota de serviço">
-                            CPF/CNPJ {g.cpfCnpj}
-                          </span>
+                          <CampoCopia
+                            rotulo="CPF/CNPJ"
+                            valor={g.cpfCnpj}
+                            valorCopia={g.cpfCnpj.replace(/\D/g, '')}
+                            className="text-xs text-gray-600 align-middle"
+                          />
                           {' · '}
                         </>
                       )}
@@ -411,11 +419,25 @@ export default async function ComissoesPage({ searchParams }: Props) {
                         </td>
                         <td className="px-4 py-2 text-gray-700">
                           {l.imovel}
-                          {l.imovelCep && (
-                            <span className="block text-[10px] text-gray-400 font-mono select-all" title="CEP — pra colar na nota de serviço">
-                              CEP {l.imovelCep.replace(/^(\d{5})(\d{3})$/, '$1-$2')}
-                            </span>
-                          )}
+                          {/* Um campo por vez, do jeito que a nota pede. */}
+                          <span className="flex flex-wrap items-center gap-x-2 text-[10px] text-gray-500 mt-0.5">
+                            {l.imovelCep && (
+                              <CampoCopia
+                                rotulo="CEP"
+                                valor={l.imovelCep.replace(/^(\d{5})(\d{3})$/, '$1-$2')}
+                                valorCopia={l.imovelCep.replace(/\D/g, '')}
+                              />
+                            )}
+                            {l.imovelNumero && <CampoCopia rotulo="Nº" valor={l.imovelNumero} />}
+                            {l.imovelEndereco && (
+                              <CampoCopia
+                                rotulo="End."
+                                valor={l.imovelEndereco}
+                                mono={false}
+                                className="max-w-[16rem]"
+                              />
+                            )}
+                          </span>
                         </td>
                         <td className="px-4 py-2 text-gray-700">{l.inquilino}</td>
                         <td className="px-4 py-2 text-center text-gray-600">{l.parcelas}</td>
