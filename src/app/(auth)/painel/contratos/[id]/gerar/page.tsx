@@ -215,6 +215,46 @@ async function renderizarEditor(contratoId: string) {
     (contrato.tipo_atuacao ?? 'administracao') === 'administracao' &&
     (contrato.taxa_admin_valor ?? 0) > 0
 
+  // Moradores que assinam: o PDF já abre um bloco de assinatura pra cada um
+  // deles (contrato-pdf.tsx), mas eles não entravam na lista de signatários —
+  // o link de assinatura ia só pro locatário, administradora e testemunhas, e
+  // o contrato voltava com blocos em branco. As regras de quem assina são as
+  // mesmas da rota do PDF, pra não haver bloco sem link nem link sem bloco.
+  const { data: moradoresAss } = await supabase
+    .from('contratos_moradores')
+    .select('papel, mora_no_imovel, assina_contrato, pessoa:pessoas(nome, email)')
+    .eq('contrato_id', contratoId)
+
+  const rotuloPapelAss: Record<string, string> = {
+    inquilino_solidario: 'Co-locatário solidário',
+    morador: 'Morador',
+    socio_signatario: 'Sócio signatário',
+    responsavel_seguro: 'Responsável pelo seguro fiança',
+    conjuge_responsavel_seguro: 'Cônjuge do responsável pelo seguro',
+    caucionante: 'Caucionante',
+    interveniente_anuente: 'Interveniente anuente',
+  }
+
+  const sugestoesMoradores = ((moradoresAss ?? []) as Array<{
+    papel: string
+    mora_no_imovel: boolean
+    assina_contrato: boolean | null
+    pessoa: { nome: string; email: string | null } | { nome: string; email: string | null }[] | null
+  }>)
+    .map(m => {
+      const pessoa = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
+      if (!pessoa?.nome) return null
+      if (m.papel === 'ocupante_autorizado') return null
+      if (m.papel === 'morador' && !m.mora_no_imovel) return null
+      if (!(m.assina_contrato ?? true)) return null
+      return {
+        nome: pessoa.nome,
+        email: pessoa.email ?? '',
+        papel: rotuloPapelAss[m.papel] ?? m.papel,
+      }
+    })
+    .filter((s): s is { nome: string; email: string; papel: string } => !!s)
+
   const { data: { user } } = await supabase.auth.getUser()
   const { data: perfilAss } = await supabase
     .from('perfis')
@@ -234,6 +274,8 @@ async function renderizarEditor(contratoId: string) {
     temAdministracaoAss
       ? (user?.email ? { nome: adminNomeAss, email: user.email, papel: 'Administradora (responsável)' } : null)
       : (propEmail?.nome ? { nome: propEmail.nome, email: propEmail.email ?? '', papel: 'Locador(a)' } : null),
+    // Moradores entram antes das testemunhas, na mesma ordem do PDF.
+    ...sugestoesMoradores,
     ...((testPessoasAss ?? []) as Array<{ nome: string; email: string | null }>)
       .map(t => ({ nome: t.nome, email: t.email ?? '', papel: 'Testemunha' })),
   ].filter((s): s is { nome: string; email: string; papel: string } => !!s)

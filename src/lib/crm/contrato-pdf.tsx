@@ -1275,6 +1275,10 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               <Text style={blocoPapel}>{m.papel.toUpperCase()}</Text>
               <Text style={blocoNome}>{m.nome}</Text>
               {m.cpf && <Text style={blocoSecundario}>{docLabel(m.cpf)} {m.cpf}</Text>}
+              {/* Casa pelo NOME, e não pelo papel: "Morador" e "Co-locatário
+                  solidário" se repetem entre pessoas, e o papel digitado no
+                  painel de assinatura nem sempre é o mesmo rótulo do bloco. */}
+              {sigDeNome(m.nome) && <Image src={sigDeNome(m.nome)!} style={ASSIN_IMG} />}
               <View style={linhaAssinatura} />
             </View>
           ))}
