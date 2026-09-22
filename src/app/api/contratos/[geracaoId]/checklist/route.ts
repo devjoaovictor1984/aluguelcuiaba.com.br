@@ -48,11 +48,17 @@ export async function GET(
 
   if (!contrato) return NextResponse.json({ error: 'Contrato não encontrado' }, { status: 404 })
 
-  // perfil_anunciante pra checar CNPJ/CRECI-J
+  // Dados da administradora, pra checar CNPJ/CRECI-J.
+  //
+  // `perfis` é chaveada pelo id do usuário — é assim em todo o resto do
+  // projeto. Aqui estava filtrando por `user_id`, coluna que não existe:
+  // a consulta nunca devolvia nada e o checklist acusava CNPJ e CRECI-J
+  // vazios mesmo com os dois preenchidos no perfil (e impressos no PDF,
+  // que lê o perfil pelo id, do jeito certo).
   const { data: perfil } = await admin
     .from('perfis')
     .select('cnpj, creci_juridico')
-    .eq('user_id', user.id)
+    .eq('id', user.id)
     .maybeSingle()
 
   const prop = Array.isArray(contrato.proprietario) ? contrato.proprietario[0] : contrato.proprietario

@@ -146,11 +146,18 @@ export function rodarChecklist(d: DadosChecklist): ItemChecklist[] {
     mensagem: d.data_inicio ? undefined : 'Data de início obrigatória',
   })
 
+  // O contrato nunca imprime "[PREENCHER]" aqui: o DATA_FIM de montar.ts
+  // calcula o término a partir de início + duração quando a data não foi
+  // digitada, e a capa do PDF faz a mesma conta. Só falta de verdade
+  // quando não há nem data nem duração pra calcular.
+  const temTermino = !!d.data_termino || (!!d.data_inicio && !!d.duracao_meses)
   itens.push({
     id: 'data_termino',
-    rotulo: 'Data de término calculada',
-    severidade: d.data_termino ? 'ok' : 'warn',
-    mensagem: d.data_termino ? undefined : 'Data de término em branco — recomenda-se preencher pra evitar "[PREENCHER]" no contrato',
+    rotulo: 'Data de término',
+    severidade: temTermino ? 'ok' : 'warn',
+    mensagem: temTermino
+      ? undefined
+      : 'Sem data de término e sem duração — o contrato sairá com o prazo em branco',
   })
 
   // ── Valores ──
