@@ -917,14 +917,11 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </Text>
             <Text style={{ fontSize: 8, color: CINZA_CLARO, marginBottom: 8 }}>
               Os bens abaixo integram a locação e serão conferidos item a item na vistoria final.
-              {temFotoNoInventario ? ' As fotos identificam os bens entregues no início da locação.' : ''}
+              {temFotoNoInventario ? ' As fotos ao fim deste anexo identificam os bens entregues.' : ''}
             </Text>
             <View>
               <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6, alignItems: 'center' }}>
                 <Text style={{ width: 24, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>#</Text>
-                {temFotoNoInventario && (
-                  <Text style={{ width: 46, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>FOTO</Text>
-                )}
                 <Text style={{ flex: 4, fontSize: 8, fontWeight: 'bold', color: CINZA }}>ITEM</Text>
                 <Text style={{ width: 30, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>QTD</Text>
                 <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>MARCA/MODELO</Text>
@@ -933,13 +930,6 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               {data.inventario.map((it, i) => (
                 <View key={i} wrap={false} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 6, backgroundColor: i % 2 === 1 ? '#fafafa' : undefined }}>
                   <Text style={{ width: 24, fontSize: 9, color: CINZA, textAlign: 'center' }}>{i + 1}</Text>
-                  {temFotoNoInventario && (
-                    <View style={{ width: 46, alignItems: 'center' }}>
-                      {it.foto_url
-                        ? <Image src={it.foto_url} style={{ width: 38, height: 38, objectFit: 'cover', borderRadius: 2 }} />
-                        : <Text style={{ fontSize: 8, color: CINZA_CLARO }}>—</Text>}
-                    </View>
-                  )}
                   <Text style={{ flex: 4, fontSize: 9, color: TEXTO }}>
                     {it.descricao}{it.observacao ? ` (${it.observacao})` : ''}
                   </Text>
@@ -949,6 +939,27 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 </View>
               ))}
             </View>
+            {/* Prancha de fotos: a tabela fica compacta e legível, e o bem
+                aparece em tamanho que dá pra reconhecer. O número casa com
+                a linha da tabela — é por ele que se confere na devolução. */}
+            {temFotoNoInventario && (
+              <View style={{ marginTop: 10 }}>
+                <Text style={{ fontSize: 9.5, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE, marginBottom: 5 }}>
+                  Fotos dos bens
+                </Text>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
+                  {data.inventario.map((it, i) => it.foto_url ? (
+                    <View key={i} wrap={false} style={{ width: '33.33%', paddingRight: 6, marginBottom: 8 }}>
+                      <Image src={it.foto_url} style={{ width: '100%', height: 130, objectFit: 'cover', borderRadius: 3 }} />
+                      <Text style={{ fontSize: 8, color: CINZA, marginTop: 2 }}>
+                        {i + 1}. {it.descricao}
+                      </Text>
+                    </View>
+                  ) : null)}
+                </View>
+              </View>
+            )}
+
             <Text style={{ fontSize: 8, color: CINZA_CLARO, marginTop: 5 }}>
               Os LOCATÁRIOS declaram receber os bens no estado descrito e obrigam-se a devolvê-los nas mesmas condições, ressalvado o desgaste natural.
             </Text>

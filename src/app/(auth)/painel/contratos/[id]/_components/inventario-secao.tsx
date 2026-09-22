@@ -160,7 +160,7 @@ export function InventarioSecao({ contratoId, itens }: { contratoId: string; ite
           <table className="w-full text-xs">
             <thead className="text-gray-400 border-b border-gray-100">
               <tr>
-                <th className="w-12 py-1.5 px-2 font-semibold text-left">Foto</th>
+                <th className="w-20 py-1.5 px-2 font-semibold text-left">Foto</th>
                 <th className="text-left py-1.5 px-2 font-semibold">Item</th>
                 <th className="text-center py-1.5 px-2 font-semibold w-12">Qtd</th>
                 <th className="text-left py-1.5 px-2 font-semibold">Marca/modelo</th>
@@ -173,14 +173,14 @@ export function InventarioSecao({ contratoId, itens }: { contratoId: string; ite
                 <tr key={it.id} className="border-b border-gray-50">
                   <td className="py-1.5 px-2">
                     {subindoFoto === it.id ? (
-                      <span className="flex items-center justify-center w-10 h-10 rounded-lg bg-gray-50">
+                      <span className="flex items-center justify-center w-16 h-16 rounded-lg bg-gray-50">
                         <Loader2 size={14} className="animate-spin text-gray-400" />
                       </span>
                     ) : it.foto_url ? (
                       <button
                         type="button"
                         onClick={() => setAmpliada({ url: it.foto_url!, descricao: it.descricao })}
-                        className="block w-10 h-10 rounded-lg overflow-hidden ring-1 ring-gray-200 hover:ring-violet-400"
+                        className="block w-16 h-16 rounded-lg overflow-hidden ring-1 ring-gray-200 hover:ring-violet-400"
                         title="Ver a foto"
                       >
                         {/* next/image não entra aqui: a URL é assinada e expira. */}
@@ -192,10 +192,10 @@ export function InventarioSecao({ contratoId, itens }: { contratoId: string; ite
                         type="button"
                         onClick={() => escolherFoto(it.id)}
                         disabled={isPending}
-                        className="flex items-center justify-center w-10 h-10 rounded-lg border border-dashed border-gray-200 text-gray-300 hover:text-violet-600 hover:border-violet-300 disabled:opacity-50"
+                        className="flex items-center justify-center w-16 h-16 rounded-lg border border-dashed border-gray-200 text-gray-300 hover:text-violet-600 hover:border-violet-300 disabled:opacity-50"
                         title="Fotografar este item"
                       >
-                        <Camera size={14} />
+                        <Camera size={18} />
                       </button>
                     )}
                   </td>
@@ -222,8 +222,8 @@ export function InventarioSecao({ contratoId, itens }: { contratoId: string; ite
             </tbody>
           </table>
           <p className="text-[10px] text-gray-400 mt-2">
-            A foto identifica o bem e sai como miniatura no anexo do contrato. Avaria e estado de
-            conservação são registrados na vistoria, que tem galeria por item.
+            A foto identifica o bem e sai numa prancha ao fim do anexo do contrato, numerada igual
+            à tabela. Avaria e estado de conservação são registrados na vistoria, que tem galeria por item.
           </p>
         </div>
       )}

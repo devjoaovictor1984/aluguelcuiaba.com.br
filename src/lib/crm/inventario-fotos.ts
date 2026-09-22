@@ -17,12 +17,11 @@ const VALIDADE_PADRAO = 1800
 
 /**
  * Larguras de exibição. A foto sobe já reduzida pelo navegador (900px,
- * ~250KB), mas nenhum dos dois destinos precisa disso tudo: a tabela
- * mostra 40px na tela e o PDF imprime 38pt. Pedir a imagem cheia nos dois
- * lugares é baixar 250KB pra desenhar um selo.
+ * ~250KB), e cada destino pede só o que vai mostrar: a tabela desenha
+ * 64px, e o PDF imprime a prancha em ~130pt de altura.
  */
-export const LARGURA_MINIATURA = 160   // tela: 40px em telas 3x/4x
-export const LARGURA_PDF = 320         // PDF: 38pt em ~300dpi
+export const LARGURA_MINIATURA = 192   // tela: 64px em telas 3x
+export const LARGURA_PDF = 640         // PDF: prancha de ~130pt em ~300dpi
 
 /**
  * Signed URLs das fotos, indexadas pelo path, já redimensionadas pelo
