@@ -26,7 +26,7 @@ export async function GET(
     .select(`
       id, numero, numero_recibo, mes_referencia, vencimento,
       valor_aluguel, valor_seguro, valor_iptu, valor_condominio,
-      valor_total, valor_pago, juros_multa, desconto, data_pagamento, status_pagamento,
+      valor_total, valor_pago, juros_multa, desconto, data_pagamento, status_pagamento, pago_por,
       contrato:contratos_locacao!inner(
         id, codigo, user_id,
         inquilino:pessoas!inquilino_id(nome, cpf_cnpj),
@@ -44,6 +44,17 @@ export async function GET(
   const contratoRaw = Array.isArray(parcela.contrato) ? parcela.contrato[0] : parcela.contrato
   if (!contratoRaw || contratoRaw.user_id !== user.id) {
     return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+  }
+
+  // Parcela coberta por sinistro não gera recibo (v102): o recibo quita o
+  // locatário, e aqui a dívida dele não foi quitada — trocou de credor.
+  // A tela já esconde o link; isto fecha a URL, que é pública pra quem
+  // souber o id da parcela.
+  if (parcela.pago_por === 'seguradora') {
+    return NextResponse.json(
+      { error: 'Esta parcela foi paga pela seguradora em sinistro e não gera recibo para o locatário.' },
+      { status: 409 },
+    )
   }
 
   // Garante numero_recibo: usa o já gravado ou o próximo sequencial do contrato

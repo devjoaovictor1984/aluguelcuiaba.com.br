@@ -13,6 +13,7 @@ import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
 import { InventarioSecao, type ItemInventario } from './_components/inventario-secao'
 import { ApolicesSecao, type ApoliceRow } from './_components/apolices-secao'
+import { SinistroSecao, type SinistroRow } from './_components/sinistro-secao'
 import { DistratoSecao, type DistratoRow } from './_components/distrato-secao'
 import { AditivosSecao, type AditivoRow } from './_components/aditivos-secao'
 import type { AssinaturaAditivos, SugestaoSignatario } from '@/components/crm/termos-aditivos-secao'
@@ -156,6 +157,30 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     observacao: it.observacao,
     foto_url: it.foto_path ? urlsInventario[it.foto_path] ?? null : null,
   }))
+
+  // Sinistros do seguro fiança (v102). O total coberto sai das próprias
+  // parcelas: é o que a seguradora pagou, não um valor digitado à parte.
+  const { data: sinistrosRaw } = await supabase
+    .from('contrato_sinistros')
+    .select('id, seguradora, numero, aberto_em, encerrado_em, status, motivo, observacoes')
+    .eq('contrato_id', id)
+    .order('aberto_em', { ascending: false })
+
+  const sinistros: SinistroRow[] = (sinistrosRaw ?? []).map(s => {
+    const cobertas = (parcelas ?? []).filter(
+      (p: { sinistro_id?: string | null }) => p.sinistro_id === s.id,
+    )
+    return {
+      ...s,
+      total_coberto: cobertas.reduce(
+        (soma: number, p: { valor_pago?: number | null; valor_total?: number | null }) =>
+          soma + Number(p.valor_pago ?? p.valor_total ?? 0),
+        0,
+      ),
+      parcelas_cobertas: cobertas.length,
+    }
+  })
+  const sinistroAberto = sinistros.some(s => s.status === 'aberto')
 
   // Apólices anexadas (incêndio e fiança). Uma por tipo: a mais recente
   // ganha a vaga, então reanexar depois da renovação já mostra a nova.
@@ -453,6 +478,16 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
 
       <ApolicesSecao contratoId={id} apolices={apolices} garantiaTipo={contrato.garantia_tipo} />
 
+      {/* Sinistro só existe onde há seguro fiança — e onde já houve um,
+          a seção continua aparecendo mesmo se a garantia mudar depois. */}
+      {(contrato.garantia_tipo === 'seguro_fianca' || sinistros.length > 0) && (
+        <SinistroSecao
+          contratoId={id}
+          sinistros={sinistros}
+          seguradoraPadrao={contrato.seguro_fianca_seguradora ?? null}
+        />
+      )}
+
       <AditivosSecao
         contratoId={id}
         codigoContrato={contrato.codigo}
@@ -565,7 +600,12 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
             </thead>
             <tbody>
               {lista.map(p => (
-                <ParcelaRow key={p.id} parcela={p as unknown as Parcela} codigoContrato={contrato.codigo} />
+                <ParcelaRow
+                  key={p.id}
+                  parcela={p as unknown as Parcela}
+                  codigoContrato={contrato.codigo}
+                  sinistroAberto={sinistroAberto}
+                />
               ))}
             </tbody>
           </table>

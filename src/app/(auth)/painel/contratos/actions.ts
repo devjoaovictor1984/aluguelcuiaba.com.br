@@ -295,11 +295,38 @@ export interface MarcarPagamentoInput {
   juros_multa?: number
   desconto?: number
   observacoes?: string
+  /** Quem pagou. 'seguradora' exige sinistro aberto no contrato (v102). */
+  pago_por?: 'locatario' | 'seguradora'
 }
 
 export async function marcarPagamento(input: MarcarPagamentoInput) {
   await exigirAcessoCRM()
   const supabase = await createClient()
+
+  // Pagamento da seguradora tem que se pendurar num sinistro: é o
+  // sinistro que diz de qual episódio esse dinheiro veio, e sem ele o
+  // financeiro não consegue separar depois o que foi cobertura do que
+  // foi pagamento normal.
+  let sinistroId: string | null = null
+  if (input.pago_por === 'seguradora') {
+    const { data: parcela } = await supabase
+      .from('parcelas_aluguel')
+      .select('contrato_id')
+      .eq('id', input.parcela_id)
+      .maybeSingle()
+    if (!parcela) return { error: 'Parcela não encontrada.' }
+
+    const { data: sinistro } = await supabase
+      .from('contrato_sinistros')
+      .select('id')
+      .eq('contrato_id', parcela.contrato_id)
+      .eq('status', 'aberto')
+      .maybeSingle()
+    if (!sinistro) {
+      return { error: 'Abra o sinistro no contrato antes de marcar a parcela como paga pela seguradora.' }
+    }
+    sinistroId = sinistro.id
+  }
 
   const { error } = await supabase
     .from('parcelas_aluguel')
@@ -310,6 +337,8 @@ export async function marcarPagamento(input: MarcarPagamentoInput) {
       juros_multa: input.juros_multa ?? 0,
       desconto: input.desconto ?? 0,
       observacoes: input.observacoes ?? null,
+      pago_por: input.pago_por ?? 'locatario',
+      sinistro_id: sinistroId,
       updated_at: new Date().toISOString(),
     })
     .eq('id', input.parcela_id)
@@ -331,6 +360,11 @@ export async function desfazerPagamento(parcelaId: string) {
       valor_pago: null,
       juros_multa: 0,
       desconto: 0,
+      // Volta a ser cobrança do locatário: desfazer o pagamento apaga
+      // também a marca de quem pagou, senão a parcela fica pendente e
+      // "da seguradora" ao mesmo tempo.
+      pago_por: 'locatario',
+      sinistro_id: null,
     })
     .eq('id', parcelaId)
   if (error) return { error: error.message }

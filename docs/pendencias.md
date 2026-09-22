@@ -120,3 +120,27 @@ separado por produto.
 **Por que ficou pra depois:** não é tela, é acordo comercial. Construir agora
 significa escolher percentuais no lugar da corretora, e o painel passaria a
 afirmar valores que ninguém combinou.
+
+---
+
+## Sinistro não aparece fora da tela do contrato
+
+**Onde:** `src/app/(auth)/painel/financeiro/`, `src/app/(auth)/painel/inicio/_components/parcela-acoes-inline.tsx`
+
+A v102 marca na parcela **quem pagou** (`pago_por`), e a tela do contrato mostra
+o selo "seguradora", esconde o recibo e soma o total coberto por sinistro. Fora
+dali, nada disso aparece:
+
+- No **Financeiro**, dinheiro da seguradora e do locatário entram no mesmo
+  total, sem filtro nem coluna que os separe. Para fechar o mês está certo — o
+  dinheiro entrou —, mas não dá pra responder "quanto a seguradora cobriu neste
+  trimestre" sem abrir contrato por contrato.
+- No **Início**, o botão de marcar pagamento não pergunta quem pagou: lança
+  sempre como locatário. Em contrato com sinistro aberto isso registra o
+  pagador errado, e só dá pra corrigir desfazendo e refazendo pela tela do
+  contrato.
+
+**Por que ficou pra depois:** o Início marca pagamento de vários contratos de
+uma vez, e cada um teria que ser consultado para saber se tem sinistro aberto —
+uma consulta por linha numa tela que hoje faz uma só. Vale resolver junto com o
+filtro do Financeiro, que precisa da mesma informação.

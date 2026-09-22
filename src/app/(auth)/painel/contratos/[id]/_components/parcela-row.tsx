@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   CheckCircle2, Clock, AlertTriangle, X, Loader2, Send, Shield, DollarSign, FileText,
+  ShieldAlert,
 } from 'lucide-react'
 import { InputMoeda } from '@/components/inputs/input-mascarado'
 import { parseMoney, formatarBRL, formatarData } from '@/lib/formatters'
@@ -33,21 +34,26 @@ export interface Parcela {
   juros_multa: number | null
   desconto: number | null
   observacoes: string | null
+  /** v102 — quem pagou. 'seguradora' = coberta por sinistro. */
+  pago_por?: 'locatario' | 'seguradora' | null
 }
 
 interface Props {
   parcela: Parcela
   codigoContrato: string
+  /** Há sinistro aberto no contrato: o modal passa a perguntar quem pagou. */
+  sinistroAberto?: boolean
 }
 
 const HOJE = (): string => new Date().toISOString().slice(0, 10)
 
-export function ParcelaRow({ parcela, codigoContrato }: Props) {
+export function ParcelaRow({ parcela, codigoContrato, sinistroAberto = false }: Props) {
   const router = useRouter()
   const [modalAberto, setModalAberto] = useState(false)
   const [isPending, startTransition] = useTransition()
 
   const cancelada = parcela.status_pagamento === 'cancelada'
+  const pagaPelaSeguradora = parcela.pago_por === 'seguradora'
   // Cancelada nao esta atrasada: deixou de ser devida.
   const atrasada = !cancelada && parcela.status_pagamento !== 'pago'
     && new Date(parcela.vencimento) < new Date()
@@ -103,6 +109,14 @@ export function ParcelaRow({ parcela, codigoContrato }: Props) {
           {formatarData(parcela.vencimento)}
           {cancelada && (
             <span className="ml-1 text-[10px] font-bold uppercase text-gray-400">cancelada</span>
+          )}
+          {pagaPelaSeguradora && (
+            <span
+              className="ml-1 text-[10px] font-bold uppercase text-blue-700 bg-blue-50 px-1 py-0.5 rounded"
+              title="Paga pela seguradora em sinistro — o locatário deve esse valor à seguradora"
+            >
+              seguradora
+            </span>
           )}
         </td>
         <td className={`px-3 py-2 text-right text-xs font-medium ${cancelada ? 'line-through' : ''}`}>
@@ -185,23 +199,35 @@ export function ParcelaRow({ parcela, codigoContrato }: Props) {
           </button>
         </td>
 
-        {/* Recibo PDF */}
+        {/* Recibo PDF — quitação de quem pagou. Coberta pela seguradora
+            não gera recibo: quitaria o locatário de uma dívida que
+            simplesmente trocou de credor. */}
         <td className="px-2 py-2 text-center">
-          <a
-            href={`/api/recibos/${parcela.id}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="Abrir recibo em PDF (nova aba)"
-            className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors bg-gray-100 hover:bg-pink-100 text-gray-400 hover:text-pink-700 inline-flex"
-          >
-            <FileText size={13} />
-          </a>
+          {pagaPelaSeguradora ? (
+            <span
+              title="Pagamento da seguradora não gera recibo para o locatário — ele passou a dever à seguradora"
+              className="w-7 h-7 rounded-lg flex items-center justify-center bg-gray-50 text-gray-300 inline-flex cursor-not-allowed"
+            >
+              <FileText size={13} />
+            </span>
+          ) : (
+            <a
+              href={`/api/recibos/${parcela.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="Abrir recibo em PDF (nova aba)"
+              className="w-7 h-7 rounded-lg flex items-center justify-center transition-colors bg-gray-100 hover:bg-pink-100 text-gray-400 hover:text-pink-700 inline-flex"
+            >
+              <FileText size={13} />
+            </a>
+          )}
         </td>
       </tr>
 
       {modalAberto && (
         <ModalPagamento
           parcela={parcela}
+          sinistroAberto={sinistroAberto}
           onFechar={() => setModalAberto(false)}
           onConfirmou={() => { setModalAberto(false); router.refresh() }}
         />
@@ -211,9 +237,10 @@ export function ParcelaRow({ parcela, codigoContrato }: Props) {
 }
 
 function ModalPagamento({
-  parcela, onFechar, onConfirmou,
+  parcela, sinistroAberto, onFechar, onConfirmou,
 }: {
   parcela: Parcela
+  sinistroAberto: boolean
   onFechar: () => void
   onConfirmou: () => void
 }) {
@@ -224,6 +251,10 @@ function ModalPagamento({
   const [juros, setJuros] = useState('')
   const [desconto, setDesconto] = useState('')
   const [obs, setObs] = useState('')
+  // Com sinistro aberto, a seguradora é a resposta mais provável — mas
+  // não a automática: o locatário pode ter pago a parcela do mês mesmo
+  // devendo as anteriores, e é justamente assim que o sinistro encerra.
+  const [pagoPor, setPagoPor] = useState<'locatario' | 'seguradora'>('locatario')
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
 
@@ -241,6 +272,7 @@ function ModalPagamento({
         juros_multa: parseMoney(juros),
         desconto: parseMoney(desconto),
         observacoes: obs || undefined,
+        pago_por: sinistroAberto ? pagoPor : 'locatario',
       })
       if (r.error) { setErro(r.error); return }
       onConfirmou()
@@ -263,6 +295,40 @@ function ModalPagamento({
             </div>
 
             <div className="space-y-3">
+              {sinistroAberto && (
+                <div>
+                  <label className="text-xs font-medium text-gray-600 block mb-1">Quem pagou *</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {([
+                      { v: 'locatario' as const, rotulo: 'Locatário' },
+                      { v: 'seguradora' as const, rotulo: 'Seguradora' },
+                    ]).map(op => (
+                      <button
+                        key={op.v}
+                        type="button"
+                        onClick={() => setPagoPor(op.v)}
+                        className={`px-3 py-2 rounded-lg text-sm font-semibold ring-1 transition-colors ${
+                          pagoPor === op.v
+                            ? 'ring-violet-600 bg-violet-50 text-violet-800'
+                            : 'ring-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {op.rotulo}
+                      </button>
+                    ))}
+                  </div>
+                  {pagoPor === 'seguradora' && (
+                    <p className="text-[11px] text-blue-700 mt-1 leading-snug flex gap-1">
+                      <ShieldAlert size={13} className="shrink-0 mt-0.5" />
+                      <span>
+                        Entra no sinistro aberto. Não gera recibo para o locatário — ele passa a dever
+                        esse valor à seguradora, que cobra por fora.
+                      </span>
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div>
                 <label className="text-xs font-medium text-gray-600 block mb-1">Data do pagamento *</label>
                 <input type="date" value={data} onChange={e => setData(e.target.value)}
