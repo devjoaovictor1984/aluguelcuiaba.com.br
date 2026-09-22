@@ -154,6 +154,8 @@ export interface ContratoPDFData {
     marca_modelo: string | null
     estado: string | null
     observacao: string | null
+    /** Signed URL da foto do bem (v101). null = item sem foto. */
+    foto_url?: string | null
   }>
 
   // Quadro financeiro de entrada (caução + 1º aluguel + IPTU)
@@ -467,6 +469,9 @@ function docLabel(valor: string | null | undefined): string {
 
 export function ContratoDocument({ data }: { data: ContratoPDFData }) {
   const nomeInst = data.anunciante_razao_social ?? data.anunciante_nome
+  // A coluna da foto só existe se houver alguma: inventário sem foto
+  // nenhuma não deve ganhar uma faixa vazia atravessando a tabela.
+  const temFotoNoInventario = (data.inventario ?? []).some(it => !!it.foto_url)
   const dataExtenso = fmtDataExtenso(data.data_assinatura)
   const cidadeUf = data.anunciante_cidade_uf ?? 'Cuiabá-MT'
 
@@ -912,18 +917,29 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </Text>
             <Text style={{ fontSize: 8, color: CINZA_CLARO, marginBottom: 8 }}>
               Os bens abaixo integram a locação e serão conferidos item a item na vistoria final.
+              {temFotoNoInventario ? ' As fotos identificam os bens entregues no início da locação.' : ''}
             </Text>
             <View>
-              <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
+              <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6, alignItems: 'center' }}>
                 <Text style={{ width: 24, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>#</Text>
+                {temFotoNoInventario && (
+                  <Text style={{ width: 46, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>FOTO</Text>
+                )}
                 <Text style={{ flex: 4, fontSize: 8, fontWeight: 'bold', color: CINZA }}>ITEM</Text>
                 <Text style={{ width: 30, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>QTD</Text>
                 <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>MARCA/MODELO</Text>
                 <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA }}>ESTADO</Text>
               </View>
               {data.inventario.map((it, i) => (
-                <View key={i} style={{ flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 6, backgroundColor: i % 2 === 1 ? '#fafafa' : undefined }}>
+                <View key={i} wrap={false} style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 4, paddingHorizontal: 6, backgroundColor: i % 2 === 1 ? '#fafafa' : undefined }}>
                   <Text style={{ width: 24, fontSize: 9, color: CINZA, textAlign: 'center' }}>{i + 1}</Text>
+                  {temFotoNoInventario && (
+                    <View style={{ width: 46, alignItems: 'center' }}>
+                      {it.foto_url
+                        ? <Image src={it.foto_url} style={{ width: 38, height: 38, objectFit: 'cover', borderRadius: 2 }} />
+                        : <Text style={{ fontSize: 8, color: CINZA_CLARO }}>—</Text>}
+                    </View>
+                  )}
                   <Text style={{ flex: 4, fontSize: 9, color: TEXTO }}>
                     {it.descricao}{it.observacao ? ` (${it.observacao})` : ''}
                   </Text>

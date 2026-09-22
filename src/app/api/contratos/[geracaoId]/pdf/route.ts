@@ -9,6 +9,7 @@ import { rodarChecklist, bloqueiaGeracao, type DadosChecklist } from '@/lib/cont
 import { validarTokenRevisao } from '@/lib/crm/revisao-token'
 import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
 import { montarEnderecoImovel } from '@/lib/crm/endereco-imovel'
+import { urlsFotosInventario } from '@/lib/crm/inventario-fotos'
 import React from 'react'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
@@ -665,9 +666,16 @@ export async function GET(
   // 6d. Inventário de bens (imóvel mobiliado)
   const { data: inventarioRaw } = await admin
     .from('contrato_inventario_itens')
-    .select('descricao, quantidade, marca_modelo, estado, observacao')
+    .select('descricao, quantidade, marca_modelo, estado, observacao, foto_path')
     .eq('contrato_id', geracao.contrato_id)
     .order('ordem', { ascending: true })
+
+  // Bucket privado: o react-pdf baixa a imagem na hora de renderizar, então
+  // recebe signed URL. Link que falhar some do mapa e a linha sai sem foto.
+  const fotosInventario = await urlsFotosInventario(
+    admin,
+    (inventarioRaw ?? []).map(it => it.foto_path),
+  )
 
   // 7. Endereço da admin
   const cepFmt = perfil?.endereco_cep
@@ -808,6 +816,7 @@ export async function GET(
       marca_modelo: it.marca_modelo,
       estado: it.estado,
       observacao: it.observacao,
+      foto_url: it.foto_path ? fotosInventario[it.foto_path] ?? null : null,
     })),
     quadro_entrada: montarQuadroEntrada(contrato),
     tabela_12_meses: montarTabela12Meses(contrato),

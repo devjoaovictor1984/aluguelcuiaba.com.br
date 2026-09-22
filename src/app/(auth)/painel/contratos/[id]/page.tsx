@@ -5,7 +5,9 @@ import {
   FileInput,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { urlsFotosInventario } from '@/lib/crm/inventario-fotos'
 import { ParcelaRow, type Parcela } from './_components/parcela-row'
 import { AcoesContrato } from './_components/acoes-contrato'
 import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components/moradores-secao'
@@ -136,9 +138,24 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   // Inventário de bens (mobília item a item)
   const { data: inventarioRaw } = await supabase
     .from('contrato_inventario_itens')
-    .select('id, descricao, quantidade, marca_modelo, estado, observacao')
+    .select('id, descricao, quantidade, marca_modelo, estado, observacao, foto_path')
     .eq('contrato_id', id)
     .order('ordem', { ascending: true })
+
+  // A foto mora em bucket privado: a tela recebe signed URL, nunca o path.
+  const urlsInventario = await urlsFotosInventario(
+    createAdminClient(),
+    (inventarioRaw ?? []).map(it => it.foto_path),
+  )
+  const inventario: ItemInventario[] = (inventarioRaw ?? []).map(it => ({
+    id: it.id,
+    descricao: it.descricao,
+    quantidade: it.quantidade,
+    marca_modelo: it.marca_modelo,
+    estado: it.estado,
+    observacao: it.observacao,
+    foto_url: it.foto_path ? urlsInventario[it.foto_path] ?? null : null,
+  }))
 
   // Apólices anexadas (incêndio e fiança). Uma por tipo: a mais recente
   // ganha a vaga, então reanexar depois da renovação já mostra a nova.
@@ -432,7 +449,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         inquilinoEhPJ={(inquilino?.cpf_cnpj?.replace(/\D/g, '').length ?? 0) === 14}
       />
 
-      <InventarioSecao contratoId={id} itens={(inventarioRaw ?? []) as ItemInventario[]} />
+      <InventarioSecao contratoId={id} itens={inventario} />
 
       <ApolicesSecao contratoId={id} apolices={apolices} garantiaTipo={contrato.garantia_tipo} />
 

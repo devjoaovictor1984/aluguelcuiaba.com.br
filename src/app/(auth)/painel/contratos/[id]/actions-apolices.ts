@@ -118,10 +118,10 @@ export async function uploadApolice(formData: FormData) {
 
 /**
  * Fecha o ciclo do seguro fiança: o contrato nasce sem o número da apólice
- * (a emissão é posterior), e o checklist trava a geração do PDF até ele
- * existir. Anexar a apólice aqui é justamente quando o número aparece —
- * então ele desce pro contrato em vez de exigir que alguém vá digitar no
- * mesmo número de novo, em outra tela, pra destravar.
+ * (a emissão é posterior, e desde a v100 ela não é mais exigida pra gerar
+ * nem pra assinar). Anexar a apólice aqui é justamente quando o número
+ * aparece — então ele desce pro contrato em vez de exigir que alguém vá
+ * digitar o mesmo número de novo, em outra tela.
  *
  * Só preenche o que está em branco: número já informado à mão (ou vindo do
  * webhook da seguradora) não é sobrescrito pelo que se digitou no anexo.
