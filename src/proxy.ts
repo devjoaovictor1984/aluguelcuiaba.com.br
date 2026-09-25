@@ -2,6 +2,9 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+/** Marca "cadastro completo", pra não perguntar ao banco a cada navegação. */
+const COOKIE_PERFIL_OK = 'perfil_ok'
+
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -33,6 +36,26 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user && (pathname.startsWith('/painel') || pathname.startsWith('/admin'))) {
+    /**
+     * Atalho do perfil completo.
+     *
+     * Este bloco roda em TODA navegação do painel — inclusive nos prefetch
+     * que o Next dispara ao passar o mouse num link — e ia ao banco toda
+     * vez só pra confirmar algo que muda uma vez na vida: se o cadastro
+     * está completo. Era 14% de toda a CPU da conta.
+     *
+     * O cookie guarda só isso, e só o caso POSITIVO. Cadastro incompleto
+     * não grava nada, então quem acabou de preencher não fica preso num
+     * cookie velho mandando completar de novo. E forjar o cookie à mão só
+     * pula o próprio onboarding — não abre porta nenhuma.
+     *
+     * Área /admin nunca usa o atalho: papel é permissão, e permissão se
+     * confere no banco, a cada vez.
+     */
+    const ehAdmin = pathname.startsWith('/admin')
+    const perfilOkNoCookie = request.cookies.get(COOKIE_PERFIL_OK)?.value === '1'
+    if (!ehAdmin && perfilOkNoCookie) return supabaseResponse
+
     const { data: perfil } = await supabase
       .from('perfis')
       .select('nome, cpf, telefone, endereco_logradouro, role')
@@ -53,9 +76,22 @@ export async function proxy(request: NextRequest) {
      */
     const ehConvidado = perfil?.role === 'homologacao'
 
+    const completo = !!(perfil?.nome && perfil?.cpf && perfil?.telefone && perfil?.endereco_logradouro)
+
     if (!ehConvidado && pathname.startsWith('/painel') && !pathname.startsWith('/painel/perfil')) {
-      const completo = perfil?.nome && perfil?.cpf && perfil?.telefone && perfil?.endereco_logradouro
       if (!completo) return NextResponse.redirect(new URL('/painel/perfil?novo=1', request.url))
+    }
+
+    // Grava o atalho só quando há o que atalhar. Uma hora: curto o
+    // bastante pra um perfil esvaziado no banco voltar a ser cobrado.
+    if (completo && !ehConvidado) {
+      supabaseResponse.cookies.set(COOKIE_PERFIL_OK, '1', {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 3600,
+        path: '/',
+      })
     }
 
     // E não tem o que fazer no perfil: manda de volta ao roteiro.

@@ -175,11 +175,17 @@ export async function getImoveisParaMapa(filtros: FiltrosBusca = {}) {
 async function buscarImoveisParaMapa(filtros: FiltrosBusca = {}) {
   const supabase = createPublicClient()
 
+  // O pin usa UMA foto (a principal, ou a primeira da ordem). Trazer todas
+  // era carregar ~15 linhas por imóvel pra descartar 14: com 500 imóveis no
+  // mapa, milhares de linhas montadas a cada consulta. A ordenação aqui
+  // repete o critério do componente, e o limite por imóvel devolve só ela.
   let query = supabase
     .from('imoveis')
     .select('id, slug, titulo, preco, preco_antigo, lat, lng, status, data_alugado, bairro:bairros(slug, nome), fotos(url, principal, ordem)')
     .or(filtroStatusPublico())
+    .order('principal', { referencedTable: 'fotos', ascending: false })
     .order('ordem', { referencedTable: 'fotos' })
+    .limit(1, { referencedTable: 'fotos' })
     .not('lat', 'is', null)
     .not('lng', 'is', null)
     .limit(500)
