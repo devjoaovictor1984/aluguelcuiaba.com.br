@@ -4,7 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ShieldCheck, Flame, Upload, Loader2, X, Trash2, Pencil, ExternalLink,
-  AlertTriangle, CheckCircle2,
+  AlertTriangle, CheckCircle2, RefreshCw, History,
 } from 'lucide-react'
 import {
   uploadApolice, atualizarApolice, removerApolice, gerarUrlApolice,
@@ -42,6 +42,8 @@ interface Props {
   apolices: ApoliceRow[]
   /** Garantia do contrato: sem seguro fiança, a vaga da fiança sai discreta. */
   garantiaTipo: string
+  /** v104 — quantas apólices de incêndio já passaram por este contrato. */
+  historicoIncendio?: number
 }
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
@@ -71,9 +73,9 @@ function diasAteVencer(fim: string | null): number | null {
   return Math.round((new Date(y, m - 1, d).getTime() - hoje.getTime()) / 86400000)
 }
 
-export function ApolicesSecao({ contratoId, apolices, garantiaTipo }: Props) {
+export function ApolicesSecao({ contratoId, apolices, garantiaTipo, historicoIncendio = 0 }: Props) {
   const router = useRouter()
-  const [modal, setModal] = useState<{ tipo: TipoApolice; editando: ApoliceRow | null } | null>(null)
+  const [modal, setModal] = useState<{ tipo: TipoApolice; editando: ApoliceRow | null; renovando?: ApoliceRow } | null>(null)
   const [erroLista, setErroLista] = useState('')
   const [abrindo, setAbrindo] = useState<string | null>(null)
   const [removendo, setRemovendo] = useState<string | null>(null)
@@ -185,6 +187,13 @@ export function ApolicesSecao({ contratoId, apolices, garantiaTipo }: Props) {
                   {a.observacoes && (
                     <p className="text-[11px] text-gray-400 mt-1 line-clamp-2">{a.observacoes}</p>
                   )}
+                  {tipo === 'apolice_incendio' && historicoIncendio > 1 && (
+                    <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                      <History size={10} />
+                      {historicoIncendio} apólices neste contrato — {historicoIncendio - 1} renovação
+                      {historicoIncendio - 1 === 1 ? '' : 'ões'}
+                    </p>
+                  )}
 
                   <div className="flex items-center gap-1 mt-2 flex-wrap">
                     <button
@@ -197,6 +206,16 @@ export function ApolicesSecao({ contratoId, apolices, garantiaTipo }: Props) {
                       {abrindo === a.id ? <Loader2 size={12} className="animate-spin" /> : <ExternalLink size={12} />}
                       Abrir
                     </button>
+                    {(vencida || vencendo) && (
+                      <button
+                        type="button"
+                        onClick={() => setModal({ tipo, editando: null, renovando: a })}
+                        disabled={isPending}
+                        className="flex items-center gap-1 text-xs font-semibold text-white bg-violet-700 hover:bg-violet-800 px-2.5 py-1.5 rounded-lg disabled:opacity-40"
+                      >
+                        <RefreshCw size={12} /> Renovar
+                      </button>
+                    )}
                     {!daPlataforma && (
                       <>
                         <button
@@ -232,6 +251,7 @@ export function ApolicesSecao({ contratoId, apolices, garantiaTipo }: Props) {
           tipo={modal.tipo}
           label={VAGAS.find(v => v.tipo === modal.tipo)!.label}
           editando={modal.editando}
+          renovando={modal.renovando ?? null}
           onFechar={() => setModal(null)}
           onPronto={() => { setModal(null); router.refresh() }}
         />
@@ -241,21 +261,42 @@ export function ApolicesSecao({ contratoId, apolices, garantiaTipo }: Props) {
 }
 
 // ── Modal: anexar um PDF novo ou corrigir os dados de um já anexado ──
+/** Dia seguinte a uma data ISO — a renovação começa onde a anterior parou. */
+function diaSeguinte(iso: string | null): string {
+  if (!iso) return ''
+  const [y, m, d] = iso.slice(0, 10).split('-').map(Number)
+  const dt = new Date(y, m - 1, d + 1)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+/** Mesmo dia, um ano depois, menos um dia: a vigência padrão de 12 meses. */
+function umAnoDepois(iso: string): string {
+  if (!iso) return ''
+  const [y, m, d] = iso.split('-').map(Number)
+  const dt = new Date(y + 1, m - 1, d - 1)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
 function ModalApolice({
-  contratoId, tipo, label, editando, onFechar, onPronto,
+  contratoId, tipo, label, editando, renovando, onFechar, onPronto,
 }: {
   contratoId: string
   tipo: TipoApolice
   label: string
   editando: ApoliceRow | null
+  /** Apólice que está sendo substituída: a nova nasce preenchida a partir dela. */
+  renovando: ApoliceRow | null
   onFechar: () => void
   onPronto: () => void
 }) {
+  const inicioRenovacao = renovando ? diaSeguinte(renovando.vigencia_fim) : ''
   const [arquivo, setArquivo] = useState<File | null>(null)
-  const [seguradora, setSeguradora] = useState(editando?.seguradora ?? '')
+  const [seguradora, setSeguradora] = useState(editando?.seguradora ?? renovando?.seguradora ?? '')
   const [numero, setNumero] = useState(editando?.apolice_numero ?? '')
-  const [inicio, setInicio] = useState(editando?.vigencia_inicio?.slice(0, 10) ?? '')
-  const [fim, setFim] = useState(editando?.vigencia_fim?.slice(0, 10) ?? '')
+  const [inicio, setInicio] = useState(editando?.vigencia_inicio?.slice(0, 10) ?? inicioRenovacao)
+  const [fim, setFim] = useState(
+    editando?.vigencia_fim?.slice(0, 10) ?? (inicioRenovacao ? umAnoDepois(inicioRenovacao) : ''),
+  )
   const [observacoes, setObservacoes] = useState(editando?.observacoes ?? '')
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
@@ -303,7 +344,9 @@ function ModalApolice({
         <div className="flex items-center justify-between mb-1">
           <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
             <ShieldCheck size={16} className="text-violet-600" />
-            {editando ? `Editar apólice — ${label}` : `Anexar apólice — ${label}`}
+            {editando ? `Editar apólice — ${label}`
+              : renovando ? `Renovar apólice — ${label}`
+              : `Anexar apólice — ${label}`}
           </h2>
           <button type="button" onClick={onFechar} className="p-1 text-gray-400 hover:text-gray-700">
             <X size={16} />
@@ -312,7 +355,9 @@ function ModalApolice({
         <p className="text-[11px] text-gray-500 mb-3">
           {editando
             ? 'Corrige os dados cadastrais. Pra trocar o PDF, remova a apólice e anexe de novo.'
-            : 'Baixe o PDF na plataforma da seguradora e anexe aqui. Fica em área privada, aberto só por link temporário.'}
+            : renovando
+              ? 'Anexe o PDF da apólice NOVA. A vigência já vem começando no dia seguinte ao fim da anterior — confira antes de salvar. A apólice vencida continua guardada no histórico.'
+              : 'Baixe o PDF na plataforma da seguradora e anexe aqui. Fica em área privada, aberto só por link temporário.'}
         </p>
 
         {!editando && (

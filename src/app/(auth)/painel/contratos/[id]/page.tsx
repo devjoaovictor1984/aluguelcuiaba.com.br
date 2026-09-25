@@ -14,6 +14,8 @@ import { MoradoresSecao, type MoradorRow, type PessoaOpcao } from './_components
 import { InventarioSecao, type ItemInventario } from './_components/inventario-secao'
 import { ApolicesSecao, type ApoliceRow } from './_components/apolices-secao'
 import { SinistroSecao, type SinistroRow } from './_components/sinistro-secao'
+import { SeguroIncendioAviso } from './_components/seguro-incendio-aviso'
+import { situacaoSeguroIncendio } from '@/lib/crm/seguro-incendio-situacao'
 import { DistratoSecao, type DistratoRow } from './_components/distrato-secao'
 import { AditivosSecao, type AditivoRow } from './_components/aditivos-secao'
 import type { AssinaturaAditivos, SugestaoSignatario } from '@/components/crm/termos-aditivos-secao'
@@ -194,6 +196,13 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   for (const a of (apolicesRaw ?? []) as ApoliceRow[]) {
     if (!apolices.some(x => x.tipo === a.tipo)) apolices.push(a)
   }
+  // Quantas apólices de incêndio já passaram por este contrato: a partir
+  // da segunda, houve renovação, e vale dizer isso na tela.
+  const historicoIncendio = (apolicesRaw ?? [])
+    .filter((a: { tipo: string }) => a.tipo === 'apolice_incendio').length
+
+  // Situação do seguro incêndio (v104) — calculada, nunca gravada.
+  const seguroIncendio = situacaoSeguroIncendio(contrato, apolices)
 
   // Termos aditivos do contrato
   const { data: aditivosRaw } = await supabase
@@ -476,7 +485,14 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
 
       <InventarioSecao contratoId={id} itens={inventario} />
 
-      <ApolicesSecao contratoId={id} apolices={apolices} garantiaTipo={contrato.garantia_tipo} />
+      <SeguroIncendioAviso contratoId={id} resultado={seguroIncendio} />
+
+      <ApolicesSecao
+        contratoId={id}
+        apolices={apolices}
+        garantiaTipo={contrato.garantia_tipo}
+        historicoIncendio={historicoIncendio}
+      />
 
       {/* Sinistro só existe onde há seguro fiança — e onde já houve um,
           a seção continua aparecendo mesmo se a garantia mudar depois. */}

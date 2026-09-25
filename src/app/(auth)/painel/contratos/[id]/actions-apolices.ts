@@ -226,3 +226,57 @@ export async function gerarUrlApolice(documentoId: string): Promise<{ url?: stri
 
   return { url: data.signedUrl }
 }
+
+// ───────────────── Exigência do seguro incêndio (v104) ─────────────────
+
+/**
+ * Para de cobrar apólice de incêndio neste contrato.
+ *
+ * Acontece de verdade: proprietário que contratou por fora e não manda o
+ * PDF, imóvel com seguro coletivo do condomínio, contrato antigo. Sem
+ * esta saída o aviso ficaria pra sempre na tela — e aviso que não sai é
+ * aviso que se aprende a ignorar, inclusive nos contratos onde ele
+ * importa.
+ *
+ * É decisão do CONTRATO: o próximo contrato do mesmo imóvel volta a
+ * exigir, porque quem decidiu foi aquele proprietário naquela locação.
+ */
+export async function dispensarSeguroIncendio(contratoId: string, motivo: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const limpo = motivo.trim()
+  if (!limpo) return { error: 'Diga por que o seguro não será exigido.' }
+
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({
+      seguro_incendio_dispensado_em: new Date().toISOString(),
+      seguro_incendio_dispensado_motivo: limpo.slice(0, 300),
+    })
+    .eq('id', contratoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/contratos/${contratoId}`)
+  return { ok: true }
+}
+
+/** Volta a cobrar a apólice — desfaz a dispensa. */
+export async function exigirSeguroIncendio(contratoId: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { error } = await supabase
+    .from('contratos_locacao')
+    .update({
+      seguro_incendio_dispensado_em: null,
+      seguro_incendio_dispensado_motivo: null,
+    })
+    .eq('id', contratoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/contratos/${contratoId}`)
+  return { ok: true }
+}
