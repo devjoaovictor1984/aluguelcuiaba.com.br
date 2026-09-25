@@ -8,6 +8,18 @@ import { getPerfilPublico, getImoveisDoAnunciante } from '@/lib/supabase/queries
 import { Building2, Home, CalendarDays, MessageCircle } from 'lucide-react'
 import type { Imovel } from '@/types'
 
+// ISR — servida do cache e regerada no máximo a cada 300s.
+// Vitrine do anunciante: muda quando ele publica ou pausa.
+// Só funciona porque as queries usam o cliente público (sem cookie).
+export const revalidate = 300
+
+// Sem generateStaticParams, rota com parâmetro é tratada como dinâmica.
+// Retornar [] não pré-gera nada no build: cada página é renderizada na
+// 1ª visita e cacheada a partir dali.
+export async function generateStaticParams() {
+  return []
+}
+
 interface Props {
   params: Promise<{ id: string }>
 }

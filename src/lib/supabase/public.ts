@@ -17,3 +17,13 @@ export function createPublicClient() {
     { auth: { persistSession: false, autoRefreshToken: false } }
   )
 }
+
+/**
+ * Etiquetas das leituras públicas em cache.
+ *
+ * Quem publica, edita ou pausa um imóvel chama `revalidateTag(TAG_IMOVEIS)`
+ * e derruba só o que mudou, em vez de esperar o relógio. É o que permite
+ * cache sem anúncio velho na vitrine.
+ */
+export const TAG_IMOVEIS = 'imoveis-publicos'
+export const TAG_BAIRROS = 'bairros-publicos'

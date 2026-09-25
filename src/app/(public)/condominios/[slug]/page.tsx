@@ -1,5 +1,17 @@
 import { Navbar } from '@/components/navbar'
 
+// ISR — servida do cache e regerada no máximo a cada 300s.
+// Página do condomínio: muda pouco, e sempre junto do anúncio.
+// Só funciona porque as queries usam o cliente público (sem cookie).
+export const revalidate = 300
+
+// Sem generateStaticParams, rota com parâmetro é tratada como dinâmica.
+// Retornar [] não pré-gera nada no build: cada página é renderizada na
+// 1ª visita e cacheada a partir dali.
+export async function generateStaticParams() {
+  return []
+}
+
 interface Props {
   params: Promise<{ slug: string }>
 }

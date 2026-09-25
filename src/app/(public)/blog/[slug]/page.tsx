@@ -15,6 +15,18 @@ import { blogPostingJsonLd, breadcrumbJsonLd } from '@/lib/seo/jsonld'
 import { JsonLd } from '@/components/json-ld'
 import { Imagem } from '@/components/imagem'
 
+// ISR — servida do cache e regerada no máximo a cada 3600s.
+// Post publicado praticamente não muda.
+// Só funciona porque as queries usam o cliente público (sem cookie).
+export const revalidate = 3600
+
+// Sem generateStaticParams, rota com parâmetro é tratada como dinâmica.
+// Retornar [] não pré-gera nada no build: cada página é renderizada na
+// 1ª visita e cacheada a partir dali.
+export async function generateStaticParams() {
+  return []
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   if (!slug) return {}

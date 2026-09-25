@@ -16,6 +16,11 @@ import { CalculadoraCarteira } from './_components/calculadora-carteira'
 import { CarrosselPrints } from './_components/carrossel-prints'
 import { Reveal } from './_components/reveal'
 
+// ISR — servida do cache e regerada no máximo a cada 3600s.
+// Página institucional, com dados que mudam raramente.
+// Só funciona porque as queries usam o cliente público (sem cookie).
+export const revalidate = 3600
+
 async function getWhatsAppNumber(): Promise<string> {
   try {
     const supabase = createAdminClient()

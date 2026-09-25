@@ -1,5 +1,6 @@
+import { unstable_cache } from 'next/cache'
 import { createClient } from './server'
-import { createPublicClient } from './public'
+import { createPublicClient, TAG_IMOVEIS, TAG_BAIRROS } from './public'
 import type { FiltrosBusca } from '@/types'
 import { seedDoDia, shuffleSeeded } from '@/lib/random'
 
@@ -13,7 +14,11 @@ function filtroStatusPublico(): string {
 
 // Resolve filtros que precisam de I/O extra (ex: bairro_slug → bairro_id).
 // Retorna struct pronto pra ser aplicado pela função síncrona.
-async function resolverFiltros(filtros: FiltrosBusca, supabase: Awaited<ReturnType<typeof createClient>>) {
+type ClienteLeitura =
+  | Awaited<ReturnType<typeof createClient>>
+  | ReturnType<typeof createPublicClient>
+
+async function resolverFiltros(filtros: FiltrosBusca, supabase: ClienteLeitura) {
   let bairroId: string | undefined
   if (filtros.bairro_slug) {
     const { data: bairro } = await supabase
@@ -58,8 +63,32 @@ function aplicarFiltros<Q extends {
   return query
 }
 
+/**
+ * A home sem filtro é a página mais visitada do site — e a mais cara: no
+ * modo "relevantes" ela lê a lista INTEIRA de ids só pra embaralhar. Com
+ * 20 imóveis ninguém sente; com 10 mil, é isso a cada visita, inclusive
+ * de robô de busca.
+ *
+ * Em cache, essa consulta acontece uma vez por minuto em vez de uma vez
+ * por visitante. Só o caso sem filtro entra aqui: cachear cada combinação
+ * de filtro (e cada movimento do mapa, que vira `bbox`) encheria o cache
+ * de entradas que ninguém pede duas vezes.
+ */
+const buscarImoveisSemFiltro = unstable_cache(
+  async (pagina: number, porPagina: number) => buscarImoveis({}, pagina, porPagina),
+  ['imoveis-sem-filtro'],
+  { revalidate: 60, tags: [TAG_IMOVEIS] },
+)
+
 export async function getImoveis(filtros: FiltrosBusca = {}, pagina = 1, porPagina = 24) {
-  const supabase = await createClient()
+  if (Object.keys(filtros).length === 0) {
+    return buscarImoveisSemFiltro(pagina, porPagina)
+  }
+  return buscarImoveis(filtros, pagina, porPagina)
+}
+
+async function buscarImoveis(filtros: FiltrosBusca = {}, pagina = 1, porPagina = 24) {
+  const supabase = createPublicClient()
   const offset = (pagina - 1) * porPagina
 
   const selectStr = filtros.tipo_anunciante
@@ -132,8 +161,19 @@ export async function getImoveis(filtros: FiltrosBusca = {}, pagina = 1, porPagi
 
 // Versão leve só para o mapa: retorna apenas lat/lng/preco/título/slug
 // + foto principal. Limite alto para mostrar todos os pins.
+const buscarMapaSemFiltro = unstable_cache(
+  async () => buscarImoveisParaMapa({}),
+  ['mapa-sem-filtro'],
+  { revalidate: 300, tags: [TAG_IMOVEIS] },
+)
+
 export async function getImoveisParaMapa(filtros: FiltrosBusca = {}) {
-  const supabase = await createClient()
+  if (Object.keys(filtros).length === 0) return buscarMapaSemFiltro()
+  return buscarImoveisParaMapa(filtros)
+}
+
+async function buscarImoveisParaMapa(filtros: FiltrosBusca = {}) {
+  const supabase = createPublicClient()
 
   let query = supabase
     .from('imoveis')
@@ -188,18 +228,24 @@ export async function getImovelPorId(idOrSlug: string) {
     .single()
 }
 
-export async function getBairros() {
-  const supabase = createPublicClient()
-  return supabase.from('bairros').select('*').order('nome')
-}
+// Lista pequena, pedida por quase toda página pública e que muda quando
+// alguém cadastra um bairro novo — ou seja, raramente.
+export const getBairros = unstable_cache(
+  async () => {
+    const supabase = createPublicClient()
+    return supabase.from('bairros').select('*').order('nome')
+  },
+  ['bairros'],
+  { revalidate: 3600, tags: [TAG_BAIRROS] },
+)
 
 export async function getBairroPorSlug(slug: string) {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   return supabase.from('bairros').select('*').eq('slug', slug).single()
 }
 
 export async function getImoveisPorBairro(bairroId: string) {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   return supabase
     .from('imoveis')
     .select(`*, fotos(*), bairro:bairros(*)`)
@@ -211,7 +257,7 @@ export async function getImoveisPorBairro(bairroId: string) {
 }
 
 export async function getCondominios() {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   return supabase.from('condominios').select('*, bairro:bairros(*)').order('nome')
 }
 
@@ -255,7 +301,7 @@ export async function getBannersSidebar() {
 }
 
 export async function getPerfilPublico(userId: string) {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   return supabase
     .from('perfis')
     .select('id, nome, foto_url, tipo, creci, created_at')
@@ -264,7 +310,7 @@ export async function getPerfilPublico(userId: string) {
 }
 
 export async function getImoveisDoAnunciante(userId: string) {
-  const supabase = await createClient()
+  const supabase = createPublicClient()
   return supabase
     .from('imoveis')
     .select(`*, bairro:bairros(*), fotos(*), perfil:perfis(id, nome, foto_url, tipo)`)

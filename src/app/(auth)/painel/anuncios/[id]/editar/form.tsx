@@ -21,6 +21,7 @@ import {
   DollarSign, Droplets, Zap, Flame, Package, SplitSquareHorizontal, Lock, Star,
 } from 'lucide-react'
 import { comprimirImagem as comprimirFoto, PERFIL_FOTO_ANUNCIO } from '@/lib/imagens/comprimir'
+import { invalidarVitrine } from '@/app/(auth)/painel/anuncios/actions-cache'
 
 const MAX_FOTOS = 20
 
@@ -407,6 +408,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
       // Volta pra listagem, que é de onde se entra na edição. Antes caía no
       // painel inteiro, e quem estava conferindo vários anúncios perdia o
       // lugar e o filtro a cada salvamento.
+      await invalidarVitrine()
       router.push('/painel/anuncios?atualizado=1')
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro inesperado.')
@@ -721,6 +723,7 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
             if (!confirm('Excluir este anúncio permanentemente?')) return
             const supabase = createClient()
             await supabase.from('imoveis').delete().eq('id', imovel.id)
+            await invalidarVitrine()
             router.push('/painel/anuncios')
           }}
           className="text-sm text-red-500 hover:text-red-700 hover:underline flex items-center gap-1.5 mx-auto"

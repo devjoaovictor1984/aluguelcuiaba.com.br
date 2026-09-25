@@ -21,6 +21,7 @@ import {
   DollarSign, Droplets, Zap, Flame, Package, SplitSquareHorizontal, Lock, Star,
 } from 'lucide-react'
 import { comprimirImagem as comprimirFoto, PERFIL_FOTO_ANUNCIO } from '@/lib/imagens/comprimir'
+import { invalidarVitrine } from '@/app/(auth)/painel/anuncios/actions-cache'
 
 function mascaraTelefone(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11)
@@ -433,6 +434,7 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
         body: JSON.stringify({ imovel_id: imovel.id }),
       }).catch(() => {})
 
+      await invalidarVitrine()
       router.push('/painel?publicado=1')
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro inesperado. Tente novamente.')

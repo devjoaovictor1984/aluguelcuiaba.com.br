@@ -9,6 +9,18 @@ import type { Imovel, BairroFAQ, BairroInfraestrutura } from '@/types'
 import type { Metadata } from 'next'
 import { MapPin, Home, Bus, School, HeartPulse, ShoppingCart, Pill, ChevronRight } from 'lucide-react'
 
+// ISR — servida do cache e regerada no máximo a cada 300s.
+// Página do bairro: conteúdo institucional + imóveis do bairro.
+// Só funciona porque as queries usam o cliente público (sem cookie).
+export const revalidate = 300
+
+// Sem generateStaticParams, rota com parâmetro é tratada como dinâmica.
+// Retornar [] não pré-gera nada no build: cada página é renderizada na
+// 1ª visita e cacheada a partir dali.
+export async function generateStaticParams() {
+  return []
+}
+
 const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? 'https://aluguelcuiaba.com.br'
 
 interface Props { params: Promise<{ slug: string }> }
