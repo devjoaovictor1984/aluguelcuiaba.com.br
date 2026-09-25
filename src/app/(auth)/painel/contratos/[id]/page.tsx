@@ -16,6 +16,7 @@ import { ApolicesSecao, type ApoliceRow } from './_components/apolices-secao'
 import { SinistroSecao, type SinistroRow } from './_components/sinistro-secao'
 import { SeguroIncendioAviso } from './_components/seguro-incendio-aviso'
 import { situacaoSeguroIncendio } from '@/lib/crm/seguro-incendio-situacao'
+import { moradoresQueAssinam } from '@/lib/crm/papel-morador'
 import { DistratoSecao, type DistratoRow } from './_components/distrato-secao'
 import { AditivosSecao, type AditivoRow } from './_components/aditivos-secao'
 import type { AssinaturaAditivos, SugestaoSignatario } from '@/components/crm/termos-aditivos-secao'
@@ -96,8 +97,8 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     supabase
       .from('contratos_moradores')
       .select(`
-        id, papel, parentesco, mora_no_imovel, observacao,
-        pessoa:pessoas(id, nome, cpf_cnpj, telefone)
+        id, papel, parentesco, mora_no_imovel, observacao, assina_contrato,
+        pessoa:pessoas(id, nome, cpf_cnpj, telefone, email)
       `)
       .eq('contrato_id', id)
       .order('created_at', { ascending: true }),
@@ -264,6 +265,11 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     contrato.garantia_tipo === 'fiador' && fiaAss?.nome
       ? { nome: fiaAss.nome, email: fiaAss.email ?? '', papel: 'Fiador(a)' }
       : null,
+    // Moradores que assinam o contrato assinam o aditivo e o distrato
+    // também: os dois alteram ou encerram o instrumento que eles
+    // assinaram. As regras são as mesmas das rotas de PDF.
+    ...moradoresQueAssinam<{ nome: string; email: string | null }>(moradoresRaw)
+      .map(m => ({ nome: m.pessoa.nome, email: m.pessoa.email ?? '', papel: m.rotulo })),
   ].filter((s): s is SugestaoSignatario => !!s)
 
   // Testemunhas escolhidas em qualquer um dos documentos, numa busca só.

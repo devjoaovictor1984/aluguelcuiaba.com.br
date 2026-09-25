@@ -63,6 +63,14 @@ export interface AditivoPDFData {
   fiador_nome: string | null
   fiador_cpf: string | null
 
+  /**
+   * Moradores que assinam o contrato (co-locatário solidário, sócio
+   * signatário, responsável pelo seguro…). O aditivo altera o contrato
+   * que eles assinaram — então assinam a alteração também, pelas mesmas
+   * regras da geração do contrato.
+   */
+  moradores?: Array<{ nome: string; cpf: string | null; papel: string }>
+
   testemunhas: Array<{ nome: string; cpf: string | null; rg: string | null }>
   /** Assinaturas desenhadas na plataforma (base64), achadas pelo nome de quem assina a linha. */
   assinaturas?: Array<{ nome: string; imagem: string }>
@@ -343,6 +351,16 @@ export function AditivoDocument({ data }: { data: AditivoPDFData }) {
               {data.fiador_cpf && <Text style={styles.assinaturaCpf}>CPF {data.fiador_cpf}</Text>}
             </View>
           )}
+
+          {/* Moradores que assinam o contrato */}
+          {(data.moradores ?? []).map((m, i) => (
+            <View key={i} style={styles.assinaturaBloco}>
+              <LinhaAssinatura imagem={assinaturaDe(data.assinaturas, m.nome)} />
+              <Text style={styles.assinaturaPapel}>{m.papel}</Text>
+              <Text style={styles.assinaturaNome}>{m.nome}</Text>
+              {m.cpf && <Text style={styles.assinaturaCpf}>CPF {m.cpf}</Text>}
+            </View>
+          ))}
 
           {/* Testemunhas */}
           <Text style={styles.testemunhaTit}>Testemunhas</Text>

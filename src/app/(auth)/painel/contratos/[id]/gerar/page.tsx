@@ -11,6 +11,7 @@ import { EditorContrato } from './_components/editor-contrato'
 import { PainelRevisao } from '../../_components/painel-revisao'
 import { PainelAssinatura } from '../../_components/painel-assinatura'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
+import { moradoresQueAssinam } from '@/lib/crm/papel-morador'
 
 export const dynamic = 'force-dynamic'
 
@@ -225,35 +226,8 @@ async function renderizarEditor(contratoId: string) {
     .select('papel, mora_no_imovel, assina_contrato, pessoa:pessoas(nome, email)')
     .eq('contrato_id', contratoId)
 
-  const rotuloPapelAss: Record<string, string> = {
-    inquilino_solidario: 'Co-locatário solidário',
-    morador: 'Morador',
-    socio_signatario: 'Sócio signatário',
-    responsavel_seguro: 'Responsável pelo seguro fiança',
-    conjuge_responsavel_seguro: 'Cônjuge do responsável pelo seguro',
-    caucionante: 'Caucionante',
-    interveniente_anuente: 'Interveniente anuente',
-  }
-
-  const sugestoesMoradores = ((moradoresAss ?? []) as Array<{
-    papel: string
-    mora_no_imovel: boolean
-    assina_contrato: boolean | null
-    pessoa: { nome: string; email: string | null } | { nome: string; email: string | null }[] | null
-  }>)
-    .map(m => {
-      const pessoa = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
-      if (!pessoa?.nome) return null
-      if (m.papel === 'ocupante_autorizado') return null
-      if (m.papel === 'morador' && !m.mora_no_imovel) return null
-      if (!(m.assina_contrato ?? true)) return null
-      return {
-        nome: pessoa.nome,
-        email: pessoa.email ?? '',
-        papel: rotuloPapelAss[m.papel] ?? m.papel,
-      }
-    })
-    .filter((s): s is { nome: string; email: string; papel: string } => !!s)
+  const sugestoesMoradores = moradoresQueAssinam<{ nome: string; email: string | null }>(moradoresAss)
+    .map(m => ({ nome: m.pessoa.nome, email: m.pessoa.email ?? '', papel: m.rotulo }))
 
   const { data: { user } } = await supabase.auth.getUser()
   const { data: perfilAss } = await supabase

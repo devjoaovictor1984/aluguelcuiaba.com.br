@@ -8,6 +8,7 @@ import { referenciaOriginario, referenciaOriginarioPadrao } from '@/lib/crm/cont
 import { lerClausulas } from '@/lib/crm/aditivo-clausulas'
 import { AditivoDocument, type AditivoPDFData } from '@/lib/crm/aditivo-pdf'
 import React from 'react'
+import { moradoresQueAssinam } from '@/lib/crm/papel-morador'
 
 export const runtime = 'nodejs'
 export const maxDuration = 60
@@ -181,6 +182,18 @@ export async function GET(
     const originarioPadrao = await referenciaOriginarioPadrao(admin, 'locacao', { id: contrato.id, codigo: contrato.codigo })
     const referencia = referenciaOriginario(aditivo.contrato_originario_ref, originarioPadrao)
 
+    // Moradores que assinam o contrato: o aditivo altera o instrumento que
+    // eles assinaram, então assinam a alteração também. As regras são as
+    // mesmas da rota do PDF do contrato, pra não haver bloco num documento
+    // e não no outro.
+    const { data: moradoresRaw } = await admin
+      .from('contratos_moradores')
+      .select('papel, mora_no_imovel, assina_contrato, pessoa:pessoas(nome, cpf_cnpj)')
+      .eq('contrato_id', contrato.id)
+
+    const moradores = moradoresQueAssinam<{ nome: string; cpf_cnpj: string | null }>(moradoresRaw)
+      .map(m => ({ nome: m.pessoa.nome, cpf: fmtCpf(m.pessoa.cpf_cnpj), papel: m.rotulo }))
+
     const data: AditivoPDFData = {
       anunciante_nome: perfil?.nome ?? 'AluguelCuiabá',
       anunciante_razao_social: perfil?.razao_social ?? null,
@@ -212,6 +225,7 @@ export async function GET(
       fiador_nome: contrato.garantia_tipo === 'fiador' ? (fia?.nome ?? null) : null,
       fiador_cpf: contrato.garantia_tipo === 'fiador' ? fmtCpf(fia?.cpf_cnpj) : null,
 
+      moradores,
       testemunhas,
       assinaturas,
       clausulas: lerClausulas(aditivo.clausulas),

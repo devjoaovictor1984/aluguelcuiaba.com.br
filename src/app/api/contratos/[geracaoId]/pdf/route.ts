@@ -11,6 +11,7 @@ import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
 import { montarEnderecoImovel } from '@/lib/crm/endereco-imovel'
 import { urlsFotosInventario, LARGURA_PDF } from '@/lib/crm/inventario-fotos'
 import React from 'react'
+import { moradoresQueAssinam } from '@/lib/crm/papel-morador'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
 
@@ -696,39 +697,16 @@ export async function GET(
   const temAdministracao = (contrato.taxa_admin_valor ?? 0) > 0
 
   // Mapeia papel técnico pra texto humano na folha de assinatura
-  const labelPapel: Record<string, string> = {
-    inquilino_solidario: 'Co-locatário solidário',
-    morador: 'Morador',
-    socio_signatario: 'Sócio signatário',
-    responsavel_seguro: 'Responsável pelo seguro fiança / interveniente anuente',
-    conjuge_responsavel_seguro: 'Cônjuge do responsável pelo seguro',
-    ocupante_autorizado: 'Ocupante autorizado',
-    caucionante: 'Caucionante / interveniente anuente',
-    interveniente_anuente: 'Representante legal / interveniente anuente',
-  }
   type MoradorRel = {
     papel: string
     mora_no_imovel: boolean
     assina_contrato?: boolean | null
     pessoa: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null
   }
-  const moradoresAdicionais = (moradoresRaw ?? [])
-    .map((m: MoradorRel) => {
-      const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
-      if (!p?.nome) return null
-      // Quem aparece no bloco de assinatura: quem assina o contrato.
-      // Ocupante autorizado e morador comum que NÃO mora ficam de fora.
-      const assina = m.assina_contrato ?? (m.papel !== 'ocupante_autorizado')
-      if (m.papel === 'morador' && !m.mora_no_imovel) return null
-      if (m.papel === 'ocupante_autorizado') return null  // ocupante não assina
-      if (!assina) return null
-      return {
-        nome: p.nome,
-        cpf: fmtCpf(p.cpf_cnpj),
-        papel: labelPapel[m.papel] ?? m.papel,
-      }
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null)
+  // Quem aparece no bloco de assinatura: quem assina o contrato. A regra
+  // mora em papel-morador.ts, e é a mesma do aditivo e das telas.
+  const moradoresAdicionais = moradoresQueAssinam<{ nome: string; cpf_cnpj: string | null }>(moradoresRaw)
+    .map(m => ({ nome: m.pessoa.nome, cpf: fmtCpf(m.pessoa.cpf_cnpj), papel: m.rotulo }))
 
   // Recebedores das chaves: locatário principal + quem MORA no imóvel
   // (co-locatário solidário, ocupante autorizado, morador). Responsável pelo
