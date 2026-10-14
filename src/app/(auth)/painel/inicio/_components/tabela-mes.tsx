@@ -24,6 +24,7 @@ export interface LinhaParcela {
   bairro: string | null
   vencimento: string
   valor: number
+  seguro: number
   iptu: number
   condominio: number
   repasse: number
@@ -168,7 +169,7 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
         </p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[900px]">
+          <table className="w-full text-sm min-w-[1050px]">
             <thead className="bg-gray-50 text-left text-xs font-semibold text-gray-500">
               <tr>
                 <th className="px-3 py-2 w-8">
@@ -185,7 +186,9 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
                 <th className="px-3 py-2">Imóvel</th>
                 <th className="px-3 py-2">Boleto</th>
                 <SortTh label="Venc." col="vencimento" sortBy={sortBy} sortDir={sortDir} onSort={onSort} align="center" />
-                <SortTh label="Valor" col="valor" sortBy={sortBy} sortDir={sortDir} onSort={onSort} align="right" />
+                <th className="px-3 py-2 text-right">Aluguel</th>
+                <th className="px-3 py-2 text-right">Seguro fiança</th>
+                <SortTh label="Total" col="valor" sortBy={sortBy} sortDir={sortDir} onSort={onSort} align="right" />
                 <SortTh label="Repasse" col="repasse" sortBy={sortBy} sortDir={sortDir} onSort={onSort} align="right" />
                 <SortTh label="Status" col="status" sortBy={sortBy} sortDir={sortDir} onSort={onSort} align="center" />
                 <th className="px-3 py-2 text-right">Ações</th>
@@ -239,19 +242,27 @@ export function TabelaMes({ parcelas, anuncianteNome, atrasadasMes }: Props) {
                     <td className="px-3 py-2 text-center text-gray-700 text-xs">
                       dia <strong className="text-gray-900">{diaVenc}</strong>
                     </td>
-                    <td className="px-3 py-2 text-right font-medium text-gray-900">
-                      {formatarBRL(p.valor)}
-                      {/* Encargos à parte: discrimina. Pacote (IPTU e condomínio
-                          dentro do aluguel) fica só o total, com o fiança junto.
-                          "Aluguel + fiança" é o resto do total, pra linha sempre
-                          fechar com o boleto. */}
+                    {/* Aluguel é o resto do total, pra linha sempre fechar com
+                        o boleto. Encargos à parte aparecem embaixo; no pacote
+                        (IPTU e condomínio dentro do aluguel) não há o que
+                        discriminar. */}
+                    <td className="px-3 py-2 text-right text-gray-700">
+                      {formatarBRL(p.valor - p.seguro - p.iptu - p.condominio)}
                       {(p.iptu > 0 || p.condominio > 0) && (
-                        <span className="block text-[11px] font-normal text-gray-400 whitespace-nowrap">
-                          Aluguel + fiança {formatarBRL(p.valor - p.iptu - p.condominio)}
-                          {p.iptu > 0 && <> · IPTU {formatarBRL(p.iptu)}</>}
-                          {p.condominio > 0 && <> · Cond. {formatarBRL(p.condominio)}</>}
+                        <span className="block text-[11px] text-gray-400 whitespace-nowrap">
+                          {p.iptu > 0 && <>+ IPTU {formatarBRL(p.iptu)}</>}
+                          {p.iptu > 0 && p.condominio > 0 && ' · '}
+                          {p.condominio > 0 && <>+ Cond. {formatarBRL(p.condominio)}</>}
                         </span>
                       )}
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      {p.seguro > 0
+                        ? <span className="text-amber-700">{formatarBRL(p.seguro)}</span>
+                        : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-3 py-2 text-right font-semibold text-gray-900">
+                      {formatarBRL(p.valor)}
                     </td>
                     <td className="px-3 py-2 text-right">
                       <span className="font-bold text-blue-700" title="Repasse ao proprietário (aluguel − comissão, sem o seguro)">

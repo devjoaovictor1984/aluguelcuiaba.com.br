@@ -57,6 +57,7 @@ interface ParcelaCompleta {
   vencimento: string
   valor_total: number
   valor_aluguel: number
+  valor_seguro: number | null
   valor_iptu: number | null
   valor_condominio: number | null
   valor_repasse_proprietario: number
@@ -84,6 +85,8 @@ interface ParcelaView {
   // no mês em que foi recebida e some dos meses seguintes).
   refMes: string
   valor: number
+  // Seguro fiança da parcela. Zero quando o contrato não tem.
+  seguro: number
   // Encargos cobrados à parte. Zero quando o imóvel é pacote (já estão
   // dentro do aluguel) ou não tem — aí a tabela mostra só o total.
   iptu: number
@@ -145,7 +148,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
       .from('parcelas_aluguel')
       .select(`
         id, contrato_id, numero, mes_referencia, vencimento,
-        valor_total, valor_aluguel, valor_iptu, valor_condominio, valor_repasse_proprietario,
+        valor_total, valor_aluguel, valor_seguro, valor_iptu, valor_condominio, valor_repasse_proprietario,
         status_pagamento, status_repasse, status_seguro, boleto_enviado,
         data_pagamento, valor_pago,
         contrato:contratos_locacao!inner(
@@ -196,6 +199,7 @@ export default async function InicioCRMPage({ searchParams }: Props) {
       vencimento: p.vencimento,
       refMes,
       valor: p.valor_total,
+      seguro: Number(p.valor_seguro) || 0,
       iptu: Number(p.valor_iptu) || 0,
       condominio: Number(p.valor_condominio) || 0,
       repasse: p.valor_repasse_proprietario ?? 0,
