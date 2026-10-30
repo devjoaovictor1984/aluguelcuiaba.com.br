@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { FileText, User, Crown, Shield, Plus, ExternalLink } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import { LABELS_DOC } from '@/lib/crm/tipos-documento'
 
 interface ParteInfo {
   id: string
@@ -112,7 +113,7 @@ export async function DocsPartesContrato({ userId, partes }: Props) {
                         title={d.nome_original}
                       >
                         <FileText size={10} className="text-gray-400 shrink-0" />
-                        <span className="truncate font-medium">{LABEL_TIPO[d.tipo] ?? d.tipo}</span>
+                        <span className="truncate font-medium">{LABEL_TIPO[d.tipo] ?? LABELS_DOC[d.tipo] ?? d.tipo}</span>
                       </Link>
                     </li>
                   ))}

@@ -20,7 +20,26 @@ export const LABELS_DOC: Record<string, string> = {
   certidao_nascimento: 'Certidão de nascimento',
   foto: 'Foto',
   outro: 'Outro',
+  // Imóvel — ficam na pasta da proprietária, por isso aparecem nos anexos
+  // do contrato de administração junto com o RG e o CPF dela.
+  matricula_imovel: 'Matrícula do imóvel',
+  escritura: 'Escritura / contrato de compra',
+  iptu: 'Carnê do IPTU',
+  conta_energia: 'Conta de energia',
+  conta_agua: 'Conta de água',
+  conta_gas: 'Conta de gás',
+  boleto_condominio: 'Boleto do condomínio',
+  procuracao: 'Procuração',
 }
+
+/** Tipos que são do imóvel, não da pessoa — o painel agrupa em separado. */
+export const TIPOS_DOC_IMOVEL = [
+  'matricula_imovel', 'escritura', 'iptu',
+  'conta_energia', 'conta_agua', 'conta_gas',
+  'boleto_condominio', 'procuracao',
+] as const
+
+export const TIPOS_DOC_VALIDOS = Object.keys(LABELS_DOC)
 
 /**
  * "RG · CPF · Comprovante de renda  +2" — cabe numa linha do cartão de prévia.

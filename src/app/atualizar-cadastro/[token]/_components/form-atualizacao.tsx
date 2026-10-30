@@ -3,6 +3,8 @@
 import { useState, useTransition } from 'react'
 import { Upload, Loader2, Check, AlertCircle, FileText } from 'lucide-react'
 import { comprimirImagem, formatarTamanho, PERFIL_DOCUMENTO } from '@/lib/imagens/comprimir'
+import { TIPOS_IMOVEL } from '@/lib/constants'
+import { LABEL_MOBILIADO, type CampoImovel } from '@/lib/crm/campos-imovel'
 import { submitAtualizacaoCadastro } from '../actions'
 
 export interface CampoExistente {
@@ -14,21 +16,56 @@ export interface CampoExistente {
 export interface TipoDoc {
   chave: string
   label: string
+  /** Matrícula, contas, IPTU… — aparece no bloco do imóvel. */
+  doImovel?: boolean
 }
+
+export type CampoImovelForm = CampoImovel & { valorAtual: string }
 
 interface Props {
   token: string
   nomePessoa: string | null
   campos: CampoExistente[]
+  camposImovel?: CampoImovelForm[]
   documentos: TipoDoc[]
 }
 
 const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900'
 
-export function FormAtualizacao({ token, nomePessoa, campos, documentos }: Props) {
+export function FormAtualizacao({ token, nomePessoa, campos, camposImovel = [], documentos }: Props) {
   const [valores, setValores] = useState<Record<string, string>>(
     Object.fromEntries(campos.map(c => [c.chave, c.valorAtual ?? '']))
   )
+  const [valoresImovel, setValoresImovel] = useState<Record<string, string>>(
+    Object.fromEntries(camposImovel.map(c => [c.chave, c.valorAtual ?? '']))
+  )
+  const docsPessoa = documentos.filter(d => !d.doImovel)
+  const docsImovel = documentos.filter(d => d.doImovel)
+  // Grupos na ordem em que aparecem na lista de campos.
+  const gruposImovel = camposImovel.reduce<{ titulo: string; campos: CampoImovelForm[] }[]>((acc, c) => {
+    const g = acc.find(x => x.titulo === c.grupo)
+    if (g) g.campos.push(c); else acc.push({ titulo: c.grupo, campos: [c] })
+    return acc
+  }, [])
+
+  /** CEP do imóvel completo → preenche rua, bairro e cidade que estiverem vazios. */
+  const buscarCepImovel = async (cep: string) => {
+    const limpo = cep.replace(/\D/g, '')
+    if (limpo.length !== 8) return
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${limpo}/json/`)
+      const d = await res.json()
+      if (d.erro) return
+      setValoresImovel(s => ({
+        ...s,
+        ...('imovel_endereco_logradouro' in s && !s.imovel_endereco_logradouro && d.logradouro ? { imovel_endereco_logradouro: d.logradouro } : {}),
+        ...('imovel_endereco_bairro' in s && !s.imovel_endereco_bairro && d.bairro ? { imovel_endereco_bairro: d.bairro } : {}),
+        ...('imovel_endereco_cidade' in s && !s.imovel_endereco_cidade && d.localidade ? { imovel_endereco_cidade: `${d.localidade}/${d.uf}` } : {}),
+      }))
+    } catch {
+      // Sem ViaCEP ela digita; não vale travar o formulário por isso.
+    }
+  }
   const [arquivos, setArquivos] = useState<Record<string, File | null>>({})
   const [preparando, setPreparando] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -67,6 +104,7 @@ export function FormAtualizacao({ token, nomePessoa, campos, documentos }: Props
     }
     const fd = new FormData()
     for (const c of campos) fd.set(c.chave, valores[c.chave] ?? '')
+    for (const c of camposImovel) fd.set(c.chave, valoresImovel[c.chave] ?? '')
     for (const d of documentos) {
       const f = arquivos[d.chave]
       if (f) fd.set(`doc_${d.chave}`, f)
@@ -110,7 +148,9 @@ export function FormAtualizacao({ token, nomePessoa, campos, documentos }: Props
 
       {campos.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-sm font-semibold text-gray-900">Dados solicitados</h2>
+          <h2 className="text-sm font-semibold text-gray-900">
+            {camposImovel.length > 0 ? 'Seus dados' : 'Dados solicitados'}
+          </h2>
           {campos.map(c => (
             <Campo
               key={c.chave}
@@ -123,29 +163,59 @@ export function FormAtualizacao({ token, nomePessoa, campos, documentos }: Props
         </section>
       )}
 
-      {documentos.length > 0 && (
-        <section className="space-y-3 pt-2 border-t border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-900">Documentos solicitados</h2>
-          <p className="text-[11px] text-gray-500">
-            JPG, PNG, WEBP, HEIC ou PDF. As fotos são reduzidas aqui mesmo, no
-            seu aparelho, antes de subir.
-          </p>
-          {documentos.map(d => (
-            <UploadCampo
-              key={d.chave}
-              label={d.label}
-              arquivo={arquivos[d.chave] ?? null}
-              preparando={preparando === d.chave}
-              onChange={f => void escolherArquivo(d.chave, f)}
-            />
-          ))}
-          {totalBytes > 0 && (
-            <p className={`text-[11px] ${passouDoLimite ? 'text-red-600 font-semibold' : 'text-gray-400'}`}>
-              Total: {formatarTamanho(totalBytes)}
-              {passouDoLimite && ' — acima do limite de 4 MB por envio.'}
+      {docsPessoa.length > 0 && (
+        <SecaoDocumentos
+          titulo={camposImovel.length > 0 || docsImovel.length > 0 ? 'Seus documentos' : 'Documentos solicitados'}
+          documentos={docsPessoa}
+          arquivos={arquivos}
+          preparando={preparando}
+          onEscolher={escolherArquivo}
+        />
+      )}
+
+      {camposImovel.length > 0 && (
+        <section className="space-y-4 pt-2 border-t border-gray-100">
+          <div>
+            <h2 className="text-sm font-semibold text-gray-900">Dados do imóvel</h2>
+            <p className="text-[11px] text-gray-500">
+              Preencha o que tiver em mãos. Os números estão na matrícula, no
+              carnê do IPTU e nas contas de luz, água e gás.
             </p>
-          )}
+          </div>
+          {gruposImovel.map(g => (
+            <div key={g.titulo} className="space-y-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-violet-700">{g.titulo}</p>
+              {g.campos.map(c => (
+                <CampoImovelInput
+                  key={c.chave}
+                  campo={c}
+                  valor={valoresImovel[c.chave] ?? ''}
+                  onChange={v => {
+                    setValoresImovel(s => ({ ...s, [c.chave]: v }))
+                    if (c.formato === 'cep') void buscarCepImovel(v)
+                  }}
+                />
+              ))}
+            </div>
+          ))}
         </section>
+      )}
+
+      {docsImovel.length > 0 && (
+        <SecaoDocumentos
+          titulo="Documentos do imóvel"
+          documentos={docsImovel}
+          arquivos={arquivos}
+          preparando={preparando}
+          onEscolher={escolherArquivo}
+        />
+      )}
+
+      {totalBytes > 0 && (
+        <p className={`text-[11px] ${passouDoLimite ? 'text-red-600 font-semibold' : 'text-gray-400'}`}>
+          Total dos arquivos: {formatarTamanho(totalBytes)}
+          {passouDoLimite && ' — acima do limite de 4 MB por envio.'}
+        </p>
       )}
 
       {estado === 'erro' && (
@@ -164,6 +234,84 @@ export function FormAtualizacao({ token, nomePessoa, campos, documentos }: Props
         {isPending ? 'Enviando...' : 'Enviar cadastro'}
       </button>
     </form>
+  )
+}
+
+function SecaoDocumentos({
+  titulo, documentos, arquivos, preparando, onEscolher,
+}: {
+  titulo: string
+  documentos: TipoDoc[]
+  arquivos: Record<string, File | null>
+  preparando: string | null
+  onEscolher: (chave: string, f: File | null) => Promise<void>
+}) {
+  return (
+    <section className="space-y-3 pt-2 border-t border-gray-100">
+      <h2 className="text-sm font-semibold text-gray-900">{titulo}</h2>
+      <p className="text-[11px] text-gray-500">
+        JPG, PNG, WEBP, HEIC ou PDF. As fotos são reduzidas aqui mesmo, no
+        seu aparelho, antes de subir.
+      </p>
+      {documentos.map(d => (
+        <UploadCampo
+          key={d.chave}
+          label={d.label}
+          arquivo={arquivos[d.chave] ?? null}
+          preparando={preparando === d.chave}
+          onChange={f => void onEscolher(d.chave, f)}
+        />
+      ))}
+    </section>
+  )
+}
+
+function CampoImovelInput({
+  campo, valor, onChange,
+}: { campo: CampoImovelForm; valor: string; onChange: (v: string) => void }) {
+  const dica = campo.dica && <span className="text-[11px] text-gray-400 block mt-0.5">{campo.dica}</span>
+
+  if (campo.formato === 'tipo' || campo.formato === 'mobiliado') {
+    const opcoes: { value: string; label: string }[] = campo.formato === 'tipo'
+      ? TIPOS_IMOVEL.map(t => ({ value: t.value, label: t.label }))
+      : Object.entries(LABEL_MOBILIADO).map(([value, label]) => ({ value, label }))
+    return (
+      <label className="block">
+        <span className="text-xs font-medium text-gray-600 block mb-1">{campo.label}</span>
+        <select value={valor} onChange={e => onChange(e.target.value)} className={inputCls}>
+          <option value="">—</option>
+          {opcoes.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        {dica}
+      </label>
+    )
+  }
+  if (campo.formato === 'longo') {
+    return (
+      <label className="block">
+        <span className="text-xs font-medium text-gray-600 block mb-1">{campo.label}</span>
+        <textarea value={valor} onChange={e => onChange(e.target.value)} rows={3} maxLength={2000} className={inputCls} />
+        {dica}
+      </label>
+    )
+  }
+  const inputMode = campo.formato === 'numero' ? 'decimal'
+    : campo.formato === 'inteiro' || campo.formato === 'cep' ? 'numeric'
+    : undefined
+  return (
+    <label className="block">
+      <span className="text-xs font-medium text-gray-600 block mb-1">{campo.label}</span>
+      <input
+        type="text"
+        inputMode={inputMode}
+        value={valor}
+        onChange={e => onChange(e.target.value)}
+        maxLength={campo.formato === 'cep' ? 9 : 300}
+        className={inputCls}
+        placeholder={campo.formato === 'numero' ? '0,00' : campo.label}
+      />
+      {dica}
+    </label>
   )
 }
 

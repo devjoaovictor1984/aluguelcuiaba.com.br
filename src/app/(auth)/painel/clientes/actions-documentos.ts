@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
+import { TIPOS_DOC_VALIDOS } from '@/lib/crm/tipos-documento'
 
 export type TipoDocumento =
   | 'rg' | 'cpf' | 'cnh' | 'passaporte'
@@ -11,15 +12,13 @@ export type TipoDocumento =
   | 'contracheque' | 'extrato_bancario' | 'imposto_renda'
   | 'certidao_casamento' | 'certidao_nascimento'
   | 'foto' | 'outro'
+  // imóvel
+  | 'matricula_imovel' | 'escritura' | 'iptu'
+  | 'conta_energia' | 'conta_agua' | 'conta_gas'
+  | 'boleto_condominio' | 'procuracao'
 
 const BUCKET = 'documentos-pessoas'
-const TIPOS_VALIDOS: TipoDocumento[] = [
-  'rg','cpf','cnh','passaporte',
-  'comprovante_renda','comprovante_residencia',
-  'contracheque','extrato_bancario','imposto_renda',
-  'certidao_casamento','certidao_nascimento',
-  'foto','outro',
-]
+const TIPOS_VALIDOS = TIPOS_DOC_VALIDOS as TipoDocumento[]
 
 function extensaoDe(nome: string): string {
   const idx = nome.lastIndexOf('.')

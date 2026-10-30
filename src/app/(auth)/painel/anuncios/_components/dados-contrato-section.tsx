@@ -135,6 +135,13 @@ export function DadosContratoSection({ value, onChange, defaultOpen = false }: P
                 placeholder="Matrícula água"
                 className={inputCls}
               />
+              <input
+                type="text"
+                value={value.uc_gas}
+                onChange={e => set('uc_gas', e.target.value)}
+                placeholder="Código do gás (se houver)"
+                className={inputCls}
+              />
             </div>
           </div>
 

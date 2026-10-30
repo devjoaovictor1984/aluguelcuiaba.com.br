@@ -111,6 +111,7 @@ export interface DadosContrato {
     inscricao_municipal?: string | null
     uc_energia?: string | null
     matricula_agua?: string | null
+    uc_gas?: string | null
     area_construida_m2?: number | null
     area_terreno_m2?: number | null
     descricao_real?: string | null
@@ -474,6 +475,7 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'IMOVEL_INSC_MUNICIPAL': return dados.imovel?.inscricao_municipal ?? FALLBACK
     case 'IMOVEL_UC_ENERGIA': return dados.imovel?.uc_energia ?? FALLBACK
     case 'IMOVEL_MATRICULA_AGUA': return dados.imovel?.matricula_agua ?? FALLBACK
+    case 'IMOVEL_UC_GAS': return dados.imovel?.uc_gas ?? FALLBACK
     case 'IMOVEL_DESCRICAO': {
       // descricao_real (texto livre da aba "Dados pro contrato") tem prioridade;
       // descricao (do anúncio) é HTML — precisa stripar tags.

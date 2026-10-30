@@ -27,6 +27,7 @@ import {
   atualizarClausulaModificada, atualizarMostrarModificacoes, atualizarModificacoesTexto,
   atualizarSeguroFianca,
 } from '../actions'
+import { LABELS_DOC } from '@/lib/crm/tipos-documento'
 import { CapaOverridesEditor } from '@/components/capa-overrides-editor'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
@@ -734,7 +735,7 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
                           {d.nome_original}
                         </p>
                         <p className="text-[10px] text-gray-500">
-                          <span className="font-mono uppercase">{d.tipo}</span> · {d.pessoa_nome}
+                          <span className="font-semibold">{LABELS_DOC[d.tipo] ?? d.tipo}</span> · {d.pessoa_nome}
                         </p>
                       </div>
                     </label>

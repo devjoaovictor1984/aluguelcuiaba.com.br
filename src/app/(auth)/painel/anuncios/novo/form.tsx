@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { comprimirImagem as comprimirFoto, PERFIL_FOTO_ANUNCIO } from '@/lib/imagens/comprimir'
 import { invalidarVitrine } from '@/app/(auth)/painel/anuncios/actions-cache'
+import { aplicarDadosImovel } from '@/app/(auth)/painel/clientes/actions-solicitacao'
 
 function mascaraTelefone(v: string) {
   const d = v.replace(/\D/g, '').slice(0, 11)
@@ -236,42 +237,63 @@ const VAGAS_OPTS = [
 // ─── Main form ────────────────────────────────────────────────────────────────
 
 interface FotoLocal { file: File; preview: string; blob?: Blob }
-interface Props { bairros: Bairro[]; userId: string; telefoneInicial?: string }
+/** Valores que vêm do link de captação preenchido pela proprietária. */
+export interface InicialCaptacao {
+  solicitacaoId: string
+  tipo?: TipoImovel
+  bairroId?: string
+  condominioNome?: string
+  logradouro?: string
+  numero?: string
+  complemento?: string
+  quartos?: number
+  suites?: number
+  banheiros?: number
+  vagas?: number
+  areaM2?: string
+  mobiliado?: 'nao' | 'semi' | 'sim'
+  preco?: string
+  taxaCondo?: string
+  iptu?: string
+  dadosContrato?: Partial<DadosContrato>
+}
 
-export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props) {
+interface Props { bairros: Bairro[]; userId: string; telefoneInicial?: string; inicial?: InicialCaptacao }
+
+export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '', inicial }: Props) {
   const router = useRouter()
   const fileInputId = useId()
 
   // ── básico ──
-  const [tipo, setTipo] = useState<TipoImovel>('apartamento')
+  const [tipo, setTipo] = useState<TipoImovel>(inicial?.tipo ?? 'apartamento')
   const [titulo, setTitulo] = useState('')
   const [descricao, setDescricao] = useState('')
 
   // ── localização ──
-  const [bairroId, setBairroId] = useState('')
-  const [condominioNome, setCondominioNome] = useState('')
+  const [bairroId, setBairroId] = useState(inicial?.bairroId ?? '')
+  const [condominioNome, setCondominioNome] = useState(inicial?.condominioNome ?? '')
   // endereço do imóvel (privado, não exibido publicamente)
-  const [imovelLogradouro, setImovelLogradouro] = useState('')
-  const [imovelNumero, setImovelNumero] = useState('')
-  const [imovelComplemento, setImovelComplemento] = useState('')
+  const [imovelLogradouro, setImovelLogradouro] = useState(inicial?.logradouro ?? '')
+  const [imovelNumero, setImovelNumero] = useState(inicial?.numero ?? '')
+  const [imovelComplemento, setImovelComplemento] = useState(inicial?.complemento ?? '')
   const [buscandoEndereco, setBuscandoEndereco] = useState(false)
 
   // ── características ──
-  const [quartos, setQuartos] = useState(1)
-  const [suites, setSuites] = useState(0)
-  const [banheiros, setBanheiros] = useState(1)
-  const [vagas, setVagas] = useState(0)
-  const [areaM2, setAreaM2] = useState('')
+  const [quartos, setQuartos] = useState(inicial?.quartos ?? 1)
+  const [suites, setSuites] = useState(inicial?.suites ?? 0)
+  const [banheiros, setBanheiros] = useState(inicial?.banheiros ?? 1)
+  const [vagas, setVagas] = useState(inicial?.vagas ?? 0)
+  const [areaM2, setAreaM2] = useState(inicial?.areaM2 ?? '')
   const [piscina, setPiscina] = useState(false)
   const [aceitaPets, setAceitaPets] = useState(false)
-  const [mobiliadoTipo, setMobiliadoTipo] = useState<'nao' | 'semi' | 'sim'>('nao')
+  const [mobiliadoTipo, setMobiliadoTipo] = useState<'nao' | 'semi' | 'sim'>(inicial?.mobiliado ?? 'nao')
 
   // ── valores ──
   const [custoTipo, setCustoTipo] = useState<'separado' | 'pacote'>('separado')
-  const [preco, setPreco] = useState('')
+  const [preco, setPreco] = useState(inicial?.preco ?? '')
   const [precoAntigo, setPrecoAntigo] = useState('')
-  const [taxaCondo, setTaxaCondo] = useState('')
-  const [iptu, setIptu] = useState('')
+  const [taxaCondo, setTaxaCondo] = useState(inicial?.taxaCondo ?? '')
+  const [iptu, setIptu] = useState(inicial?.iptu ?? '')
   const [gasIncluso, setGasIncluso] = useState(false)
   const [aguaInclusa, setAguaInclusa] = useState(false)
   const [luzInclusa, setLuzInclusa] = useState(false)
@@ -281,7 +303,7 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
   const [observacoes, setObservacoes] = useState('')
 
   // ── dados pro contrato (opcional) ──
-  const [dadosContrato, setDadosContrato] = useState<DadosContrato>(DADOS_CONTRATO_VAZIO)
+  const [dadosContrato, setDadosContrato] = useState<DadosContrato>({ ...DADOS_CONTRATO_VAZIO, ...inicial?.dadosContrato })
 
   /**
    * O CEP do imóvel é UM só, e mora na coluna `endereco_cep` — a mesma que
@@ -416,6 +438,11 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
 
       await supabase.from('perfis').upsert({ id: userId, telefone: whatsappLimpo }, { onConflict: 'id', ignoreDuplicates: false })
 
+      // Amarra a ficha de captação ao imóvel que acabou de nascer, pra ela
+      // não continuar oferecendo "Criar anúncio" e o contrato de
+      // administração achar o imóvel certo.
+      if (inicial?.solicitacaoId) await aplicarDadosImovel(inicial.solicitacaoId, imovel.id, { soVincular: true }).catch(() => {})
+
       // Mesma razão da tela de edição: a página pública é ISR e é dela que
       // sai a mensagem de compartilhamento.
       await revalidarImovel(imovel.id)
@@ -453,6 +480,14 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '' }: Props
         </Link>
         <h1 className="text-xl font-bold text-gray-900">Novo anúncio</h1>
       </div>
+
+      {inicial && (
+        <div className="bg-violet-50 border border-violet-100 rounded-xl px-3 py-2.5 text-xs text-violet-900">
+          Preenchido com o que a proprietária mandou pelo link. Confira os valores,
+          escreva o título e adicione as fotos.
+          {!inicial.bairroId && ' O bairro dela não bateu com a lista — escolha abaixo.'}
+        </div>
+      )}
 
       {/* ── Fotos ── */}
       <Secao titulo="Fotos do imóvel">

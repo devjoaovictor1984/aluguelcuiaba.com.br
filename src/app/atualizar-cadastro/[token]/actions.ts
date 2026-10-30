@@ -2,17 +2,14 @@
 
 import { createAdminClient } from '@/lib/supabase/admin'
 import { headers } from 'next/headers'
+import { updateTag } from 'next/cache'
+import { LABELS_DOC, TIPOS_DOC_VALIDOS } from '@/lib/crm/tipos-documento'
+import { CHAVES_CAMPO_IMOVEL, dadosImovelParaColunas } from '@/lib/crm/campos-imovel'
+import { TAG_IMOVEIS } from '@/lib/supabase/public'
 
 const BUCKET = 'documentos-pessoas'
 const MIMES_PERMITIDOS = ['image/jpeg','image/jpg','image/png','image/webp','image/heic','application/pdf']
 const MAX_FILE = 10 * 1024 * 1024
-const TIPOS_DOC_VALIDOS = [
-  'rg','cpf','cnh','passaporte',
-  'comprovante_renda','comprovante_residencia',
-  'contracheque','extrato_bancario','imposto_renda',
-  'certidao_casamento','certidao_nascimento',
-  'foto','outro',
-]
 
 interface Solicitacao {
   id: string
@@ -20,6 +17,8 @@ interface Solicitacao {
   pessoa_id: string
   campos: string[]
   tipos_documento: string[]
+  campos_imovel?: string[] | null
+  imovel_id?: string | null
   expira_em: string
   preenchido_em: string | null
   revogado_em: string | null
@@ -36,11 +35,20 @@ function extensaoDe(nome: string, mime: string): string {
 
 async function carregarSolicitacao(token: string): Promise<{ sol?: Solicitacao; error?: string }> {
   const admin = createAdminClient()
-  const { data } = await admin
+  let { data } = await admin
     .from('solicitacoes_cadastro')
-    .select('id, user_id, pessoa_id, campos, tipos_documento, expira_em, preenchido_em, revogado_em')
+    .select('id, user_id, pessoa_id, campos, tipos_documento, campos_imovel, imovel_id, expira_em, preenchido_em, revogado_em')
     .eq('token', token)
     .maybeSingle()
+  if (!data) {
+    // Banco sem a v100: lê sem as colunas do imóvel.
+    const r = await admin
+      .from('solicitacoes_cadastro')
+      .select('id, user_id, pessoa_id, campos, tipos_documento, expira_em, preenchido_em, revogado_em')
+      .eq('token', token)
+      .maybeSingle()
+    data = r.data ? { ...r.data, campos_imovel: [], imovel_id: null } : null
+  }
   if (!data) return { error: 'Link inválido ou não encontrado.' }
   if (data.revogado_em) return { error: 'Este link foi revogado pelo solicitante.' }
   if (data.preenchido_em) return { error: 'Este link já foi usado.' }
@@ -73,14 +81,39 @@ export async function submitAtualizacaoCadastro(token: string, formData: FormDat
     if (error) return { error: `Erro ao salvar dados: ${error.message}` }
   }
 
-  // 2. Sobe os documentos liberados
+  // 2. Bloco do imóvel: guarda tudo na solicitação e, se o imóvel já
+  //    existe, leva pras colunas dele.
+  const camposImovel = (sol.campos_imovel ?? []).filter(c => CHAVES_CAMPO_IMOVEL.includes(c))
+  let dadosImovel: Record<string, string> | null = null
+  if (camposImovel.length > 0) {
+    dadosImovel = {}
+    for (const campo of camposImovel) {
+      const raw = formData.get(campo)
+      if (typeof raw === 'string' && raw.trim() !== '') dadosImovel[campo] = raw.trim().slice(0, 2000)
+    }
+    if (sol.imovel_id) {
+      const colunas = dadosImovelParaColunas(dadosImovel)
+      if (Object.keys(colunas).length > 0) {
+        const { error } = await admin
+          .from('imoveis')
+          .update(colunas)
+          .eq('id', sol.imovel_id)
+          .eq('user_id', sol.user_id)
+        if (error) return { error: `Erro ao salvar dados do imóvel: ${error.message}` }
+        updateTag(TAG_IMOVEIS)
+      }
+    }
+  }
+
+  // 3. Sobe os documentos liberados
   for (const tipo of sol.tipos_documento) {
     if (!TIPOS_DOC_VALIDOS.includes(tipo)) continue
     const file = formData.get(`doc_${tipo}`)
     if (!(file instanceof File) || file.size === 0) continue
-    if (file.size > MAX_FILE) return { error: `${tipo}: arquivo maior que 10MB.` }
+    const nomeTipo = LABELS_DOC[tipo] ?? tipo
+    if (file.size > MAX_FILE) return { error: `${nomeTipo}: arquivo maior que 10MB.` }
     if (!MIMES_PERMITIDOS.includes(file.type)) {
-      return { error: `${tipo}: formato não suportado. Envie JPG, PNG, WEBP, HEIC ou PDF.` }
+      return { error: `${nomeTipo}: formato não suportado. Envie JPG, PNG, WEBP, HEIC ou PDF.` }
     }
 
     const uuid = crypto.randomUUID()
@@ -91,7 +124,7 @@ export async function submitAtualizacaoCadastro(token: string, formData: FormDat
     const { error: upErr } = await admin.storage
       .from(BUCKET)
       .upload(path, new Uint8Array(bytes), { contentType: file.type, upsert: false })
-    if (upErr) return { error: `${tipo}: ${upErr.message}` }
+    if (upErr) return { error: `${nomeTipo}: ${upErr.message}` }
 
     const { error: dbErr } = await admin.from('pessoas_documentos').insert({
       pessoa_id: sol.pessoa_id,
@@ -105,11 +138,11 @@ export async function submitAtualizacaoCadastro(token: string, formData: FormDat
     })
     if (dbErr) {
       await admin.storage.from(BUCKET).remove([path])
-      return { error: `${tipo}: ${dbErr.message}` }
+      return { error: `${nomeTipo}: ${dbErr.message}` }
     }
   }
 
-  // 3. Marca como preenchido
+  // 4. Marca como preenchido
   const hdrs = await headers()
   const ip =
     hdrs.get('x-forwarded-for')?.split(',')[0].trim() ??
@@ -118,7 +151,11 @@ export async function submitAtualizacaoCadastro(token: string, formData: FormDat
 
   await admin
     .from('solicitacoes_cadastro')
-    .update({ preenchido_em: new Date().toISOString(), preenchido_ip: ip })
+    .update({
+      preenchido_em: new Date().toISOString(),
+      preenchido_ip: ip,
+      ...(dadosImovel ? { dados_imovel: dadosImovel } : {}),
+    })
     .eq('id', sol.id)
 
   return { ok: true }

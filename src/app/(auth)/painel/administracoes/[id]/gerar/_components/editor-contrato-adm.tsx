@@ -23,6 +23,7 @@ import {
   atualizarCapaOverridesAdm,
   atualizarClausulaModificadaAdm, atualizarMostrarModificacoesAdm, atualizarModificacoesTextoAdm,
 } from '../actions'
+import { LABELS_DOC } from '@/lib/crm/tipos-documento'
 import { CapaOverridesEditor } from '@/components/capa-overrides-editor'
 
 // Campos editáveis da capa do contrato de administração
@@ -384,7 +385,7 @@ export function EditorContratoAdm({ contratoAdmId, codigo, travado = false, chec
                     <input type="checkbox" checked={sel} onChange={() => onToggleAnexo(d.id)} disabled={isPending} className="accent-violet-600 mt-0.5 shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-900 truncate">{d.nome_original}</p>
-                      <p className="text-[10px] text-gray-500"><span className="font-mono uppercase">{d.tipo}</span> · {d.pessoa_nome}</p>
+                      <p className="text-[10px] text-gray-500"><span className="font-semibold">{LABELS_DOC[d.tipo] ?? d.tipo}</span> · {d.pessoa_nome}</p>
                     </div>
                   </label>
                 )

@@ -11,24 +11,12 @@ import {
   type TipoDocumento,
 } from '../actions-documentos'
 import { comprimirImagem, PERFIL_DOCUMENTO } from '@/lib/imagens/comprimir'
+import { LABELS_DOC } from '@/lib/crm/tipos-documento'
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900"
 
-const TIPOS: { valor: TipoDocumento; label: string }[] = [
-  { valor: 'rg', label: 'RG' },
-  { valor: 'cpf', label: 'CPF' },
-  { valor: 'cnh', label: 'CNH' },
-  { valor: 'passaporte', label: 'Passaporte' },
-  { valor: 'comprovante_renda', label: 'Comprovante de renda' },
-  { valor: 'comprovante_residencia', label: 'Comprovante de residência' },
-  { valor: 'contracheque', label: 'Contracheque' },
-  { valor: 'extrato_bancario', label: 'Extrato bancário' },
-  { valor: 'imposto_renda', label: 'Imposto de renda' },
-  { valor: 'certidao_casamento', label: 'Certidão de casamento' },
-  { valor: 'certidao_nascimento', label: 'Certidão de nascimento' },
-  { valor: 'foto', label: 'Foto' },
-  { valor: 'outro', label: 'Outro' },
-]
+const TIPOS: { valor: TipoDocumento; label: string }[] = Object.entries(LABELS_DOC)
+  .map(([valor, label]) => ({ valor: valor as TipoDocumento, label }))
 const LABEL_TIPO = Object.fromEntries(TIPOS.map(t => [t.valor, t.label]))
 
 export interface DocumentoRow {

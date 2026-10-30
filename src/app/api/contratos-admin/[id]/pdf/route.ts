@@ -143,7 +143,7 @@ export async function GET(
         imovel:imoveis(
           tipo, endereco_resumido, endereco_completo, endereco_numero, endereco_complemento,
           endereco_cep, descricao, descricao_real,
-          matricula_cartorio, inscricao_municipal, uc_energia, matricula_agua,
+          matricula_cartorio, inscricao_municipal, uc_energia, matricula_agua, uc_gas,
           area_construida_m2, area_terreno_m2,
           cartorio_registro, livro_folha_matricula,
           bairro:bairros(nome)

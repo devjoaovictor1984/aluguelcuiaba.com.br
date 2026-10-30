@@ -62,6 +62,7 @@ export const PLACEHOLDERS: Placeholder[] = [
   { chave: 'IMOVEL_INSC_MUNICIPAL', label: 'Inscrição municipal/IPTU do imóvel', exemplo: '12.345.678-9', origem: 'imovel' },
   { chave: 'IMOVEL_UC_ENERGIA', label: 'UC da concessionária de energia', exemplo: '987654321', origem: 'imovel' },
   { chave: 'IMOVEL_MATRICULA_AGUA', label: 'Matrícula da água/hidrômetro', exemplo: 'A-12345', origem: 'imovel' },
+  { chave: 'IMOVEL_UC_GAS', label: 'Código do gás encanado', exemplo: '55667788', origem: 'imovel' },
   { chave: 'IMOVEL_DESCRICAO', label: 'Descrição detalhada do imóvel', exemplo: 'Casa térrea, 3 quartos sendo 1 suíte, sala, cozinha…', origem: 'imovel' },
   { chave: 'IMOVEL_AREA_CONSTRUIDA', label: 'Área construída', exemplo: '120 m²', origem: 'imovel' },
   { chave: 'IMOVEL_AREA_TERRENO', label: 'Área do terreno', exemplo: '250 m²', origem: 'imovel' },

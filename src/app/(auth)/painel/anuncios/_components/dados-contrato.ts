@@ -11,6 +11,7 @@ export interface DadosContrato {
   inscricao_municipal: string
   uc_energia: string
   matricula_agua: string
+  uc_gas: string
   area_construida_m2: string  // string no form pra aceitar vírgula; converte no save
   area_terreno_m2: string
   descricao_real: string
@@ -31,6 +32,7 @@ export const DADOS_CONTRATO_VAZIO: DadosContrato = {
   inscricao_municipal: '',
   uc_energia: '',
   matricula_agua: '',
+  uc_gas: '',
   area_construida_m2: '',
   area_terreno_m2: '',
   descricao_real: '',
@@ -52,6 +54,7 @@ export function dadosContratoDeImovel(im: Partial<{
   inscricao_municipal: string | null
   uc_energia: string | null
   matricula_agua: string | null
+  uc_gas: string | null
   area_construida_m2: number | null
   area_terreno_m2: number | null
   descricao_real: string | null
@@ -71,6 +74,7 @@ export function dadosContratoDeImovel(im: Partial<{
     inscricao_municipal: im.inscricao_municipal ?? '',
     uc_energia: im.uc_energia ?? '',
     matricula_agua: im.matricula_agua ?? '',
+    uc_gas: im.uc_gas ?? '',
     area_construida_m2: im.area_construida_m2?.toString().replace('.', ',') ?? '',
     area_terreno_m2: im.area_terreno_m2?.toString().replace('.', ',') ?? '',
     descricao_real: im.descricao_real ?? '',
@@ -104,6 +108,7 @@ export function dadosContratoParaDb(d: DadosContrato): Record<string, string | n
     inscricao_municipal: trimOrNull(d.inscricao_municipal),
     uc_energia: trimOrNull(d.uc_energia),
     matricula_agua: trimOrNull(d.matricula_agua),
+    uc_gas: trimOrNull(d.uc_gas),
     area_construida_m2: numOrNull(d.area_construida_m2),
     area_terreno_m2: numOrNull(d.area_terreno_m2),
     descricao_real: trimOrNull(d.descricao_real),

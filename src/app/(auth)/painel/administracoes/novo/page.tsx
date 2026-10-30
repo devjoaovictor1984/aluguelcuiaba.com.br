@@ -5,8 +5,11 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { Breadcrumbs } from '@/components/breadcrumbs'
 import { FormNovoAdm } from './form'
 
-export default async function NovoContratoAdmPage() {
+export default async function NovoContratoAdmPage({
+  searchParams,
+}: { searchParams: Promise<{ proprietario?: string; imovel?: string }> }) {
   const acesso = await exigirAcessoCRM()
+  const { proprietario, imovel } = await searchParams
   const supabase = await createClient()
 
   const [{ data: pessoas }, { data: imoveis }] = await Promise.all([
@@ -46,6 +49,8 @@ export default async function NovoContratoAdmPage() {
       <FormNovoAdm
         pessoas={(pessoas ?? []) as Array<{ id: string; nome: string; cpf_cnpj: string | null; tipo: string }>}
         imoveis={(imoveis ?? []) as Array<{ id: string; titulo: string; endereco_resumido: string | null }>}
+        proprietarioInicial={pessoas?.some(p => p.id === proprietario) ? proprietario : undefined}
+        imovelInicial={imoveis?.some(i => i.id === imovel) ? imovel : undefined}
       />
     </main>
   )

@@ -7,6 +7,8 @@ import {
   Trash2, AlertCircle, Clock, CheckCircle2, Send,
 } from 'lucide-react'
 import { gerarLinkAtualizacao, revogarLinkAtualizacao } from '../actions-solicitacao'
+import { CAMPOS_IMOVEL, CHAVES_CAMPO_IMOVEL } from '@/lib/crm/campos-imovel'
+import { LABELS_DOC, TIPOS_DOC_IMOVEL } from '@/lib/crm/tipos-documento'
 
 interface CampoOpt { chave: string; label: string }
 
@@ -96,7 +98,42 @@ const DOCS: CampoOpt[] = [
   { chave: 'foto', label: 'Foto' },
 ]
 
-const PRESETS: { nome: string; campos: string[]; docs: string[] }[] = [
+const DOCS_IMOVEL: CampoOpt[] = TIPOS_DOC_IMOVEL.map(t => ({ chave: t, label: LABELS_DOC[t] }))
+
+// Campos do imóvel agrupados como na página pública.
+const CAMPOS_IMOVEL_GRUPOS = CAMPOS_IMOVEL.reduce<{ titulo: string; campos: CampoOpt[] }[]>((acc, c) => {
+  const g = acc.find(x => x.titulo === c.grupo)
+  const opt = { chave: c.chave, label: c.curto }
+  if (g) g.campos.push(opt); else acc.push({ titulo: c.grupo, campos: [opt] })
+  return acc
+}, [])
+
+const DADOS_PROPRIETARIO = [
+  'nome','cpf_cnpj','rg','rg_orgao_emissor','rg_uf','data_nascimento','naturalidade',
+  'estado_civil','regime_bens','profissao','nacionalidade',
+  'email','telefone','whatsapp',
+  'endereco_cep','endereco_logradouro','endereco_numero','endereco_complemento','endereco_bairro','endereco_cidade','endereco_estado',
+  'pix_tipo','pix_chave','banco_nome','banco_agencia','banco_conta','banco_titular',
+]
+
+const PRESETS: { nome: string; campos: string[]; docs: string[]; imovel?: string[]; horas?: number }[] = [
+  {
+    // Captação: a proprietária manda os dados dela, os do imóvel e os
+    // documentos de uma vez. Os docs do imóvel ficam na pasta dela e
+    // aparecem nos anexos do contrato de administração.
+    nome: 'Captação: proprietário + imóvel',
+    campos: DADOS_PROPRIETARIO,
+    docs: ['rg','cpf','comprovante_residencia','matricula_imovel','iptu','conta_energia','conta_agua'],
+    imovel: CHAVES_CAMPO_IMOVEL,
+    horas: 168,
+  },
+  {
+    nome: 'Só dados do imóvel',
+    campos: [],
+    docs: ['matricula_imovel','iptu','conta_energia','conta_agua','conta_gas','boleto_condominio'],
+    imovel: CHAVES_CAMPO_IMOVEL,
+    horas: 168,
+  },
   {
     nome: 'Cadastro completo de inquilino',
     campos: [
@@ -144,6 +181,8 @@ export interface SolicitacaoAtiva {
   token: string
   campos: string[]
   tipos_documento: string[]
+  campos_imovel?: string[] | null
+  imovel_id?: string | null
   expira_em: string
   preenchido_em: string | null
   revogado_em: string | null
@@ -157,12 +196,18 @@ interface Props {
   emailPessoa: string | null
   baseUrl: string
   solicitacoes: SolicitacaoAtiva[]
+  /** Imóveis do corretor, pra amarrar o bloco de imóvel do link. */
+  imoveis: ImovelOpcao[]
 }
 
-export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, emailPessoa, baseUrl, solicitacoes }: Props) {
+export interface ImovelOpcao { id: string; titulo: string; endereco: string | null }
+
+export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, emailPessoa, baseUrl, solicitacoes, imoveis }: Props) {
   const router = useRouter()
   const [campos, setCampos] = useState<Set<string>>(new Set())
   const [docs, setDocs] = useState<Set<string>>(new Set())
+  const [camposImovel, setCamposImovel] = useState<Set<string>>(new Set())
+  const [imovelId, setImovelId] = useState('')
   const [horas, setHoras] = useState(24)
   const [isPending, startTransition] = useTransition()
   const [novoLink, setNovoLink] = useState<{ url: string; expira: string } | null>(null)
@@ -178,12 +223,14 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
   const aplicarPreset = (p: typeof PRESETS[number]) => {
     setCampos(new Set(p.campos))
     setDocs(new Set(p.docs))
+    setCamposImovel(new Set(p.imovel ?? []))
+    if (p.horas) setHoras(p.horas)
   }
 
   const gerar = () => {
     setErro('')
     setNovoLink(null)
-    if (campos.size === 0 && docs.size === 0) {
+    if (campos.size === 0 && docs.size === 0 && camposImovel.size === 0) {
       setErro('Selecione pelo menos 1 campo ou documento.')
       return
     }
@@ -192,6 +239,8 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
         pessoa_id: pessoaId,
         campos: Array.from(campos),
         tipos_documento: Array.from(docs),
+        campos_imovel: Array.from(camposImovel),
+        imovel_id: camposImovel.size > 0 ? imovelId || null : null,
         horas_validade: horas,
       })
       if (r.error) { setErro(r.error); return }
@@ -214,7 +263,8 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
 
   const compartilharWhatsapp = () => {
     if (!novoLink) return
-    const msg = `Olá ${nomePessoa.split(' ')[0]}, precisamos completar seu cadastro. Acesse o link abaixo (válido por ${horas}h):\n\n${novoLink.url}`
+    const oQue = camposImovel.size > 0 ? 'seu cadastro e os dados do imóvel' : 'seu cadastro'
+    const msg = `Olá ${nomePessoa.split(' ')[0]}, precisamos completar ${oQue}. Acesse o link abaixo (válido por ${rotuloValidade(horas)}):\n\n${novoLink.url}`
     const fone = (telefoneWhatsapp ?? '').replace(/\D/g, '')
     const url = fone
       ? `https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`
@@ -239,7 +289,7 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
     })
   }
 
-  const totalSelecionado = campos.size + docs.size
+  const totalSelecionado = campos.size + docs.size + camposImovel.size
 
   return (
     <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 mt-6">
@@ -298,7 +348,7 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
         ))}
 
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Documentos para envio</p>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Documentos da pessoa</p>
           <div className="flex flex-wrap gap-1.5">
             {DOCS.map(d => {
               const sel = docs.has(d.chave)
@@ -320,6 +370,55 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
             })}
           </div>
         </div>
+      </div>
+
+      <div className="space-y-3 mb-4 pt-4 border-t border-gray-100">
+        <p className="text-xs font-semibold text-gray-900">Imóvel</p>
+        {CAMPOS_IMOVEL_GRUPOS.map(g => (
+          <div key={g.titulo}>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">{g.titulo}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {g.campos.map(c => (
+                <Chip key={c.chave} sel={camposImovel.has(c.chave)} label={c.label}
+                  onClick={() => toggle(camposImovel, setCamposImovel, c.chave)} />
+              ))}
+            </div>
+          </div>
+        ))}
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-1.5">Documentos do imóvel</p>
+          <div className="flex flex-wrap gap-1.5">
+            {DOCS_IMOVEL.map(d => (
+              <Chip key={d.chave} sel={docs.has(d.chave)} label={d.label}
+                onClick={() => toggle(docs, setDocs, d.chave)} />
+            ))}
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1">
+            Ficam na pasta desta pessoa e aparecem nos anexos do contrato de administração.
+          </p>
+        </div>
+        {camposImovel.size > 0 && (
+          <label className="block">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 block mb-1.5">Gravar em qual imóvel?</span>
+            <select
+              value={imovelId}
+              onChange={e => setImovelId(e.target.value)}
+              className="w-full text-sm border border-gray-200 rounded-lg px-2 py-1.5 bg-white"
+            >
+              <option value="">Imóvel ainda não cadastrado (captação)</option>
+              {imoveis.map(im => (
+                <option key={im.id} value={im.id}>
+                  {im.titulo}{im.endereco ? ` — ${im.endereco}` : ''}
+                </option>
+              ))}
+            </select>
+            <span className="text-[10px] text-gray-400 block mt-1">
+              {imovelId
+                ? 'O que ela preencher vai direto pro imóvel escolhido.'
+                : 'As respostas ficam guardadas aqui na ficha; depois você cria o anúncio com elas ou aplica num imóvel.'}
+            </span>
+          </label>
+        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-3 mb-3">
@@ -418,6 +517,7 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
                   </span>
                   <span className="text-gray-700">
                     {s.campos.length} campo{s.campos.length === 1 ? '' : 's'} · {s.tipos_documento.length} doc{s.tipos_documento.length === 1 ? '' : 's'}
+                    {(s.campos_imovel?.length ?? 0) > 0 && ` · imóvel (${s.campos_imovel!.length})`}
                   </span>
                   <span className="text-gray-400 flex-1">
                     criado {new Date(s.created_at).toLocaleDateString('pt-BR')}
@@ -454,5 +554,26 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
         </div>
       )}
     </section>
+  )
+}
+
+function rotuloValidade(horas: number): string {
+  return horas >= 48 && horas % 24 === 0 ? `${horas / 24} dias` : `${horas}h`
+}
+
+function Chip({ sel, label, onClick }: { sel: boolean; label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`text-xs px-2.5 py-1 rounded-lg border transition-colors ${
+        sel
+          ? 'bg-violet-700 border-violet-700 text-white'
+          : 'bg-white border-gray-200 text-gray-600 hover:border-violet-300'
+      }`}
+    >
+      {sel && <Check size={11} className="inline-block mr-0.5" />}
+      {label}
+    </button>
   )
 }

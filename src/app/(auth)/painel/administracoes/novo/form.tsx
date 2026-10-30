@@ -12,6 +12,9 @@ const inputCls = "w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:out
 interface Props {
   pessoas: Array<{ id: string; nome: string; cpf_cnpj: string | null; tipo: string }>
   imoveis: Array<{ id: string; titulo: string; endereco_resumido: string | null }>
+  /** Vindo da ficha da proprietária (captação): já chega escolhido. */
+  proprietarioInicial?: string
+  imovelInicial?: string
 }
 
 /** Tudo que o formulário pergunta — o rascunho guarda o conjunto inteiro. */
@@ -38,12 +41,12 @@ interface RascunhoAdm {
 
 const CHAVE_RASCUNHO = 'form-administracao'
 
-export function FormNovoAdm({ pessoas, imoveis }: Props) {
+export function FormNovoAdm({ pessoas, imoveis, proprietarioInicial = '', imovelInicial = '' }: Props) {
   const router = useRouter()
-  const [proprietarioId, setProprietarioId] = useState('')
+  const [proprietarioId, setProprietarioId] = useState(proprietarioInicial)
   const [representanteId, setRepresentanteId] = useState('')
   const [representanteQual, setRepresentanteQual] = useState('')
-  const [imovelId, setImovelId] = useState('')
+  const [imovelId, setImovelId] = useState(imovelInicial)
   const [dataInicio, setDataInicio] = useState(new Date().toISOString().slice(0, 10))
   // prazoSel: '1'..'5' anos | 'indeterminado' | 'outro' (revela input de meses)
   const [prazoSel, setPrazoSel] = useState<string>('1')

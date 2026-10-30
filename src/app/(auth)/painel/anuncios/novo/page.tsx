@@ -2,11 +2,13 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { getBairros, getMeusImoveis, getPerfil } from '@/lib/supabase/queries'
-import { NovoAnuncioForm } from './form'
+import { NovoAnuncioForm, type InicialCaptacao } from './form'
+import { inicialDaCaptacao } from './captacao'
 import { PLANOS } from '@/lib/constants'
 import { Lock } from 'lucide-react'
 
-export default async function NovoAnuncioPage() {
+export default async function NovoAnuncioPage({ searchParams }: { searchParams: Promise<{ captacao?: string }> }) {
+  const { captacao } = await searchParams
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/entrar')
@@ -49,5 +51,19 @@ export default async function NovoAnuncioPage() {
     )
   }
 
-  return <NovoAnuncioForm bairros={bairros ?? []} userId={user.id} telefoneInicial={perfil?.telefone ?? ''} />
+  // "Criar anúncio com estes dados", vindo da ficha da proprietária.
+  let inicial: InicialCaptacao | undefined
+  if (captacao) {
+    const { data: sol } = await supabase
+      .from('solicitacoes_cadastro')
+      .select('id, dados_imovel, imovel_id')
+      .eq('id', captacao)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (sol?.dados_imovel && !sol.imovel_id) {
+      inicial = inicialDaCaptacao(sol.id, sol.dados_imovel as Record<string, string>, bairros ?? [])
+    }
+  }
+
+  return <NovoAnuncioForm bairros={bairros ?? []} userId={user.id} telefoneInicial={perfil?.telefone ?? ''} inicial={inicial} />
 }

@@ -1,8 +1,9 @@
 import type { Metadata } from 'next'
 import { AlertOctagon, CheckCircle2 } from 'lucide-react'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { LABELS_DOC } from '@/lib/crm/tipos-documento'
-import { FormAtualizacao, type CampoExistente, type TipoDoc } from './_components/form-atualizacao'
+import { LABELS_DOC, TIPOS_DOC_IMOVEL } from '@/lib/crm/tipos-documento'
+import { CAMPO_IMOVEL_POR_CHAVE, colunasParaDadosImovel } from '@/lib/crm/campos-imovel'
+import { FormAtualizacao, type CampoExistente, type CampoImovelForm, type TipoDoc } from './_components/form-atualizacao'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,11 +107,20 @@ export default async function AtualizarCadastroPage({ params }: Props) {
   const { token } = await params
   const admin = createAdminClient()
 
-  const { data: sol } = await admin
+  let { data: sol } = await admin
     .from('solicitacoes_cadastro')
-    .select('id, user_id, pessoa_id, campos, tipos_documento, expira_em, preenchido_em, revogado_em')
+    .select('id, user_id, pessoa_id, campos, tipos_documento, campos_imovel, imovel_id, expira_em, preenchido_em, revogado_em')
     .eq('token', token)
     .maybeSingle()
+  if (!sol) {
+    // Banco sem a v100: lê sem as colunas do imóvel.
+    const r = await admin
+      .from('solicitacoes_cadastro')
+      .select('id, user_id, pessoa_id, campos, tipos_documento, expira_em, preenchido_em, revogado_em')
+      .eq('token', token)
+      .maybeSingle()
+    sol = r.data ? { ...r.data, campos_imovel: [], imovel_id: null } : null
+  }
 
   if (!sol) return <PaginaErro titulo="Link inválido" mensagem="Esse link de atualização não existe ou foi removido." />
   if (sol.revogado_em) return <PaginaErro titulo="Link cancelado" mensagem="O solicitante cancelou este link. Entre em contato pra receber um novo." />
@@ -149,7 +159,27 @@ export default async function AtualizarCadastroPage({ params }: Props) {
     .filter(c => LABELS_CAMPO[c])
     .map(c => ({ chave: c, label: LABELS_CAMPO[c], valorAtual: valoresAtuais[c] ?? '' }))
 
-  const documentos: TipoDoc[] = tiposDoc.map(t => ({ chave: t, label: LABELS_DOC[t] }))
+  const tiposDocImovel = TIPOS_DOC_IMOVEL as readonly string[]
+  const documentos: TipoDoc[] = tiposDoc.map(t => ({
+    chave: t, label: LABELS_DOC[t], doImovel: tiposDocImovel.includes(t),
+  }))
+
+  // Bloco do imóvel: pré-preenche com o que o imóvel já tem, quando existe.
+  const chavesImovel = ((sol.campos_imovel as string[] | null) ?? []).filter(c => CAMPO_IMOVEL_POR_CHAVE[c])
+  let atuaisImovel: Record<string, string> = {}
+  if (chavesImovel.length > 0 && sol.imovel_id) {
+    const { data: im } = await admin
+      .from('imoveis')
+      .select('*')
+      .eq('id', sol.imovel_id)
+      .eq('user_id', sol.user_id)
+      .maybeSingle()
+    if (im) atuaisImovel = colunasParaDadosImovel(im as Record<string, unknown>)
+  }
+  const camposImovel: CampoImovelForm[] = chavesImovel.map(c => ({
+    ...CAMPO_IMOVEL_POR_CHAVE[c],
+    valorAtual: atuaisImovel[c] ?? '',
+  }))
 
   const expira = new Date(sol.expira_em)
   const horasRestantes = Math.max(0, Math.round((expira.getTime() - Date.now()) / 3600000))
@@ -160,7 +190,9 @@ export default async function AtualizarCadastroPage({ params }: Props) {
         <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
           <div className="bg-gradient-to-r from-violet-600 to-indigo-600 p-6 text-white">
             <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{nomeAnunciante}</p>
-            <h1 className="text-2xl font-bold mt-1">Atualizar cadastro</h1>
+            <h1 className="text-2xl font-bold mt-1">
+              {camposImovel.length > 0 ? 'Cadastro do proprietário e do imóvel' : 'Atualizar cadastro'}
+            </h1>
             <p className="text-sm text-violet-100 mt-2">
               {nomeAnunciante} solicitou que você complete alguns dados.
               {' '}<strong>Este link expira em {horasRestantes}h.</strong>
@@ -172,6 +204,7 @@ export default async function AtualizarCadastroPage({ params }: Props) {
               token={token}
               nomePessoa={valoresAtuais.nome ?? null}
               campos={campos}
+              camposImovel={camposImovel}
               documentos={documentos}
             />
           </div>

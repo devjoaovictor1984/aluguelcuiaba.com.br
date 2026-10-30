@@ -121,6 +121,7 @@ export interface Imovel {
   inscricao_municipal: string | null
   uc_energia: string | null
   matricula_agua: string | null
+  uc_gas: string | null
   area_construida_m2: number | null
   area_terreno_m2: number | null
   descricao_real: string | null
