@@ -4,9 +4,9 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Link as LinkIcon, Copy, Check, Loader2, MessageCircle, Mail,
-  Trash2, AlertCircle, Clock, CheckCircle2, Send,
+  Trash2, AlertCircle, Clock, CheckCircle2, Send, RotateCcw,
 } from 'lucide-react'
-import { gerarLinkAtualizacao, revogarLinkAtualizacao } from '../actions-solicitacao'
+import { gerarLinkAtualizacao, revogarLinkAtualizacao, reabrirLinkAtualizacao } from '../actions-solicitacao'
 import { CAMPOS_IMOVEL, CHAVES_CAMPO_IMOVEL } from '@/lib/crm/campos-imovel'
 import { LABELS_DOC, TIPOS_DOC_IMOVEL } from '@/lib/crm/tipos-documento'
 
@@ -99,6 +99,13 @@ const DOCS: CampoOpt[] = [
 ]
 
 const DOCS_IMOVEL: CampoOpt[] = TIPOS_DOC_IMOVEL.map(t => ({ chave: t, label: LABELS_DOC[t] }))
+
+// Rótulo de cada campo/documento, pra listar o que ficou faltando num link.
+const ROTULO: Record<string, string> = Object.fromEntries([
+  ...CAMPOS_GRUPOS.flatMap(g => g.campos),
+  ...DOCS,
+  ...DOCS_IMOVEL,
+].map(c => [c.chave, c.label]))
 
 // Campos do imóvel agrupados como na página pública.
 const CAMPOS_IMOVEL_GRUPOS = CAMPOS_IMOVEL.reduce<{ titulo: string; campos: CampoOpt[] }[]>((acc, c) => {
@@ -196,18 +203,37 @@ interface Props {
   emailPessoa: string | null
   baseUrl: string
   solicitacoes: SolicitacaoAtiva[]
-  /** Imóveis do corretor, pra amarrar o bloco de imóvel do link. */
+  /** Imóveis do corretor, pra amarrar o bloco de imóvel do link. Os desta pessoa vêm primeiro. */
   imoveis: ImovelOpcao[]
+  /** Colunas da pessoa que já têm valor. */
+  camposPreenchidos: string[]
+  /** Tipos de documento que a pessoa já tem na pasta. */
+  docsRecebidos: string[]
 }
 
-export interface ImovelOpcao { id: string; titulo: string; endereco: string | null }
+export interface ImovelOpcao {
+  id: string
+  titulo: string
+  endereco: string | null
+  /** Ela é a proprietária (no imóvel ou num contrato). */
+  daPessoa?: boolean
+}
 
-export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, emailPessoa, baseUrl, solicitacoes, imoveis }: Props) {
+export function BlocoSolicitacao({
+  pessoaId, nomePessoa, telefoneWhatsapp, emailPessoa, baseUrl, solicitacoes, imoveis,
+  camposPreenchidos, docsRecebidos,
+}: Props) {
   const router = useRouter()
+  const preenchidos = new Set(camposPreenchidos)
+  const docsNaPasta = new Set(docsRecebidos)
+  const imovelDela = imoveis.find(im => im.daPessoa)?.id ?? ''
+  // Hora fixada na montagem: o render precisa ser puro (o refresh traz uma nova).
+  const [agora] = useState(() => Date.now())
   const [campos, setCampos] = useState<Set<string>>(new Set())
   const [docs, setDocs] = useState<Set<string>>(new Set())
   const [camposImovel, setCamposImovel] = useState<Set<string>>(new Set())
-  const [imovelId, setImovelId] = useState('')
+  // Já vem com o imóvel dela escolhido, em vez de ter que achar na lista toda vez.
+  const [imovelId, setImovelId] = useState(imovelDela)
   const [horas, setHoras] = useState(24)
   const [isPending, startTransition] = useTransition()
   const [novoLink, setNovoLink] = useState<{ url: string; expira: string } | null>(null)
@@ -264,7 +290,20 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
   const compartilharWhatsapp = () => {
     if (!novoLink) return
     const oQue = camposImovel.size > 0 ? 'seu cadastro e os dados do imóvel' : 'seu cadastro'
-    const msg = `Olá ${nomePessoa.split(' ')[0]}, precisamos completar ${oQue}. Acesse o link abaixo (válido por ${rotuloValidade(horas)}):\n\n${novoLink.url}`
+    abrirWhatsapp(`Olá ${nomePessoa.split(' ')[0]}, precisamos completar ${oQue}. Acesse o link abaixo (válido por ${rotuloValidade(horas)}):\n\n${novoLink.url}`)
+  }
+
+  /** Reenvia um link que já existe (reaberto ou ainda no prazo). */
+  const reenviarWhatsapp = (s: SolicitacaoAtiva, faltando: string[]) => {
+    const url = `${baseUrl}/atualizar-cadastro/${s.token}`
+    const ate = new Date(s.expira_em).toLocaleDateString('pt-BR')
+    const resto = faltando.length > 0
+      ? `Ainda falta: ${faltando.join(', ')}. O que você já mandou está salvo.`
+      : 'O que você já mandou está salvo; dá pra completar ou corrigir.'
+    abrirWhatsapp(`Olá ${nomePessoa.split(' ')[0]}, pode terminar seu cadastro pelo mesmo link (vale até ${ate}). ${resto}\n\n${url}`)
+  }
+
+  const abrirWhatsapp = (msg: string) => {
     const fone = (telefoneWhatsapp ?? '').replace(/\D/g, '')
     const url = fone
       ? `https://wa.me/55${fone}?text=${encodeURIComponent(msg)}`
@@ -278,6 +317,14 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
     const corpo = `Olá ${nomePessoa},\n\nPrecisamos completar seu cadastro. Acesse o link abaixo (expira em ${horas}h):\n\n${novoLink.url}\n\nObrigado!`
     const to = emailPessoa ? `?to=${emailPessoa}&` : '?'
     window.open(`mailto:${emailPessoa ?? ''}?subject=${encodeURIComponent(assunto)}&body=${encodeURIComponent(corpo)}`, '_blank')
+  }
+
+  const reabrir = (id: string) => {
+    startTransition(async () => {
+      const r = await reabrirLinkAtualizacao(id, 168)
+      if (r.error) { alert(r.error); return }
+      router.refresh()
+    })
   }
 
   const revogar = (id: string) => {
@@ -408,11 +455,12 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
               <option value="">Imóvel ainda não cadastrado (captação)</option>
               {imoveis.map(im => (
                 <option key={im.id} value={im.id}>
-                  {im.titulo}{im.endereco ? ` — ${im.endereco}` : ''}
+                  {im.daPessoa ? '★ ' : ''}{im.titulo}{im.endereco ? ` — ${im.endereco}` : ''}
                 </option>
               ))}
             </select>
             <span className="text-[10px] text-gray-400 block mt-1">
+              {imovelId && imovelId === imovelDela && 'Imóvel vinculado a esta pessoa (★). '}
               {imovelId
                 ? 'O que ela preencher vai direto pro imóvel escolhido.'
                 : 'As respostas ficam guardadas aqui na ficha; depois você cria o anúncio com elas ou aplica num imóvel.'}
@@ -502,15 +550,22 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
           <p className="text-[11px] font-semibold uppercase tracking-wider text-gray-500 mb-2">Histórico de solicitações</p>
           <ul className="space-y-1.5">
             {solicitacoes.map(s => {
-              const expirado = !s.preenchido_em && !s.revogado_em && new Date(s.expira_em).getTime() < Date.now()
+              // Enviar não fecha o link: ele segue aberto até expirar, pra
+              // pessoa completar o que faltou.
+              const expirado = !s.revogado_em && new Date(s.expira_em).getTime() < agora
+              const ativo = !s.revogado_em && !expirado
               const status =
-                s.preenchido_em ? { label: 'preenchido', cor: 'bg-green-100 text-green-700', icon: <CheckCircle2 size={11} /> }
-                : s.revogado_em ? { label: 'cancelado', cor: 'bg-gray-100 text-gray-600', icon: null }
+                s.revogado_em ? { label: 'cancelado', cor: 'bg-gray-100 text-gray-600', icon: null }
+                : s.preenchido_em ? { label: 'preenchido', cor: 'bg-green-100 text-green-700', icon: <CheckCircle2 size={11} /> }
                 : expirado ? { label: 'expirado', cor: 'bg-red-100 text-red-700', icon: null }
                 : { label: 'ativo', cor: 'bg-violet-100 text-violet-700', icon: <Clock size={11} /> }
-              const ativo = !s.preenchido_em && !s.revogado_em && !expirado
+              const faltando = s.revogado_em ? [] : [
+                ...s.campos.filter(c => !preenchidos.has(c)),
+                ...s.tipos_documento.filter(d => !docsNaPasta.has(d)),
+              ].map(c => ROTULO[c] ?? c)
               return (
-                <li key={s.id} className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                <li key={s.id} className="text-xs text-gray-600 bg-gray-50 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2">
                   <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full font-medium ${status.cor}`}>
                     {status.icon}
                     {status.label}
@@ -521,10 +576,30 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
                   </span>
                   <span className="text-gray-400 flex-1">
                     criado {new Date(s.created_at).toLocaleDateString('pt-BR')}
-                    {!s.preenchido_em && !s.revogado_em && ` · expira ${new Date(s.expira_em).toLocaleDateString('pt-BR')}`}
+                    {s.preenchido_em && ` · enviado ${new Date(s.preenchido_em).toLocaleDateString('pt-BR')}`}
+                    {ativo && ` · aberto até ${new Date(s.expira_em).toLocaleDateString('pt-BR')}`}
                   </span>
+                  {expirado && (
+                    <button
+                      type="button"
+                      onClick={() => reabrir(s.id)}
+                      disabled={isPending}
+                      title="Reabrir o mesmo link por mais 7 dias"
+                      className="flex items-center gap-1 text-[11px] font-semibold text-violet-700 hover:text-violet-800 px-1.5 py-0.5 rounded disabled:opacity-40"
+                    >
+                      <RotateCcw size={11} /> Reabrir
+                    </button>
+                  )}
                   {ativo && (
                     <>
+                      <button
+                        type="button"
+                        onClick={() => reenviarWhatsapp(s, faltando)}
+                        title="Mandar este link de novo pelo WhatsApp"
+                        className="text-green-600 hover:text-green-700 p-1"
+                      >
+                        <MessageCircle size={11} />
+                      </button>
                       <button
                         type="button"
                         onClick={() => {
@@ -546,6 +621,12 @@ export function BlocoSolicitacao({ pessoaId, nomePessoa, telefoneWhatsapp, email
                         <Trash2 size={11} />
                       </button>
                     </>
+                  )}
+                  </div>
+                  {faltando.length > 0 && (s.preenchido_em || expirado) && (
+                    <p className="text-[11px] text-amber-700 mt-1">
+                      Falta: {faltando.join(', ')}
+                    </p>
                   )}
                 </li>
               )

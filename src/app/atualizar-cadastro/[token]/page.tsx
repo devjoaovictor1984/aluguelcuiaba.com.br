@@ -109,7 +109,7 @@ export default async function AtualizarCadastroPage({ params }: Props) {
 
   let { data: sol } = await admin
     .from('solicitacoes_cadastro')
-    .select('id, user_id, pessoa_id, campos, tipos_documento, campos_imovel, imovel_id, expira_em, preenchido_em, revogado_em')
+    .select('id, user_id, pessoa_id, campos, tipos_documento, campos_imovel, imovel_id, dados_imovel, expira_em, preenchido_em, revogado_em')
     .eq('token', token)
     .maybeSingle()
   if (!sol) {
@@ -119,16 +119,15 @@ export default async function AtualizarCadastroPage({ params }: Props) {
       .select('id, user_id, pessoa_id, campos, tipos_documento, expira_em, preenchido_em, revogado_em')
       .eq('token', token)
       .maybeSingle()
-    sol = r.data ? { ...r.data, campos_imovel: [], imovel_id: null } : null
+    sol = r.data ? { ...r.data, campos_imovel: [], imovel_id: null, dados_imovel: null } : null
   }
 
   if (!sol) return <PaginaErro titulo="Link inválido" mensagem="Esse link de atualização não existe ou foi removido." />
   if (sol.revogado_em) return <PaginaErro titulo="Link cancelado" mensagem="O solicitante cancelou este link. Entre em contato pra receber um novo." />
-  if (sol.preenchido_em) {
-    return <PaginaConfirmacao titulo="Cadastro já preenchido" mensagem="Este link já foi usado. Se precisar corrigir algo, peça um novo ao solicitante." />
-  }
   if (new Date(sol.expira_em).getTime() < Date.now()) {
-    return <PaginaErro titulo="Link expirado" mensagem="Este link já passou da validade. Peça um novo ao solicitante." />
+    return sol.preenchido_em
+      ? <PaginaConfirmacao titulo="Cadastro já enviado" mensagem="Recebemos seus dados e este link já passou da validade. Se precisar corrigir algo, peça ao solicitante pra reabrir o link." />
+      : <PaginaErro titulo="Link expirado" mensagem="Este link já passou da validade. Peça ao solicitante pra reabrir o link." />
   }
 
   // Busca dados atuais da pessoa pra pré-preencher (só para os campos solicitados)
@@ -176,10 +175,27 @@ export default async function AtualizarCadastroPage({ params }: Props) {
       .maybeSingle()
     if (im) atuaisImovel = colunasParaDadosImovel(im as Record<string, unknown>)
   }
+  // Na volta, o que ela já mandou neste link vem preenchido (vale também
+  // quando o imóvel ainda não existe e as respostas só estão na solicitação).
+  const enviadosImovel = ((sol as { dados_imovel?: Record<string, string> | null }).dados_imovel ?? {}) as Record<string, string>
   const camposImovel: CampoImovelForm[] = chavesImovel.map(c => ({
     ...CAMPO_IMOVEL_POR_CHAVE[c],
-    valorAtual: atuaisImovel[c] ?? '',
+    valorAtual: atuaisImovel[c] || enviadosImovel[c] || '',
   }))
+
+  // Documentos que ela já mandou: na volta o formulário mostra "já recebido"
+  // em vez de pedir de novo.
+  let docsRecebidos: string[] = []
+  if (tiposDoc.length > 0) {
+    const { data: recebidos } = await admin
+      .from('pessoas_documentos')
+      .select('tipo')
+      .eq('pessoa_id', sol.pessoa_id)
+      .eq('user_id', sol.user_id)
+      .in('tipo', tiposDoc)
+      .is('deleted_at', null)
+    docsRecebidos = Array.from(new Set((recebidos ?? []).map(d => d.tipo as string)))
+  }
 
   const expira = new Date(sol.expira_em)
   const horasRestantes = Math.max(0, Math.round((expira.getTime() - Date.now()) / 3600000))
@@ -206,6 +222,9 @@ export default async function AtualizarCadastroPage({ params }: Props) {
               campos={campos}
               camposImovel={camposImovel}
               documentos={documentos}
+              docsRecebidos={docsRecebidos}
+              jaEnviadoEm={sol.preenchido_em ?? null}
+              expiraEm={sol.expira_em}
             />
           </div>
         </div>

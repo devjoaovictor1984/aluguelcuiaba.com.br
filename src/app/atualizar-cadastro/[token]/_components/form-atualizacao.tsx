@@ -28,11 +28,20 @@ interface Props {
   campos: CampoExistente[]
   camposImovel?: CampoImovelForm[]
   documentos: TipoDoc[]
+  /** Tipos de documento que ela já mandou (em qualquer envio). */
+  docsRecebidos?: string[]
+  /** Último envio por este link; null = primeira vez. */
+  jaEnviadoEm?: string | null
+  expiraEm: string
 }
+
+const fmtDataHora = (iso: string) =>
+  new Date(iso).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'America/Cuiaba' })
 
 const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-sm text-gray-900'
 
-export function FormAtualizacao({ token, nomePessoa, campos, camposImovel = [], documentos }: Props) {
+export function FormAtualizacao({ token, nomePessoa, campos, camposImovel = [], documentos, docsRecebidos = [], jaEnviadoEm = null, expiraEm }: Props) {
+  const [recebidos, setRecebidos] = useState<Set<string>>(new Set(docsRecebidos))
   const [valores, setValores] = useState<Record<string, string>>(
     Object.fromEntries(campos.map(c => [c.chave, c.valorAtual ?? '']))
   )
@@ -113,6 +122,9 @@ export function FormAtualizacao({ token, nomePessoa, campos, camposImovel = [], 
       try {
         const r = await submitAtualizacaoCadastro(token, fd)
         if (r.error) { setEstado('erro'); setMsgErro(r.error); return }
+        // O que acabou de subir passa a contar como recebido se ela voltar.
+        setRecebidos(s => new Set([...s, ...Object.entries(arquivos).filter(([, f]) => f).map(([k]) => k)]))
+        setArquivos({})
         setEstado('sucesso')
       } catch {
         // Sem este catch a falha sobe pro error boundary e o cliente vê
@@ -134,12 +146,28 @@ export function FormAtualizacao({ token, nomePessoa, campos, camposImovel = [], 
         </div>
         <h2 className="text-lg font-bold text-gray-900 mb-1">Obrigado!</h2>
         <p className="text-sm text-gray-500">Seu cadastro foi atualizado. Pode fechar esta página.</p>
+        <p className="text-xs text-gray-400 mt-3">
+          Faltou algo? Você pode voltar neste mesmo link até {fmtDataHora(expiraEm)} pra completar ou corrigir.
+        </p>
+        <button
+          type="button"
+          onClick={() => setEstado('idle')}
+          className="mt-4 text-xs font-semibold text-violet-700 hover:underline"
+        >
+          Continuar editando
+        </button>
       </div>
     )
   }
 
   return (
     <form onSubmit={submit} className="space-y-5">
+      {jaEnviadoEm && (
+        <div className="bg-green-50 border border-green-100 rounded-xl px-3 py-2.5 text-xs text-green-900">
+          Você já enviou este cadastro em {fmtDataHora(jaEnviadoEm)}. O que mandou está preenchido
+          abaixo: complete o que faltou ou corrija e envie de novo.
+        </div>
+      )}
       {nomePessoa && (
         <div className="bg-violet-50 border border-violet-100 rounded-xl px-3 py-2.5 text-xs text-violet-900">
           Cadastro de <strong>{nomePessoa}</strong>
@@ -168,6 +196,7 @@ export function FormAtualizacao({ token, nomePessoa, campos, camposImovel = [], 
           titulo={camposImovel.length > 0 || docsImovel.length > 0 ? 'Seus documentos' : 'Documentos solicitados'}
           documentos={docsPessoa}
           arquivos={arquivos}
+          recebidos={recebidos}
           preparando={preparando}
           onEscolher={escolherArquivo}
         />
@@ -206,6 +235,7 @@ export function FormAtualizacao({ token, nomePessoa, campos, camposImovel = [], 
           titulo="Documentos do imóvel"
           documentos={docsImovel}
           arquivos={arquivos}
+          recebidos={recebidos}
           preparando={preparando}
           onEscolher={escolherArquivo}
         />
@@ -238,11 +268,12 @@ export function FormAtualizacao({ token, nomePessoa, campos, camposImovel = [], 
 }
 
 function SecaoDocumentos({
-  titulo, documentos, arquivos, preparando, onEscolher,
+  titulo, documentos, arquivos, recebidos, preparando, onEscolher,
 }: {
   titulo: string
   documentos: TipoDoc[]
   arquivos: Record<string, File | null>
+  recebidos: Set<string>
   preparando: string | null
   onEscolher: (chave: string, f: File | null) => Promise<void>
 }) {
@@ -258,6 +289,7 @@ function SecaoDocumentos({
           key={d.chave}
           label={d.label}
           arquivo={arquivos[d.chave] ?? null}
+          jaRecebido={recebidos.has(d.chave)}
           preparando={preparando === d.chave}
           onChange={f => void onEscolher(d.chave, f)}
         />
@@ -382,11 +414,18 @@ function Campo({
 }
 
 function UploadCampo({
-  label, arquivo, preparando, onChange,
-}: { label: string; arquivo: File | null; preparando: boolean; onChange: (f: File | null) => void }) {
+  label, arquivo, jaRecebido, preparando, onChange,
+}: { label: string; arquivo: File | null; jaRecebido: boolean; preparando: boolean; onChange: (f: File | null) => void }) {
   return (
     <div>
-      <p className="text-xs font-medium text-gray-600 mb-1">{label}</p>
+      <p className="text-xs font-medium text-gray-600 mb-1">
+        {label}
+        {jaRecebido && !arquivo && (
+          <span className="ml-1.5 inline-flex items-center gap-0.5 text-[10px] font-semibold text-green-700">
+            <Check size={10} /> já recebido
+          </span>
+        )}
+      </p>
       {preparando ? (
         <div className="flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-sm text-gray-500">
           <Loader2 size={14} className="animate-spin shrink-0" />
@@ -408,7 +447,7 @@ function UploadCampo({
       ) : (
         <label className="flex items-center justify-center gap-2 w-full border-2 border-dashed border-gray-200 hover:border-violet-300 hover:bg-violet-50/30 rounded-xl px-3 py-3 cursor-pointer">
           <Upload size={14} className="text-gray-400" />
-          <span className="text-xs text-gray-600">Selecionar arquivo</span>
+          <span className="text-xs text-gray-600">{jaRecebido ? 'Enviar outro (opcional)' : 'Selecionar arquivo'}</span>
           <input
             type="file"
             accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"

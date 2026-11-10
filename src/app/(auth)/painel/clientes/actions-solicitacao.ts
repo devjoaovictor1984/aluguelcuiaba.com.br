@@ -94,6 +94,12 @@ export async function gerarLinkAtualizacao(input: GerarLinkInput) {
   })
   if (error) return { error: error.message }
 
+  // O corretor disse que este é o imóvel dela: deixa o vínculo gravado, pro
+  // próximo link (e o contrato) já virem com ele escolhido.
+  if (input.imovel_id && camposImovel.length > 0) {
+    await vincularProprietario(supabase, input.imovel_id, input.pessoa_id, acesso.userId)
+  }
+
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXT_PUBLIC_SITE_URL ?? ''
   const url = `${baseUrl}/atualizar-cadastro/${token}`
 
@@ -120,6 +126,51 @@ export async function revogarLinkAtualizacao(solicitacaoId: string) {
 
   revalidatePath(`/painel/clientes/${sol.pessoa_id}`)
   return { ok: true }
+}
+
+/**
+ * Reabre um link que expirou: o mesmo endereço volta a funcionar, com o que
+ * a pessoa já mandou preenchido, sem precisar montar a solicitação de novo.
+ */
+export async function reabrirLinkAtualizacao(solicitacaoId: string, horas = 168) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+
+  const { data: sol } = await supabase
+    .from('solicitacoes_cadastro')
+    .select('id, pessoa_id, revogado_em')
+    .eq('id', solicitacaoId)
+    .eq('user_id', acesso.userId)
+    .maybeSingle()
+  if (!sol) return { error: 'Solicitação não encontrada.' }
+  if (sol.revogado_em) return { error: 'Este link foi cancelado. Gere um novo.' }
+
+  const h = Math.max(1, Math.min(168, horas))
+  const expira = new Date(Date.now() + h * 3600 * 1000).toISOString()
+  const { error } = await supabase
+    .from('solicitacoes_cadastro')
+    .update({ expira_em: expira })
+    .eq('id', solicitacaoId)
+    .eq('user_id', acesso.userId)
+  if (error) return { error: error.message }
+
+  revalidatePath(`/painel/clientes/${sol.pessoa_id}`)
+  return { ok: true, expira_em: expira }
+}
+
+/** Grava a pessoa como proprietária do imóvel, só se ele ainda não tinha uma. */
+async function vincularProprietario(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  imovelId: string,
+  pessoaId: string,
+  userId: string,
+) {
+  await supabase
+    .from('imoveis')
+    .update({ proprietario_id: pessoaId })
+    .eq('id', imovelId)
+    .eq('user_id', userId)
+    .is('proprietario_id', null)
 }
 
 /**
@@ -167,6 +218,8 @@ export async function aplicarDadosImovel(
     updateTag(TAG_IMOVEIS)
     await revalidarImovel(imovelId)
   }
+
+  await vincularProprietario(supabase, imovelId, sol.pessoa_id, acesso.userId)
 
   const { error } = await supabase
     .from('solicitacoes_cadastro')

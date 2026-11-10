@@ -120,6 +120,18 @@ export async function criarContratoAdmin(input: ContratoAdminInput) {
     .single()
 
   if (error || !data) return { error: error?.message ?? 'Falha ao criar.' }
+
+  // Vincula a proprietária ao imóvel (se ainda não tinha), como o contrato de
+  // locação já faz. Assim a ficha dela e os próximos links já sabem o imóvel.
+  if (input.imovel_id) {
+    await supabase
+      .from('imoveis')
+      .update({ proprietario_id: input.proprietario_id })
+      .eq('id', input.imovel_id)
+      .eq('user_id', acesso.userId)
+      .is('proprietario_id', null)
+  }
+
   revalidatePath('/painel/administracoes')
   return { ok: true, id: data.id }
 }
@@ -141,6 +153,14 @@ export async function atualizarContratoAdmin(id: string, input: Partial<Contrato
     .eq('id', id)
     .eq('user_id', acesso.userId)
   if (error) return { error: error.message }
+  if (input.imovel_id && input.proprietario_id) {
+    await supabase
+      .from('imoveis')
+      .update({ proprietario_id: input.proprietario_id })
+      .eq('id', input.imovel_id)
+      .eq('user_id', acesso.userId)
+      .is('proprietario_id', null)
+  }
   revalidatePath('/painel/administracoes')
   revalidatePath(`/painel/administracoes/${id}`)
   return { ok: true }

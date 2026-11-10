@@ -51,7 +51,8 @@ async function carregarSolicitacao(token: string): Promise<{ sol?: Solicitacao; 
   }
   if (!data) return { error: 'Link inválido ou não encontrado.' }
   if (data.revogado_em) return { error: 'Este link foi revogado pelo solicitante.' }
-  if (data.preenchido_em) return { error: 'Este link já foi usado.' }
+  // Já ter enviado não fecha o link: até expirar, a pessoa pode voltar pra
+  // completar o que faltou ou corrigir. preenchido_em guarda o último envio.
   if (new Date(data.expira_em).getTime() < Date.now()) return { error: 'Link expirado. Peça um novo ao solicitante.' }
   return { sol: data as Solicitacao }
 }
@@ -158,5 +159,5 @@ export async function submitAtualizacaoCadastro(token: string, formData: FormDat
     })
     .eq('id', sol.id)
 
-  return { ok: true }
+  return { ok: true, expira_em: sol.expira_em }
 }

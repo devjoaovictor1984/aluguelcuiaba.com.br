@@ -57,7 +57,7 @@ export function DadosImovelRecebidos({ pessoaId, captacoes, imoveis }: Props) {
 
 function Captacao({ pessoaId, captacao, imoveis }: { pessoaId: string; captacao: CaptacaoRecebida; imoveis: ImovelOpcao[] }) {
   const router = useRouter()
-  const [imovelId, setImovelId] = useState('')
+  const [imovelId, setImovelId] = useState(imoveis.find(i => i.daPessoa)?.id ?? '')
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
 

@@ -16,7 +16,7 @@ export default async function EditarPessoaPage({ params }: { params: Promise<{ i
 
   const supabase = await createClient()
 
-  const [{ data: pessoa }, { data: docs }, solicitacoesV100, { data: imoveisRows }] = await Promise.all([
+  const [{ data: pessoa }, { data: docs }, solicitacoesV100, { data: imoveisRows }, { data: admDela }, { data: locDela }] = await Promise.all([
     supabase
       .from('pessoas')
       .select('*')
@@ -38,9 +38,23 @@ export default async function EditarPessoaPage({ params }: { params: Promise<{ i
       .limit(20),
     supabase
       .from('imoveis')
-      .select('id, titulo, endereco_completo, endereco_numero, endereco_resumido')
+      .select('id, titulo, endereco_completo, endereco_numero, endereco_resumido, proprietario_id')
       .eq('user_id', acesso.userId)
       .order('created_at', { ascending: false }),
+    // Imóveis em que ela já é a proprietária num contrato, mesmo que o
+    // vínculo não tenha ficado gravado no próprio imóvel.
+    supabase
+      .from('contratos_administracao')
+      .select('imovel_id')
+      .eq('user_id', acesso.userId)
+      .eq('proprietario_id', id)
+      .is('deleted_at', null),
+    supabase
+      .from('contratos_locacao')
+      .select('imovel_id')
+      .eq('user_id', acesso.userId)
+      .eq('proprietario_id', id)
+      .is('deleted_at', null),
   ])
 
   // Banco sem a v100: relê sem as colunas do imóvel.
@@ -62,13 +76,26 @@ export default async function EditarPessoaPage({ params }: { params: Promise<{ i
   const solicitacoes: SolicitacaoAtiva[] = (solicitacoesRes.data ?? []) as SolicitacaoAtiva[]
   const v11Faltando = !!solicitacoesRes.error
 
+  const idsDela = new Set([
+    ...(admDela ?? []).map(c => c.imovel_id as string | null),
+    ...(locDela ?? []).map(c => c.imovel_id as string | null),
+  ].filter((x): x is string => !!x))
   const imoveis: ImovelOpcao[] = (imoveisRows ?? []).map(im => ({
     id: im.id,
     titulo: im.titulo,
     endereco: im.endereco_completo
       ? [im.endereco_completo, im.endereco_numero].filter(Boolean).join(', ')
       : im.endereco_resumido,
+    daPessoa: im.proprietario_id === id || idsDela.has(im.id),
   }))
+    // Os dela primeiro, pra aparecerem no topo da lista.
+    .sort((a, b) => Number(b.daPessoa) - Number(a.daPessoa))
+
+  // O que já está no cadastro dela, pra mostrar o que falta em cada link.
+  const camposPreenchidos = Object.entries(pessoa ?? {})
+    .filter(([, v]) => v != null && String(v).trim() !== '')
+    .map(([k]) => k)
+  const docsRecebidos = Array.from(new Set((docs ?? []).map(d => d.tipo as string)))
 
   const captacoes: CaptacaoRecebida[] = (solicitacoesRes.data ?? [])
     .map(s => s as typeof s & { imovel_id?: string | null; dados_imovel?: Record<string, string> | null })
@@ -104,6 +131,8 @@ export default async function EditarPessoaPage({ params }: { params: Promise<{ i
           baseUrl={baseUrl}
           solicitacoes={solicitacoes}
           imoveis={imoveis}
+          camposPreenchidos={camposPreenchidos}
+          docsRecebidos={docsRecebidos}
         />
       )}
     </div>
