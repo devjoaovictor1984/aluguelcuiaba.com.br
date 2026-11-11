@@ -127,7 +127,90 @@ export const PLACEHOLDERS: Placeholder[] = [
   { chave: 'ADM_AVISO_PREVIO_DIAS', label: 'Dias de aviso prévio pra rescisão', exemplo: '30', origem: 'prazo' },
   { chave: 'ADM_MULTA_MESES', label: 'Multa rescisória em meses', exemplo: '3', origem: 'garantia' },
   { chave: 'ADM_EXCLUSIVIDADE', label: 'Exclusividade (sim/não)', exemplo: 'em regime de exclusividade', origem: 'admin' },
+  { chave: 'ADM_REMUNERACAO_FORMA', label: 'Parágrafo da forma de recebimento da remuneração (gerado)', exemplo: 'Parágrafo. A remuneração da ADMINISTRADORA será recebida mensalmente…', origem: 'valores' },
+  { chave: 'ADM_PROPRIETARIO_REPRESENTANTE', label: 'Frase do representante da proprietária PJ (vazio se não houver)', exemplo: 'A PROPRIETÁRIA é, neste ato, representada por…', origem: 'locador' },
+
+  // ── Qualificação completa, contato e tipo de documento (v2) ──
+  // A qualificação monta PF ou PJ conforme o documento cadastrado e omite
+  // o que não se aplica sem deixar vírgula solta. PJ nunca recebe o CPF do
+  // representante no lugar do CNPJ.
+  { chave: 'LOCADOR_QUALIFICACAO', label: 'Qualificação completa do locador/proprietário (PF ou PJ)', exemplo: 'RIVÂNIA SILVA, brasileira, casada, empresária, portadora do RG nº 15.878.406 SSP/MT, inscrita no CPF sob o nº 361.799.901-82, residente e domiciliada em…', origem: 'locador' },
+  { chave: 'LOCADOR_DOC_TIPO', label: 'Tipo de documento do locador (CPF ou CNPJ)', exemplo: 'CPF', origem: 'locador' },
+  { chave: 'LOCADOR_EMAIL', label: 'E-mail do locador', exemplo: 'proprietaria@email.com', origem: 'locador' },
+  { chave: 'LOCADOR_TELEFONE', label: 'Telefone do locador', exemplo: '(65) 99999-0000', origem: 'locador' },
+  { chave: 'LOCATARIO_QUALIFICACAO', label: 'Qualificação completa do locatário (PF ou PJ)', exemplo: 'HELDER BARBOSA MACIEL, brasileiro, casado, corretor de imóveis, portador do RG nº…', origem: 'locatario' },
+  { chave: 'LOCATARIO_DOC_TIPO', label: 'Tipo de documento do locatário (CPF ou CNPJ)', exemplo: 'CPF', origem: 'locatario' },
+  { chave: 'LOCATARIO_EMAIL', label: 'E-mail do locatário', exemplo: 'locatario@email.com', origem: 'locatario' },
+  { chave: 'LOCATARIO_TELEFONE', label: 'Telefone do locatário', exemplo: '(65) 98888-0000', origem: 'locatario' },
+
+  // ── Flexão de gênero (resolvidas pelo cadastro; nunca ficam pendentes) ──
+  ...(['LOCADOR', 'LOCATARIO', 'FIADOR', 'CONJUGE'] as const).flatMap(quem => {
+    const origem: Placeholder['origem'] = quem === 'LOCADOR' ? 'locador' : quem === 'LOCATARIO' ? 'locatario' : quem === 'FIADOR' ? 'fiador' : 'conjuge_locatario'
+    const formas: Array<[string, string]> = [
+      ['BRASILEIRO', 'brasileiro / brasileira'],
+      ['NASCIDO', 'nascido / nascida'],
+      ['PORTADOR', 'portador / portadora'],
+      ['INSCRITO', 'inscrito / inscrita'],
+      ['DOMICILIADO', 'residente e domiciliado / domiciliada'],
+      ...(quem !== 'CONJUGE' ? [['DENOMINADO', 'denominado / denominada'] as [string, string]] : []),
+      ...(quem !== 'CONJUGE' ? [['PAPEL', quem === 'LOCADOR' ? 'LOCADOR / LOCADORA' : quem === 'LOCATARIO' ? 'LOCATÁRIO / LOCATÁRIA' : 'FIADOR / FIADORA'] as [string, string]] : []),
+      ...(quem === 'LOCADOR' ? [['REPRESENTADO', 'representado / representada'] as [string, string], ['PROPRIETARIO', 'PROPRIETÁRIO / PROPRIETÁRIA'] as [string, string]] : []),
+      ...(quem === 'LOCATARIO' ? [['FILHO', 'filho / filha'] as [string, string]] : []),
+    ]
+    return formas.map(([sufixo, exemplo]) => ({
+      chave: `${quem}_${sufixo}`,
+      label: `Flexão de gênero: ${exemplo}`,
+      exemplo: exemplo.split(' / ')[0],
+      origem,
+    }))
+  }),
 ]
+
+export const PLACEHOLDER_POR_CHAVE = new Map(PLACEHOLDERS.map(p => [p.chave, p]))
+
+/**
+ * Peso de um placeholder quando o dado falta:
+ *  - obrigatorio: sem ele o contrato não identifica parte, imóvel, preço ou
+ *    prazo. Aparece em vermelho e trava o envio pra assinatura.
+ *  - importante: integra a qualificação ou uma condição pactuada. Também
+ *    aparece em vermelho na minuta e trava a assinatura, pra nada sair
+ *    assinado com lacuna.
+ *  - opcional: pode não se aplicar (leitura de medidor, livro/folha,
+ *    apólice que sai depois). Some do texto e aparece no painel como
+ *    "omitido", nunca em silêncio.
+ */
+export type NivelPlaceholder = 'obrigatorio' | 'importante' | 'opcional'
+
+const OBRIGATORIOS = new Set([
+  'LOCADOR_NOME', 'LOCADOR_CPF', 'LOCADOR_QUALIFICACAO',
+  'LOCATARIO_NOME', 'LOCATARIO_CPF', 'LOCATARIO_QUALIFICACAO',
+  'FIADOR_NOME', 'FIADOR_CPF',
+  'ADMIN_RAZAO_SOCIAL',
+  'IMOVEL_ENDERECO',
+  'ALUGUEL_VALOR', 'ALUGUEL_EXTENSO', 'PACOTE_LOCATICIO_VALOR', 'PACOTE_LOCATICIO_EXTENSO',
+  'TOTAL_BOLETO_VALOR', 'TOTAL_BOLETO_EXTENSO', 'TOTAL_MENSAL',
+  'VENCIMENTO_DIA', 'PRAZO_MESES', 'PRAZO_EXTENSO', 'DATA_INICIO', 'DATA_FIM',
+  'CAUCAO_VALOR', 'CAUCAO_EXTENSO',
+  'SEGURO_SEGURADORA',
+  'ADM_TAXA_VALOR', 'ADM_TAXA_DESCRICAO', 'ADM_DATA_INICIO',
+])
+
+const OPCIONAIS = new Set([
+  'LOCATARIO_REGIME_BENS',
+  'CONJUGE_NOME_PAI', 'CONJUGE_NOME_MAE', 'CONJUGE_NATURALIDADE', 'CONJUGE_ENDERECO',
+  'IMOVEL_AREA_TERRENO', 'IMOVEL_UC_GAS', 'IMOVEL_LIVRO_FOLHA',
+  'IMOVEL_HIDROMETRO_NUMERO', 'IMOVEL_HIDROMETRO_LEITURA',
+  'IMOVEL_MEDIDOR_ENERGIA_NUMERO', 'IMOVEL_MEDIDOR_ENERGIA_LEITURA',
+  'ENCARGOS_INCLUSOS', 'ENCARGOS_SEPARADOS', 'OUTROS_ENCARGOS_FIXOS',
+  'SEGURO_APOLICE', 'SEGURO_INCENDIO_VALOR', 'IPTU_VALOR',
+  'ADM_PROPRIETARIO_REPRESENTANTE', 'ADM_DATA_TERMINO',
+])
+
+export function nivelPlaceholder(chave: string): NivelPlaceholder {
+  if (OBRIGATORIOS.has(chave)) return 'obrigatorio'
+  if (OPCIONAIS.has(chave)) return 'opcional'
+  return 'importante'
+}
 
 export const TIPOS_CLAUSULA = [
   { valor: 'generica',         label: 'Genéricas',        descricao: 'Vão em todos os contratos' },

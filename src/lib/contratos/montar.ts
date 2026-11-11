@@ -8,6 +8,8 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { PLACEHOLDER_POR_CHAVE, nivelPlaceholder, type NivelPlaceholder } from './placeholders'
+
 export interface DadosContrato {
   // Locador (proprietário)
   locador?: {
@@ -20,6 +22,9 @@ export interface DadosContrato {
     estado_civil?: string | null
     profissao?: string | null
     genero?: string | null
+    email?: string | null
+    telefone?: string | null
+    whatsapp?: string | null
     endereco_logradouro?: string | null
     endereco_numero?: string | null
     endereco_complemento?: string | null
@@ -45,6 +50,9 @@ export interface DadosContrato {
     naturalidade?: string | null
     nome_pai?: string | null
     nome_mae?: string | null
+    email?: string | null
+    telefone?: string | null
+    whatsapp?: string | null
     endereco_logradouro?: string | null
     endereco_numero?: string | null
     endereco_complemento?: string | null
@@ -666,8 +674,324 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       return `A PROPRIETÁRIA é, neste ato, representada por ${a.proprietario_representante_nome}${cpf}, na qualidade de ${qual}, que assina o presente instrumento em seu nome.`
     }
 
+    // ── v2: documento, contato e qualificação ──
+    // Textos antigos não usam estas chaves, então o modo legado continua
+    // produzindo exatamente o mesmo texto de antes.
+    case 'LOCADOR_DOC_TIPO': return tipoDocumento(dados.locador?.cpf_cnpj)
+    case 'LOCATARIO_DOC_TIPO': return tipoDocumento(dados.locatario?.cpf_cnpj)
+    case 'LOCADOR_EMAIL': return dados.locador?.email?.trim() || FALLBACK
+    case 'LOCATARIO_EMAIL': return dados.locatario?.email?.trim() || FALLBACK
+    case 'LOCADOR_TELEFONE': return fmtTelefone(dados.locador?.telefone || dados.locador?.whatsapp)
+    case 'LOCATARIO_TELEFONE': return fmtTelefone(dados.locatario?.telefone || dados.locatario?.whatsapp)
+    case 'LOCADOR_QUALIFICACAO':
+      return qualificacao(dados.locador, 'locador', dados, () => '')
+    case 'LOCATARIO_QUALIFICACAO':
+      return qualificacao(dados.locatario, 'locatario', dados, () => '')
+
     default: return `{{${chave}}}`  // não conhecido: mantém pra usuário ver
   }
+}
+
+const tipoDocumento = (doc: string | null | undefined): string => {
+  const d = (doc ?? '').replace(/\D/g, '')
+  if (d.length === 14) return 'CNPJ'
+  if (d.length === 11) return 'CPF'
+  return ''
+}
+
+const fmtTelefone = (s: string | null | undefined): string => {
+  if (!s) return ''
+  const d = s.replace(/\D/g, '').replace(/^55(?=\d{10,11}$)/, '')
+  if (d.length === 11) return d.replace(/^(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3')
+  if (d.length === 10) return d.replace(/^(\d{2})(\d{4})(\d{4})$/, '($1) $2-$3')
+  return s.trim()
+}
+
+const ESTADO_CIVIL: Record<string, [string, string]> = {
+  solteiro: ['solteiro', 'solteira'],
+  casado: ['casado', 'casada'],
+  divorciado: ['divorciado', 'divorciada'],
+  separado: ['separado judicialmente', 'separada judicialmente'],
+  viuvo: ['viúvo', 'viúva'],
+  uniao_estavel: ['em união estável', 'em união estável'],
+}
+
+type Pessoa = NonNullable<DadosContrato['locador']> & Record<string, any>
+
+/**
+ * Qualificação contratual de uma parte, PF ou PJ, decidida pelo documento
+ * cadastrado (14 dígitos = PJ). Cada pedaço que falta passa por `falta`,
+ * que no motor v2 devolve o marcador [PENDENTE] e no legado devolve '' —
+ * e o pedaço inteiro sai junto ("portadora do RG nº", a vírgula), em vez
+ * de deixar a construção pela metade.
+ *
+ * PJ: razão social + CNPJ + sede + representante (quando cadastrado). O CPF
+ * do representante vai junto do nome dele, nunca no lugar do CNPJ.
+ */
+function qualificacao(
+  p: Pessoa | null | undefined,
+  papel: 'locador' | 'locatario',
+  dados: DadosContrato,
+  falta: (chave: string, rotulo: string, motivo?: MotivoPendencia) => string,
+): string {
+  const prefixo = papel === 'locador' ? 'LOCADOR' : 'LOCATARIO'
+  const quem = papel === 'locador' ? 'do locador' : 'do locatário'
+  if (!p) return falta(`${prefixo}_QUALIFICACAO`, `qualificação ${quem}`)
+
+  const digitos = (p.cpf_cnpj ?? '').replace(/\D/g, '')
+  const ehPJ = digitos.length === 14
+  const g = generoEfetivo(p)
+  const partes: string[] = []
+  const nome = p.nome?.trim() || falta(`${prefixo}_NOME`, `nome ${quem}`)
+
+  if (ehPJ) {
+    partes.push(`${nome}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº ${fmtCnpj(p.cpf_cnpj)}`)
+    const sede = enderecoCompleto(p)
+    const sedeTxt = sede === '[PREENCHER]' ? falta(`${prefixo}_ENDERECO`, `endereço da sede ${quem}`) : sede
+    if (sedeTxt) partes.push(`com sede em ${sedeTxt}`)
+    const repr = papel === 'locador' ? dados.administracao : null
+    if (repr?.proprietario_representante_nome) {
+      const cpf = repr.proprietario_representante_cpf ? `, inscrito(a) no CPF sob o nº ${fmtCpf(repr.proprietario_representante_cpf)}` : ''
+      const qual = repr.proprietario_representante_qualificacao?.trim()
+      partes.push(`neste ato representada por ${repr.proprietario_representante_nome}${cpf}${qual ? `, na qualidade de ${qual}` : ''}`)
+    }
+    return partes.join(', ')
+  }
+
+  partes.push(nome)
+  const nac = p.nacionalidade?.trim()
+  partes.push(nac
+    ? (/^brasileir/i.test(nac) ? flex(g, 'brasileiro', 'brasileira') : nac)
+    : falta(`${prefixo}_NACIONALIDADE`, `nacionalidade ${quem}`))
+  const ec = p.estado_civil ? ESTADO_CIVIL[p.estado_civil] : null
+  partes.push(ec ? flex(g, ec[0], ec[1]) : (p.estado_civil?.trim() || falta(`${prefixo}_ESTADO_CIVIL`, `estado civil ${quem}`)))
+  partes.push(p.profissao?.trim() || falta(`${prefixo}_PROFISSAO`, `profissão ${quem}`))
+  const rg = rgCompleto(p)
+  const rgTxt = rg === '[PREENCHER]' ? falta(`${prefixo}_RG`, `RG ${quem}`) : rg
+  if (rgTxt) partes.push(`${flex(g, 'portador', 'portadora')} do RG nº ${rgTxt}`)
+  const cpf = digitos.length === 11
+    ? fmtCpf(p.cpf_cnpj)
+    : falta(`${prefixo}_CPF`, `CPF ${quem}`, digitos.length > 0 ? 'invalido' : undefined)
+  if (cpf) partes.push(`${flex(g, 'inscrito', 'inscrita')} no CPF sob o nº ${cpf}`)
+  const end = enderecoCompleto(p)
+  const endTxt = end === '[PREENCHER]' ? falta(`${prefixo}_ENDERECO`, `endereço ${quem}`) : end
+  if (endTxt) partes.push(`${flex(g, 'residente e domiciliado', 'residente e domiciliada')} em ${endTxt}`)
+  return partes.filter(Boolean).join(', ')
+}
+
+// ════════════════════════════════════════════════════════════════════
+//  Motor v2 — nenhum placeholder some em silêncio
+// ════════════════════════════════════════════════════════════════════
+
+/**
+ * Por que um placeholder não pôde ser preenchido:
+ *  - vazio: o campo existe no cadastro, mas está em branco
+ *  - sem_vinculo: a pessoa/imóvel nem está ligada ao contrato
+ *  - desconhecido: a chave escrita na cláusula não existe no catálogo
+ *  - invalido: tem valor, mas fora do formato (CPF com dígito faltando)
+ */
+export type MotivoPendencia = 'vazio' | 'sem_vinculo' | 'desconhecido' | 'invalido'
+
+export type EntidadePlaceholder =
+  'locador' | 'locatario' | 'conjuge' | 'fiador' | 'admin' | 'imovel' | 'contrato' | 'administracao' | 'clausula'
+
+export interface PendenciaPlaceholder {
+  chave: string
+  rotulo: string
+  motivo: MotivoPendencia
+  entidade: EntidadePlaceholder
+  nivel: NivelPlaceholder
+  /** Quantas vezes aparece no contrato. */
+  ocorrencias: number
+}
+
+/** Delimitadores do trecho pendente no texto (área de uso privado do Unicode). */
+export const MARCA_PENDENTE_INI = ''
+export const MARCA_PENDENTE_FIM = ''
+export const RE_MARCA_PENDENTE = /([^]*)/g
+
+/**
+ * Contratos cujo processo de assinatura foi aberto antes desta data seguem
+ * no motor antigo pra sempre: os signatários leram aquele texto, e a via
+ * final (quando ainda não congelada) tem que sair igual ao que foi lido.
+ * Processo aberto depois disso já nasce no v2, do início ao fim.
+ */
+export const MOTOR_V2_DESDE = '2026-11-12T04:00:00Z'
+
+export type MotorPlaceholders = 'legado' | 'v2'
+
+/** Decide o motor pelo processo de assinatura mais recente (não cancelado). */
+export function motorDoContrato(processoCriadoEm: string | null | undefined): MotorPlaceholders {
+  if (processoCriadoEm && processoCriadoEm < MOTOR_V2_DESDE) return 'legado'
+  return 'v2'
+}
+
+const marcar = (rotulo: string) =>
+  `${MARCA_PENDENTE_INI}PENDENTE: ${rotulo.toUpperCase()}${MARCA_PENDENTE_FIM}`
+
+function entidadeDaChave(chave: string): EntidadePlaceholder {
+  if (chave.startsWith('LOCADOR_')) return 'locador'
+  if (chave.startsWith('LOCATARIO_')) return 'locatario'
+  if (chave.startsWith('CONJUGE_')) return 'conjuge'
+  if (chave.startsWith('FIADOR_')) return 'fiador'
+  if (chave.startsWith('ADMIN_')) return 'admin'
+  if (chave.startsWith('IMOVEL_')) return 'imovel'
+  if (chave.startsWith('ADM_')) return 'administracao'
+  return 'contrato'
+}
+
+function objetoDaEntidade(e: EntidadePlaceholder, d: DadosContrato): unknown {
+  switch (e) {
+    case 'locador': return d.locador
+    case 'locatario': return d.locatario
+    case 'conjuge': return d.locatario?.conjuge_nome ? d.locatario : null
+    case 'fiador': return d.fiador
+    case 'admin': return d.admin
+    case 'imovel': return d.imovel
+    case 'administracao': return d.administracao
+    default: return d.contrato ?? d.administracao
+  }
+}
+
+/**
+ * Chaves cujo resolvedor antigo inventa um valor quando o dado falta
+ * ('30' meses, repasse dia '5', caução de '3' meses…). No v2 a falta do
+ * dado bruto vira pendência — o número inventado nunca chega ao texto.
+ */
+const SEM_DADO_BRUTO: Record<string, (d: DadosContrato) => boolean> = {
+  PRAZO_MESES: d => d.contrato?.duracao_meses == null,
+  PRAZO_EXTENSO: d => d.contrato?.duracao_meses == null,
+  ALUGUEL_VALOR: d => !d.contrato?.valor_aluguel,
+  ALUGUEL_EXTENSO: d => !d.contrato?.valor_aluguel,
+  PACOTE_LOCATICIO_VALOR: d => !d.contrato?.valor_aluguel,
+  PACOTE_LOCATICIO_EXTENSO: d => !d.contrato?.valor_aluguel,
+  TOTAL_BOLETO_VALOR: d => !d.contrato?.valor_aluguel,
+  TOTAL_BOLETO_EXTENSO: d => !d.contrato?.valor_aluguel,
+  TOTAL_MENSAL: d => !d.contrato?.valor_aluguel,
+  CAUCAO_VALOR: d => !d.contrato?.caucao_valor,
+  CAUCAO_EXTENSO: d => !d.contrato?.caucao_valor,
+  CAUCAO_MESES: d => !d.contrato?.caucao_valor || !d.contrato?.valor_aluguel,
+  SEGURO_FIANCA_VALOR: d => !d.contrato?.valor_seguro_fianca_mensal,
+  SEGURO_FIANCA_EXTENSO: d => !d.contrato?.valor_seguro_fianca_mensal,
+  SEGURO_VALOR: d => !d.contrato?.valor_seguro_fianca_mensal,
+  ADM_PRAZO_MESES: d => d.administracao?.prazo_meses == null,
+  ADM_DIA_REPASSE: d => d.administracao?.dia_repasse == null,
+  ADM_AVISO_PREVIO_DIAS: d => d.administracao?.aviso_previo_dias == null,
+  ADM_MULTA_MESES: d => d.administracao?.multa_rescisao_meses == null,
+}
+
+/** Rótulo legível do placeholder, pro marcador e pro painel. */
+function rotuloDe(chave: string): string {
+  const p = PLACEHOLDER_POR_CHAVE.get(chave)
+  return p ? p.label.replace(/\s*\((gerado|vazio[^)]*|com órgão e UF|sai depois)\)\s*/gi, '').trim() : `{{${chave}}}`
+}
+
+/**
+ * Aplica os placeholders no motor v2. Mesma limpeza de pontuação do legado,
+ * mas o que falta vira [PENDENTE: …] (obrigatório/importante) e entra em
+ * `pendencias`; o opcional sai do texto e também entra em `pendencias`,
+ * pra aparecer no painel como omitido.
+ */
+export function aplicarPlaceholdersV2(
+  corpo: string,
+  dados: DadosContrato,
+  pendencias: Map<string, PendenciaPlaceholder>,
+): string {
+  const registrar = (chave: string, motivo: MotivoPendencia, nivelForcado?: NivelPlaceholder, rotulo?: string) => {
+    const atual = pendencias.get(chave)
+    if (atual) { atual.ocorrencias++; return }
+    pendencias.set(chave, {
+      chave,
+      rotulo: rotulo ?? rotuloDe(chave),
+      motivo,
+      entidade: motivo === 'desconhecido' ? 'clausula' : entidadeDaChave(chave),
+      nivel: nivelForcado ?? nivelPlaceholder(chave),
+      ocorrencias: 1,
+    })
+  }
+
+  // Pendência dentro de um valor composto (a qualificação): registra a peça
+  // que falta e devolve o marcador ou nada, conforme o nível dela.
+  const falta = (chave: string, rotulo: string, motivoDado?: MotivoPendencia): string => {
+    const motivo: MotivoPendencia = motivoDado
+      ?? (objetoDaEntidade(entidadeDaChave(chave), dados) ? 'vazio' : 'sem_vinculo')
+    registrar(chave, motivo, undefined, rotulo)
+    return nivelPlaceholder(chave) === 'opcional' ? '' : marcar(rotulo)
+  }
+
+  const resolver = (chave: string): string => {
+    if (!PLACEHOLDER_POR_CHAVE.has(chave)) {
+      registrar(chave, 'desconhecido', 'obrigatorio', `placeholder {{${chave}}} não reconhecido`)
+      return marcar(`placeholder ${chave} não reconhecido`)
+    }
+    if (chave === 'LOCADOR_QUALIFICACAO') return qualificacao(dados.locador, 'locador', dados, falta)
+    if (chave === 'LOCATARIO_QUALIFICACAO') return qualificacao(dados.locatario, 'locatario', dados, falta)
+
+    const nivel = nivelPlaceholder(chave)
+    const pendente = (motivo: MotivoPendencia) => {
+      registrar(chave, motivo)
+      return nivel === 'opcional' ? '' : marcar(rotuloDe(chave))
+    }
+
+    const ent = entidadeDaChave(chave)
+    if (!objetoDaEntidade(ent, dados)) {
+      // Flexões de gênero têm forma neutra e não dependem do vínculo.
+      if (/_(BRASILEIRO|NASCIDO|PORTADOR|INSCRITO|DOMICILIADO|DENOMINADO|PAPEL|REPRESENTADO|PROPRIETARIO|FILHO)$/.test(chave)) {
+        return resolverPlaceholder(chave, dados)
+      }
+      return pendente('sem_vinculo')
+    }
+    if (SEM_DADO_BRUTO[chave]?.(dados)) return pendente('vazio')
+
+    // Estado civil concorda com o gênero ("casada", não "casado"). Valor
+    // fora do padrão do cadastro sai como foi digitado.
+    if (/^(LOCADOR|LOCATARIO)_ESTADO_CIVIL$/.test(chave)) {
+      const p = chave.startsWith('LOCADOR') ? dados.locador : dados.locatario
+      const ec = p?.estado_civil ? ESTADO_CIVIL[p.estado_civil] : null
+      if (ec) return flex(generoEfetivo(p), ec[0], ec[1])
+    }
+
+    const v = resolverPlaceholder(chave, dados)
+    if (!v.trim() || v === '[PREENCHER]') return pendente('vazio')
+    if (/_CPF$/.test(chave)) {
+      const n = v.replace(/\D/g, '').length
+      if (n !== 11 && n !== 14) return pendente('invalido')
+    }
+    return v
+  }
+
+  // Pega qualquer {{…}}, não só as chaves bem escritas: "{{locador_nome}}"
+  // ou "{{ LOCADOR NOME }}" viram pendência visível em vez de texto cru.
+  return limparPontuacao(corpo.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (_, chave: string) => resolver(chave)))
+}
+
+/** Os mesmos ajustes do legado, aplicados depois da substituição. */
+function limparPontuacao(texto: string): string {
+  let r = texto
+    .replace(/,(\s*,)+/g, ',')
+    .replace(/\s+,/g, ',')
+    .replace(/\(\s*,\s*\)/g, '')
+    .replace(/\(\s*\)/g, '')
+    .replace(/[ \t]+/g, ' ')
+    .replace(/(CPF nº|RG|CNPJ)\s*[.,]/g, '$1')
+    .replace(/, +(\.)/g, '$1')
+    .replace(/:\s*\./g, '.')
+    .replace(/:\s*$/gm, '.')
+    .replace(/\s+([.,;:])/g, '$1')
+    .replace(/\n[ \t]*\n[ \t]*\n+/g, '\n\n')
+  r = r.replace(/\bCPF\b([^\d]{0,6}?)(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2})/g, 'CNPJ$1$2')
+  return r
+}
+
+/** Lista ordenada pro painel e pra trava de assinatura. */
+export function listarPendencias(m: Map<string, PendenciaPlaceholder>): PendenciaPlaceholder[] {
+  const peso: Record<NivelPlaceholder, number> = { obrigatorio: 0, importante: 1, opcional: 2 }
+  return [...m.values()].sort((a, b) => peso[a.nivel] - peso[b.nivel] || a.rotulo.localeCompare(b.rotulo))
+}
+
+/** O que impede ir pra assinatura: tudo que aparece em vermelho no texto. */
+export function pendenciasQueTravam(lista: PendenciaPlaceholder[]): PendenciaPlaceholder[] {
+  return lista.filter(p => p.nivel !== 'opcional')
 }
 
 /**

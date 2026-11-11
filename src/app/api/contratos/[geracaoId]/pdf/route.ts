@@ -4,7 +4,11 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
-import { aplicarPlaceholders, limparTituloDuplicado, type DadosContrato } from '@/lib/contratos/montar'
+import {
+  aplicarPlaceholders, aplicarPlaceholdersV2, limparTituloDuplicado, listarPendencias, motorDoContrato,
+  pendenciasQueTravam, type DadosContrato, type PendenciaPlaceholder,
+} from '@/lib/contratos/montar'
+import { linkCorrecao } from '@/lib/contratos/pendencias-links'
 import { rodarChecklist, bloqueiaGeracao, type DadosChecklist } from '@/lib/contratos/checklist'
 import { validarTokenRevisao } from '@/lib/crm/revisao-token'
 import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
@@ -412,7 +416,7 @@ export async function GET(
   let assinaturasPartes: Array<{ papel: string; nome: string; imagem: string }> = []
   const { data: procAssin } = await admin
     .from('contrato_assinaturas')
-    .select('id')
+    .select('id, created_at')
     .eq('tipo_contrato', 'locacao').eq('contrato_id', geracaoId).neq('status', 'cancelado')
     .order('created_at', { ascending: false }).limit(1).maybeSingle()
   if (procAssin) {
@@ -428,7 +432,7 @@ export async function GET(
   const { data: contrato } = await admin
     .from('contratos_locacao')
     .select(`
-      id, codigo, valor_aluguel, iptu_mensal, condominio_mensal,
+      id, codigo, imovel_id, valor_aluguel, iptu_mensal, condominio_mensal,
       data_inicio, data_primeiro_aluguel, data_termino, duracao_meses, dia_vencimento,
       garantia_tipo, caucao_valor,
       seguro_fianca_seguradora, seguro_fianca_contratacao, seguro_fianca_apolice,
@@ -450,14 +454,14 @@ export async function GET(
         bairro:bairros(nome)
       ),
       proprietario:pessoas!proprietario_id(
-        nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf,
-        nacionalidade, estado_civil, profissao, genero,
+        id, nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf,
+        nacionalidade, estado_civil, profissao, genero, email, telefone, whatsapp,
         endereco_logradouro, endereco_numero, endereco_complemento,
         endereco_bairro, endereco_cidade, endereco_estado, endereco_cep
       ),
       inquilino:pessoas!inquilino_id(
-        nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf,
-        nacionalidade, estado_civil, regime_bens, profissao, genero,
+        id, nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf,
+        nacionalidade, estado_civil, regime_bens, profissao, genero, email, telefone, whatsapp,
         data_nascimento, naturalidade, nome_pai, nome_mae,
         endereco_logradouro, endereco_numero, endereco_complemento,
         endereco_bairro, endereco_cidade, endereco_estado, endereco_cep,
@@ -469,7 +473,7 @@ export async function GET(
         conjuge_endereco_estado, conjuge_endereco_cep
       ),
       fiador:pessoas!fiador_id(
-        nome, cpf_cnpj, rg, genero,
+        id, nome, cpf_cnpj, rg, genero,
         endereco_logradouro, endereco_numero,
         endereco_cidade, endereco_estado
       )
@@ -587,12 +591,39 @@ export async function GET(
 
   // 6. Aplica placeholders em cada cláusula + remove título duplicado no corpo
   //    (acontece quando user/ChatGPT cola o título em maiúsculas no início do texto)
-  const clausulas: ContratoPDFClausula[] = clausulasOrdenadas.map((c, idx) => ({
-    numero: idx + 1,
-    titulo: c.titulo,
-    corpo: aplicarPlaceholders(limparTituloDuplicado(c.titulo, c.corpo), dadosContrato),
-    modificada: c.modificada ?? false,
-  }))
+  //
+  //    Motor v2: o que falta vira [PENDENTE: …] em vermelho. Contrato cujo
+  //    processo de assinatura nasceu antes do v2 segue no legado, pra a via
+  //    final sair igual ao que os signatários leram.
+  const motor = motorDoContrato((procAssin as { created_at?: string } | null)?.created_at)
+  const mapaPendencias = new Map<string, PendenciaPlaceholder>()
+  const clausulas: ContratoPDFClausula[] = clausulasOrdenadas.map((c, idx) => {
+    const base = limparTituloDuplicado(c.titulo, c.corpo)
+    const v2 = aplicarPlaceholdersV2(base, dadosContrato, mapaPendencias)
+    return {
+      numero: idx + 1,
+      titulo: c.titulo,
+      corpo: motor === 'v2' ? v2 : aplicarPlaceholders(base, dadosContrato),
+      modificada: c.modificada ?? false,
+    }
+  })
+  const pendencias = listarPendencias(mapaPendencias)
+
+  // ?pendencias=1 → só a lista, pro painel do editor e pra trava de assinatura.
+  if (url.searchParams.get('pendencias') === '1') {
+    // Só o dono logado: quem abre pelo link de revisão/assinatura não vê a lista.
+    if (user?.id !== geracao.user_id) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+    const ids = {
+      locador: prop?.id ?? null, locatario: inq?.id ?? null, conjuge: inq?.id ?? null,
+      fiador: fia?.id ?? null, imovel: contrato.imovel_id ?? null, contrato: contrato.id,
+      administracao: null,
+    }
+    return NextResponse.json({
+      motor,
+      pendencias: pendencias.map(p => ({ ...p, corrigir: linkCorrecao(p, ids) })),
+      travam: pendenciasQueTravam(pendencias).length,
+    }, { headers: { 'Cache-Control': 'no-store' } })
+  }
 
   // Modo modificações: link de revisão (?rt) sempre mostra; PDF normal só se ligado.
   const mostrarModificacoes = viaRevisao || (geracao.mostrar_modificacoes ?? false)
@@ -787,6 +818,7 @@ export async function GET(
       })),
     clausulas_seguradora_texto: geracao.clausulas_seguradora_texto ?? null,
     clausulas,
+    aviso_pendencias: motor === 'v2' ? pendenciasQueTravam(pendencias).length : 0,
     mostrar_modificacoes: mostrarModificacoes,
     modificacoes_texto: geracao.modificacoes_texto ?? null,
     inventario: (inventarioRaw ?? []).map(it => ({

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { rodarChecklistAdm, type DadosChecklistAdm } from '@/lib/contratos/checklist'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
+import { PainelPendencias } from '../../../../contratos/_components/painel-pendencias'
 import {
   atualizarTestemunhasAdm, atualizarAnexosDocumentosAdm, uploadAdmAssinado,
   editarClausulaGeracaoAdm, adicionarClausulaGeracaoAdm, removerClausulaGeracaoAdm, ordenarClausulasGeracaoAdm,
@@ -430,6 +431,12 @@ export function EditorContratoAdm({ contratoAdmId, codigo, travado = false, chec
             disabled={travado}
           />
         </section>
+
+        {/* Campos do texto que não puderam ser preenchidos (motor v2) */}
+        <PainelPendencias
+          url={`${pdfUrl}?pendencias=1`}
+          versao={clausulas.map(c => `${c.id}:${c.corpo.length}`).join('|')}
+        />
 
         {/* Pendências antes de gerar (só bloqueios) */}
         {bloqueios.length > 0 && (

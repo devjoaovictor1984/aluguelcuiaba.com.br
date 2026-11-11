@@ -38,6 +38,36 @@ function emailConvite(nome: string, papel: string | null, titulo: string, url: s
   `
 }
 
+/**
+ * Pendências de placeholder do contrato, pela rota do PDF (?pendencias=1).
+ * Repassa o cookie da sessão: a rota autoriza pelo dono logado, como no
+ * botão "Visualizar PDF".
+ */
+async function pendenciasDoContrato(
+  tipo: 'locacao' | 'administracao',
+  contratoId: string,
+): Promise<{ travam: Array<{ rotulo: string }>; erro?: string }> {
+  const h = await headers()
+  const rota = tipo === 'locacao'
+    ? `/api/contratos/${contratoId}/pdf?pendencias=1`
+    : `/api/contratos-admin/${contratoId}/pdf?pendencias=1`
+  try {
+    const resp = await fetch(`${await baseUrl()}${rota}`, {
+      headers: { cookie: h.get('cookie') ?? '' },
+      cache: 'no-store',
+    })
+    if (!resp.ok) {
+      return { travam: [], erro: 'Não consegui conferir as pendências do contrato. Abra o PDF pra ver o que falta e tente de novo.' }
+    }
+    const j = await resp.json() as { motor: string; pendencias: Array<{ rotulo: string; nivel: string }> }
+    // Contrato no motor legado não tem marcador no texto: nada a travar.
+    if (j.motor !== 'v2') return { travam: [] }
+    return { travam: j.pendencias.filter(p => p.nivel !== 'opcional') }
+  } catch {
+    return { travam: [], erro: 'Não consegui conferir as pendências do contrato. Tente de novo.' }
+  }
+}
+
 export interface SignatarioInput {
   nome: string
   email: string
@@ -73,6 +103,21 @@ export async function criarProcessoAssinatura(input: CriarProcessoInput) {
     )
     if (situacao === 'concluido') return { error: `Este ${doc} já foi assinado por todas as partes.` }
     if (situacao === 'enviado') return { error: `Este ${doc} já está em assinatura. Cancele o envio atual antes de mandar de novo.` }
+  }
+
+  // Nada em vermelho vai pra assinatura: campo [PENDENTE] no texto trava o
+  // envio. A lista vem da mesma rota que gera o PDF, pra trava e documento
+  // nunca divergirem.
+  if (input.tipo_contrato === 'locacao' || input.tipo_contrato === 'administracao') {
+    const r = await pendenciasDoContrato(input.tipo_contrato, input.contrato_id)
+    if (r.erro) return { error: r.erro }
+    if (r.travam.length > 0) {
+      const lista = r.travam.slice(0, 6).map(p => p.rotulo).join('; ')
+      const resto = r.travam.length > 6 ? ` e mais ${r.travam.length - 6}` : ''
+      return {
+        error: `O contrato tem ${r.travam.length} campo(s) pendente(s) e não pode ir pra assinatura: ${lista}${resto}. Complete os cadastros (veja o painel de pendências no editor) e envie de novo.`,
+      }
+    }
   }
 
   // Aqui havia uma trava: sem o número da apólice, o contrato de locação

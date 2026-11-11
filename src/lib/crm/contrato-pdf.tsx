@@ -1,6 +1,7 @@
 /* eslint-disable jsx-a11y/alt-text */
 import fs from 'fs'
 import path from 'path'
+import type React from 'react'
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer'
 
 // ── Carregamento de Poppins ─────────────────────────────────────────
@@ -142,6 +143,8 @@ export interface ContratoPDFData {
 
   // Cláusulas montadas
   clausulas: ContratoPDFClausula[]
+  /** Quantos campos saem como [PENDENTE] (motor v2). > 0 = minuta de conferência. */
+  aviso_pendencias?: number
 
   // Modo modificações — quadro de destaque + realce das cláusulas alteradas
   mostrar_modificacoes?: boolean
@@ -432,6 +435,34 @@ function fmtDataExtenso(iso: string): string {
  *    "N.1.", "N.2.", … mantendo o caput sem número.
  *  Incisos (I., II., …) dentro dos parágrafos não são alterados.
  */
+/**
+ * Quebra o texto nos marcadores de pendência do motor v2 e devolve os
+ * trechos pendentes como Text vermelho em negrito: "[PENDENTE: CPF DO
+ * LOCADOR]". Texto sem marcador sai como string, igual a antes.
+ */
+// A pontuação colada depois do marcador vai no MESMO trecho e no MESMO
+// estilo dele. Qualquer troca de estilo no meio de uma "palavra" ("]," com
+// o colchete vermelho e a vírgula preta) vira ponto de quebra pro
+// react-pdf, que parte ali com um hífen solto no fim da linha.
+const RE_PENDENTE = /([^]*)([.,;:)]*)/
+export function textoComPendencias(texto: string): React.ReactNode {
+  if (!texto.includes('')) return texto
+  const partes = texto.split(RE_PENDENTE)
+  const nos: React.ReactNode[] = []
+  for (let i = 0; i < partes.length; i += 3) {
+    if (partes[i]) nos.push(partes[i])
+    if (i + 1 < partes.length) {
+      const pontuacao = partes[i + 2]
+      nos.push(
+        <Text key={i} style={{ color: '#dc2626', fontWeight: 'bold' }}>
+          {`[${partes[i + 1]}]${pontuacao ?? ''}`}
+        </Text>,
+      )
+    }
+  }
+  return nos
+}
+
 function formatarClausulaNumerada(num: number, titulo: string, corpo: string): { titulo: string; corpo: string } {
   const tituloFmt = `CLÁUSULA ${num}ª — ${titulo.toUpperCase()}`
   const blocos = corpo.split(/\n\n+/)
@@ -819,6 +850,31 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           </View>
         )}
 
+        {/* ── Minuta: há campo pendente no texto (motor v2) ── */}
+        {(data.aviso_pendencias ?? 0) > 0 && (
+          <View style={{
+            marginBottom: 18,
+            backgroundColor: '#fef2f2',
+            borderWidth: 1,
+            borderColor: '#fca5a5',
+            borderRadius: 4,
+            padding: 10,
+          }} wrap={false}>
+            <Text style={{
+              fontSize: 8.5, fontFamily: FAMILIA, fontWeight: 'bold',
+              color: '#b91c1c', letterSpacing: 0.5, marginBottom: 3,
+            }}>
+              MINUTA PARA CONFERÊNCIA — DOCUMENTO NÃO FINALIZADO
+            </Text>
+            <Text style={{ fontSize: 8.5, fontFamily: FAMILIA, color: '#7f1d1d', lineHeight: 1.4 }}>
+              {data.aviso_pendencias === 1
+                ? 'Há 1 campo sem informação no cadastro, marcado em vermelho no texto.'
+                : `Há ${data.aviso_pendencias} campos sem informação no cadastro, marcados em vermelho no texto.`}
+              {' '}Complete os cadastros antes de enviar este contrato para assinatura.
+            </Text>
+          </View>
+        )}
+
         {/* ── Quadro de modificações/considerações (modo revisão) ──
            Flui logo após o sumário. Só aparece no modo modificações
            (link de revisão sempre liga). */}
@@ -903,7 +959,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 textAlign: 'justify',
                 lineHeight: 1.6,
               }}>
-                {fmt.corpo}
+                {textoComPendencias(fmt.corpo)}
               </Text>
             </View>
           )

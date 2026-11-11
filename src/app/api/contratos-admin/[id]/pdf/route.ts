@@ -4,7 +4,11 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { ContratoDocument, type ContratoPDFData, type ContratoPDFClausula } from '@/lib/crm/contrato-pdf'
-import { aplicarPlaceholders, type DadosContrato } from '@/lib/contratos/montar'
+import {
+  aplicarPlaceholders, aplicarPlaceholdersV2, listarPendencias, motorDoContrato, pendenciasQueTravam,
+  type DadosContrato, type PendenciaPlaceholder,
+} from '@/lib/contratos/montar'
+import { linkCorrecao } from '@/lib/contratos/pendencias-links'
 import { validarTokenRevisao } from '@/lib/crm/revisao-token'
 import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
 import React from 'react'
@@ -134,8 +138,8 @@ export async function GET(
       .select(`
         *,
         proprietario:pessoas!proprietario_id(
-          nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf,
-          nacionalidade, estado_civil, profissao, genero,
+          id, nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf,
+          nacionalidade, estado_civil, profissao, genero, email, telefone, whatsapp,
           endereco_logradouro, endereco_numero, endereco_complemento,
           endereco_bairro, endereco_cidade, endereco_estado, endereco_cep
         ),
@@ -159,7 +163,7 @@ export async function GET(
     let assinaturasPartes: Array<{ papel: string; nome: string; imagem: string }> = []
     const { data: procAssin } = await admin
       .from('contrato_assinaturas')
-      .select('id')
+      .select('id, created_at')
       .eq('tipo_contrato', 'administracao').eq('contrato_id', id).neq('status', 'cancelado')
       .order('created_at', { ascending: false }).limit(1).maybeSingle()
     if (procAssin) {
@@ -291,12 +295,34 @@ export async function GET(
       },
     }
 
-    const clausulas: ContratoPDFClausula[] = clausulasRaw.map((cl, idx) => ({
-      numero: idx + 1,
-      titulo: cl.titulo,
-      corpo: aplicarPlaceholders(cl.corpo, dadosContrato),
-      modificada: cl.modificada ?? false,
-    }))
+    // Motor v2 (pendência em vermelho) ou legado (processo de assinatura
+    // aberto antes do v2) — ver motorDoContrato.
+    const motor = motorDoContrato((procAssin as { created_at?: string } | null)?.created_at)
+    const mapaPendencias = new Map<string, PendenciaPlaceholder>()
+    const clausulas: ContratoPDFClausula[] = clausulasRaw.map((cl, idx) => {
+      const v2 = aplicarPlaceholdersV2(cl.corpo, dadosContrato, mapaPendencias)
+      return {
+        numero: idx + 1,
+        titulo: cl.titulo,
+        corpo: motor === 'v2' ? v2 : aplicarPlaceholders(cl.corpo, dadosContrato),
+        modificada: cl.modificada ?? false,
+      }
+    })
+    const pendencias = listarPendencias(mapaPendencias)
+
+    if (url.searchParams.get('pendencias') === '1') {
+      // Só o dono logado: quem abre pelo link de revisão/assinatura não vê a lista.
+      if (user?.id !== c.user_id) return NextResponse.json({ error: 'Acesso negado' }, { status: 403 })
+      const ids = {
+        locador: (prop as { id?: string } | null)?.id ?? null, locatario: null, conjuge: null, fiador: null,
+        imovel: (c.imovel_id as string | null) ?? null, contrato: null, administracao: c.id as string,
+      }
+      return NextResponse.json({
+        motor,
+        pendencias: pendencias.map(p => ({ ...p, corrigir: linkCorrecao(p, ids) })),
+        travam: pendenciasQueTravam(pendencias).length,
+      }, { headers: { 'Cache-Control': 'no-store' } })
+    }
 
     // Modo modificações: link de revisão (?rt) sempre mostra; PDF normal só se ligado.
     const mostrarModificacoes = viaRevisao || (geracao?.mostrar_modificacoes ?? false)
@@ -418,6 +444,7 @@ export async function GET(
         })),
       clausulas_seguradora_texto: null,
       clausulas,
+      aviso_pendencias: motor === 'v2' ? pendenciasQueTravam(pendencias).length : 0,
       mostrar_modificacoes: mostrarModificacoes,
       modificacoes_texto: geracao?.modificacoes_texto ?? null,
       quadro_entrada: [],

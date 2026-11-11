@@ -31,6 +31,7 @@ import { LABELS_DOC } from '@/lib/crm/tipos-documento'
 import { CapaOverridesEditor } from '@/components/capa-overrides-editor'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { PLACEHOLDERS } from '@/lib/contratos/placeholders'
+import { PainelPendencias } from '../../../_components/painel-pendencias'
 import { ProgressoContrato } from './progresso-contrato'
 import { SECOES_ESSENCIAIS, isCategoriaEssencial } from '@/lib/contratos/secoes-essenciais'
 
@@ -954,6 +955,12 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
             <li>Status: <strong className="capitalize">{statusGeracao}</strong></li>
           </ul>
         </section>
+
+        {/* Campos do texto que não puderam ser preenchidos (motor v2) */}
+        <PainelPendencias
+          url={`${pdfUrl}?pendencias=1`}
+          versao={clausulas.map(c => `${c.id}:${c.corpo.length}`).join('|')}
+        />
 
         {/* Checklist de validação */}
         {checklistCarregado && temBloqueio && (
