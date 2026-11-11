@@ -145,6 +145,15 @@ export interface ContratoPDFData {
   clausulas: ContratoPDFClausula[]
   /** Quantos campos saem como [PENDENTE] (motor v2). > 0 = minuta de conferência. */
   aviso_pendencias?: number
+  /**
+   * Diagramação. 'v2': parágrafo a parágrafo (órfãs/viúvas), título preso ao
+   * texto, assinatura e linha de tabela indivisíveis, capa corrigida.
+   * 'legado' (ou ausente): exatamente o layout anterior — é o que vale pra
+   * contrato cujo processo de assinatura começou antes do v2.
+   */
+  layout?: 'legado' | 'v2'
+  /** Contrato de administração: há exclusividade? Muda o subtítulo da capa. */
+  exclusividade?: boolean
 
   // Modo modificações — quadro de destaque + realce das cláusulas alteradas
   mostrar_modificacoes?: boolean
@@ -444,9 +453,9 @@ function fmtDataExtenso(iso: string): string {
 // estilo dele. Qualquer troca de estilo no meio de uma "palavra" ("]," com
 // o colchete vermelho e a vírgula preta) vira ponto de quebra pro
 // react-pdf, que parte ali com um hífen solto no fim da linha.
-const RE_PENDENTE = /([^]*)([.,;:)]*)/
+const RE_PENDENTE = /\uE000([^\uE001]*)\uE001([.,;:)]*)/
 export function textoComPendencias(texto: string): React.ReactNode {
-  if (!texto.includes('')) return texto
+  if (!texto.includes('\uE000')) return texto
   const partes = texto.split(RE_PENDENTE)
   const nos: React.ReactNode[] = []
   for (let i = 0; i < partes.length; i += 3) {
@@ -533,8 +542,11 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
     return assinaturasPartes.find(a => (a.nome ?? '').trim().toLowerCase() === alvo)?.imagem ?? null
   }
   const ASSIN_IMG = { width: 150, height: 40, objectFit: 'contain' as const, marginBottom: 1 }
+  const v2 = data.layout === 'v2'
+  // v2: bloco que não pode ser partido entre páginas (assinatura, linha de tabela).
+  const inteiro = v2 ? { wrap: false } : {}
   const subtituloContrato = isAdmin
-    ? 'com Exclusividade'
+    ? (v2 && data.exclusividade === false ? 'sem Exclusividade' : 'com Exclusividade')
     : atuacao === 'administracao' ? 'com Administração Imobiliária' :
       atuacao === 'intermediacao' ? `Intermediada por ${nomeInst}` :
       'Direta entre Locador e Locatário'
@@ -613,12 +625,22 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             }}>
               {tituloFinalidade}{'\n'}{subtituloContrato}
             </Text>
-            {data.resumo_capa?.garantia_str && (
+            {/* v2: a garantia já está no quadro-resumo; não repete sob o título. */}
+            {!v2 && data.resumo_capa?.garantia_str && (
               <Text style={{
                 fontSize: 9.5, fontFamily: FAMILIA, color: CINZA,
                 textAlign: 'center', marginTop: 3,
               }}>
                 Garantia: {data.resumo_capa.garantia_str}
+              </Text>
+            )}
+            {/* Minuta: a capa avisa antes de qualquer leitura. */}
+            {v2 && (data.aviso_pendencias ?? 0) > 0 && (
+              <Text style={{
+                fontSize: 8.5, fontFamily: FAMILIA, fontWeight: 'bold', color: '#b91c1c',
+                textAlign: 'center', letterSpacing: 1, marginTop: 6,
+              }}>
+                MINUTA PARA CONFERÊNCIA — NÃO ASSINAR
               </Text>
             )}
             <Text style={{
@@ -667,14 +689,16 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Resumo */}
           {data.resumo_capa && (
-            <View style={{ marginBottom: 8 }}>
+            <View wrap={v2 ? false : undefined} style={v2
+              ? { marginBottom: 10, backgroundColor: '#faf5ff', borderRadius: 4, paddingVertical: 10, paddingHorizontal: 12 }
+              : { marginBottom: 8 }}>
               <Text style={{
                 fontSize: 9, fontFamily: FAMILIA, fontWeight: 'bold', color: ROXO,
-                letterSpacing: 1, marginBottom: 8,
+                letterSpacing: 1, marginBottom: v2 ? 6 : 8,
               }}>
-                RESUMO
+                {v2 ? 'QUADRO-RESUMO' : 'RESUMO'}
               </Text>
-              <View style={{ height: 0.6, backgroundColor: '#e5e7eb', marginBottom: 8 }} />
+              {!v2 && <View style={{ height: 0.6, backgroundColor: '#e5e7eb', marginBottom: 8 }} />}
               {data.resumo_linhas && data.resumo_linhas.length > 0 ? (
                 data.resumo_linhas.map((l, i) => (
                   <ResumoCapaLinha key={i} label={l.label} valor={l.valor} />
@@ -930,6 +954,44 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               } : { marginBottom: 14 }}
               {...bookmarkProp}
             >
+              {v2 ? (() => {
+                // Um Text por parágrafo: a quebra de página cai entre
+                // parágrafos sempre que dá, e dentro de um parágrafo longo
+                // nunca deixa 1 linha sozinha no pé (órfã) nem no topo (viúva).
+                const pars = fmt.corpo.split('\n\n')
+                const paragrafo = (par: string, pi: number) => (
+                  <Text
+                    key={pi}
+                    orphans={2}
+                    widows={2}
+                    style={{
+                      fontSize: 10,
+                      fontFamily: FAMILIA,
+                      color: TEXTO,
+                      textAlign: 'justify',
+                      lineHeight: 1.5,
+                      marginBottom: pi < pars.length - 1 ? 7 : 0,
+                    }}
+                  >
+                    {textoComPendencias(par)}
+                  </Text>
+                )
+                const titulo = <TituloClausula texto={fmt.titulo} realce={realce} />
+                // Título preso ao 1º parágrafo num bloco indivisível: nunca
+                // fica sozinho no pé da página. Só quando o parágrafo é
+                // curto (~10 linhas) — bloco indivisível maior que o espaço
+                // de uma página o react-pdf não consegue posicionar.
+                const curto = pars[0].length <= 900
+                return (
+                  <>
+                    {curto
+                      ? <View wrap={false}>{titulo}{paragrafo(pars[0], 0)}</View>
+                      : <>{titulo}{paragrafo(pars[0], 0)}</>}
+                    {pars.slice(1).map((par, i) => paragrafo(par, i + 1))}
+                  </>
+                )
+              })() : (
+              <>
               <View wrap={false} minPresenceAhead={30} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 5 }}>
                 <Text style={{
                   flex: 1,
@@ -961,6 +1023,8 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               }}>
                 {textoComPendencias(fmt.corpo)}
               </Text>
+              </>
+              )}
             </View>
           )
         })}
@@ -1027,7 +1091,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
            múltiplos `wrap={false}` próximos (cláusulas + quadro + tabela)
            geram sobreposição de coordenadas no react-pdf. */}
         {data.quadro_entrada.length > 0 && (
-          <View break style={{ marginTop: 0 }}>
+          <View break={!v2} wrap={v2 ? false : undefined} style={{ marginTop: v2 ? 22 : 0 }}>
             <Text style={{
               fontSize: 11.5,
               fontFamily: FAMILIA,
@@ -1039,13 +1103,13 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </Text>
             <View>
               {/* cabeçalho */}
-              <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
+              <View minPresenceAhead={v2 ? 60 : undefined} style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
                 <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>DESCRIÇÃO</Text>
                 <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA }}>BASE</Text>
                 <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>VALOR</Text>
               </View>
               {data.quadro_entrada.map((r, i) => (
-                <View key={i} style={{
+                <View key={i} {...inteiro} style={{
                   flexDirection: 'row',
                   paddingVertical: 5,
                   paddingHorizontal: 6,
@@ -1080,19 +1144,19 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
         {/* ── Tabela de discriminação (pagamento à vista / antecipado) ── */}
         {data.tabela_12_meses.linhas.length > 0 && data.tabela_12_meses.antecipado && (
-          <View style={{ marginTop: 20 }}>
+          <View wrap={v2 ? false : undefined} style={{ marginTop: 20 }}>
             <Text style={{ fontSize: 11.5, fontFamily: FAMILIA, fontWeight: 'bold', color: TEXTO_FORTE, marginBottom: 8 }}>
               Tabela de discriminação dos 12 meses quitados antecipadamente
             </Text>
             <View>
-              <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
+              <View minPresenceAhead={v2 ? 60 : undefined} style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
                 <Text style={{ flex: 2.2, fontSize: 8, fontWeight: 'bold', color: CINZA }}>COMPETÊNCIA</Text>
                 <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>PERÍODO</Text>
                 <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>VALOR MENSAL</Text>
                 <Text style={{ flex: 2.6, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'right' }}>SITUAÇÃO</Text>
               </View>
               {data.tabela_12_meses.linhas.map((p, i) => (
-                <View key={i} style={{ flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 6, backgroundColor: i % 2 === 1 ? '#fafafa' : undefined }}>
+                <View key={i} {...inteiro} style={{ flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 6, backgroundColor: i % 2 === 1 ? '#fafafa' : undefined }}>
                   <Text style={{ flex: 2.2, fontSize: 9, color: TEXTO }}>{p.competencia ?? ''}</Text>
                   <Text style={{ flex: 3, fontSize: 9, color: TEXTO }}>{p.periodo}</Text>
                   <Text style={{ flex: 2, fontSize: 9, color: TEXTO, textAlign: 'right' }}>{p.total}</Text>
@@ -1113,7 +1177,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
         {/* ── Tabela dos 12 primeiros meses (vencimentos normais) ── */}
         {data.tabela_12_meses.linhas.length > 0 && !data.tabela_12_meses.antecipado && (
-          <View style={{ marginTop: 20 }}>
+          <View wrap={v2 ? false : undefined} style={{ marginTop: 20 }}>
             <Text style={{
               fontSize: 11.5,
               fontFamily: FAMILIA,
@@ -1124,7 +1188,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               Tabela dos 12 primeiros meses
             </Text>
             <View>
-              <View style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
+              <View minPresenceAhead={v2 ? 60 : undefined} style={{ flexDirection: 'row', backgroundColor: '#f3f4f6', paddingVertical: 5, paddingHorizontal: 6 }}>
                 <Text style={{ width: 30, fontSize: 8, fontWeight: 'bold', color: CINZA, textAlign: 'center' }}>#</Text>
                 <Text style={{ flex: 3, fontSize: 8, fontWeight: 'bold', color: CINZA }}>PERÍODO</Text>
                 <Text style={{ flex: 2, fontSize: 8, fontWeight: 'bold', color: CINZA }}>VENCIMENTO</Text>
@@ -1143,6 +1207,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               {data.tabela_12_meses.linhas.map((p, i) => (
                 <View
                   key={i}
+                  {...inteiro}
                   style={{
                     flexDirection: 'row',
                     paddingVertical: 4,
@@ -1233,7 +1298,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           {/* ═══ Contrato de administração: ADMINISTRADORA × PROPRIETÁRIA ═══ */}
           {isAdmin ? (
             <>
-              <View style={{ marginBottom: 22 }}>
+              <View {...inteiro} style={{ marginBottom: 22 }}>
                 <Text style={blocoPapel}>ADMINISTRADORA</Text>
                 <Text style={blocoNome}>{data.admin_responsavel_nome ?? nomeInst}</Text>
                 {data.admin_responsavel_creci && (
@@ -1245,7 +1310,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 {sigDe('administrador') && <Image src={sigDe('administrador')!} style={ASSIN_IMG} />}
                 <View style={linhaAssinatura} />
               </View>
-              <View style={{ marginBottom: 22 }}>
+              <View {...inteiro} style={{ marginBottom: 22 }}>
                 <Text style={blocoPapel}>PROPRIETÁRIA(O)</Text>
                 <Text style={blocoNome}>{data.locador_nome}</Text>
                 {data.locador_cpf && <Text style={blocoSecundario}>CPF/CNPJ {data.locador_cpf}</Text>}
@@ -1264,7 +1329,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           <>
           {/* Locador / Administradora / Intermediador (conforme tipo de atuação) */}
           {atuacao === 'administracao' && data.tem_administracao ? (
-            <View style={{ marginBottom: 22 }}>
+            <View {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>LOCADOR / ADMINISTRADORA</Text>
               <Text style={blocoNome}>{data.admin_responsavel_nome ?? data.locador_nome}</Text>
               {data.admin_responsavel_creci && (
@@ -1278,7 +1343,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               <View style={linhaAssinatura} />
             </View>
           ) : (
-            <View style={{ marginBottom: 22 }}>
+            <View {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>LOCADOR</Text>
               <Text style={blocoNome}>{data.locador_nome}</Text>
               {data.locador_cpf && <Text style={blocoSecundario}>{docLabel(data.locador_cpf)} {data.locador_cpf}</Text>}
@@ -1288,7 +1353,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
           )}
 
           {/* Locatário */}
-          <View style={{ marginBottom: 22 }}>
+          <View {...inteiro} style={{ marginBottom: 22 }}>
             <Text style={blocoPapel}>LOCATÁRIO</Text>
             <Text style={blocoNome}>{data.locatario_nome}</Text>
             {data.locatario_cpf && <Text style={blocoSecundario}>{docLabel(data.locatario_cpf)} {data.locatario_cpf}</Text>}
@@ -1298,7 +1363,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Intermediador (só se atuação for intermediação E corretor optou por assinar) */}
           {atuacao === 'intermediacao' && data.intermediador_assina && data.admin_responsavel_nome && (
-            <View style={{ marginBottom: 22 }}>
+            <View {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>INTERMEDIADOR(A)</Text>
               <Text style={blocoNome}>{data.admin_responsavel_nome}</Text>
               {data.admin_responsavel_creci && (
@@ -1312,7 +1377,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Cônjuge — label conforme papel; 'nao_participa' não assina */}
           {data.conjuge_nome && (data.conjuge_papel ?? 'solidario') !== 'nao_participa' && (
-            <View style={{ marginBottom: 22 }}>
+            <View {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>
                 {(data.conjuge_papel ?? 'solidario') === 'solidario'
                   ? 'LOCATÁRIA(O) SOLIDÁRIA(O) / CÔNJUGE DO LOCATÁRIO'
@@ -1327,7 +1392,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Moradores adicionais */}
           {data.moradores_adicionais.map((m, idx) => (
-            <View key={idx} style={{ marginBottom: 22 }}>
+            <View key={idx} {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>{m.papel.toUpperCase()}</Text>
               <Text style={blocoNome}>{m.nome}</Text>
               {m.cpf && <Text style={blocoSecundario}>{docLabel(m.cpf)} {m.cpf}</Text>}
@@ -1341,7 +1406,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Fiador */}
           {data.fiador_nome && (
-            <View style={{ marginBottom: 22 }}>
+            <View {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>FIADOR</Text>
               <Text style={blocoNome}>{data.fiador_nome}</Text>
               {data.fiador_cpf && <Text style={blocoSecundario}>{docLabel(data.fiador_cpf)} {data.fiador_cpf}</Text>}
@@ -1354,7 +1419,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           {/* Testemunhas */}
           {(data.testemunhas.length > 0 ? data.testemunhas : [null, null]).map((t, idx) => (
-            <View key={idx} style={{ marginBottom: 22 }}>
+            <View key={idx} {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>TESTEMUNHA {idx + 1}</Text>
               {t ? (
                 <>
@@ -1513,7 +1578,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
              quem assinou pela plataforma assinou o contrato inteiro, e o termo
              de entrega faz parte dele. */}
           {data.tem_administracao ? (
-            <View style={{ marginBottom: 22 }}>
+            <View {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>LOCADOR / ADMINISTRADORA</Text>
               <Text style={blocoNome}>{data.admin_responsavel_nome ?? data.locador_nome}</Text>
               {data.admin_responsavel_creci && (
@@ -1523,7 +1588,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               <View style={linhaAssinatura} />
             </View>
           ) : (
-            <View style={{ marginBottom: 22 }}>
+            <View {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>LOCADOR</Text>
               <Text style={blocoNome}>{data.locador_nome}</Text>
               {sigDe('locador') && <Image src={sigDe('locador')!} style={ASSIN_IMG} />}
@@ -1537,7 +1602,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             ? data.termo_chaves.recebedores
             : [{ nome: data.locatario_nome, cpf: data.locatario_cpf }]
           ).map((r, idx, arr) => (
-            <View key={idx} style={{ marginBottom: 22 }}>
+            <View key={idx} {...inteiro} style={{ marginBottom: 22 }}>
               <Text style={blocoPapel}>
                 {arr.length > 1 ? `LOCATÁRIO ${idx + 1} (RECEBI AS CHAVES)` : 'LOCATÁRIO (RECEBI AS CHAVES)'}
               </Text>
@@ -1583,6 +1648,30 @@ const linhaAssinatura = {
   marginTop: 14,
 }
 
+/** Título da cláusula no layout v2 ("CLÁUSULA Nª — …" + selo de modificada). */
+function TituloClausula({ texto, realce }: { texto: string; realce: boolean }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 5 }}>
+      <Text style={{
+        flex: 1, fontSize: 10.5, fontFamily: FAMILIA, fontWeight: 'bold',
+        color: TEXTO_FORTE, letterSpacing: 0.2,
+      }}>
+        {texto}
+      </Text>
+      {realce && (
+        <Text style={{
+          fontSize: 6.5, fontFamily: FAMILIA, fontWeight: 'bold',
+          color: '#92400e', backgroundColor: '#fde68a',
+          paddingVertical: 1.5, paddingHorizontal: 4, borderRadius: 2,
+          letterSpacing: 0.5, marginLeft: 6,
+        }}>
+          MODIFICADA
+        </Text>
+      )}
+    </View>
+  )
+}
+
 // ── Helpers da capa executiva ──
 
 function ResumoCapaLinha({ label, valor }: { label: string; valor: string }) {
@@ -1616,7 +1705,9 @@ function PartesCapa({
       nome: data.proprietario_representante_nome
         ? `${data.locador_nome} — rep. ${data.proprietario_representante_nome}`
         : data.locador_nome,
-      cpf: data.proprietario_representante_cpf ?? data.locador_cpf,
+      // v2: o documento é o da proprietária (CNPJ, se PJ). O CPF do
+      // representante já está no corpo e na assinatura, junto do nome dele.
+      cpf: data.layout === 'v2' ? data.locador_cpf : (data.proprietario_representante_cpf ?? data.locador_cpf),
     })
     return (
       <View>

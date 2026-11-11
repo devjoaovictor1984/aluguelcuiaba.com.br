@@ -21,7 +21,7 @@ function rodar(corpo: string, dados: DadosContrato) {
   return { texto, pendencias: listarPendencias(mapa) }
 }
 
-const semMarcas = (t: string) => t.replace(//g, '[').replace(//g, ']')
+const semMarcas = (t: string) => t.replace(/\uE000/g, '[').replace(/\uE001/g, ']')
 
 test('PF completa: qualificação sai inteira, flexionada e sem pendência', () => {
   const { texto, pendencias } = rodar('{{LOCADOR_QUALIFICACAO}}.', { locador: PF_COMPLETA })

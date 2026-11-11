@@ -806,9 +806,9 @@ export interface PendenciaPlaceholder {
 }
 
 /** Delimitadores do trecho pendente no texto (área de uso privado do Unicode). */
-export const MARCA_PENDENTE_INI = ''
-export const MARCA_PENDENTE_FIM = ''
-export const RE_MARCA_PENDENTE = /([^]*)/g
+export const MARCA_PENDENTE_INI = '\uE000'
+export const MARCA_PENDENTE_FIM = '\uE001'
+export const RE_MARCA_PENDENTE = /\uE000([^\uE001]*)\uE001/g
 
 /**
  * Contratos cujo processo de assinatura foi aberto antes desta data seguem

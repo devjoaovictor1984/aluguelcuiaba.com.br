@@ -445,6 +445,8 @@ export async function GET(
       clausulas_seguradora_texto: null,
       clausulas,
       aviso_pendencias: motor === 'v2' ? pendenciasQueTravam(pendencias).length : 0,
+      layout: motor,
+      exclusividade: c.exclusividade !== false,
       mostrar_modificacoes: mostrarModificacoes,
       modificacoes_texto: geracao?.modificacoes_texto ?? null,
       quadro_entrada: [],

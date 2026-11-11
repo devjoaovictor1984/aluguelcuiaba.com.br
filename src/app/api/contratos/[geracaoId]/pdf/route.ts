@@ -819,6 +819,7 @@ export async function GET(
     clausulas_seguradora_texto: geracao.clausulas_seguradora_texto ?? null,
     clausulas,
     aviso_pendencias: motor === 'v2' ? pendenciasQueTravam(pendencias).length : 0,
+    layout: motor,
     mostrar_modificacoes: mostrarModificacoes,
     modificacoes_texto: geracao.modificacoes_texto ?? null,
     inventario: (inventarioRaw ?? []).map(it => ({
