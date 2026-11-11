@@ -860,7 +860,8 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </Text>
             {data.clausulas.map((c, idx) => (
               <View key={idx} style={{ flexDirection: 'row', paddingVertical: 1.5 }}>
-                <Text style={{ width: 60, fontSize: 9, color: COR.acento, fontFamily: FAMILIA, fontWeight: 'bold' }}>
+                {/* v2: coluna mais larga — "Cláusula 24ª" encostava no título */}
+                <Text style={{ width: v2 ? 70 : 60, fontSize: 9, color: COR.acento, fontFamily: FAMILIA, fontWeight: 'bold' }}>
                   Cláusula {idx + 1}ª
                 </Text>
                 <Text style={{ flex: 1, fontSize: 9, color: TEXTO, fontFamily: FAMILIA }}>
@@ -958,7 +959,10 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
                 // Um Text por parágrafo: a quebra de página cai entre
                 // parágrafos sempre que dá, e dentro de um parágrafo longo
                 // nunca deixa 1 linha sozinha no pé (órfã) nem no topo (viúva).
-                const pars = fmt.corpo.split('\n\n')
+                // "N.4. Parágrafo. A remuneração…": o texto gerado por alguns
+                // placeholders traz um "Parágrafo." sem ordinal que a
+                // numeração não reconhece. No v2 ele sai.
+                const pars = fmt.corpo.split('\n\n').map(par => par.replace(/^(\d+\.\d+\.\s)Par[áa]grafo\.\s*/, '$1'))
                 const paragrafo = (par: string, pi: number) => (
                   <Text
                     key={pi}

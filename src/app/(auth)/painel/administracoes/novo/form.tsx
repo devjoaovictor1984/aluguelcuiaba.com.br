@@ -4,6 +4,7 @@ import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Loader2, AlertCircle, Save, RotateCcw, X } from 'lucide-react'
 import { criarContratoAdmin } from '../actions'
+import { CamposTaxaRepasse } from '../_components/campos-taxa-repasse'
 import { SecaoSeguros, SEGUROS_PADRAO, type ValoresSeguros } from '../_components/secao-seguros'
 import { useRascunhoLocal, tempoDesde } from '@/lib/hooks/rascunho-local'
 
@@ -31,6 +32,9 @@ interface RascunhoAdm {
   taxaValor: string
   primeiraCheia: boolean
   diaRepasse: string
+  taxaBase?: 'aluguel' | 'aluguel_encargos'
+  repasseDias?: string
+  limiteReparos?: string
   recebimentoComissao: 'mensal' | 'pagamento_unico'
   exclusividade: boolean
   multaMeses: string
@@ -56,6 +60,10 @@ export function FormNovoAdm({ pessoas, imoveis, proprietarioInicial = '', imovel
   const [taxaValor, setTaxaValor] = useState('10')
   const [primeiraCheia, setPrimeiraCheia] = useState(false)
   const [diaRepasse, setDiaRepasse] = useState('5')
+  // v105: o que o modelo deixava em colchetes pra preencher à mão.
+  const [taxaBase, setTaxaBase] = useState<'aluguel' | 'aluguel_encargos'>('aluguel')
+  const [repasseDias, setRepasseDias] = useState('5')
+  const [limiteReparos, setLimiteReparos] = useState('')
   const [recebimentoComissao, setRecebimentoComissao] = useState<'mensal' | 'pagamento_unico'>('mensal')
   const [exclusividade, setExclusividade] = useState(true)
   const [multaMeses, setMultaMeses] = useState('3')
@@ -76,7 +84,7 @@ export function FormNovoAdm({ pessoas, imoveis, proprietarioInicial = '', imovel
   const atual: RascunhoAdm = {
     proprietarioId, representanteId, representanteQual, imovelId, dataInicio,
     prazoSel, prazoMesesCustom, renovacaoAuto, taxaTipo, taxaValor, primeiraCheia,
-    diaRepasse, recebimentoComissao, exclusividade, multaMeses, avisoPrevio,
+    diaRepasse, taxaBase, repasseDias, limiteReparos, recebimentoComissao, exclusividade, multaMeses, avisoPrevio,
     observacoes, seguros,
   }
   // Congela a foto de abertura no primeiro render: é contra ela que se
@@ -113,6 +121,10 @@ export function FormNovoAdm({ pessoas, imoveis, proprietarioInicial = '', imovel
     setTaxaValor(d.taxaValor)
     setPrimeiraCheia(d.primeiraCheia)
     setDiaRepasse(d.diaRepasse)
+    // Rascunho salvo antes da v105 não tem estes três.
+    setTaxaBase(d.taxaBase ?? 'aluguel')
+    setRepasseDias(d.repasseDias ?? '5')
+    setLimiteReparos(d.limiteReparos ?? '')
     setRecebimentoComissao(d.recebimentoComissao)
     setExclusividade(d.exclusividade)
     setMultaMeses(d.multaMeses)
@@ -152,6 +164,9 @@ export function FormNovoAdm({ pessoas, imoveis, proprietarioInicial = '', imovel
         taxa_valor: taxa,
         primeira_parcela_cheia: primeiraCheia,
         dia_repasse: parseInt(diaRepasse, 10) || null,
+        taxa_base: taxaBase,
+        repasse_dias_uteis: parseInt(repasseDias, 10) || null,
+        limite_reparos: parseFloat(limiteReparos.replace(/./g, '').replace(',', '.')) || null,
         recebimento_comissao: recebimentoComissao,
         exclusividade,
         multa_rescisao_meses: parseInt(multaMeses, 10) || null,
@@ -296,6 +311,13 @@ export function FormNovoAdm({ pessoas, imoveis, proprietarioInicial = '', imovel
             <input type="number" min={1} max={31} value={diaRepasse} onChange={e => setDiaRepasse(e.target.value)} className={inputCls} />
           </label>
         </div>
+        <CamposTaxaRepasse
+          taxaTipo={taxaTipo}
+          taxaBase={taxaBase} setTaxaBase={setTaxaBase}
+          repasseDias={repasseDias} setRepasseDias={setRepasseDias}
+          limiteReparos={limiteReparos} setLimiteReparos={setLimiteReparos}
+          inputCls={inputCls}
+        />
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={primeiraCheia} onChange={e => setPrimeiraCheia(e.target.checked)} className="accent-violet-600" />
           <span className="text-sm text-gray-700">Primeira parcela 100% pra administradora (comissão de intermediação)</span>

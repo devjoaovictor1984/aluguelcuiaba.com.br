@@ -14,6 +14,14 @@ export interface ClausulaSeed {
   titulo: string
   numero: number
   corpo: string
+  /**
+   * Código estável. Omitido = derivado do tipo + título original
+   * (codigoDoSeed). Só declare explicitamente se um dia o título mudar —
+   * o código não pode mudar, senão a biblioteca perde o vínculo.
+   */
+  codigo?: string
+  /** Versão do texto no modelo. Omitida = 1. Suba ao revisar o corpo. */
+  versao?: number
 }
 
 export const SEED_CLAUSULAS: ClausulaSeed[] = [
@@ -610,14 +618,12 @@ Parágrafo terceiro. A dispensa da multa rescisória não exonera o LOCATÁRIO d
   // ════════════════════════════════════════════════════════════════
 
   {
-    tipo: 'administracao', categoria: 'partes', titulo: 'Das partes e qualificação', numero: 1,
-    corpo: `ADMINISTRADORA / CONTRATADA: {{ADMIN_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ nº {{ADMIN_CNPJ}}, com registro no CRECI Jurídico {{ADMIN_CRECI_J}}, com sede em {{ADMIN_ENDERECO}}, neste ato representada por seu corretor de imóveis responsável {{ADMIN_RESPONSAVEL}}, inscrito no CRECI sob nº {{ADMIN_RESPONSAVEL_CRECI}}, doravante denominada simplesmente ADMINISTRADORA.
+    tipo: 'administracao', categoria: 'partes', titulo: 'Das partes e qualificação', numero: 1, versao: 2,
+    corpo: `ADMINISTRADORA / CONTRATADA: {{ADMIN_RAZAO_SOCIAL}}, pessoa jurídica de direito privado, inscrita no CNPJ sob o nº {{ADMIN_CNPJ}}, com registro no CRECI Jurídico sob o nº {{ADMIN_CRECI_J}}, com sede em {{ADMIN_ENDERECO}}, neste ato representada por seu corretor de imóveis responsável, {{ADMIN_RESPONSAVEL}}, inscrito no CRECI sob o nº {{ADMIN_RESPONSAVEL_CRECI}}, doravante denominada simplesmente ADMINISTRADORA.
 
-CONTRATANTE / PROPRIETÁRIA: {{LOCADOR_NOME}}, {{LOCADOR_BRASILEIRO}}, {{LOCADOR_ESTADO_CIVIL}}, {{LOCADOR_PROFISSAO}}, {{LOCADOR_PORTADOR}} do CPF/CNPJ nº {{LOCADOR_CPF}} e RG {{LOCADOR_RG}}, {{LOCADOR_DOMICILIADO}} em {{LOCADOR_ENDERECO}}, e-mail [e-mail], telefone/WhatsApp [telefone], doravante denominada simplesmente CONTRATANTE ou PROPRIETÁRIA.
+CONTRATANTE / PROPRIETÁRIA: {{LOCADOR_QUALIFICACAO}}, com endereço eletrônico {{LOCADOR_EMAIL}} e telefone {{LOCADOR_TELEFONE}}, doravante denominada simplesmente CONTRATANTE ou PROPRIETÁRIA.
 
-{{ADM_PROPRIETARIO_REPRESENTANTE}}
-
-As partes acima identificadas, por seus representantes ao final assinados, têm entre si justo e contratado o presente CONTRATO DE ADMINISTRAÇÃO DE IMÓVEL PARA FINS DE LOCAÇÃO, de natureza de prestação de serviços e mandato oneroso, e, quando aplicável, de intermediação/corretagem para locação, regido pela Lei nº 8.245/1991, pelo Código Civil (em especial as normas de mandato, obrigações, responsabilidade civil, boa-fé objetiva, prestação de contas e corretagem), pela Lei nº 6.530/1978 e normas do Sistema COFECI/CRECI, e pelas cláusulas e condições seguintes. Este instrumento não se confunde com o contrato de locação a ser firmado com o futuro locatário, do qual este não é parte.`,
+As partes acima identificadas têm entre si justo e contratado o presente CONTRATO DE ADMINISTRAÇÃO DE IMÓVEL PARA FINS DE LOCAÇÃO, de natureza de prestação de serviços e mandato oneroso e, quando aplicável, de intermediação para locação, regido pela Lei nº 8.245/1991, pelo Código Civil (em especial as normas de mandato, obrigações, responsabilidade civil, boa-fé objetiva, prestação de contas e corretagem), pela Lei nº 6.530/1978 e pelas normas do Sistema COFECI/CRECI, e pelas cláusulas e condições seguintes. Este instrumento não se confunde com o contrato de locação a ser firmado com o futuro locatário, do qual não é parte.`,
   },
 
   {
@@ -639,12 +645,12 @@ Parágrafo segundo. A CONTRATANTE assume integral responsabilidade por vícios d
   },
 
   {
-    tipo: 'administracao', categoria: 'imovel', titulo: 'Da identificação do imóvel', numero: 4,
-    corpo: `IMÓVEL: {{IMOVEL_DESCRICAO}}, situado em {{IMOVEL_ENDERECO}}, CEP {{IMOVEL_CEP}}, com área de {{IMOVEL_AREA_CONSTRUIDA}}, registrado sob a matrícula nº {{IMOVEL_MATRICULA}}, {{IMOVEL_LIVRO_FOLHA}}, do {{IMOVEL_CARTORIO}}, inscrição municipal/IPTU nº {{IMOVEL_INSC_MUNICIPAL}}.
+    tipo: 'administracao', categoria: 'imovel', titulo: 'Da identificação do imóvel', numero: 4, versao: 2,
+    corpo: `IMÓVEL: {{IMOVEL_DESCRICAO}}, situado em {{IMOVEL_ENDERECO}}, CEP {{IMOVEL_CEP}}, registrado sob a matrícula nº {{IMOVEL_MATRICULA}} do {{IMOVEL_CARTORIO}}, com inscrição municipal/IPTU nº {{IMOVEL_INSC_MUNICIPAL}}.
 
-Parágrafo primeiro. Complementam a identificação, quando aplicável: condomínio [nome/edifício]; vaga(s) de garagem [nº/quantidade]; mobília/acessórios [descrever ou conforme inventário/laudo]; medidores [energia/água/gás]; estado de conservação [descrever]; destinação [residencial / comercial / mista].
+Parágrafo primeiro. As vagas de garagem, a mobília, os acessórios, os medidores e o estado de conservação do IMÓVEL serão descritos no laudo de vistoria e, havendo bens, no inventário, documentos que integram este contrato para todos os fins.
 
-Parágrafo segundo. O IMÓVEL é administrado nas condições em que se encontra, devendo a CONTRATANTE entregá-lo apto à locação e à habitação/uso a que se destina.`,
+Parágrafo segundo. O IMÓVEL é administrado nas condições em que se encontra, devendo a CONTRATANTE entregá-lo apto à locação e ao uso a que se destina.`,
   },
 
   {
@@ -672,32 +678,34 @@ Parágrafo único. A ADMINISTRADORA não é, em nenhuma hipótese, fiadora, segu
   },
 
   {
-    tipo: 'administracao', categoria: 'vigencia', titulo: 'Do prazo e vigência', numero: 9,
-    corpo: `O presente contrato vigorará pelo prazo de {{ADM_PRAZO_MESES}} meses, com início em {{ADM_DATA_INICIO}} e término em {{ADM_DATA_TERMINO}}, {{ADM_EXCLUSIVIDADE}}.
+    tipo: 'administracao', categoria: 'vigencia', titulo: 'Do prazo e vigência', numero: 9, versao: 2,
+    corpo: `O presente contrato vigorará {{ADM_PRAZO_DESCRICAO}}.
 
-Parágrafo primeiro. Findo o prazo, o contrato prorroga-se automaticamente por igual período, salvo manifestação em contrário de qualquer das partes, por escrito, com antecedência mínima de {{ADM_AVISO_PREVIO_DIAS}} dias.
+Parágrafo primeiro. Sendo por prazo determinado, findo o prazo o contrato prorroga-se automaticamente por igual período, salvo manifestação em contrário de qualquer das partes, por escrito, com antecedência mínima de {{ADM_AVISO_PREVIO_DIAS}} dias.
 
 Parágrafo segundo. A administração subsiste em relação aos contratos de locação em curso, ainda que findo este instrumento, até a regular transição, com prestação de contas final e entrega da documentação.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'exclusividade', titulo: 'Da exclusividade', numero: 10,
-    corpo: `A administração do IMÓVEL será exercida pela ADMINISTRADORA {{ADM_EXCLUSIVIDADE}} durante toda a vigência.
+    tipo: 'administracao', categoria: 'exclusividade', titulo: 'Da exclusividade', numero: 10, versao: 2,
+    corpo: `A administração do IMÓVEL será exercida pela ADMINISTRADORA {{ADM_EXCLUSIVIDADE}} durante toda a vigência deste contrato.
 
-Parágrafo primeiro. Havendo exclusividade, a CONTRATANTE não poderá locar o imóvel diretamente nem por intermédio de terceiros, devendo todas as tratativas de locação e renovação ocorrer por meio da ADMINISTRADORA.
+Parágrafo primeiro. Havendo exclusividade, a CONTRATANTE não poderá locar o IMÓVEL diretamente nem por intermédio de terceiros, devendo as tratativas de locação e de renovação ocorrer por meio da ADMINISTRADORA.
 
-Parágrafo segundo. O descumprimento da exclusividade sujeitará a CONTRATANTE ao pagamento de multa equivalente a [nº] aluguéis vigentes à época da infração, sem prejuízo das comissões de intermediação devidas, especialmente quando o negócio tiver origem em interessado atendido ou encaminhado pela ADMINISTRADORA.`,
+Parágrafo segundo. Havendo exclusividade, a locação celebrada pela CONTRATANTE diretamente ou por intermédio de terceiros durante a vigência deste contrato a obriga ao pagamento, à ADMINISTRADORA, da comissão de intermediação prevista neste contrato, como se a locação tivesse sido por ela intermediada, sem prejuízo das perdas e danos comprovados.`,
   },
 
   {
-    tipo: 'administracao', categoria: 'remuneracao', titulo: 'Da remuneração', numero: 11,
-    corpo: `A ADMINISTRADORA fará jus à taxa de administração de {{ADM_TAXA_DESCRICAO}}, incidente sobre o valor bruto efetivamente cobrado do locatário (aluguel e encargos faturados no boleto).
+    tipo: 'administracao', categoria: 'remuneracao', titulo: 'Da remuneração', numero: 11, versao: 2,
+    corpo: `Pelos serviços de administração, a ADMINISTRADORA fará jus à taxa mensal de administração de {{ADM_TAXA_VALOR}}, {{ADM_TAXA_BASE}}.
 
-Parágrafo primeiro. Além da taxa mensal, são devidas: (a) comissão de intermediação, quando a ADMINISTRADORA captar o locatário, equivalente a [ex.: 100% do primeiro aluguel]; (b) remuneração por renovação/aditivo, equivalente a [ex.: 50% de um aluguel]; e, quando pactuado, valores por vistoria, cobrança extraordinária, acompanhamento de reparos e serviços adicionais.
+Parágrafo primeiro. Pela intermediação da locação, quando a ADMINISTRADORA captar o locatário, é devida comissão {{ADM_COMISSAO_INTERMEDIACAO}}.
 
-Parágrafo segundo. {{ADM_REMUNERACAO_FORMA}}
+Parágrafo segundo. A renovação, a prorrogação com novas condições ou o aditamento do contrato de locação, quando negociados pela ADMINISTRADORA a pedido da CONTRATANTE, e os serviços extraordinários não previstos neste contrato terão remuneração ajustada previamente, por escrito.
 
-Parágrafo terceiro. A remuneração será documentada por recibo ou nota fiscal, quando cabível. A taxa de administração não incide sobre indenizações, reembolsos e valores que não constituam aluguel ou encargos faturados.`,
+{{ADM_REMUNERACAO_FORMA}}
+
+Parágrafo quarto. A taxa de administração incide somente sobre valores efetivamente recebidos e não incide sobre indenizações, reembolsos, cauções ou quaisquer valores que não integrem a base definida nesta cláusula. A remuneração será documentada por recibo ou nota fiscal, quando cabível.`,
   },
 
   {
@@ -708,12 +716,14 @@ Parágrafo único. Todas as retenções serão discriminadas na prestação de c
   },
 
   {
-    tipo: 'administracao', categoria: 'repasse', titulo: 'Do repasse', numero: 13,
-    corpo: `O repasse do valor líquido à PROPRIETÁRIA ocorrerá até o dia {{ADM_DIA_REPASSE}} de cada mês, ou em até [nº] dias úteis após o efetivo recebimento e a compensação dos valores pagos pelo locatário, mediante crédito em conta bancária ou chave PIX por ela indicada.
+    tipo: 'administracao', categoria: 'repasse', titulo: 'Do repasse', numero: 13, versao: 2,
+    corpo: `O repasse do valor líquido à PROPRIETÁRIA será feito até o dia {{ADM_DIA_REPASSE}} de cada mês ou em até {{ADM_REPASSE_DIAS_UTEIS}} ({{ADM_REPASSE_DIAS_UTEIS_EXTENSO}}) dias úteis contados da compensação do pagamento do locatário, o que ocorrer por último, mediante crédito em conta bancária ou chave PIX de titularidade da PROPRIETÁRIA por ela indicada.
 
-Parágrafo primeiro. Não havendo recebimento do locatário, a ADMINISTRADORA fica desobrigada do repasse até o efetivo pagamento, sem que isso configure inadimplemento de sua parte. Pagamentos parciais serão repassados na proporção recebida, deduzidas taxas e despesas.
+Parágrafo primeiro. Somente são repassados valores efetivamente recebidos e compensados, deduzidas a remuneração da ADMINISTRADORA e as despesas autorizadas. Não havendo recebimento, a ADMINISTRADORA não está obrigada a antecipar o repasse; pagamentos parciais serão repassados na proporção recebida.
 
-Parágrafo segundo. A PROPRIETÁRIA manterá seus dados bancários atualizados; atraso decorrente de dado incorreto ou desatualizado não configura mora da ADMINISTRADORA.`,
+Parágrafo segundo. Os valores de condomínio e de IPTU cobrados do locatário serão repassados à PROPRIETÁRIA ou pagos diretamente ao credor por conta dela, conforme ajustado, e discriminados na prestação de contas.
+
+Parágrafo terceiro. A PROPRIETÁRIA manterá seus dados bancários atualizados; o atraso decorrente de dado incorreto ou desatualizado não configura mora da ADMINISTRADORA.`,
   },
 
   {
@@ -726,8 +736,12 @@ Parágrafo segundo. Eventual divergência deverá ser apontada por escrito em at
   },
 
   {
-    tipo: 'administracao', categoria: 'condicoes_locacao', titulo: 'Das condições comerciais da locação', numero: 15,
-    corpo: `Para a locação a ser intermediada, ajustam-se as seguintes condições, observados eventuais ajustes posteriores por escrito: aluguel anunciado de [valor]; aluguel mínimo autorizado de [valor]; prazo de locação de [meses]; índice de reajuste [ex.: IGP-M/IPCA]; dia de vencimento [dia]; multa contratual [ex.: 3 aluguéis, proporcional]; responsabilidade por condomínio, IPTU, água, energia, gás e internet [definir]; seguro incêndio [obrigatório]; garantia aceita [caução / fiador / seguro-fiança]; uso permitido [residencial/comercial]; pets [permitido/condicionado/vedado]; sublocação [vedada salvo autorização]; locatário [pessoa física/jurídica]; e regras específicas do imóvel [descrever].`,
+    tipo: 'administracao', categoria: 'condicoes_locacao', titulo: 'Das condições comerciais da locação', numero: 15, versao: 2,
+    corpo: `As condições comerciais da locação a ser intermediada — aluguel anunciado e mínimo aceito, prazo, índice de reajuste, dia de vencimento, garantias aceitas, destinação, aceitação de animais e regras específicas do IMÓVEL — serão definidas pela PROPRIETÁRIA por escrito, inclusive por e-mail ou aplicativo de mensagens, e poderão ser alteradas da mesma forma.
+
+Parágrafo primeiro. A ADMINISTRADORA negociará dentro das condições assim definidas; proposta fora delas dependerá de aprovação expressa da PROPRIETÁRIA.
+
+Parágrafo segundo. A responsabilidade pelo pagamento de condomínio, IPTU, consumos e seguro incêndio constará do contrato de locação, observada a Lei nº 8.245/1991, especialmente quanto às despesas extraordinárias de condomínio, que permanecem a cargo da PROPRIETÁRIA.`,
   },
 
   {
@@ -768,10 +782,10 @@ Parágrafo único. A ADMINISTRADORA atua como intermediadora da manutenção; re
   },
 
   {
-    tipo: 'administracao', categoria: 'reparos_urgentes', titulo: 'Dos reparos urgentes', numero: 21,
-    corpo: `Consideram-se urgentes os reparos necessários à segurança, à habitabilidade, à preservação do IMÓVEL ou ao cumprimento de obrigação legal. A CONTRATANTE autoriza a ADMINISTRADORA a aprová-los e custeá-los, independentemente de autorização prévia, até o limite de R$ [valor] por evento.
+    tipo: 'administracao', categoria: 'reparos_urgentes', titulo: 'Dos reparos urgentes', numero: 21, versao: 2,
+    corpo: `Consideram-se urgentes os reparos necessários à segurança, à habitabilidade, à preservação do IMÓVEL ou ao cumprimento de obrigação legal. A CONTRATANTE autoriza a ADMINISTRADORA a aprová-los e custeá-los, independentemente de autorização prévia, até o limite de {{ADM_LIMITE_REPAROS}} ({{ADM_LIMITE_REPAROS_EXTENSO}}) por evento.
 
-Parágrafo único. Acima desse limite, dependerá de autorização prévia, salvo risco iminente de dano grave. As despesas serão comunicadas à PROPRIETÁRIA, comprovadas e deduzidas do repasse.`,
+Parágrafo único. Acima desse limite, o reparo dependerá de autorização prévia, salvo risco iminente de dano grave. As despesas serão comunicadas à PROPRIETÁRIA, comprovadas e deduzidas do repasse.`,
   },
 
   {
@@ -795,6 +809,14 @@ Parágrafo único. A ausência ou a não renovação do seguro caracteriza infra
     corpo: `Serão observadas as responsabilidades legais quanto a: condomínio ordinário (locatário) e extraordinário (proprietário); IPTU; água; energia; gás; internet; taxa de lixo; multas condominiais; transferência de titularidade; e débitos anteriores à locação, que competem à CONTRATANTE.
 
 Parágrafo único. A ADMINISTRADORA poderá realizar a cobrança por boleto único e, mediante autorização, providenciar o pagamento de despesas do IMÓVEL, deduzindo-as do repasse com a respectiva comprovação.`,
+  },
+  {
+    tipo: 'administracao', categoria: 'vacancia', titulo: 'Da vacância', numero: 24,
+    corpo: `Durante os períodos em que o IMÓVEL estiver desocupado, a ADMINISTRADORA manterá a divulgação e o atendimento de interessados, não sendo devida taxa de administração enquanto não houver aluguel recebido.
+
+Parágrafo primeiro. Na vacância, as despesas ordinárias do IMÓVEL — condomínio, IPTU, consumos mínimos, seguro e conservação — são de responsabilidade da PROPRIETÁRIA, podendo a ADMINISTRADORA pagá-las por conta dela somente mediante provisão de recursos ou autorização expressa.
+
+Parágrafo segundo. A ADMINISTRADORA poderá realizar visitas periódicas de verificação do IMÓVEL desocupado e comunicará à PROPRIETÁRIA qualquer ocorrência que exija providência.`,
   },
 
   {

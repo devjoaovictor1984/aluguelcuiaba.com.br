@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Loader2, AlertCircle, Save } from 'lucide-react'
 import { atualizarContratoAdmin } from '../../actions'
 import { SecaoSeguros, SEGUROS_PADRAO, type ValoresSeguros } from '../../_components/secao-seguros'
+import { CamposTaxaRepasse } from '../../_components/campos-taxa-repasse'
 import type { ModoSeguroIncendio } from '@/lib/seguros/preferencia-proprietario'
 
 const inputCls = "w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 text-gray-900 text-sm transition"
@@ -22,6 +23,9 @@ interface Inicial {
   taxa_valor: number
   primeira_parcela_cheia: boolean
   dia_repasse: number | null
+  taxa_base?: 'aluguel' | 'aluguel_encargos'
+  repasse_dias_uteis?: number | null
+  limite_reparos?: number | null
   recebimento_comissao: 'mensal' | 'pagamento_unico'
   exclusividade: boolean
   multa_rescisao_meses: number | null
@@ -69,6 +73,10 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
   const [taxaValor, setTaxaValor] = useState(String(inicial.taxa_valor))
   const [primeiraCheia, setPrimeiraCheia] = useState(inicial.primeira_parcela_cheia)
   const [diaRepasse, setDiaRepasse] = useState(String(inicial.dia_repasse ?? ''))
+  const [taxaBase, setTaxaBase] = useState<'aluguel' | 'aluguel_encargos'>(inicial.taxa_base ?? 'aluguel')
+  const [repasseDias, setRepasseDias] = useState(inicial.repasse_dias_uteis != null ? String(inicial.repasse_dias_uteis) : '')
+  const [limiteReparos, setLimiteReparos] = useState(
+    inicial.limite_reparos != null ? String(inicial.limite_reparos).replace('.', ',') : '')
   const [recebimentoComissao, setRecebimentoComissao] = useState<'mensal' | 'pagamento_unico'>(inicial.recebimento_comissao)
   const [exclusividade, setExclusividade] = useState(inicial.exclusividade)
   const [multaMeses, setMultaMeses] = useState(String(inicial.multa_rescisao_meses ?? ''))
@@ -110,6 +118,9 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
         taxa_valor: taxa,
         primeira_parcela_cheia: primeiraCheia,
         dia_repasse: parseInt(diaRepasse, 10) || null,
+        taxa_base: taxaBase,
+        repasse_dias_uteis: parseInt(repasseDias, 10) || null,
+        limite_reparos: parseFloat(limiteReparos.replace(/./g, '').replace(',', '.')) || null,
         recebimento_comissao: recebimentoComissao,
         exclusividade,
         multa_rescisao_meses: parseInt(multaMeses, 10) || null,
@@ -220,6 +231,13 @@ export function FormEditarAdm({ id, inicial, pessoas, imoveis }: Props) {
             <input type="number" min={1} max={31} value={diaRepasse} onChange={e => setDiaRepasse(e.target.value)} className={inputCls} />
           </label>
         </div>
+        <CamposTaxaRepasse
+          taxaTipo={taxaTipo}
+          taxaBase={taxaBase} setTaxaBase={setTaxaBase}
+          repasseDias={repasseDias} setRepasseDias={setRepasseDias}
+          limiteReparos={limiteReparos} setLimiteReparos={setLimiteReparos}
+          inputCls={inputCls}
+        />
         <label className="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" checked={primeiraCheia} onChange={e => setPrimeiraCheia(e.target.checked)} className="accent-violet-600" />
           <span className="text-sm text-gray-700">Primeira parcela 100% pra administradora</span>

@@ -289,6 +289,11 @@ export async function GET(
         multa_rescisao_meses: c.multa_rescisao_meses,
         exclusividade: c.exclusividade,
         recebimento_comissao: c.recebimento_comissao,
+        primeira_parcela_cheia: c.primeira_parcela_cheia ?? null,
+        // v105 (o select é *; sem a migration chegam undefined e viram pendência só se usados)
+        taxa_base: (c.taxa_base as 'aluguel' | 'aluguel_encargos' | undefined) ?? 'aluguel',
+        repasse_dias_uteis: (c.repasse_dias_uteis as number | null | undefined) ?? null,
+        limite_reparos: c.limite_reparos != null ? Number(c.limite_reparos) : null,
         proprietario_representante_nome: repr?.nome ?? null,
         proprietario_representante_cpf: reprCpf,
         proprietario_representante_qualificacao: reprQualificacao,

@@ -144,3 +144,40 @@ dali, nada disso aparece:
 uma vez, e cada um teria que ser consultado para saber se tem sinistro aberto —
 uma consulta por linha numa tela que hoje faz uma só. Vale resolver junto com o
 filtro do Financeiro, que precisa da mesma informação.
+
+---
+
+## Módulo de contratos: o que ficou do "prompt mestre"
+
+Levantado em 11/11/2026, ao fechar as fases 2 (placeholders), 5 (diagramação)
+e 3 (biblioteca com código, versão e histórico — v105). Ficou de fora, por
+ordem de retorno:
+
+**1. "Das partes" do modelo de LOCAÇÃO ainda usa a qualificação antiga.**
+O de administração já usa `{{LOCADOR_QUALIFICACAO}}` (PF/PJ, representante,
+e-mail, telefone). O de locação não foi trocado porque a qualificação do
+locatário lá leva nascimento, naturalidade e filiação, que a qualificação
+nova não monta — trocar perderia dado que a seguradora pede. Fazer: estender
+`qualificacao()` em `src/lib/contratos/montar.ts` com esses campos (como
+opcionais do locatário) e publicar a cláusula como versão 2 no modelo.
+
+**2. Regras jurídicas automatizadas (etapa 5 do prompt).** O checklist
+(`src/lib/contratos/checklist.ts`) cobre partes, garantia, datas e aluguel.
+Faltam: garantia em dobro, caução acima de 3 aluguéis, reajuste em menos de
+12 meses, multa rescisória não proporcional, encargos extraordinários de
+condomínio no locatário. Cada uma vira item do checklist com a cláusula
+apontada.
+
+**3. Aluguel progressivo e encargos com base de cálculo no contrato de
+locação.** O de locação já tem `taxa_admin_base` (v85); falta o valor por
+período (meses 1–12, 13–24…) e as cláusulas condicionais correspondentes.
+
+**4. Biblioteca de aditivos com regras (etapa 6).** Os aditivos já têm
+cláusulas (v96) e contrato originário (v95); falta o catálogo por tipo de
+alteração com a cláusula de ratificação gerada.
+
+**5. Editor em etapas (etapa 9).** O editor atual faz tudo numa tela. O
+fluxo em 9 passos é reorganização de interface, sem regra nova.
+
+**Por que ficou pra depois:** cada item é uma fase própria e os textos
+jurídicos novos pedem revisão humana antes de virarem modelo.

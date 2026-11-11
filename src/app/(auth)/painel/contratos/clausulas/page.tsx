@@ -1,22 +1,14 @@
-import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { Breadcrumbs } from '@/components/breadcrumbs'
-import { ClausulasCliente, type ClausulaRow } from './_components/clausulas-cliente'
+import { ClausulasCliente } from './_components/clausulas-cliente'
+import { carregarBiblioteca } from './carregar-biblioteca'
 
 export const dynamic = 'force-dynamic'
 
 export default async function ClausulasPage() {
   const acesso = await exigirAcessoCRM()
-  const supabase = await createClient()
-
   // Só cláusulas de LOCAÇÃO (administração tem página própria em /painel/administracoes/clausulas)
-  const { data: clausulas } = await supabase
-    .from('contrato_clausulas')
-    .select('id, tipo, categoria, titulo, numero, corpo, ativa, updated_at')
-    .eq('user_id', acesso.userId)
-    .neq('tipo', 'administracao')
-    .order('tipo', { ascending: true })
-    .order('numero', { ascending: true })
+  const clausulas = await carregarBiblioteca(acesso.userId, 'locacao')
 
   return (
     <main className="px-4 py-6 pb-20">
@@ -24,7 +16,7 @@ export default async function ClausulasPage() {
         { label: 'Contratos', href: '/painel/contratos' },
         { label: 'Cláusulas de locação' },
       ]} />
-      <ClausulasCliente clausulasIniciais={(clausulas ?? []) as ClausulaRow[]} escopo="locacao" />
+      <ClausulasCliente clausulasIniciais={clausulas} escopo="locacao" />
     </main>
   )
 }

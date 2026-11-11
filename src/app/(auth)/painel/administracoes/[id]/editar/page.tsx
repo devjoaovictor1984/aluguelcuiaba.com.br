@@ -70,6 +70,11 @@ export default async function EditarContratoAdmPage({ params }: { params: Promis
           taxa_valor: Number(contrato.taxa_valor),
           primeira_parcela_cheia: contrato.primeira_parcela_cheia,
           dia_repasse: contrato.dia_repasse,
+          // v105 — antes da migration chegam undefined e o formulário usa o padrão
+          taxa_base: (contrato as { taxa_base?: 'aluguel' | 'aluguel_encargos' }).taxa_base ?? 'aluguel',
+          repasse_dias_uteis: (contrato as { repasse_dias_uteis?: number | null }).repasse_dias_uteis ?? null,
+          limite_reparos: (contrato as { limite_reparos?: number | string | null }).limite_reparos != null
+            ? Number((contrato as { limite_reparos?: number | string | null }).limite_reparos) : null,
           recebimento_comissao: contrato.recebimento_comissao ?? 'mensal',
           exclusividade: contrato.exclusividade,
           multa_rescisao_meses: contrato.multa_rescisao_meses,

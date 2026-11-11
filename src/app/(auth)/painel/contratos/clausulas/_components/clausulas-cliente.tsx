@@ -1,15 +1,18 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   FileSignature, Plus, Trash2, Save, X, Copy, Check, Loader2,
-  AlertCircle, EyeOff, Eye, Download, Variable,
+  AlertCircle, EyeOff, Eye, Download, Variable, History, Sparkles, CopyPlus, RotateCcw,
 } from 'lucide-react'
+import { diffPalavras } from '@/lib/contratos/diff'
 import { TIPOS_CLAUSULA, PLACEHOLDERS, type TipoClausula } from '@/lib/contratos/placeholders'
 import {
   criarClausula, atualizarClausula, alternarAtiva, excluirClausula,
   importarClausulasFaltantes, reimportarClausulasAdministracao, reimportarClausulasLocacao,
+  aplicarAtualizacaoModelo, dispensarAtualizacaoModelo, listarHistoricoClausula,
+  restaurarVersaoClausula, duplicarClausula, type VersaoHistorico,
 } from '../actions'
 
 export type EscopoClausulas = 'locacao' | 'administracao'
@@ -23,6 +26,13 @@ export interface ClausulaRow {
   corpo: string
   ativa: boolean
   updated_at: string
+  // v105 — ausentes quando o banco ainda não rodou a migration
+  codigo?: string | null
+  versao?: number
+  /** Vem do modelo, já está na versão atual dele, mas o texto foi mudado por você. */
+  editada?: boolean
+  /** O modelo tem texto mais novo do que o desta cláusula. */
+  atualizacao?: { versao: number; titulo: string; corpo: string } | null
 }
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 placeholder:text-gray-400 text-sm transition"
@@ -51,8 +61,14 @@ export function ClausulasCliente({
   const [mostrarPlaceholders, setMostrarPlaceholders] = useState(false)
   const [erro, setErro] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [vendoAtualizacao, setVendoAtualizacao] = useState<ClausulaRow | null>(null)
+  const [vendoHistorico, setVendoHistorico] = useState<ClausulaRow | null>(null)
+  const [soAtualizacoes, setSoAtualizacoes] = useState(false)
 
-  const filtradas = clausulas.filter(c => c.tipo === tipoAtivo)
+  const comAtualizacao = clausulas.filter(c => c.atualizacao)
+  const filtradas = soAtualizacoes
+    ? comAtualizacao
+    : clausulas.filter(c => c.tipo === tipoAtivo)
   const totalAtivas = clausulas.filter(c => c.ativa).length
   const vazio = clausulas.length === 0
 
@@ -85,7 +101,7 @@ export function ClausulasCliente({
     const nome = adm ? 'administração' : 'locação'
     if (!confirm(
       `Vai apagar e reimportar SOMENTE as cláusulas de ${nome} (modelo atualizado).\n\n` +
-      `Edições que você fez nas cláusulas de ${nome} serão perdidas. ` +
+      `Suas edições saem da biblioteca, mas ficam guardadas no histórico de cada cláusula. ` +
       `As cláusulas do outro tipo de contrato NÃO são afetadas.\n\nConfirmar?`
     )) return
     setErro('')
@@ -149,6 +165,26 @@ export function ClausulasCliente({
         </div>
       </header>
 
+      {/* Atualizações do modelo: nunca aplicadas sozinhas */}
+      {comAtualizacao.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3 flex items-center justify-between gap-3 flex-wrap">
+          <p className="text-xs text-amber-900 flex items-center gap-1.5">
+            <Sparkles size={13} className="shrink-0" />
+            <span>
+              <strong>{comAtualizacao.length}</strong> cláusula{comAtualizacao.length === 1 ? '' : 's'} com texto revisado no modelo.
+              {' '}Veja a diferença e decida em cada uma — nada muda sem você aplicar.
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={() => setSoAtualizacoes(v => !v)}
+            className="text-xs font-semibold text-amber-800 hover:bg-amber-100 px-3 py-1.5 rounded-lg border border-amber-300"
+          >
+            {soAtualizacoes ? 'Ver todas' : 'Ver só essas'}
+          </button>
+        </div>
+      )}
+
       {/* Estado vazio: oferecer importação do modelo */}
       {vazio && (
         <div className="bg-violet-50 border border-violet-200 rounded-2xl p-6 text-center">
@@ -181,7 +217,7 @@ export function ClausulasCliente({
       )}
 
       {/* Tabs por tipo (só faz sentido quando há mais de um tipo no escopo) */}
-      {!vazio && tiposDoEscopo.length > 1 && (
+      {!vazio && !soAtualizacoes && tiposDoEscopo.length > 1 && (
         <div className="flex flex-wrap gap-2 border-b border-gray-200">
           {tiposDoEscopo.map(t => {
             const quantas = clausulas.filter(c => c.tipo === t.valor).length
@@ -264,6 +300,15 @@ export function ClausulasCliente({
             key={c.id}
             clausula={c}
             onEditar={() => setEditandoId(c.id)}
+            onVerAtualizacao={() => setVendoAtualizacao(c)}
+            onVerHistorico={() => setVendoHistorico(c)}
+            onDuplicar={() => {
+              startTransition(async () => {
+                const r = await duplicarClausula(c.id)
+                if (r.error) { setErro(r.error); return }
+                recarregar()
+              })
+            }}
             onAlternarAtiva={() => {
               startTransition(async () => {
                 const r = await alternarAtiva(c.id, !c.ativa)
@@ -286,16 +331,33 @@ export function ClausulasCliente({
       </div>
 
       {mostrarPlaceholders && <PlaceholdersModal onFechar={() => setMostrarPlaceholders(false)} />}
+      {vendoAtualizacao?.atualizacao && (
+        <AtualizacaoModal
+          clausula={vendoAtualizacao}
+          onFechar={() => setVendoAtualizacao(null)}
+          onConcluido={() => { setVendoAtualizacao(null); recarregar() }}
+        />
+      )}
+      {vendoHistorico && (
+        <HistoricoModal
+          clausula={vendoHistorico}
+          onFechar={() => setVendoHistorico(null)}
+          onRestaurado={() => { setVendoHistorico(null); recarregar() }}
+        />
+      )}
     </div>
   )
 }
 
 // ── Card de cláusula (modo visualização) ──
-function ClausulaCard({ clausula, onEditar, onAlternarAtiva, onExcluir }: {
+function ClausulaCard({ clausula, onEditar, onAlternarAtiva, onExcluir, onVerAtualizacao, onVerHistorico, onDuplicar }: {
   clausula: ClausulaRow
   onEditar: () => void
   onAlternarAtiva: () => void
   onExcluir: () => void
+  onVerAtualizacao: () => void
+  onVerHistorico: () => void
+  onDuplicar: () => void
 }) {
   return (
     <div className={`bg-white rounded-xl border ${clausula.ativa ? 'border-gray-200' : 'border-gray-100 opacity-60'} p-4 space-y-2`}>
@@ -311,6 +373,28 @@ function ClausulaCard({ clausula, onEditar, onAlternarAtiva, onExcluir }: {
                 desativada
               </span>
             )}
+            {clausula.versao != null && (
+              <span
+                className="text-[10px] text-gray-500 bg-gray-50 border border-gray-200 px-1.5 py-0.5 rounded"
+                title={clausula.codigo ? `Do modelo · código ${clausula.codigo}` : 'Criada por você (não vem do modelo)'}
+              >
+                {clausula.codigo ? 'modelo' : 'sua'} · v{clausula.versao}
+              </span>
+            )}
+            {clausula.editada && (
+              <span className="text-[10px] text-violet-700 bg-violet-50 px-1.5 py-0.5 rounded" title="Texto diferente do modelo: mudado por você">
+                personalizada
+              </span>
+            )}
+            {clausula.atualizacao && (
+              <button
+                type="button"
+                onClick={onVerAtualizacao}
+                className="text-[10px] font-semibold text-amber-800 bg-amber-100 hover:bg-amber-200 px-1.5 py-0.5 rounded flex items-center gap-1"
+              >
+                <Sparkles size={10} /> atualização do modelo (v{clausula.atualizacao.versao})
+              </button>
+            )}
           </div>
           <h3 className="text-sm font-bold text-gray-900">{clausula.titulo}</h3>
         </div>
@@ -322,6 +406,24 @@ function ClausulaCard({ clausula, onEditar, onAlternarAtiva, onExcluir }: {
             title={clausula.ativa ? 'Desativar' : 'Ativar'}
           >
             {clausula.ativa ? <Eye size={14} /> : <EyeOff size={14} />}
+          </button>
+          {clausula.versao != null && (
+            <button
+              type="button"
+              onClick={onVerHistorico}
+              className="p-1.5 text-gray-400 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors"
+              title="Histórico de versões"
+            >
+              <History size={14} />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onDuplicar}
+            className="p-1.5 text-gray-400 hover:text-violet-700 hover:bg-violet-50 rounded transition-colors"
+            title="Duplicar (a cópia nasce desativada)"
+          >
+            <CopyPlus size={14} />
           </button>
           <button
             type="button"
@@ -556,6 +658,163 @@ function PlaceholdersModal({ onFechar }: { onFechar: () => void }) {
           {filtrados.length === 0 && (
             <p className="text-center text-sm text-gray-400 py-8">Nenhum placeholder encontrado.</p>
           )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Diferença entre dois textos (removido riscado em vermelho, incluído em verde) ──
+function TextoDiff({ antes, depois }: { antes: string; depois: string }) {
+  const trechos = diffPalavras(antes, depois)
+  return (
+    <p className="text-xs leading-relaxed whitespace-pre-wrap text-gray-700">
+      {trechos.map((t, i) => t.tipo === 'igual'
+        ? <span key={i}>{t.texto}</span>
+        : t.tipo === 'removido'
+          ? <del key={i} className="bg-red-50 text-red-700">{t.texto}</del>
+          : <ins key={i} className="bg-emerald-50 text-emerald-800 no-underline">{t.texto}</ins>)}
+    </p>
+  )
+}
+
+// ── Atualização do modelo: mostra a diferença e o usuário decide ──
+function AtualizacaoModal({ clausula, onFechar, onConcluido }: {
+  clausula: ClausulaRow
+  onFechar: () => void
+  onConcluido: () => void
+}) {
+  const [isPending, startTransition] = useTransition()
+  const [erro, setErro] = useState('')
+  const at = clausula.atualizacao!
+  const agir = (fn: (id: string) => Promise<{ error?: string }>) => {
+    setErro('')
+    startTransition(async () => {
+      const r = await fn(clausula.id)
+      if (r.error) { setErro(r.error); return }
+      onConcluido()
+    })
+  }
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !isPending && onFechar()}>
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-gray-100 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-gray-900">{clausula.titulo}</h2>
+            <p className="text-[11px] text-gray-500">
+              Texto atual da sua biblioteca comparado com a versão {at.versao} do modelo.
+              <span className="text-red-700"> Riscado</span> sai, <span className="text-emerald-700">verde</span> entra.
+            </p>
+          </div>
+          <button type="button" onClick={onFechar} className="p-1 text-gray-400 hover:text-gray-700"><X size={16} /></button>
+        </div>
+        <div className="p-4 overflow-y-auto space-y-3">
+          {at.titulo !== clausula.titulo && (
+            <p className="text-xs text-gray-600">
+              Título: <del className="bg-red-50 text-red-700">{clausula.titulo}</del> → <ins className="bg-emerald-50 text-emerald-800 no-underline">{at.titulo}</ins>
+            </p>
+          )}
+          <TextoDiff antes={clausula.corpo} depois={at.corpo} />
+          <p className="text-[10px] text-gray-400">
+            Contratos já gerados não mudam: cada contrato guarda a própria cópia das cláusulas.
+            Ao aplicar, o seu texto atual fica guardado no histórico desta cláusula.
+          </p>
+        </div>
+        {erro && <p className="px-4 text-xs text-red-700 flex items-center gap-1"><AlertCircle size={12} /> {erro}</p>}
+        <div className="p-4 border-t border-gray-100 flex items-center justify-end gap-2 flex-wrap">
+          <button
+            type="button"
+            onClick={() => agir(dispensarAtualizacaoModelo)}
+            disabled={isPending}
+            className="text-xs font-semibold text-gray-600 hover:bg-gray-50 px-3 py-2 rounded-lg border border-gray-200 disabled:opacity-50"
+          >
+            Manter o meu texto
+          </button>
+          <button
+            type="button"
+            onClick={() => agir(aplicarAtualizacaoModelo)}
+            disabled={isPending}
+            className="text-xs font-semibold text-white bg-violet-700 hover:bg-violet-800 px-3 py-2 rounded-lg flex items-center gap-1.5 disabled:opacity-50"
+          >
+            {isPending ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />} Aplicar texto do modelo
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Histórico: versões anteriores, com diferença pro texto atual e restauração ──
+function HistoricoModal({ clausula, onFechar, onRestaurado }: {
+  clausula: ClausulaRow
+  onFechar: () => void
+  onRestaurado: () => void
+}) {
+  const [versoes, setVersoes] = useState<VersaoHistorico[] | null>(null)
+  const [erro, setErro] = useState('')
+  const [aberta, setAberta] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  useEffect(() => {
+    let vivo = true
+    void listarHistoricoClausula(clausula.id).then(r => {
+      if (!vivo) return
+      if (r.error) setErro(r.error)
+      else setVersoes(r.versoes ?? [])
+    })
+    return () => { vivo = false }
+  }, [clausula.id])
+
+  return (
+    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => !isPending && onFechar()}>
+      <div className="bg-white rounded-2xl max-w-3xl w-full shadow-xl flex flex-col max-h-[90vh]" onClick={e => e.stopPropagation()}>
+        <div className="p-4 border-b border-gray-100 flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-gray-900">Histórico — {clausula.titulo}</h2>
+            <p className="text-[11px] text-gray-500">Versão atual: v{clausula.versao ?? 1}. Cada edição guarda o texto anterior aqui.</p>
+          </div>
+          <button type="button" onClick={onFechar} className="p-1 text-gray-400 hover:text-gray-700"><X size={16} /></button>
+        </div>
+        <div className="p-4 overflow-y-auto space-y-2">
+          {erro && <p className="text-xs text-red-700 flex items-center gap-1"><AlertCircle size={12} /> {erro}</p>}
+          {!versoes && !erro && <p className="text-xs text-gray-500 flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Carregando…</p>}
+          {versoes?.length === 0 && <p className="text-xs text-gray-500">Nenhuma versão anterior: esta cláusula nunca foi editada.</p>}
+          {versoes?.map(v => (
+            <div key={v.id} className="border border-gray-100 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setAberta(a => a === v.id ? null : v.id)}
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-left"
+              >
+                <span className="text-xs text-gray-700">
+                  <strong>v{v.versao}</strong> · {new Date(v.registrado_em).toLocaleString('pt-BR')}
+                  {v.evento === 'exclusao' && <span className="text-red-600"> · excluída</span>}
+                </span>
+                <span className="text-[10px] text-violet-700">{aberta === v.id ? 'fechar' : 'ver diferença'}</span>
+              </button>
+              {aberta === v.id && (
+                <div className="px-3 pb-3 space-y-2">
+                  <p className="text-[10px] text-gray-400">Comparada com o texto atual: <span className="text-red-700">riscado</span> é o que a v{v.versao} tinha e saiu.</p>
+                  <TextoDiff antes={v.corpo} depois={clausula.corpo} />
+                  <button
+                    type="button"
+                    disabled={isPending}
+                    onClick={() => {
+                      if (!confirm(`Voltar esta cláusula para a v${v.versao}? O texto atual fica guardado no histórico.`)) return
+                      startTransition(async () => {
+                        const r = await restaurarVersaoClausula(clausula.id, v.id)
+                        if (r.error) { setErro(r.error); return }
+                        onRestaurado()
+                      })
+                    }}
+                    className="text-xs font-semibold text-violet-700 hover:bg-violet-50 px-3 py-1.5 rounded-lg border border-violet-200 flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    <RotateCcw size={12} /> Restaurar a v{v.versao}
+                  </button>
+                </div>
+              )}
+            </div>
+          ))}
         </div>
       </div>
     </div>

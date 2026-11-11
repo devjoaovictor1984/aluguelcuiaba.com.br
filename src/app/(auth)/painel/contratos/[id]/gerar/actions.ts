@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { CATEGORIAS_ORDEM } from '@/lib/contratos/placeholders'
+import { tituloDeReferencia } from '@/lib/contratos/modelo'
 import { contratoAssinado, MSG_CONTRATO_TRAVADO } from '@/lib/crm/assinatura-lock'
 
 type SB = Awaited<ReturnType<typeof createClient>>
@@ -18,6 +19,8 @@ export interface ClausulaSnapshot {
   tipo: string
   /** Marcada pelo corretor como alterada na negociação — realça no modo modificações. */
   modificada?: boolean
+  /** v105: código da cláusula do modelo de onde veio (rastreabilidade). */
+  codigo?: string | null
 }
 
 type TipoSeguroIncendio = 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
@@ -64,6 +67,8 @@ interface ClausulaRow {
   numero: number
   titulo: string
   corpo: string
+  /** v105: código do modelo. Ausente em banco sem a migration. */
+  codigo?: string | null
 }
 
 async function selecionarClausulasIniciais(
@@ -71,12 +76,23 @@ async function selecionarClausulasIniciais(
   userId: string,
   ctx: ContratoContext,
 ): Promise<ClausulaRow[]> {
-  const { data: clausulas } = await supabase
+  // Com o código (v105), as regras abaixo casam com o título ORIGINAL do
+  // modelo: renomear a cláusula na biblioteca não tira ela da seleção.
+  // Banco sem a v105 cai no select antigo e casa pelo título como antes.
+  const comCodigo = await supabase
     .from('contrato_clausulas')
-    .select('id, tipo, categoria, numero, titulo, corpo')
+    .select('id, tipo, categoria, numero, titulo, corpo, codigo')
     .eq('user_id', userId)
     .eq('ativa', true)
     .order('numero', { ascending: true })
+  const clausulas: ClausulaRow[] | null = comCodigo.error
+    ? (await supabase
+        .from('contrato_clausulas')
+        .select('id, tipo, categoria, numero, titulo, corpo')
+        .eq('user_id', userId)
+        .eq('ativa', true)
+        .order('numero', { ascending: true })).data
+    : comCodigo.data
 
   if (!clausulas) return []
 
@@ -104,7 +120,8 @@ async function selecionarClausulasIniciais(
   }
   const aceitaAlgumPet = ctx.aceitaPet !== 'nao'
 
-  const selecionadas = clausulas.filter(c => {
+  const selecionadas = clausulas.filter(row => {
+    const c = { ...row, titulo: tituloDeReferencia(row) }
     // Genéricas: sempre, EXCETO:
     //   - "Das partes" quando atuação != administração (vira variante 'atuacao')
     //   - "aluguel" e "obrigacoes_loc" quando aluguel pacote (vira variante 'aluguel_pacote')
@@ -200,12 +217,12 @@ async function selecionarClausulasIniciais(
       if (ca !== cb) return ca - cb
       return a.numero - b.numero
     })
-    .map(c => ({ id: c.id, tipo: c.tipo, categoria: c.categoria, numero: c.numero, titulo: c.titulo, corpo: c.corpo }))
+    .map(c => ({ id: c.id, tipo: c.tipo, categoria: c.categoria, numero: c.numero, titulo: c.titulo, corpo: c.corpo, codigo: c.codigo ?? null }))
 }
 
 /** Converte rows do banco em snapshot (IDs novos, conteúdo copiado). */
 function rowsParaSnapshot(rows: ClausulaRow[]): ClausulaSnapshot[] {
-  return rows.map(c => ({ id: randomUUID(), titulo: c.titulo, corpo: c.corpo, categoria: c.categoria, tipo: c.tipo }))
+  return rows.map(c => ({ id: randomUUID(), titulo: c.titulo, corpo: c.corpo, categoria: c.categoria, tipo: c.tipo, codigo: c.codigo ?? null }))
 }
 
 // ── Helpers do snapshot de cláusulas DESTE contrato (não tocam o banco) ──

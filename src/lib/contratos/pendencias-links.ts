@@ -23,7 +23,9 @@ export interface IdsPartes {
  * tem cadastro: corrige-se no texto da cláusula, então volta null.
  */
 export function linkCorrecao(p: PendenciaPlaceholder, ids: IdsPartes): string | null {
-  if (p.motivo === 'desconhecido') return null
+  // Placeholder desconhecido e lacuna escrita à mão se corrigem no texto da
+  // cláusula, no próprio editor — não há cadastro pra abrir.
+  if (p.motivo === 'desconhecido' || p.motivo === 'manual') return null
   const editarContrato = ids.administracao
     ? `/painel/administracoes/${ids.administracao}/editar`
     : ids.contrato ? `/painel/contratos/${ids.contrato}/editar` : null
@@ -51,6 +53,7 @@ export const TEXTO_MOTIVO: Record<MotivoPendencia, string> = {
   sem_vinculo: 'não há cadastro ligado ao contrato',
   desconhecido: 'chave inexistente — corrija o texto da cláusula',
   invalido: 'preenchido em formato inválido',
+  manual: 'lacuna escrita no texto — edite a cláusula neste contrato',
 }
 
 export const ROTULO_ENTIDADE: Record<EntidadePlaceholder, string> = {

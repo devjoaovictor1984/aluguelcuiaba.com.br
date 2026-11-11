@@ -127,6 +127,13 @@ export const PLACEHOLDERS: Placeholder[] = [
   { chave: 'ADM_AVISO_PREVIO_DIAS', label: 'Dias de aviso prévio pra rescisão', exemplo: '30', origem: 'prazo' },
   { chave: 'ADM_MULTA_MESES', label: 'Multa rescisória em meses', exemplo: '3', origem: 'garantia' },
   { chave: 'ADM_EXCLUSIVIDADE', label: 'Exclusividade (sim/não)', exemplo: 'em regime de exclusividade', origem: 'admin' },
+  { chave: 'ADM_PRAZO_DESCRICAO', label: 'Prazo da administração por extenso (determinado ou indeterminado)', exemplo: 'pelo prazo de 12 (doze) meses, com início em 01/12/2026 e término em 30/11/2027', origem: 'prazo' },
+  { chave: 'ADM_TAXA_BASE', label: 'Base de cálculo da taxa de administração', exemplo: 'calculada exclusivamente sobre o aluguel-base efetivamente recebido…', origem: 'valores' },
+  { chave: 'ADM_COMISSAO_INTERMEDIACAO', label: 'Comissão de intermediação (primeiro aluguel)', exemplo: 'equivalente a 100% (cem por cento) do primeiro aluguel-base…', origem: 'valores' },
+  { chave: 'ADM_REPASSE_DIAS_UTEIS', label: 'Prazo do repasse em dias úteis', exemplo: '5', origem: 'prazo' },
+  { chave: 'ADM_REPASSE_DIAS_UTEIS_EXTENSO', label: 'Prazo do repasse por extenso', exemplo: 'cinco', origem: 'prazo' },
+  { chave: 'ADM_LIMITE_REPAROS', label: 'Limite por evento para reparo urgente', exemplo: 'R$ 500,00', origem: 'valores' },
+  { chave: 'ADM_LIMITE_REPAROS_EXTENSO', label: 'Limite para reparo urgente por extenso', exemplo: 'quinhentos reais', origem: 'valores' },
   { chave: 'ADM_REMUNERACAO_FORMA', label: 'Parágrafo da forma de recebimento da remuneração (gerado)', exemplo: 'Parágrafo. A remuneração da ADMINISTRADORA será recebida mensalmente…', origem: 'valores' },
   { chave: 'ADM_PROPRIETARIO_REPRESENTANTE', label: 'Frase do representante da proprietária PJ (vazio se não houver)', exemplo: 'A PROPRIETÁRIA é, neste ato, representada por…', origem: 'locador' },
 
@@ -192,7 +199,7 @@ const OBRIGATORIOS = new Set([
   'VENCIMENTO_DIA', 'PRAZO_MESES', 'PRAZO_EXTENSO', 'DATA_INICIO', 'DATA_FIM',
   'CAUCAO_VALOR', 'CAUCAO_EXTENSO',
   'SEGURO_SEGURADORA',
-  'ADM_TAXA_VALOR', 'ADM_TAXA_DESCRICAO', 'ADM_DATA_INICIO',
+  'ADM_TAXA_VALOR', 'ADM_TAXA_DESCRICAO', 'ADM_DATA_INICIO', 'ADM_PRAZO_DESCRICAO', 'ADM_TAXA_BASE',
 ])
 
 const OPCIONAIS = new Set([

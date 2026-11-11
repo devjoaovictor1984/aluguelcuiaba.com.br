@@ -172,6 +172,14 @@ export interface DadosContrato {
     multa_rescisao_meses?: number | null
     exclusividade?: boolean | null
     recebimento_comissao?: 'mensal' | 'pagamento_unico' | null
+    /** Primeiro aluguel inteiro fica com a administradora (comissão de intermediação). */
+    primeira_parcela_cheia?: boolean | null
+    /** v105: base da taxa percentual. */
+    taxa_base?: 'aluguel' | 'aluguel_encargos' | null
+    /** v105: prazo do repasse em dias úteis após a compensação. */
+    repasse_dias_uteis?: number | null
+    /** v105: teto por evento para reparo urgente sem autorização. */
+    limite_reparos?: number | null
     proprietario_representante_nome?: string | null
     proprietario_representante_cpf?: string | null
     proprietario_representante_qualificacao?: string | null
@@ -674,6 +682,36 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
       return `A PROPRIETÁRIA é, neste ato, representada por ${a.proprietario_representante_nome}${cpf}, na qualidade de ${qual}, que assina o presente instrumento em seu nome.`
     }
 
+    // ── v105: campos do contrato de administração que eram colchetes ──
+    case 'ADM_PRAZO_DESCRICAO': {
+      const a = dados.administracao
+      if (!a?.data_inicio) return FALLBACK
+      if (a.prazo_meses) {
+        const fim = a.data_termino ? ` e término em ${fmtData(a.data_termino)}` : ''
+        return `pelo prazo de ${a.prazo_meses} (${numeroPorExtenso(a.prazo_meses)}) meses, com início em ${fmtData(a.data_inicio)}${fim}`
+      }
+      return `por prazo indeterminado, com início em ${fmtData(a.data_inicio)}`
+    }
+    case 'ADM_TAXA_BASE': {
+      const a = dados.administracao
+      if (!a || a.taxa_valor == null) return FALLBACK
+      if (a.taxa_tipo === 'fixo') return 'em valor fixo mensal, independentemente do valor do aluguel'
+      return a.taxa_base === 'aluguel_encargos'
+        ? 'calculada sobre o aluguel e sobre o condomínio e o IPTU efetivamente recebidos do locatário, excluídos seguros, consumos, multas, indenizações e reembolsos'
+        : 'calculada exclusivamente sobre o aluguel-base efetivamente recebido do locatário, excluídos condomínio, IPTU, seguros, consumos, multas, indenizações e reembolsos, ainda que cobrados no mesmo boleto'
+    }
+    case 'ADM_COMISSAO_INTERMEDIACAO': {
+      const a = dados.administracao
+      if (!a) return FALLBACK
+      return a.primeira_parcela_cheia
+        ? 'equivalente a 100% (cem por cento) do primeiro aluguel-base, retida do primeiro aluguel efetivamente recebido do locatário, sem incidência da taxa de administração sobre esse mesmo mês'
+        : 'não cobrada de forma destacada, incidindo sobre o primeiro aluguel apenas a taxa de administração ordinária'
+    }
+    case 'ADM_REPASSE_DIAS_UTEIS': return dados.administracao?.repasse_dias_uteis != null ? String(dados.administracao.repasse_dias_uteis) : FALLBACK
+    case 'ADM_REPASSE_DIAS_UTEIS_EXTENSO': return dados.administracao?.repasse_dias_uteis != null ? numeroPorExtenso(dados.administracao.repasse_dias_uteis) : FALLBACK
+    case 'ADM_LIMITE_REPAROS': return dados.administracao?.limite_reparos != null ? fmtBRL(dados.administracao.limite_reparos) : FALLBACK
+    case 'ADM_LIMITE_REPAROS_EXTENSO': return dados.administracao?.limite_reparos != null ? valorPorExtenso(dados.administracao.limite_reparos) : FALLBACK
+
     // ── v2: documento, contato e qualificação ──
     // Textos antigos não usam estas chaves, então o modo legado continua
     // produzindo exatamente o mesmo texto de antes.
@@ -790,7 +828,7 @@ function qualificacao(
  *  - desconhecido: a chave escrita na cláusula não existe no catálogo
  *  - invalido: tem valor, mas fora do formato (CPF com dígito faltando)
  */
-export type MotivoPendencia = 'vazio' | 'sem_vinculo' | 'desconhecido' | 'invalido'
+export type MotivoPendencia = 'vazio' | 'sem_vinculo' | 'desconhecido' | 'invalido' | 'manual'
 
 export type EntidadePlaceholder =
   'locador' | 'locatario' | 'conjuge' | 'fiador' | 'admin' | 'imovel' | 'contrato' | 'administracao' | 'clausula'
@@ -878,6 +916,10 @@ const SEM_DADO_BRUTO: Record<string, (d: DadosContrato) => boolean> = {
   ADM_DIA_REPASSE: d => d.administracao?.dia_repasse == null,
   ADM_AVISO_PREVIO_DIAS: d => d.administracao?.aviso_previo_dias == null,
   ADM_MULTA_MESES: d => d.administracao?.multa_rescisao_meses == null,
+  ADM_REPASSE_DIAS_UTEIS: d => d.administracao?.repasse_dias_uteis == null,
+  ADM_REPASSE_DIAS_UTEIS_EXTENSO: d => d.administracao?.repasse_dias_uteis == null,
+  ADM_LIMITE_REPAROS: d => d.administracao?.limite_reparos == null,
+  ADM_LIMITE_REPAROS_EXTENSO: d => d.administracao?.limite_reparos == null,
 }
 
 /** Rótulo legível do placeholder, pro marcador e pro painel. */
@@ -904,7 +946,7 @@ export function aplicarPlaceholdersV2(
       chave,
       rotulo: rotulo ?? rotuloDe(chave),
       motivo,
-      entidade: motivo === 'desconhecido' ? 'clausula' : entidadeDaChave(chave),
+      entidade: motivo === 'desconhecido' || motivo === 'manual' ? 'clausula' : entidadeDaChave(chave),
       nivel: nivelForcado ?? nivelPlaceholder(chave),
       ocorrencias: 1,
     })
@@ -962,7 +1004,17 @@ export function aplicarPlaceholdersV2(
 
   // Pega qualquer {{…}}, não só as chaves bem escritas: "{{locador_nome}}"
   // ou "{{ LOCADOR NOME }}" viram pendência visível em vez de texto cru.
-  return limparPontuacao(corpo.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (_, chave: string) => resolver(chave)))
+  const substituido = corpo.replace(/\{\{\s*([^{}]*?)\s*\}\}/g, (_, chave: string) => resolver(chave))
+
+  // Lacuna escrita à mão no texto ("[e-mail]", "[valor]", "[DETALHAR
+  // REFORMA]") nunca é preenchida por cadastro nenhum: vira pendência do
+  // texto da cláusula, em vermelho, e trava a assinatura até alguém editar.
+  const comLacunas = substituido.replace(/\[([^[\]\n]{1,120})\]/g, (_, trecho: string) => {
+    registrar(`TEXTO:${trecho.trim().toLowerCase()}`, 'manual', 'importante', `Trecho a completar no texto: [${trecho.trim()}]`)
+    return `${MARCA_PENDENTE_INI}COMPLETAR NO TEXTO: ${trecho.trim()}${MARCA_PENDENTE_FIM}`
+  })
+
+  return limparPontuacao(comLacunas)
 }
 
 /** Os mesmos ajustes do legado, aplicados depois da substituição. */

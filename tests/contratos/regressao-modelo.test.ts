@@ -60,7 +60,8 @@ const COMPLETO: DadosContrato = {
   administracao: {
     codigo: 'ADM2026-999', data_inicio: '2026-12-01', data_termino: '2027-11-30', prazo_meses: 12,
     taxa_tipo: 'percentual', taxa_valor: 10, dia_repasse: 5, aviso_previo_dias: 30, multa_rescisao_meses: 3,
-    exclusividade: true, recebimento_comissao: 'mensal',
+    exclusividade: true, recebimento_comissao: 'mensal', primeira_parcela_cheia: true,
+    taxa_base: 'aluguel', repasse_dias_uteis: 5, limite_reparos: 500,
     proprietario_representante_nome: null, proprietario_representante_cpf: null, proprietario_representante_qualificacao: null,
   },
 }
@@ -69,14 +70,19 @@ const COMPLETO: DadosContrato = {
 // (texto livre que o corretor escreve depois / regra de mercado).
 const VAZIOS_POR_DESENHO = /\{\{(OUTROS_ENCARGOS_FIXOS|SEGURO_INCENDIO_VALOR|ADM_PROPRIETARIO_REPRESENTANTE)\}\}/
 
-test(`modelo de locação: ${SEED_CLAUSULAS.length} cláusulas idênticas nos dois motores`, () => {
+// O v2 marca de propósito a lacuna "[…]" escrita no texto (o legado deixa
+// o colchete cru). A comparação desfaz o marcador antes de comparar.
+const comoLegado = (t: string) => t.replace(/\uE000COMPLETAR NO TEXTO: ([^\uE001]*)\uE001/g, '[$1]')
+
+test(`modelo: ${SEED_CLAUSULAS.length} cláusulas idênticas nos dois motores`, () => {
   const diferentes: string[] = []
   for (const c of SEED_CLAUSULAS) {
     const pend = new Map<string, PendenciaPlaceholder>()
     const legado = aplicarPlaceholders(c.corpo, COMPLETO)
-    const v2 = aplicarPlaceholdersV2(c.corpo, COMPLETO, pend)
+    const v2 = comoLegado(aplicarPlaceholdersV2(c.corpo, COMPLETO, pend))
     if (legado !== v2) diferentes.push(`${c.titulo}\n  legado: ${legado.slice(0, 160)}\n  v2:     ${v2.slice(0, 160)}`)
-    const travam = [...pend.values()].filter(p => p.nivel !== 'opcional')
+    // Lacuna escrita no texto é pendência por desenho (cláusula adicional a completar).
+    const travam = [...pend.values()].filter(p => p.nivel !== 'opcional' && p.motivo !== 'manual')
     if (travam.length > 0 && !VAZIOS_POR_DESENHO.test(c.corpo)) {
       diferentes.push(`${c.titulo}: pendência com cadastro completo → ${travam.map(p => p.chave).join(', ')}`)
     }

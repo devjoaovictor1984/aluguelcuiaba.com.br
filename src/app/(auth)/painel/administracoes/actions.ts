@@ -21,6 +21,10 @@ export interface ContratoAdminInput {
   aviso_previo_dias?: number
   observacoes?: string | null
   recebimento_comissao?: 'mensal' | 'pagamento_unico'
+  // v105
+  taxa_base?: 'aluguel' | 'aluguel_encargos'
+  repasse_dias_uteis?: number | null
+  limite_reparos?: number | null
   proprietario_representante_id?: string | null
   proprietario_representante_qualificacao?: string | null
 
@@ -111,6 +115,9 @@ export async function criarContratoAdmin(input: ContratoAdminInput) {
       aviso_previo_dias: input.aviso_previo_dias ?? 30,
       observacoes: input.observacoes ?? null,
       recebimento_comissao: input.recebimento_comissao ?? 'mensal',
+      taxa_base: input.taxa_base ?? 'aluguel',
+      repasse_dias_uteis: input.repasse_dias_uteis ?? null,
+      limite_reparos: input.limite_reparos ?? null,
       proprietario_representante_id: input.proprietario_representante_id || null,
       proprietario_representante_qualificacao: input.proprietario_representante_qualificacao?.trim() || null,
       ...normalizarSeguros(input),
