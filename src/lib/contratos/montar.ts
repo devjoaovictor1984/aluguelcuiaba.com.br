@@ -287,7 +287,7 @@ const inteiroPorExtenso = (n: number): string => {
 }
 
 // Mantido pra compatibilidade (prazo em meses, etc) — só o inteiro.
-const numeroPorExtenso = (n: number | null | undefined): string => {
+export const numeroPorExtenso = (n: number | null | undefined): string => {
   if (n == null) return '[PREENCHER]'
   return inteiroPorExtenso(Math.floor(n))
 }
@@ -801,6 +801,15 @@ function qualificacao(
   const endTxt = end === '[PREENCHER]' ? falta(`${prefixo}_ENDERECO`, `endereço ${quem}`) : end
   if (endTxt) partes.push(`${flex(g, 'residente e domiciliado', 'residente e domiciliada')} em ${endTxt}`)
   return partes.filter(Boolean).join(', ')
+}
+
+/**
+ * Qualificação de quem não é locador nem locatário (ex.: usuário
+ * autorizado). Pedaço que falta some, em vez de virar [PENDENTE]: a
+ * cláusula dessas pessoas é sintética e não passa pelo motor de pendências.
+ */
+export function qualificacaoParte(p: Pessoa | null | undefined): string {
+  return qualificacao(p, 'locatario', {} as DadosContrato, () => '')
 }
 
 // ════════════════════════════════════════════════════════════════════

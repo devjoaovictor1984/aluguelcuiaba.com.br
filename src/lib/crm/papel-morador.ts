@@ -17,6 +17,8 @@
  * = false` antigo dele era só o default da regra velha, por isso é ignorado.
  */
 
+import { rotuloUsuarioAutorizado, type Finalidade } from '@/lib/contratos/usuario-autorizado'
+
 export const ROTULO_PAPEL_MORADOR: Record<string, string> = {
   inquilino_solidario: 'Co-locatário solidário',
   morador: 'Morador',
@@ -26,6 +28,16 @@ export const ROTULO_PAPEL_MORADOR: Record<string, string> = {
   ocupante_autorizado: 'Ocupante autorizado',
   caucionante: 'Caucionante',
   interveniente_anuente: 'Interveniente anuente',
+}
+
+/**
+ * Rótulo do papel nos documentos. O ocupante autorizado muda com a
+ * finalidade ("Usuário comercial autorizado" em contrato comercial) e
+ * sempre leva "Interveniente anuente" — nunca "Morador" nem "Locatário 2".
+ */
+export function rotuloPapel(papel: string, finalidade?: Finalidade | null): string {
+  if (papel === 'ocupante_autorizado') return `${rotuloUsuarioAutorizado(finalidade)} / Interveniente anuente`
+  return ROTULO_PAPEL_MORADOR[papel] ?? papel
 }
 
 export interface VinculoMorador<P> {
@@ -43,6 +55,7 @@ export interface VinculoMorador<P> {
  */
 export function moradoresQueAssinam<P extends { nome: string }>(
   vinculos: Array<VinculoMorador<P>> | null | undefined,
+  opts: { finalidade?: Finalidade | null } = {},
 ): Array<{ pessoa: P; papel: string; rotulo: string }> {
   return (vinculos ?? [])
     .map(v => {
@@ -55,7 +68,7 @@ export function moradoresQueAssinam<P extends { nome: string }>(
       return {
         pessoa,
         papel: v.papel,
-        rotulo: ROTULO_PAPEL_MORADOR[v.papel] ?? v.papel,
+        rotulo: rotuloPapel(v.papel, opts.finalidade),
       }
     })
     .filter((x): x is { pessoa: P; papel: string; rotulo: string } => !!x)

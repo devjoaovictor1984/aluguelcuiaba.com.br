@@ -191,7 +191,7 @@ export async function GET(
       .select('papel, mora_no_imovel, assina_contrato, pessoa:pessoas(nome, cpf_cnpj)')
       .eq('contrato_id', contrato.id)
 
-    const moradores = moradoresQueAssinam<{ nome: string; cpf_cnpj: string | null }>(moradoresRaw)
+    const moradores = moradoresQueAssinam<{ nome: string; cpf_cnpj: string | null }>(moradoresRaw, { finalidade: (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto' })
       .map(m => ({ nome: m.pessoa.nome, cpf: fmtCpf(m.pessoa.cpf_cnpj), papel: m.rotulo }))
 
     const data: AditivoPDFData = {

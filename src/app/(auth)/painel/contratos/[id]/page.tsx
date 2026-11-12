@@ -98,6 +98,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
       .from('contratos_moradores')
       .select(`
         id, papel, parentesco, mora_no_imovel, observacao, assina_contrato,
+        consumos_titular, atividade_no_imovel, titularidade_confirmada_em,
         pessoa:pessoas(id, nome, cpf_cnpj, telefone, email)
       `)
       .eq('contrato_id', id)
@@ -127,6 +128,9 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     parentesco: string | null
     mora_no_imovel: boolean
     observacao: string | null
+    consumos_titular?: string[] | null
+    atividade_no_imovel?: string | null
+    titularidade_confirmada_em?: string | null
     pessoa: { id: string; nome: string; cpf_cnpj: string | null; telefone: string | null } | { id: string; nome: string; cpf_cnpj: string | null; telefone: string | null }[] | null
   }) => ({
     id: m.id,
@@ -134,6 +138,9 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     parentesco: m.parentesco as MoradorRow['parentesco'],
     mora_no_imovel: m.mora_no_imovel ?? true,
     observacao: m.observacao,
+    consumos_titular: m.consumos_titular ?? [],
+    atividade_no_imovel: m.atividade_no_imovel ?? null,
+    titularidade_confirmada_em: m.titularidade_confirmada_em ?? null,
     pessoa: Array.isArray(m.pessoa) ? m.pessoa[0] ?? null : m.pessoa,
   }))
 
@@ -268,7 +275,7 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
     // Moradores que assinam o contrato assinam o aditivo e o distrato
     // também: os dois alteram ou encerram o instrumento que eles
     // assinaram. As regras são as mesmas das rotas de PDF.
-    ...moradoresQueAssinam<{ nome: string; email: string | null }>(moradoresRaw)
+    ...moradoresQueAssinam<{ nome: string; email: string | null }>(moradoresRaw, { finalidade: (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto' })
       .map(m => ({ nome: m.pessoa.nome, email: m.pessoa.email ?? '', papel: m.rotulo })),
   ].filter((s): s is SugestaoSignatario => !!s)
 
@@ -487,6 +494,11 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
         pessoasDisponiveis={pessoasDisponiveis}
         inquilinoId={inquilino?.id ?? ''}
         inquilinoEhPJ={(inquilino?.cpf_cnpj?.replace(/\D/g, '').length ?? 0) === 14}
+        finalidade={(contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto'}
+        garantiaTipo={contrato.garantia_tipo}
+        chavesEntreguesEm={contrato.chaves_entregues_em ?? null}
+        prazoTitularidadeDiasUteis={contrato.prazo_titularidade_dias_uteis ?? 10}
+        seguradoraCiente={{ em: contrato.seguradora_ciente_usuario_em ?? null, obs: contrato.seguradora_ciente_usuario_obs ?? null }}
       />
 
       <InventarioSecao contratoId={id} itens={inventario} />

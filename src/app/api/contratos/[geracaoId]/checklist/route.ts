@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rodarChecklist, contagem, bloqueiaGeracao, type DadosChecklist } from '@/lib/contratos/checklist'
+import { verificarUsuarioAutorizado, verificacaoDosVinculos } from '@/lib/contratos/usuario-autorizado'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +36,7 @@ export async function GET(
     .from('contratos_locacao')
     .select(`
       tipo_atuacao, tipo_mobilia, tem_inventario_bens, aceita_pet,
-      garantia_tipo, caucao_valor,
+      garantia_tipo, caucao_valor, finalidade, seguradora_ciente_usuario_em,
       seguro_fianca_seguradora, seguro_fianca_contratacao,
       data_inicio, data_termino, duracao_meses, valor_aluguel, dia_vencimento,
       proprietario:pessoas!proprietario_id(nome, cpf_cnpj),
@@ -93,7 +94,20 @@ export async function GET(
     dia_vencimento: contrato.dia_vencimento ?? null,
   }
 
-  const itens = rodarChecklist(dados)
+  const { data: vinculos } = await admin
+    .from('contratos_moradores')
+    .select('papel, mora_no_imovel, consumos_titular, atividade_no_imovel, pessoa:pessoas(nome, cpf_cnpj)')
+    .eq('contrato_id', geracao.contrato_id)
+
+  const itens = [
+    ...rodarChecklist(dados),
+    ...verificarUsuarioAutorizado(verificacaoDosVinculos(vinculos, {
+      finalidade: (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto',
+      garantia_tipo: contrato.garantia_tipo ?? null,
+      seguradora_ciente_usuario_em: contrato.seguradora_ciente_usuario_em ?? null,
+      locatario_cpf_cnpj: inq?.cpf_cnpj ?? null,
+    })),
+  ]
   return NextResponse.json({
     itens,
     contagem: contagem(itens),

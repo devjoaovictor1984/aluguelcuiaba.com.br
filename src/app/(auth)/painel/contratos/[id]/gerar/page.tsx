@@ -85,7 +85,7 @@ async function renderizarEditor(contratoId: string) {
   const { data: contrato, error: contratoErr } = await supabase
     .from('contratos_locacao')
     .select(`
-      id, codigo, garantia_tipo, seguro_fianca_seguradora, seguro_fianca_contratacao,
+      id, codigo, garantia_tipo, finalidade, seguro_fianca_seguradora, seguro_fianca_contratacao,
       valor_aluguel, data_inicio, data_termino, importado,
       qtd_chaves, qtd_controles, qtd_tags, conjuge_inquilino_papel, anotacoes_corretor,
       imovel_id, tipo_atuacao, taxa_admin_valor,
@@ -226,7 +226,7 @@ async function renderizarEditor(contratoId: string) {
     .select('papel, mora_no_imovel, assina_contrato, pessoa:pessoas(nome, email)')
     .eq('contrato_id', contratoId)
 
-  const sugestoesMoradores = moradoresQueAssinam<{ nome: string; email: string | null }>(moradoresAss)
+  const sugestoesMoradores = moradoresQueAssinam<{ nome: string; email: string | null }>(moradoresAss, { finalidade: (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto' })
     .map(m => ({ nome: m.pessoa.nome, email: m.pessoa.email ?? '', papel: m.rotulo }))
 
   const { data: { user } } = await supabase.auth.getUser()

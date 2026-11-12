@@ -204,7 +204,10 @@ export interface ContratoPDFData {
     qtd_tags: number
     /** Quem recebe a posse: locatário(s) + co-locatários + ocupantes que moram.
      *  Responsável pelo seguro que não mora NÃO entra aqui. */
-    recebedores: Array<{ nome: string; cpf: string | null }>
+    recebedores: Array<{ nome: string; cpf: string | null; papel?: string; usuario_autorizado?: boolean }>
+    /** Data de início ainda não chegou e as chaves não foram entregues:
+     *  o termo não pode afirmar a entrega como fato consumado. */
+    entrega_futura?: boolean
   } | null
 }
 
@@ -1515,19 +1518,53 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
 
           <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 18 }} />
 
+          {/* O ramo "não futuro" mantém o JSX original: a árvore do layout
+              legado é fotografada em tests/contratos/pdf-diagramacao. */}
+          {data.termo_chaves.entrega_futura ? (
+            <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 12, lineHeight: 1.65 }}>
+              Pelo presente Termo, o LOCADOR/ADMINISTRADORA entregará ao LOCATÁRIO, na data da efetiva
+              entrega, as chaves, controles, tags e demais meios de ingresso referentes ao imóvel situado em{' '}
+              <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.endereco_imovel}</Text>.
+            </Text>
+          ) : (
           <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 12, lineHeight: 1.65 }}>
             Pelo presente Termo, o LOCADOR/ADMINISTRADORA entrega ao LOCATÁRIO, nesta data, as chaves,
             controles, tags e demais meios de ingresso referentes ao imóvel situado em{' '}
             <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.endereco_imovel}</Text>.
           </Text>
+          )}
 
-          <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 14, lineHeight: 1.65 }}>
-            O LOCATÁRIO declara que recebe a posse direta do imóvel em{' '}
-            <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.data_entrega}</Text>, para uso{' '}
-            {usoFinalidadeTermo}, assumindo, a partir desta data, responsabilidade pela guarda,
-            conservação, limpeza, pagamento de aluguel, encargos, consumos, tributos, seguros, multas
-            e demais obrigações previstas no contrato de locação.
-          </Text>
+          {data.termo_chaves.entrega_futura ? (
+            <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 14, lineHeight: 1.65 }}>
+              O LOCATÁRIO receberá a posse direta do imóvel na data prevista de{' '}
+              <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.data_entrega}</Text>, ou na data da
+              efetiva entrega das chaves, se posterior, para uso {usoFinalidadeTermo}, assumindo, a partir
+              da efetiva entrega, responsabilidade pela guarda, conservação, limpeza, pagamento de aluguel,
+              encargos, consumos, tributos, seguros, multas e demais obrigações previstas no contrato de
+              locação. A entrega só se considera realizada com a efetiva tradição das chaves, cuja data será
+              registrada pela ADMINISTRADORA, não bastando a assinatura antecipada deste Termo.
+            </Text>
+          ) : (
+            <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 14, lineHeight: 1.65 }}>
+              O LOCATÁRIO declara que recebe a posse direta do imóvel em{' '}
+              <Text style={{ fontWeight: 'bold' }}>{data.termo_chaves.data_entrega}</Text>, para uso{' '}
+              {usoFinalidadeTermo}, assumindo, a partir desta data, responsabilidade pela guarda,
+              conservação, limpeza, pagamento de aluguel, encargos, consumos, tributos, seguros, multas
+              e demais obrigações previstas no contrato de locação.
+            </Text>
+          )}
+
+          {data.termo_chaves.recebedores.some(r => r.usuario_autorizado) && (
+            <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 14, lineHeight: 1.65 }}>
+              As chaves poderão ser recebidas por{' '}
+              <Text style={{ fontWeight: 'bold' }}>
+                {data.termo_chaves.recebedores.filter(r => r.usuario_autorizado).map(r => r.nome).join(', ')}
+              </Text>
+              {', na qualidade de '}
+              {(data.termo_chaves.recebedores.find(r => r.usuario_autorizado)?.papel ?? 'usuário autorizado').toUpperCase()}
+              {', por autorização do LOCATÁRIO e do LOCADOR, permanecendo o LOCATÁRIO como titular da relação locatícia.'}
+            </Text>
+          )}
 
           <Text style={{
             fontSize: 11,
@@ -1607,8 +1644,12 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             : [{ nome: data.locatario_nome, cpf: data.locatario_cpf }]
           ).map((r, idx, arr) => (
             <View key={idx} {...inteiro} style={{ marginBottom: 22 }}>
+              {/* Cada recebedor com o papel dele: usuário autorizado não é
+                  "Locatário 2". Sem papel (dado antigo), numera como antes. */}
               <Text style={blocoPapel}>
-                {arr.length > 1 ? `LOCATÁRIO ${idx + 1} (RECEBI AS CHAVES)` : 'LOCATÁRIO (RECEBI AS CHAVES)'}
+                {r.papel
+                  ? `${r.papel.toUpperCase()} (RECEBI AS CHAVES)`
+                  : arr.length > 1 ? `LOCATÁRIO ${idx + 1} (RECEBI AS CHAVES)` : 'LOCATÁRIO (RECEBI AS CHAVES)'}
               </Text>
               <Text style={blocoNome}>{r.nome}</Text>
               {r.cpf && <Text style={blocoSecundario}>{docLabel(r.cpf)} {r.cpf}</Text>}
@@ -1754,7 +1795,9 @@ function PartesCapa({
     })
   }
   for (const m of data.moradores_adicionais) {
-    linhas.push({ papel: m.papel, nome: m.nome, cpf: m.cpf })
+    // Coluna do papel é estreita: na capa vai só o nome do papel; a
+    // qualidade de interveniente anuente fica na cláusula e na assinatura.
+    linhas.push({ papel: m.papel.replace(/ \/ Interveniente anuente$/i, ''), nome: m.nome, cpf: m.cpf })
   }
   if (data.fiador_nome) {
     linhas.push({ papel: 'Fiador', nome: data.fiador_nome, cpf: data.fiador_cpf })

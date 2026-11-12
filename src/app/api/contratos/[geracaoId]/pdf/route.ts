@@ -15,8 +15,10 @@ import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
 import { montarEnderecoImovel } from '@/lib/crm/endereco-imovel'
 import { urlsFotosInventario, LARGURA_PDF } from '@/lib/crm/inventario-fotos'
 import React from 'react'
-import { moradoresQueAssinam } from '@/lib/crm/papel-morador'
+import { moradoresQueAssinam, rotuloPapel } from '@/lib/crm/papel-morador'
 import { textoPdfDeHtml, removerCaracteresSemGlifo } from '@/lib/contratos/texto-pdf'
+import { clausulaUsuarioAutorizado, clausulaTitularidade } from '@/lib/contratos/usuario-autorizado-clausulas'
+import { verificarUsuarioAutorizado, verificacaoDosVinculos, rotuloUsuarioAutorizado } from '@/lib/contratos/usuario-autorizado'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
 
@@ -247,7 +249,7 @@ function montarResumoCapa(
 }
 
 function montarTermoChaves(
-  c: ContratoLite & { data_inicio?: string | null },
+  c: ContratoLite & { data_inicio?: string | null; chaves_entregues_em?: string | null },
   dados: {
     imovel?: {
       endereco_completo?: string | null
@@ -258,12 +260,17 @@ function montarTermoChaves(
       bairro_nome?: string | null
     } | null
   },
-  recebedores: Array<{ nome: string; cpf: string | null }>,
-): { endereco_imovel: string; data_entrega: string; qtd_chaves: number; qtd_controles: number; qtd_tags: number; recebedores: Array<{ nome: string; cpf: string | null }> } {
+  recebedores: Array<{ nome: string; cpf: string | null; papel?: string; usuario_autorizado?: boolean }>,
+): { endereco_imovel: string; data_entrega: string; entrega_futura: boolean; qtd_chaves: number; qtd_controles: number; qtd_tags: number; recebedores: Array<{ nome: string; cpf: string | null; papel?: string; usuario_autorizado?: boolean }> } {
   const endereco = montarEnderecoImovel(dados.imovel) ?? '[ENDEREÇO DO IMÓVEL]'
+  // Entregue de fato vale a data registrada; senão, a data de início. Se ela
+  // ainda não chegou, o termo fala no futuro em vez de afirmar a entrega.
+  const hojeCuiaba = new Date(Date.now() - 4 * 3600_000).toISOString().slice(0, 10)
+  const entregaFutura = !c.chaves_entregues_em && !!c.data_inicio && c.data_inicio.slice(0, 10) > hojeCuiaba
   return {
     endereco_imovel: endereco,
-    data_entrega: fmtData(c.data_inicio ?? null),
+    data_entrega: fmtData(c.chaves_entregues_em ?? c.data_inicio ?? null),
+    entrega_futura: entregaFutura,
     qtd_chaves: c.qtd_chaves ?? 0,
     qtd_controles: c.qtd_controles ?? 0,
     qtd_tags: c.qtd_tags ?? 0,
@@ -444,6 +451,7 @@ export async function GET(
       aluguel_inclui_energia, aluguel_inclui_gas, aluguel_inclui_internet,
       pagamento_antecipado, data_pagamento_antecipado,
       qtd_chaves, qtd_controles, qtd_tags,
+      prazo_titularidade_dias_uteis, seguradora_ciente_usuario_em, chaves_entregues_em,
       imovel:imoveis(
         tipo, endereco_resumido, endereco_completo, endereco_numero, endereco_complemento,
         endereco_cep, descricao, descricao_real,
@@ -488,10 +496,21 @@ export async function GET(
   const { data: moradoresRaw } = await admin
     .from('contratos_moradores')
     .select(`
-      papel, mora_no_imovel, assina_contrato,
-      pessoa:pessoas(nome, cpf_cnpj)
+      papel, mora_no_imovel, assina_contrato, consumos_titular, atividade_no_imovel,
+      pessoa:pessoas(
+        nome, cpf_cnpj, rg, rg_orgao_emissor, rg_uf, nacionalidade, estado_civil, profissao, genero,
+        endereco_logradouro, endereco_numero, endereco_complemento,
+        endereco_bairro, endereco_cidade, endereco_estado, endereco_cep
+      )
     `)
     .eq('contrato_id', geracao.contrato_id)
+  type MoradorRaw = {
+    papel: string
+    atividade_no_imovel?: string | null
+    consumos_titular?: string[] | null
+    pessoa: ({ nome: string; cpf_cnpj: string | null } & Record<string, unknown>) | Array<{ nome: string; cpf_cnpj: string | null } & Record<string, unknown>> | null
+  }
+  const finalidadeContrato = (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto'
 
   // 2c. Carrega testemunhas selecionadas
   const testemunhaIds = (geracao.testemunha_ids ?? []) as string[]
@@ -663,48 +682,36 @@ export async function GET(
     }
   }
 
-  // 6b2. Cláusula sintética do ocupante autorizado — quem usa o imóvel sem
-  //      ser locatário (ex.: seguro no nome do sogro, genro ocupa a sala).
-  //      Dá a autorização de acesso, chaves, cadastro no condomínio e troca
-  //      da titularidade da luz/água, sem torná-lo locatário. Vai logo após
-  //      "Das partes".
+  // 6b2. Cláusulas sintéticas do usuário autorizado (papel ocupante_autorizado):
+  //      autorização de uso (art. 13 da Lei 8.245) e, quando alguém ficou
+  //      obrigado a trocar contas de consumo, a cláusula de titularidade.
+  //      Vão logo após "Das partes". Ver src/lib/contratos/usuario-autorizado*.
   {
-    const ocupantes = (moradoresRaw ?? [])
+    const usuarios = (moradoresRaw ?? [])
       .filter((m: { papel: string }) => m.papel === 'ocupante_autorizado')
-      .map((m: { pessoa: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null }) => {
+      .map((m: MoradorRaw) => {
         const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
-        return p?.nome ? { nome: p.nome, cpf: fmtCpf(p.cpf_cnpj) } : null
+        return p?.nome
+          ? { pessoa: p, atividade_no_imovel: m.atividade_no_imovel, consumos_titular: m.consumos_titular ?? [] }
+          : null
       })
-      .filter((x): x is { nome: string; cpf: string | null } => x !== null)
+      .filter((x): x is NonNullable<typeof x> => x !== null)
 
-    if (ocupantes.length > 0) {
-      const plural = ocupantes.length > 1
-      const nomes = ocupantes.map(o => `${o.nome}${o.cpf ? `, CPF nº ${o.cpf}` : ''}`).join('; ')
-      const OC = plural ? 'OCUPANTES AUTORIZADOS' : 'OCUPANTE AUTORIZADO'
-      const fin = contrato.finalidade ?? 'residencial'
-      const uso = fin === 'comercial'
-        ? 'no exercício de atividade comercial ou profissional lícita, compatível com a destinação ajustada neste contrato'
-        : fin === 'misto'
-          ? 'como residência e/ou no exercício de atividade profissional, conforme a destinação ajustada neste contrato'
-          : 'como residência, conforme a destinação ajustada neste contrato'
-      const corpoOcupante =
-        `${nomes}, ${plural ? 'participam' : 'participa'} do presente instrumento na qualidade de ${OC}, ${plural ? 'indicados' : 'indicado'} pelo LOCATÁRIO para utilizar o imóvel ${uso}, assinando para ciência e anuência de todas as condições aqui pactuadas.\n\n` +
-        `Parágrafo primeiro. Fica${plural ? 'm' : ''} o${plural ? 's' : ''} ${OC} expressamente ${plural ? 'autorizados' : 'autorizado'} a:\n` +
-        `I. ter acesso ao imóvel e às áreas comuns do condomínio, receber as chaves e ser cadastrado na portaria, no controle de acesso e na administração do condomínio;\n` +
-        `II. requerer em seu próprio nome, perante a concessionária de energia elétrica e, se for o caso, de água, gás e telecomunicações, a transferência da titularidade das unidades consumidoras do imóvel, bem como a ligação, religação e o desligamento ao final da locação;\n` +
-        `III. receber correspondências, comunicados do condomínio e avisos relativos ao uso do imóvel.\n\n` +
-        `Parágrafo segundo. A presente autorização não transfere a condição de LOCATÁRIO e não constitui sublocação, cessão ou empréstimo do imóvel. O aluguel e os encargos permanecem de responsabilidade do LOCATÁRIO, inclusive perante a seguradora do seguro fiança, quando houver.\n\n` +
-        `Parágrafo terceiro. ${plural ? 'Os OCUPANTES AUTORIZADOS obrigam-se' : 'O OCUPANTE AUTORIZADO obriga-se'} a observar as regras deste contrato, da convenção e do regimento interno do condomínio quanto ao uso e à conservação do imóvel, respondendo o LOCATÁRIO perante o LOCADOR pelos atos ${plural ? 'deles' : 'dele'}.\n\n` +
-        `Parágrafo quarto. Encerrada a locação, ou revogada a autorização pelo LOCATÁRIO mediante comunicação escrita à ADMINISTRADORA ou ao LOCADOR, ${plural ? 'os OCUPANTES AUTORIZADOS deverão' : 'o OCUPANTE AUTORIZADO deverá'} desocupar o imóvel e, em até 30 (trinta) dias, transferir ou encerrar a titularidade das contas de consumo que estiverem em seu nome, apresentando-as quitadas até a data da entrega das chaves.`
-
-      const clausulaOcupante: ContratoPDFClausula = {
-        numero: 0,
-        titulo: plural ? 'Dos ocupantes autorizados' : 'Do ocupante autorizado',
-        corpo: corpoOcupante,
+    if (usuarios.length > 0) {
+      const im = Array.isArray(contrato.imovel) ? contrato.imovel[0] : contrato.imovel
+      const ctx = {
+        finalidade: finalidadeContrato,
+        locatario_nome: inq?.nome ?? 'LOCATÁRIO',
+        tem_administracao: (contrato.taxa_admin_valor ?? 0) > 0,
+        prazo_titularidade_dias_uteis: contrato.prazo_titularidade_dias_uteis,
+        imovel: im ?? null,
       }
+      const novas = [clausulaUsuarioAutorizado(usuarios, ctx), clausulaTitularidade(usuarios, ctx)]
+        .filter((c): c is NonNullable<typeof c> => c !== null)
+        .map(c => ({ numero: 0, titulo: c.titulo, corpo: c.corpo }) as ContratoPDFClausula)
       const idxPartes = clausulas.findIndex(c => /das partes/i.test(c.titulo))
-      if (idxPartes >= 0) clausulas.splice(idxPartes + 1, 0, clausulaOcupante)
-      else clausulas.push(clausulaOcupante)
+      if (idxPartes >= 0) clausulas.splice(idxPartes + 1, 0, ...novas)
+      else clausulas.push(...novas)
       clausulas.forEach((c, i) => { c.numero = i + 1 })
     }
   }
@@ -783,25 +790,29 @@ export async function GET(
   }
   // Quem aparece no bloco de assinatura: quem assina o contrato. A regra
   // mora em papel-morador.ts, e é a mesma do aditivo e das telas.
-  const moradoresAdicionais = moradoresQueAssinam<{ nome: string; cpf_cnpj: string | null }>(moradoresRaw)
+  const moradoresAdicionais = moradoresQueAssinam<{ nome: string; cpf_cnpj: string | null }>(moradoresRaw, { finalidade: finalidadeContrato })
     .map(m => ({ nome: m.pessoa.nome, cpf: fmtCpf(m.pessoa.cpf_cnpj), papel: m.rotulo }))
 
   // Recebedores das chaves: locatário principal + quem MORA no imóvel
   // (co-locatário solidário, ocupante autorizado, morador). Responsável pelo
   // seguro / caucionante / cônjuge do responsável NÃO recebem chaves.
-  const recebedoresChaves: Array<{ nome: string; cpf: string | null }> = []
-  if (inq?.nome) recebedoresChaves.push({ nome: inq.nome, cpf: fmtCpf(inq.cpf_cnpj) })
+  const recebedoresChaves: Array<{ nome: string; cpf: string | null; papel: string; usuario_autorizado?: boolean }> = []
+  if (inq?.nome) recebedoresChaves.push({ nome: inq.nome, cpf: fmtCpf(inq.cpf_cnpj), papel: 'Locatário' })
   // Cônjuge solidário também recebe as chaves (mora + assume)
   if (inq?.conjuge_nome && (contrato.conjuge_inquilino_papel ?? 'solidario') === 'solidario') {
-    recebedoresChaves.push({ nome: inq.conjuge_nome, cpf: fmtCpf(inq.conjuge_cpf) })
+    recebedoresChaves.push({ nome: inq.conjuge_nome, cpf: fmtCpf(inq.conjuge_cpf), papel: 'Locatária(o) solidária(o)' })
   }
   for (const m of (moradoresRaw ?? []) as MoradorRel[]) {
     const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
     if (!p?.nome) continue
-    const recebeChaves =
-      m.papel === 'ocupante_autorizado'  // ocupa por definição: recebe chaves mesmo sem "mora no imóvel"
-      || ((m.papel === 'inquilino_solidario' || m.papel === 'morador') && m.mora_no_imovel)
-    if (recebeChaves) recebedoresChaves.push({ nome: p.nome, cpf: fmtCpf(p.cpf_cnpj) })
+    if (m.papel === 'ocupante_autorizado') {
+      // ocupa por definição: recebe chaves mesmo sem "mora no imóvel"
+      recebedoresChaves.push({
+        nome: p.nome, cpf: fmtCpf(p.cpf_cnpj), papel: rotuloUsuarioAutorizado(finalidadeContrato), usuario_autorizado: true,
+      })
+    } else if ((m.papel === 'inquilino_solidario' || m.papel === 'morador') && m.mora_no_imovel) {
+      recebedoresChaves.push({ nome: p.nome, cpf: fmtCpf(p.cpf_cnpj), papel: rotuloPapel(m.papel) })
+    }
   }
 
   // 8. Monta o data final do PDF
@@ -845,7 +856,7 @@ export async function GET(
     })(),
     tipo_atuacao: (contrato.tipo_atuacao ?? 'administracao') as 'administracao' | 'intermediacao' | 'direto',
     intermediador_assina: contrato.intermediador_assina ?? false,
-    finalidade: (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto',
+    finalidade: finalidadeContrato,
     locatario_nome: inq?.nome ?? '[PREENCHER]',
     locatario_cpf: fmtCpf(inq?.cpf_cnpj ?? null),
     conjuge_nome: inq?.conjuge_nome ?? null,
@@ -907,7 +918,15 @@ export async function GET(
       valor_aluguel: contrato.valor_aluguel ?? null,
       dia_vencimento: contrato.dia_vencimento ?? null,
     }
-    const itens = rodarChecklist(dadosCheck)
+    const itens = [
+      ...rodarChecklist(dadosCheck),
+      ...verificarUsuarioAutorizado(verificacaoDosVinculos(moradoresRaw, {
+        finalidade: finalidadeContrato,
+        garantia_tipo: contrato.garantia_tipo ?? null,
+        seguradora_ciente_usuario_em: contrato.seguradora_ciente_usuario_em ?? null,
+        locatario_cpf_cnpj: inq?.cpf_cnpj ?? null,
+      })),
+    ]
     if (bloqueiaGeracao(itens)) {
       const bloqueios = itens.filter(i => i.severidade === 'block')
       return NextResponse.json({

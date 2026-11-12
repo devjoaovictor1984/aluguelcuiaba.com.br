@@ -181,3 +181,29 @@ fluxo em 9 passos é reorganização de interface, sem regra nova.
 
 **Por que ficou pra depois:** cada item é uma fase própria e os textos
 jurídicos novos pedem revisão humana antes de virarem modelo.
+
+---
+
+## Usuário autorizado: o que ficou para depois (v106)
+
+Feito em 12/11/2026; ver `docs/contratos-participantes.md`. Ficou de fora de
+propósito:
+
+**1. Assinatura eletrônica separada para a entrega das chaves.** Hoje o termo
+de entrega vai anexo ao contrato e é assinado junto, e por isso fala no futuro
+quando a data ainda não chegou. Uma assinatura própria no dia da entrega daria
+a data exata sem depender do registro manual de `chaves_entregues_em`.
+
+**2. Feriados no prazo da troca de titularidade.** `somarDiasUteis()` só pula
+fim de semana. Para Cuiabá, faltam os feriados nacionais, estaduais e
+municipais.
+
+**3. Os 12 campos de responsabilidade do prompt original não foram criados.**
+`responsavel_aluguel`, `responsavel_seguro_fianca` etc. já são papéis
+(`inquilino_solidario`, `responsavel_seguro`). Duplicar abriria combinações
+contraditórias. Só entraram as contas de consumo e a atividade.
+
+**4. Cláusulas do usuário autorizado não aparecem no editor.** São sintéticas
+(montadas no PDF), como a do responsável pelo seguro. Para editar o texto de
+um contrato específico, hoje é preciso mudar o código. Se precisar, levar para
+a biblioteca como cláusula condicional.

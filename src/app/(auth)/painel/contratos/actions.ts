@@ -1028,6 +1028,9 @@ export interface AdicionarMoradorInput {
   mora_no_imovel?: boolean
   assina_contrato?: boolean
   observacao?: string
+  /** Só pro usuário autorizado: contas que ele se obriga a pôr no nome. */
+  consumos_titular?: Array<'energia' | 'agua' | 'gas' | 'internet'>
+  atividade_no_imovel?: string | null
 }
 
 export async function adicionarMorador(input: AdicionarMoradorInput) {
@@ -1058,6 +1061,10 @@ export async function adicionarMorador(input: AdicionarMoradorInput) {
     mora_no_imovel: input.mora_no_imovel ?? moraDefault,
     assina_contrato: input.assina_contrato ?? assinaDefault,
     observacao: input.observacao ?? null,
+    ...(input.papel === 'ocupante_autorizado' ? {
+      consumos_titular: [...new Set(input.consumos_titular ?? [])],
+      atividade_no_imovel: input.atividade_no_imovel?.trim().slice(0, 300) || null,
+    } : {}),
   })
   if (error) {
     if (error.code === '23505') return { error: 'Essa pessoa já está vinculada a este contrato.' }
