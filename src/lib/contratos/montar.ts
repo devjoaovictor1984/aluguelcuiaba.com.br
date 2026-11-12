@@ -8,6 +8,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
+import { textoPdfDeHtml, removerCaracteresSemGlifo } from './texto-pdf'
 import { PLACEHOLDER_POR_CHAVE, nivelPlaceholder, type NivelPlaceholder } from './placeholders'
 
 export interface DadosContrato {
@@ -308,24 +309,8 @@ const valorPorExtenso = (v: number | null | undefined): string => {
  * A descrição do imóvel é salva via editor TipTap como HTML — no contrato
  * precisamos do texto puro.
  */
-const stripHtml = (html: string | null | undefined): string => {
-  if (!html) return ''
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>\s*<p[^>]*>/gi, '\n\n')
-    .replace(/<\/?p[^>]*>/gi, '')
-    .replace(/<\/?(div|span|strong|b|em|i|u|ul|ol|li)[^>]*>/gi, '')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/\n{3,}/g, '\n\n')
-    .replace(/[ \t]+/g, ' ')
-    .trim()
-}
+const stripHtml = (html: string | null | undefined): string =>
+  textoPdfDeHtml(html, { manterQuebras: true })
 
 const enderecoCompleto = (p: Record<string, any> | null | undefined): string => {
   if (!p) return '[PREENCHER]'
@@ -495,7 +480,8 @@ function resolverPlaceholder(chave: string, dados: DadosContrato): string {
     case 'IMOVEL_DESCRICAO': {
       // descricao_real (texto livre da aba "Dados pro contrato") tem prioridade;
       // descricao (do anúncio) é HTML — precisa stripar tags.
-      const txt = dados.imovel?.descricao_real ?? stripHtml(dados.imovel?.descricao) ?? ''
+      // || e não ??: descricao_real salva vazia ("") também cai pro anúncio
+      const txt = removerCaracteresSemGlifo(dados.imovel?.descricao_real?.trim() || stripHtml(dados.imovel?.descricao))
       return txt.trim().length > 0 ? txt : FALLBACK
     }
     case 'IMOVEL_AREA_CONSTRUIDA':

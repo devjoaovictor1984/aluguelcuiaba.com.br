@@ -11,6 +11,7 @@ import {
 import { linkCorrecao } from '@/lib/contratos/pendencias-links'
 import { validarTokenRevisao } from '@/lib/crm/revisao-token'
 import { validarTokenAssinatura } from '@/lib/crm/assinatura-token'
+import { textoPdfDeHtml, removerCaracteresSemGlifo } from '@/lib/contratos/texto-pdf'
 import React from 'react'
 
 async function mergeAnexos(
@@ -370,15 +371,7 @@ export async function GET(
     }
     // Usa SÓ a descrição própria do imóvel (descricao_real) — não o texto de
     // marketing do anúncio. Limpa HTML, entidades e caracteres não imprimíveis.
-    const limparTextoImovel = (s: string | null | undefined): string =>
-      (s ?? '')
-        .replace(/&nbsp;|&#160;/gi, ' ')
-        .replace(/&lt;/gi, ' ').replace(/&gt;/gi, ' ').replace(/&amp;/gi, '&')
-        .replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'")
-        .replace(/<[^>]*>/g, ' ')
-        .replace(/\p{Cc}/gu, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
+    const limparTextoImovel = (s: string | null | undefined) => textoPdfDeHtml(s)
     let imovelDescricao = limparTextoImovel(im?.descricao_real).slice(0, 220)
     if (im?.area_construida_m2 && !imovelDescricao.includes('m²')) {
       imovelDescricao = imovelDescricao ? `${imovelDescricao} · ${im.area_construida_m2} m²` : `${im.area_construida_m2} m²`
@@ -386,7 +379,7 @@ export async function GET(
 
     // Overrides editáveis da capa (por geração)
     const ov = ((geracao?.capa_overrides ?? {}) as Record<string, string>)
-    const pick = (k: string) => (typeof ov[k] === 'string' ? ov[k].trim() : '')
+    const pick = (k: string) => (typeof ov[k] === 'string' ? removerCaracteresSemGlifo(ov[k]).trim() : '')
 
     const resumoLinhas = [
       { label: 'Taxa', valor: pick('taxa') || taxaStr },

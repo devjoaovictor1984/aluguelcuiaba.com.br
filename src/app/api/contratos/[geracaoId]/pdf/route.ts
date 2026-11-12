@@ -16,6 +16,7 @@ import { montarEnderecoImovel } from '@/lib/crm/endereco-imovel'
 import { urlsFotosInventario, LARGURA_PDF } from '@/lib/crm/inventario-fotos'
 import React from 'react'
 import { moradoresQueAssinam } from '@/lib/crm/papel-morador'
+import { textoPdfDeHtml, removerCaracteresSemGlifo } from '@/lib/contratos/texto-pdf'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
 
@@ -198,7 +199,7 @@ function montarResumoCapa(
   // Descrição: prioriza descricao_real, fallback descricao do anúncio (sem HTML).
   // Limite generoso pra não cortar descrições reais; reticências só se passar.
   const MAX_DESC_CAPA = 600
-  let descricao = (im?.descricao_real ?? im?.descricao ?? '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
+  let descricao = textoPdfDeHtml(im?.descricao_real?.trim() || im?.descricao)
   if (descricao.length > MAX_DESC_CAPA) descricao = `${descricao.slice(0, MAX_DESC_CAPA).trimEnd()}…`
   if (im?.area_construida_m2 && !descricao.includes('m²')) {
     descricao = descricao ? `${descricao} · ${im.area_construida_m2} m²` : `${im.area_construida_m2} m²`
@@ -781,7 +782,7 @@ export async function GET(
     resumo_capa: (() => {
       const rc = montarResumoCapa(contrato, dadosContrato)
       const ov = (geracao.capa_overrides ?? {}) as Record<string, string>
-      const pick = (k: string) => (typeof ov[k] === 'string' ? ov[k].trim() : '')
+      const pick = (k: string) => (typeof ov[k] === 'string' ? removerCaracteresSemGlifo(ov[k]).trim() : '')
       // garantia: override novo (capa_overrides) tem prioridade; fallback ao legado v66
       const garantia = pick('garantia') || (geracao.capa_garantia_texto ?? '').trim()
       return {
