@@ -663,6 +663,52 @@ export async function GET(
     }
   }
 
+  // 6b2. Cláusula sintética do ocupante autorizado — quem usa o imóvel sem
+  //      ser locatário (ex.: seguro no nome do sogro, genro ocupa a sala).
+  //      Dá a autorização de acesso, chaves, cadastro no condomínio e troca
+  //      da titularidade da luz/água, sem torná-lo locatário. Vai logo após
+  //      "Das partes".
+  {
+    const ocupantes = (moradoresRaw ?? [])
+      .filter((m: { papel: string }) => m.papel === 'ocupante_autorizado')
+      .map((m: { pessoa: { nome: string; cpf_cnpj: string | null } | { nome: string; cpf_cnpj: string | null }[] | null }) => {
+        const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
+        return p?.nome ? { nome: p.nome, cpf: fmtCpf(p.cpf_cnpj) } : null
+      })
+      .filter((x): x is { nome: string; cpf: string | null } => x !== null)
+
+    if (ocupantes.length > 0) {
+      const plural = ocupantes.length > 1
+      const nomes = ocupantes.map(o => `${o.nome}${o.cpf ? `, CPF nº ${o.cpf}` : ''}`).join('; ')
+      const OC = plural ? 'OCUPANTES AUTORIZADOS' : 'OCUPANTE AUTORIZADO'
+      const fin = contrato.finalidade ?? 'residencial'
+      const uso = fin === 'comercial'
+        ? 'no exercício de atividade comercial ou profissional lícita, compatível com a destinação ajustada neste contrato'
+        : fin === 'misto'
+          ? 'como residência e/ou no exercício de atividade profissional, conforme a destinação ajustada neste contrato'
+          : 'como residência, conforme a destinação ajustada neste contrato'
+      const corpoOcupante =
+        `${nomes}, ${plural ? 'participam' : 'participa'} do presente instrumento na qualidade de ${OC}, ${plural ? 'indicados' : 'indicado'} pelo LOCATÁRIO para utilizar o imóvel ${uso}, assinando para ciência e anuência de todas as condições aqui pactuadas.\n\n` +
+        `Parágrafo primeiro. Fica${plural ? 'm' : ''} o${plural ? 's' : ''} ${OC} expressamente ${plural ? 'autorizados' : 'autorizado'} a:\n` +
+        `I. ter acesso ao imóvel e às áreas comuns do condomínio, receber as chaves e ser cadastrado na portaria, no controle de acesso e na administração do condomínio;\n` +
+        `II. requerer em seu próprio nome, perante a concessionária de energia elétrica e, se for o caso, de água, gás e telecomunicações, a transferência da titularidade das unidades consumidoras do imóvel, bem como a ligação, religação e o desligamento ao final da locação;\n` +
+        `III. receber correspondências, comunicados do condomínio e avisos relativos ao uso do imóvel.\n\n` +
+        `Parágrafo segundo. A presente autorização não transfere a condição de LOCATÁRIO e não constitui sublocação, cessão ou empréstimo do imóvel. O aluguel e os encargos permanecem de responsabilidade do LOCATÁRIO, inclusive perante a seguradora do seguro fiança, quando houver.\n\n` +
+        `Parágrafo terceiro. ${plural ? 'Os OCUPANTES AUTORIZADOS obrigam-se' : 'O OCUPANTE AUTORIZADO obriga-se'} a observar as regras deste contrato, da convenção e do regimento interno do condomínio quanto ao uso e à conservação do imóvel, respondendo o LOCATÁRIO perante o LOCADOR pelos atos ${plural ? 'deles' : 'dele'}.\n\n` +
+        `Parágrafo quarto. Encerrada a locação, ou revogada a autorização pelo LOCATÁRIO mediante comunicação escrita à ADMINISTRADORA ou ao LOCADOR, ${plural ? 'os OCUPANTES AUTORIZADOS deverão' : 'o OCUPANTE AUTORIZADO deverá'} desocupar o imóvel e, em até 30 (trinta) dias, transferir ou encerrar a titularidade das contas de consumo que estiverem em seu nome, apresentando-as quitadas até a data da entrega das chaves.`
+
+      const clausulaOcupante: ContratoPDFClausula = {
+        numero: 0,
+        titulo: plural ? 'Dos ocupantes autorizados' : 'Do ocupante autorizado',
+        corpo: corpoOcupante,
+      }
+      const idxPartes = clausulas.findIndex(c => /das partes/i.test(c.titulo))
+      if (idxPartes >= 0) clausulas.splice(idxPartes + 1, 0, clausulaOcupante)
+      else clausulas.push(clausulaOcupante)
+      clausulas.forEach((c, i) => { c.numero = i + 1 })
+    }
+  }
+
   // 6c. Qualificação do cônjuge do locatário no CORPO (após "Das partes"),
   //     quando ele participa (solidário ou anuente). Resolve a inconsistência
   //     de aparecer na capa/assinatura mas não no corpo.
@@ -753,8 +799,8 @@ export async function GET(
     const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
     if (!p?.nome) continue
     const recebeChaves =
-      (m.papel === 'inquilino_solidario' || m.papel === 'ocupante_autorizado' || m.papel === 'morador')
-      && m.mora_no_imovel
+      m.papel === 'ocupante_autorizado'  // ocupa por definição: recebe chaves mesmo sem "mora no imóvel"
+      || ((m.papel === 'inquilino_solidario' || m.papel === 'morador') && m.mora_no_imovel)
     if (recebeChaves) recebedoresChaves.push({ nome: p.nome, cpf: fmtCpf(p.cpf_cnpj) })
   }
 

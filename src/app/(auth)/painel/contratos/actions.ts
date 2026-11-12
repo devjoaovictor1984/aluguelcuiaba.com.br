@@ -1016,7 +1016,7 @@ export type PapelVinculo =
   | 'socio_signatario'             // sócio da empresa locatária (PJ), assina pela empresa
   | 'responsavel_seguro'           // passou o seguro fiança, pode não morar (interveniente anuente)
   | 'conjuge_responsavel_seguro'   // cônjuge do responsável pelo seguro, assina só se exigido
-  | 'ocupante_autorizado'          // mora mas não assume obrigação principal (não assina)
+  | 'ocupante_autorizado'          // usa o imóvel sem ser locatário; assina, recebe chaves, pode trocar a luz
   | 'caucionante'                  // terceiro que paga a caução (interveniente anuente)
   | 'interveniente_anuente'        // representante legal / terceiro anuente; assina, não mora, não recebe chaves
 
@@ -1048,7 +1048,7 @@ export async function adicionarMorador(input: AdicionarMoradorInput) {
     input.papel === 'inquilino_solidario' ||
     input.papel === 'ocupante_autorizado'
   // Responsável pelo seguro, cônjuge dele e caucionante geralmente NÃO moram
-  const assinaDefault = input.papel !== 'ocupante_autorizado'  // ocupante não assina; demais sim
+  const assinaDefault = true  // todos assinam por padrão (ocupante autorizado inclusive)
 
   const { error } = await supabase.from('contratos_moradores').insert({
     contrato_id: input.contrato_id,

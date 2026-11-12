@@ -56,7 +56,7 @@ const PAPEIS: { valor: PapelVinculo; label: string; descricao: string; icone: Re
   {
     valor: 'ocupante_autorizado',
     label: 'Ocupante autorizado',
-    descricao: 'Mora no imóvel mas não assume obrigação principal · não assina como responsável',
+    descricao: 'Usa o imóvel (residência ou sala) sem ser locatário · sai na capa, assina, recebe chaves e fica autorizado a trocar a titularidade da luz',
     icone: UserCheck, cor: 'text-sky-700', bg: 'bg-sky-100',
   },
   {
