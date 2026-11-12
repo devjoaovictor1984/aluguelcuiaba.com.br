@@ -169,6 +169,8 @@ export interface ContratoPDFData {
     /** Signed URL da foto do bem (v101). null = item sem foto. */
     foto_url?: string | null
   }>
+  /** Declaração abaixo do inventário. Ausente = texto legado. */
+  inventario_declaracao?: string
 
   // Quadro financeiro de entrada (caução + 1º aluguel + IPTU)
   quadro_entrada: Array<{ descricao: string; base: string; valor: string; obs?: string }>
@@ -193,6 +195,8 @@ export interface ContratoPDFData {
       seguro: string | null
       total: string
     }>
+    /** Texto abaixo da tabela. Ausente = texto legado (reajuste anual). */
+    observacao?: string
   }
 
   // Termo de entrega de chaves (página separada)
@@ -204,10 +208,16 @@ export interface ContratoPDFData {
     qtd_tags: number
     /** Quem recebe a posse: locatário(s) + co-locatários + ocupantes que moram.
      *  Responsável pelo seguro que não mora NÃO entra aqui. */
-    recebedores: Array<{ nome: string; cpf: string | null; papel?: string; usuario_autorizado?: boolean }>
+    recebedores: Array<{ nome: string; cpf: string | null; papel?: string; usuario_autorizado?: boolean; ciencia?: boolean }>
     /** Data de início ainda não chegou e as chaves não foram entregues:
      *  o termo não pode afirmar a entrega como fato consumado. */
     entrega_futura?: boolean
+    /** Textos editáveis do termo (capa_overrides). Ausente = texto padrão do layout. */
+    titulo?: string
+    /** Substitui os parágrafos de entrega e de posse. */
+    texto_entrega?: string
+    observacoes?: string
+    devolucao?: string
   } | null
 }
 
@@ -1088,7 +1098,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             )}
 
             <Text style={{ fontSize: 8, color: CINZA_CLARO, marginTop: 5 }}>
-              Os LOCATÁRIOS declaram receber os bens no estado descrito e obrigam-se a devolvê-los nas mesmas condições, ressalvado o desgaste natural.
+              {data.inventario_declaracao ?? 'Os LOCATÁRIOS declaram receber os bens no estado descrito e obrigam-se a devolvê-los nas mesmas condições, ressalvado o desgaste natural.'}
             </Text>
           </View>
         )}
@@ -1240,7 +1250,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               ))}
             </View>
             <Text style={{ fontSize: 8, color: CINZA_CLARO, marginTop: 5 }}>
-              Após esse período, o aluguel será reajustado anualmente conforme cláusula de reajuste.
+              {data.tabela_12_meses.observacao ?? 'Após esse período, o aluguel será reajustado anualmente conforme cláusula de reajuste.'}
             </Text>
           </View>
         )}
@@ -1512,12 +1522,19 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               textAlign: 'center',
               letterSpacing: 0.3,
             }}>
-              Termo de Entrega de Chaves
+              {data.termo_chaves.titulo ?? 'Termo de Entrega de Chaves'}
             </Text>
           </View>
 
           <View style={{ height: 0.8, backgroundColor: '#e5e7eb', marginBottom: 18 }} />
 
+          {data.termo_chaves.texto_entrega ? (
+            data.termo_chaves.texto_entrega.split(/\n\s*\n/).map((par, i) => (
+              <Text key={`te${i}`} style={{ fontSize: 10, textAlign: 'justify', marginBottom: 12, lineHeight: 1.65 }}>
+                {par.replace(/\s*\n\s*/g, ' ')}
+              </Text>
+            ))
+          ) : (<>
           {/* O ramo "não futuro" mantém o JSX original: a árvore do layout
               legado é fotografada em tests/contratos/pdf-diagramacao. */}
           {data.termo_chaves.entrega_futura ? (
@@ -1553,16 +1570,19 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               e demais obrigações previstas no contrato de locação.
             </Text>
           )}
+          </>)}
 
           {data.termo_chaves.recebedores.some(r => r.usuario_autorizado) && (
             <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 14, lineHeight: 1.65 }}>
-              As chaves poderão ser recebidas por{' '}
+              {data.termo_chaves.recebedores.some(r => r.ciencia) ? 'As chaves serão recebidas por' : 'As chaves poderão ser recebidas por'}{' '}
               <Text style={{ fontWeight: 'bold' }}>
                 {data.termo_chaves.recebedores.filter(r => r.usuario_autorizado).map(r => r.nome).join(', ')}
               </Text>
               {', na qualidade de '}
               {(data.termo_chaves.recebedores.find(r => r.usuario_autorizado)?.papel ?? 'usuário autorizado').toUpperCase()}
-              {', por autorização do LOCATÁRIO e do LOCADOR, permanecendo o LOCATÁRIO como titular da relação locatícia.'}
+              {data.termo_chaves.recebedores.some(r => r.ciencia)
+                ? ', por autorização do LOCATÁRIO e do LOCADOR. O LOCATÁRIO assina este Termo ciente da entrega e permanece como titular da relação locatícia.'
+                : ', por autorização do LOCATÁRIO e do LOCADOR, permanecendo o LOCATÁRIO como titular da relação locatícia.'}
             </Text>
           )}
 
@@ -1577,7 +1597,7 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             Itens entregues:
           </Text>
 
-          <View style={{ backgroundColor: '#faf5ff', padding: 12, marginBottom: 16 }}>
+          <View style={{ backgroundColor: '#faf5ff', padding: 12, marginBottom: data.termo_chaves.observacoes ? 10 : 16 }}>
             <Text style={{ fontSize: 10, marginBottom: 4 }}>
               I. <Text style={{ fontWeight: 'bold' }}>
                 {data.termo_chaves.qtd_chaves > 0 ? data.termo_chaves.qtd_chaves : '_____'}
@@ -1598,10 +1618,15 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
             </Text>
           </View>
 
+          {data.termo_chaves.observacoes && (
+            <Text style={{ fontSize: 9.5, textAlign: 'justify', marginBottom: 16, lineHeight: 1.6, color: CINZA }}>
+              <Text style={{ fontWeight: 'bold', color: TEXTO }}>Observações: </Text>
+              {data.termo_chaves.observacoes}
+            </Text>
+          )}
+
           <Text style={{ fontSize: 10, textAlign: 'justify', marginBottom: 24, lineHeight: 1.65 }}>
-            O LOCATÁRIO declara ciência de que a devolução do imóvel somente será considerada válida
-            mediante entrega formal de todas as chaves, controles, tags e acessos, realização de
-            vistoria final e quitação das obrigações pendentes, conforme cláusulas contratuais.
+            {data.termo_chaves.devolucao ?? DEVOLUCAO_LEGADO}
           </Text>
 
           <Text style={{
@@ -1647,7 +1672,9 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
               {/* Cada recebedor com o papel dele: usuário autorizado não é
                   "Locatário 2". Sem papel (dado antigo), numera como antes. */}
               <Text style={blocoPapel}>
-                {r.papel
+                {r.papel && r.ciencia
+                  ? `${r.papel.toUpperCase()} (CIENTE DA ENTREGA)`
+                  : r.papel
                   ? `${r.papel.toUpperCase()} (RECEBI AS CHAVES)`
                   : arr.length > 1 ? `LOCATÁRIO ${idx + 1} (RECEBI AS CHAVES)` : 'LOCATÁRIO (RECEBI AS CHAVES)'}
               </Text>
@@ -1665,6 +1692,9 @@ export function ContratoDocument({ data }: { data: ContratoPDFData }) {
     </Document>
   )
 }
+
+// Igual ao JSX antigo depois do colapso de espaços (fotografia do layout legado).
+const DEVOLUCAO_LEGADO = 'O LOCATÁRIO declara ciência de que a devolução do imóvel somente será considerada válida mediante entrega formal de todas as chaves, controles, tags e acessos, realização de vistoria final e quitação das obrigações pendentes, conforme cláusulas contratuais.'
 
 // ── Estilos compartilhados na folha de assinatura ──
 const blocoPapel = {

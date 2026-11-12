@@ -7,6 +7,9 @@ import { exigirAcessoCRM } from '@/lib/crm/acesso'
 import { CATEGORIAS_ORDEM } from '@/lib/contratos/placeholders'
 import { tituloDeReferencia } from '@/lib/contratos/modelo'
 import { contratoAssinado, MSG_CONTRATO_TRAVADO } from '@/lib/crm/assinatura-lock'
+import { createAdminClient } from '@/lib/supabase/admin'
+import { carregarClausulasAutomaticas } from '@/lib/contratos/clausulas-automaticas'
+import { ehOrigemAutomatica, ORIGENS_AUTOMATICAS, CHAVES_DOCUMENTO, type OrigemAutomatica } from '@/lib/contratos/documento-textos'
 
 type SB = Awaited<ReturnType<typeof createClient>>
 
@@ -21,6 +24,15 @@ export interface ClausulaSnapshot {
   modificada?: boolean
   /** v105: código da cláusula do modelo de onde veio (rastreabilidade). */
   codigo?: string | null
+  /** Cópia personalizada de uma cláusula automática (a automática deixa de ser gerada). */
+  origem?: OrigemAutomatica
+}
+
+/** Linha do tempo do contrato (mesmo padrão de actions-usuario-autorizado.ts). */
+async function registrarEdicaoDocumento(contratoId: string, userId: string, descricao: string, metadata: Record<string, unknown>) {
+  await createAdminClient().from('eventos_contrato').insert({
+    contrato_id: contratoId, user_id: userId, tipo: 'contrato_atualizado', descricao, metadata,
+  })
 }
 
 type TipoSeguroIncendio = 'dispensado' | 'cobrado_parte' | 'embutido_pacote'
@@ -827,25 +839,36 @@ export async function atualizarIncluirCapa(geracaoId: string, incluir: boolean) 
 export async function atualizarCapaOverrides(geracaoId: string, overrides: Record<string, string>) {
   const acesso = await exigirAcessoCRM()
   const supabase = await createClient()
+  if (await contratoAssinado(supabase, 'locacao', geracaoId)) return { error: MSG_CONTRATO_TRAVADO }
   const { data: g } = await supabase
     .from('contrato_geracoes')
-    .select('id, contrato_id')
+    .select('id, contrato_id, capa_overrides')
     .eq('id', geracaoId)
     .eq('user_id', acesso.userId)
     .maybeSingle()
   if (!g) return { error: 'Geração não encontrada.' }
-  // Só guarda chaves com conteúdo (limpa as vazias)
-  const limpo: Record<string, string> = {}
+  // Mescla: cada editor (capa, textos do documento) manda só as chaves dele.
+  // Chave enviada vazia volta ao automático; chave não enviada fica como está.
+  const atual = (g.capa_overrides ?? {}) as Record<string, string>
+  const limpo: Record<string, string> = { ...atual }
+  const alteradas: string[] = []
   for (const [k, v] of Object.entries(overrides ?? {})) {
-    const t = (v ?? '').trim()
+    const t = (v ?? '').trim().slice(0, 8000)
+    if ((atual[k] ?? '') !== t) alteradas.push(k)
     if (t) limpo[k] = t
+    else delete limpo[k]
   }
+  if (alteradas.length === 0) return { ok: true }
   const { error } = await supabase
     .from('contrato_geracoes')
     .update({ capa_overrides: limpo })
     .eq('id', geracaoId)
     .eq('user_id', acesso.userId)
   if (error) return { error: error.message }
+  const docs = new Set<string>(Object.values(CHAVES_DOCUMENTO))
+  await registrarEdicaoDocumento(g.contrato_id, acesso.userId,
+    `Textos do contrato personalizados: ${alteradas.map(k => (docs.has(k) ? k.replace(/_/g, ' ') : `capa ${k}`)).join(', ')}`,
+    { geracao_id: geracaoId, chaves: alteradas, antes: Object.fromEntries(alteradas.map(k => [k, atual[k] ?? null])) })
   revalidatePath(`/painel/contratos/${g.contrato_id}/gerar`)
   return { ok: true }
 }
@@ -939,5 +962,52 @@ export async function atualizarAnotacoesCorretor(contratoId: string, texto: stri
     .eq('user_id', acesso.userId)
   if (error) return { error: error.message }
   revalidatePath(`/painel/contratos/${contratoId}/gerar`)
+  return { ok: true }
+}
+
+/**
+ * Personaliza uma cláusula automática: a cópia entra no snapshot (logo após
+ * "Das partes") com `origem`, e a rota do PDF deixa de gerar a automática.
+ * Para restaurar o texto automático basta remover a cópia.
+ */
+export async function personalizarClausulaAutomatica(geracaoId: string, origem: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  if (!ehOrigemAutomatica(origem)) return { error: 'Cláusula automática inválida.' }
+  if (await contratoAssinado(supabase, 'locacao', geracaoId)) return { error: MSG_CONTRATO_TRAVADO }
+  const r = await carregarSnap(supabase, acesso.userId, geracaoId)
+  if ('error' in r) return { error: r.error }
+  const existente = r.clausulas.find(c => c.origem === origem)
+  if (existente) return { ok: true, clausula: existente, clausulas: r.clausulas }
+  const auto = (await carregarClausulasAutomaticas(supabase, r.g.contrato_id)).find(a => a.origem === origem)
+  if (!auto) return { error: 'Essa cláusula automática não se aplica mais a este contrato.' }
+  const nova: ClausulaSnapshot = {
+    id: randomUUID(), titulo: auto.titulo, corpo: auto.corpo,
+    categoria: 'custom', tipo: 'adicional', origem,
+  }
+  const idxPartes = r.clausulas.findIndex(c => /das partes/i.test(c.titulo))
+  const clausulas = [...r.clausulas]
+  clausulas.splice(idxPartes >= 0 ? idxPartes + 1 : clausulas.length, 0, nova)
+  const res = await salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_id, clausulas)
+  if (res.error) return res
+  await registrarEdicaoDocumento(r.g.contrato_id, acesso.userId,
+    `Cláusula automática personalizada: ${ORIGENS_AUTOMATICAS[origem].rotulo}`, { geracao_id: geracaoId, origem })
+  return { ok: true, clausula: nova, clausulas }
+}
+
+/** Volta a usar o texto automático: remove a cópia personalizada. */
+export async function restaurarClausulaAutomatica(geracaoId: string, clausulaId: string) {
+  const acesso = await exigirAcessoCRM()
+  const supabase = await createClient()
+  if (await contratoAssinado(supabase, 'locacao', geracaoId)) return { error: MSG_CONTRATO_TRAVADO }
+  const r = await carregarSnap(supabase, acesso.userId, geracaoId)
+  if ('error' in r) return { error: r.error }
+  const alvo = r.clausulas.find(c => c.id === clausulaId)
+  if (!alvo?.origem) return { error: 'Essa cláusula não é uma automática personalizada.' }
+  const res = await salvarSnap(supabase, acesso.userId, geracaoId, r.g.contrato_id, r.clausulas.filter(c => c.id !== clausulaId))
+  if (res.error) return res
+  await registrarEdicaoDocumento(r.g.contrato_id, acesso.userId,
+    `Cláusula automática restaurada: ${ORIGENS_AUTOMATICAS[alvo.origem].rotulo}`,
+    { geracao_id: geracaoId, origem: alvo.origem, texto_descartado: alvo.corpo })
   return { ok: true }
 }

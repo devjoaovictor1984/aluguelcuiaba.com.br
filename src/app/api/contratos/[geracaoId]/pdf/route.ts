@@ -17,7 +17,12 @@ import { urlsFotosInventario, LARGURA_PDF } from '@/lib/crm/inventario-fotos'
 import React from 'react'
 import { moradoresQueAssinam, rotuloPapel } from '@/lib/crm/papel-morador'
 import { textoPdfDeHtml, removerCaracteresSemGlifo } from '@/lib/contratos/texto-pdf'
-import { clausulaUsuarioAutorizado, clausulaTitularidade } from '@/lib/contratos/usuario-autorizado-clausulas'
+import { clausulasAutomaticas, type VinculoParaClausula } from '@/lib/contratos/clausulas-automaticas'
+import {
+  separarClausulasVazias, ehOrigemAutomatica, textoPersonalizado, CHAVES_DOCUMENTO,
+  TABELA_OBSERVACAO_LEGADO, TABELA_OBSERVACAO_PADRAO, INVENTARIO_DECLARACAO_LEGADO, declaracaoInventarioPadrao,
+  TERMO_DEVOLUCAO_LEGADO, TERMO_DEVOLUCAO_PADRAO, type QuemRecebe,
+} from '@/lib/contratos/documento-textos'
 import { verificarUsuarioAutorizado, verificacaoDosVinculos, rotuloUsuarioAutorizado } from '@/lib/contratos/usuario-autorizado'
 
 // ── Helpers pra montar dados do PDF ─────────────────────────────────
@@ -260,8 +265,8 @@ function montarTermoChaves(
       bairro_nome?: string | null
     } | null
   },
-  recebedores: Array<{ nome: string; cpf: string | null; papel?: string; usuario_autorizado?: boolean }>,
-): { endereco_imovel: string; data_entrega: string; entrega_futura: boolean; qtd_chaves: number; qtd_controles: number; qtd_tags: number; recebedores: Array<{ nome: string; cpf: string | null; papel?: string; usuario_autorizado?: boolean }> } {
+  recebedores: Array<{ nome: string; cpf: string | null; papel?: string; usuario_autorizado?: boolean; ciencia?: boolean }>,
+): { endereco_imovel: string; data_entrega: string; entrega_futura: boolean; qtd_chaves: number; qtd_controles: number; qtd_tags: number; recebedores: Array<{ nome: string; cpf: string | null; papel?: string; usuario_autorizado?: boolean; ciencia?: boolean }> } {
   const endereco = montarEnderecoImovel(dados.imovel) ?? '[ENDEREÇO DO IMÓVEL]'
   // Entregue de fato vale a data registrada; senão, a data de início. Se ela
   // ainda não chegou, o termo fala no futuro em vez de afirmar a entrega.
@@ -504,12 +509,6 @@ export async function GET(
       )
     `)
     .eq('contrato_id', geracao.contrato_id)
-  type MoradorRaw = {
-    papel: string
-    atividade_no_imovel?: string | null
-    consumos_titular?: string[] | null
-    pessoa: ({ nome: string; cpf_cnpj: string | null } & Record<string, unknown>) | Array<{ nome: string; cpf_cnpj: string | null } & Record<string, unknown>> | null
-  }
   const finalidadeContrato = (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto'
 
   // 2c. Carrega testemunhas selecionadas
@@ -535,10 +534,19 @@ export async function GET(
 
   // 4. Cláusulas: usa o SNAPSHOT da geração (cópia própria deste contrato).
   //    Gerações antigas (antes da v64) caem no fallback via clausula_ids.
-  const snapshot = (geracao.clausulas ?? []) as Array<{ titulo: string; corpo: string; modificada?: boolean }>
+  const snapshot = (geracao.clausulas ?? []) as Array<{ titulo: string; corpo: string; modificada?: boolean; origem?: string }>
+  // Textos padrão novos (cláusula vazia fora, devolução de chaves, tabela,
+  // inventário) só valem antes de existir processo de assinatura: a via
+  // final de quem já recebeu o link sai igual ao que foi lido.
+  const textosAtuais = !procAssin
+  // Automáticas que o operador personalizou: a cópia editada já está no
+  // snapshot (com `origem`) e a automática não é gerada de novo.
+  const origensPersonalizadas = new Set(snapshot.map(c => c.origem).filter(ehOrigemAutomatica))
   let clausulasOrdenadas: Array<{ titulo: string; corpo: string; modificada?: boolean }>
   if (snapshot.length > 0) {
-    clausulasOrdenadas = snapshot
+    // Cláusula sem texto (só título, ou `<p></p>` do editor) não entra no
+    // PDF nem no sumário; a numeração é refeita. O editor avisa quais.
+    clausulasOrdenadas = textosAtuais ? separarClausulasVazias(snapshot).mantidas : snapshot
   } else {
     const ids = (geracao.clausula_ids ?? []) as string[]
     if (ids.length === 0) {
@@ -686,29 +694,20 @@ export async function GET(
   //      autorização de uso (art. 13 da Lei 8.245) e, quando alguém ficou
   //      obrigado a trocar contas de consumo, a cláusula de titularidade.
   //      Vão logo após "Das partes". Ver src/lib/contratos/usuario-autorizado*.
+  //      Personalizada no editor → sai a cópia do snapshot, não esta.
   {
-    const usuarios = (moradoresRaw ?? [])
-      .filter((m: { papel: string }) => m.papel === 'ocupante_autorizado')
-      .map((m: MoradorRaw) => {
-        const p = Array.isArray(m.pessoa) ? m.pessoa[0] : m.pessoa
-        return p?.nome
-          ? { pessoa: p, atividade_no_imovel: m.atividade_no_imovel, consumos_titular: m.consumos_titular ?? [] }
-          : null
-      })
-      .filter((x): x is NonNullable<typeof x> => x !== null)
+    const imAuto = Array.isArray(contrato.imovel) ? contrato.imovel[0] : contrato.imovel
+    const novas = clausulasAutomaticas(moradoresRaw as VinculoParaClausula[] | null, {
+      finalidade: finalidadeContrato,
+      locatario_nome: inq?.nome ?? 'LOCATÁRIO',
+      tem_administracao: (contrato.taxa_admin_valor ?? 0) > 0,
+      prazo_titularidade_dias_uteis: contrato.prazo_titularidade_dias_uteis,
+      imovel: imAuto ?? null,
+    })
+      .filter(c => !origensPersonalizadas.has(c.origem))
+      .map(c => ({ numero: 0, titulo: c.titulo, corpo: c.corpo }) as ContratoPDFClausula)
 
-    if (usuarios.length > 0) {
-      const im = Array.isArray(contrato.imovel) ? contrato.imovel[0] : contrato.imovel
-      const ctx = {
-        finalidade: finalidadeContrato,
-        locatario_nome: inq?.nome ?? 'LOCATÁRIO',
-        tem_administracao: (contrato.taxa_admin_valor ?? 0) > 0,
-        prazo_titularidade_dias_uteis: contrato.prazo_titularidade_dias_uteis,
-        imovel: im ?? null,
-      }
-      const novas = [clausulaUsuarioAutorizado(usuarios, ctx), clausulaTitularidade(usuarios, ctx)]
-        .filter((c): c is NonNullable<typeof c> => c !== null)
-        .map(c => ({ numero: 0, titulo: c.titulo, corpo: c.corpo }) as ContratoPDFClausula)
+    if (novas.length > 0) {
       const idxPartes = clausulas.findIndex(c => /das partes/i.test(c.titulo))
       if (idxPartes >= 0) clausulas.splice(idxPartes + 1, 0, ...novas)
       else clausulas.push(...novas)
@@ -796,7 +795,7 @@ export async function GET(
   // Recebedores das chaves: locatário principal + quem MORA no imóvel
   // (co-locatário solidário, ocupante autorizado, morador). Responsável pelo
   // seguro / caucionante / cônjuge do responsável NÃO recebem chaves.
-  const recebedoresChaves: Array<{ nome: string; cpf: string | null; papel: string; usuario_autorizado?: boolean }> = []
+  const recebedoresChaves: Array<{ nome: string; cpf: string | null; papel: string; usuario_autorizado?: boolean; ciencia?: boolean }> = []
   if (inq?.nome) recebedoresChaves.push({ nome: inq.nome, cpf: fmtCpf(inq.cpf_cnpj), papel: 'Locatário' })
   // Cônjuge solidário também recebe as chaves (mora + assume)
   if (inq?.conjuge_nome && (contrato.conjuge_inquilino_papel ?? 'solidario') === 'solidario') {
@@ -814,6 +813,43 @@ export async function GET(
       recebedoresChaves.push({ nome: p.nome, cpf: fmtCpf(p.cpf_cnpj), papel: rotuloPapel(m.papel) })
     }
   }
+
+  // 7b. Textos editáveis fora da capa (tabela, inventário, termo de chaves).
+  //     Precedência: personalizado da geração > padrão atual > legado.
+  //     `undefined` deixa o componente usar o texto legado do layout.
+  const ovDoc = (geracao.capa_overrides ?? {}) as Record<string, unknown>
+  const personalizado = (chave: string) => {
+    const t = textoPersonalizado(ovDoc, chave)
+    return t ? removerCaracteresSemGlifo(t) : undefined
+  }
+  const textoDoc = (chave: string, padrao: string, legado: string) =>
+    personalizado(chave) ?? (textosAtuais && padrao !== legado ? padrao : undefined)
+  const usuariosAutorizados = recebedoresChaves.filter(r => r.usuario_autorizado)
+  const qtdLocatarios = (inq?.nome ? 1 : 0)
+    + (inq?.conjuge_nome && (contrato.conjuge_inquilino_papel ?? 'solidario') === 'solidario' ? 1 : 0)
+    + ((moradoresRaw ?? []) as Array<{ papel: string }>).filter(m => m.papel === 'inquilino_solidario').length
+  // "Só o usuário autorizado recebe": os demais assinam o termo cientes da entrega.
+  const quemRecebe: QuemRecebe = personalizado(CHAVES_DOCUMENTO.termo_quem_recebe) === 'usuario' && usuariosAutorizados.length > 0
+    ? 'usuario' : 'todos'
+  const recebedoresTermo = quemRecebe === 'usuario'
+    ? recebedoresChaves.map(r => (r.usuario_autorizado ? r : { ...r, ciencia: true }))
+    : recebedoresChaves
+  const termoBase = montarTermoChaves(contrato, dadosContrato, recebedoresTermo)
+  const termoChaves = {
+    ...termoBase,
+    endereco_imovel: personalizado(CHAVES_DOCUMENTO.termo_endereco) ?? termoBase.endereco_imovel,
+    titulo: personalizado(CHAVES_DOCUMENTO.termo_titulo),
+    texto_entrega: personalizado(CHAVES_DOCUMENTO.termo_texto_entrega),
+    observacoes: personalizado(CHAVES_DOCUMENTO.termo_observacoes),
+    devolucao: textoDoc(CHAVES_DOCUMENTO.termo_devolucao, TERMO_DEVOLUCAO_PADRAO, TERMO_DEVOLUCAO_LEGADO),
+  }
+  const declaracaoInventario = textoDoc(
+    CHAVES_DOCUMENTO.inventario_declaracao,
+    declaracaoInventarioPadrao({ locatarios: Math.max(1, qtdLocatarios), usuarioAutorizado: usuariosAutorizados[0]?.papel ?? null }),
+    INVENTARIO_DECLARACAO_LEGADO,
+  )
+  const tabela12 = montarTabela12Meses(contrato)
+  const observacaoTabela = textoDoc(CHAVES_DOCUMENTO.tabela_observacao, TABELA_OBSERVACAO_PADRAO, TABELA_OBSERVACAO_LEGADO)
 
   // 8. Monta o data final do PDF
   const pdfData: ContratoPDFData = {
@@ -888,9 +924,10 @@ export async function GET(
       observacao: it.observacao,
       foto_url: it.foto_path ? fotosInventario[it.foto_path] ?? null : null,
     })),
+    inventario_declaracao: declaracaoInventario,
     quadro_entrada: montarQuadroEntrada(contrato),
-    tabela_12_meses: montarTabela12Meses(contrato),
-    termo_chaves: montarTermoChaves(contrato, dadosContrato, recebedoresChaves),
+    tabela_12_meses: observacaoTabela ? { ...tabela12, observacao: observacaoTabela } : tabela12,
+    termo_chaves: termoChaves,
   }
 
   // 8b. Validação pré-PDF: bloqueia geração se houver inconsistência crítica

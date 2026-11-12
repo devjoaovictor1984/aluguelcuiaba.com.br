@@ -3,6 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { rodarChecklist, contagem, bloqueiaGeracao, type DadosChecklist } from '@/lib/contratos/checklist'
 import { verificarUsuarioAutorizado, verificacaoDosVinculos } from '@/lib/contratos/usuario-autorizado'
+import { verificarClausulasVazias, verificarDuplicidades } from '@/lib/contratos/documento-textos'
+import { carregarClausulasAutomaticas } from '@/lib/contratos/clausulas-automaticas'
 
 export const dynamic = 'force-dynamic'
 
@@ -24,7 +26,7 @@ export async function GET(
 
   const { data: geracao } = await admin
     .from('contrato_geracoes')
-    .select('id, user_id, contrato_id')
+    .select('id, user_id, contrato_id, clausulas')
     .eq('id', geracaoId)
     .maybeSingle()
 
@@ -99,8 +101,16 @@ export async function GET(
     .select('papel, mora_no_imovel, consumos_titular, atividade_no_imovel, pessoa:pessoas(nome, cpf_cnpj)')
     .eq('contrato_id', geracao.contrato_id)
 
+  // Cláusulas do documento: vazias (saem do PDF) e possíveis duplicidades
+  // com as automáticas ou entre si. Só alerta, nunca remove.
+  const snapshot = ((geracao.clausulas ?? []) as Array<{ titulo: string; corpo: string; origem?: string | null }>)
+  const automaticas = await carregarClausulasAutomaticas(admin, geracao.contrato_id)
+  const automaticasAtivas = automaticas.filter(a => !snapshot.some(c => c.origem === a.origem))
+
   const itens = [
     ...rodarChecklist(dados),
+    ...verificarClausulasVazias(snapshot),
+    ...verificarDuplicidades(snapshot, automaticasAtivas),
     ...verificarUsuarioAutorizado(verificacaoDosVinculos(vinculos, {
       finalidade: (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto',
       garantia_tipo: contrato.garantia_tipo ?? null,

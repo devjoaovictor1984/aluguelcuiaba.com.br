@@ -203,7 +203,47 @@ municipais.
 (`inquilino_solidario`, `responsavel_seguro`). Duplicar abriria combinações
 contraditórias. Só entraram as contas de consumo e a atividade.
 
-**4. Cláusulas do usuário autorizado não aparecem no editor.** São sintéticas
-(montadas no PDF), como a do responsável pelo seguro. Para editar o texto de
-um contrato específico, hoje é preciso mudar o código. Se precisar, levar para
-a biblioteca como cláusula condicional.
+---
+
+## Editor completo do contrato: o que ficou para as próximas fases
+
+Fase 1 feita em 12/11/2026, sem migration; ver `docs/contratos-editor.md`.
+Ficou de fora, por ordem de retorno:
+
+**1. Períodos de valor (aluguel escalonado).** Caso do 2026CT021: R$ 2.000 do
+1º ao 12º mês e R$ 3.000 do 13º ao 24º. Hoje a tabela mostra só os 12
+primeiros meses e a observação abaixo dela é texto livre. Precisa de tabela
+`contrato_periodos_valor` (início, fim, valor, tipo pactuado/reajuste, índice,
+observação), lida pela capa, pela tabela e pelo financeiro, e de alerta no
+checklist quando o cronograma do contrato diverge das cobranças. Junta com o
+item 3 da seção "prompt mestre".
+
+**2. Assinaturas por documento.** Escolher, por participante, se assina
+contrato, inventário, termo de entrega e termo de devolução, e o título
+exibido. Hoje quem assina segue o papel (`papel-morador.ts`) e o termo de
+chaves tem só a opção "quem recebe". Título livre sem mexer na
+responsabilidade pede coluna própria no vínculo.
+
+**3. Inventário definitivo como documento separado**, com versão, data de
+validação, vínculo à vistoria inicial e assinatura própria. Hoje o inventário
+é uma lista única anexada ao contrato.
+
+**4. Cláusulas protegidas da seguradora.** O texto da seguradora já fica em
+campo próprio (`clausulas_seguradora_texto`), fora das cláusulas editáveis.
+Falta: origem e versão do modelo da seguradora, conjuntos condicionais por
+apólice com registro de quem escolheu, e trava contra edição acidental.
+
+**5. Versionamento do documento.** Hoje o PDF é regerado a cada abertura a
+partir do snapshot, e a trava é por assinatura concluída. Falta congelar a
+versão enviada para assinatura (snapshot + hash) e listar versões.
+
+**6. Permissões finas** (editar modelos globais x personalizar contrato x
+textos de seguradora x financeiro x liberar assinatura). Hoje é tudo
+`exigirAcessoCRM`.
+
+**7. Pré-visualização na tela.** O "ver PDF" já usa o mesmo renderizador do
+arquivo final; não há prévia embutida no editor.
+
+**8. Ocultar cláusula automática sem personalizar.** Hoje dá para
+personalizar e enxugar o texto; ocultar por completo uma cláusula que protege
+o locador ficou de fora de propósito.

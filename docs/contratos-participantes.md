@@ -54,7 +54,9 @@ Ficam em `src/lib/contratos/usuario-autorizado-clausulas.ts` e entram no PDF
 logo após "Das partes" (`src/app/api/contratos/[geracaoId]/pdf/route.ts`,
 bloco 6b2). Seguem o padrão da cláusula do responsável pelo seguro: são
 montadas na hora e **não ficam na biblioteca**, então nunca alteram uma
-cláusula que o operador editou.
+cláusula que o operador editou. Desde a fase 1 do editor aparecem no editor e
+podem ser personalizadas por contrato (`src/lib/contratos/clausulas-automaticas.ts`,
+ver `docs/contratos-editor.md`).
 
 1. **Do usuário comercial autorizado / Do ocupante autorizado.** Traz a
    qualificação, a atividade e o locatário que continua titular. Inclui:

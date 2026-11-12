@@ -12,6 +12,11 @@ import { PainelRevisao } from '../../_components/painel-revisao'
 import { PainelAssinatura } from '../../_components/painel-assinatura'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
 import { moradoresQueAssinam } from '@/lib/crm/papel-morador'
+import { carregarClausulasAutomaticas } from '@/lib/contratos/clausulas-automaticas'
+import {
+  CHAVES_DOCUMENTO, TABELA_OBSERVACAO_PADRAO, TERMO_TITULO_PADRAO, TERMO_DEVOLUCAO_PADRAO, declaracaoInventarioPadrao,
+} from '@/lib/contratos/documento-textos'
+import { rotuloUsuarioAutorizado } from '@/lib/contratos/usuario-autorizado'
 
 export const dynamic = 'force-dynamic'
 
@@ -280,6 +285,26 @@ async function renderizarEditor(contratoId: string) {
     garantia: labelGarantia[contrato.garantia_tipo] ?? contrato.garantia_tipo ?? '',
   }
 
+  // Automáticas dos participantes (o editor mostra e deixa personalizar) e os
+  // textos padrão dos campos de documento, mostrados como placeholder.
+  const automaticas = await carregarClausulasAutomaticas(supabase, contratoId)
+  const finalidadeEd = (contrato.finalidade ?? 'residencial') as 'residencial' | 'comercial' | 'misto'
+  const temUsuarioAutorizado = (moradoresAss ?? []).some((m: { papel: string }) => m.papel === 'ocupante_autorizado')
+  const qtdLocatariosEd = 1 + (moradoresAss ?? []).filter((m: { papel: string }) => m.papel === 'inquilino_solidario').length
+  const textosDocAuto: Record<string, string> = {
+    [CHAVES_DOCUMENTO.tabela_observacao]: TABELA_OBSERVACAO_PADRAO,
+    [CHAVES_DOCUMENTO.inventario_declaracao]: declaracaoInventarioPadrao({
+      locatarios: qtdLocatariosEd,
+      usuarioAutorizado: temUsuarioAutorizado ? rotuloUsuarioAutorizado(finalidadeEd) : null,
+    }),
+    [CHAVES_DOCUMENTO.termo_titulo]: TERMO_TITULO_PADRAO,
+    [CHAVES_DOCUMENTO.termo_endereco]: 'endereço do cadastro do imóvel',
+    [CHAVES_DOCUMENTO.termo_texto_entrega]: 'texto padrão (muda se a entrega já ocorreu ou ainda vai ocorrer)',
+    [CHAVES_DOCUMENTO.termo_quem_recebe]: 'locatário e usuário autorizado recebem',
+    [CHAVES_DOCUMENTO.termo_observacoes]: '',
+    [CHAVES_DOCUMENTO.termo_devolucao]: TERMO_DEVOLUCAO_PADRAO,
+  }
+
   return (
     <main className="px-4 py-4 pb-20 max-w-7xl mx-auto">
       <Breadcrumbs items={[
@@ -371,7 +396,7 @@ async function renderizarEditor(contratoId: string) {
           id: r.geracao.id,
           tipo_seguro_incendio: r.geracao.tipo_seguro_incendio,
           saida_sem_multa_12m: r.geracao.saida_sem_multa_12m,
-          clausulas: (((r.geracao as { clausulas?: unknown }).clausulas ?? []) as Array<{ id: string; titulo: string; corpo: string; categoria: string; tipo: string; modificada?: boolean }>)
+          clausulas: (((r.geracao as { clausulas?: unknown }).clausulas ?? []) as Array<{ id: string; titulo: string; corpo: string; categoria: string; tipo: string; modificada?: boolean; origem?: string }>)
             .map(c => ({ ...c, tipo: c.tipo as TipoClausula, modificada: c.modificada ?? false })),
           testemunha_ids: (r.geracao.testemunha_ids as string[] | null) ?? [],
           clausulas_seguradora_texto: r.geracao.clausulas_seguradora_texto ?? '',
@@ -391,6 +416,9 @@ async function renderizarEditor(contratoId: string) {
         }))}
         pessoas={(pessoasTestemunha ?? []) as Array<{ id: string; nome: string; cpf_cnpj: string | null; tipo: string }>}
         capaAuto={capaAuto}
+        automaticas={automaticas}
+        textosDocAuto={textosDocAuto}
+        temUsuarioAutorizado={temUsuarioAutorizado}
         documentosPartes={
           ((documentosPartes ?? []) as Array<{
             id: string

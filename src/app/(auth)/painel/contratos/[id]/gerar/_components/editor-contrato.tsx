@@ -26,7 +26,9 @@ import {
   atualizarCapaOverrides,
   atualizarClausulaModificada, atualizarMostrarModificacoes, atualizarModificacoesTexto,
   atualizarSeguroFianca,
+  personalizarClausulaAutomatica, restaurarClausulaAutomatica,
 } from '../actions'
+import { corpoVazio, ORIGENS_AUTOMATICAS, ehOrigemAutomatica, CHAVES_DOCUMENTO, OPCOES_QUEM_RECEBE } from '@/lib/contratos/documento-textos'
 import { LABELS_DOC } from '@/lib/crm/tipos-documento'
 import { CapaOverridesEditor } from '@/components/capa-overrides-editor'
 import type { TipoClausula } from '@/lib/contratos/placeholders'
@@ -53,7 +55,12 @@ interface ClausulaSel {
   titulo: string
   corpo: string
   modificada?: boolean
+  /** Cópia personalizada de uma cláusula automática. */
+  origem?: string
 }
+
+/** Cláusula montada pelo sistema a partir dos participantes. */
+export interface ClausulaAutomaticaView { origem: string; titulo: string; corpo: string }
 
 interface Pessoa {
   id: string
@@ -101,7 +108,24 @@ interface Props {
     pessoa_nome: string
   }>
   capaAuto?: Record<string, string>
+  /** Automáticas que se aplicam hoje ao contrato (antes de personalizar). */
+  automaticas?: ClausulaAutomaticaView[]
+  /** Textos padrão (placeholder) dos campos de documento fora da capa. */
+  textosDocAuto?: Record<string, string>
+  temUsuarioAutorizado?: boolean
 }
+
+// Textos do documento fora da capa (mesmo `capa_overrides`, chaves próprias)
+const CAMPOS_DOCUMENTO: Array<{ key: string; label: string; multiline?: boolean; opcoes?: Array<{ valor: string; rotulo: string }>; soComUsuario?: boolean }> = [
+  { key: CHAVES_DOCUMENTO.tabela_observacao, label: 'Observação abaixo da tabela dos 12 meses', multiline: true },
+  { key: CHAVES_DOCUMENTO.inventario_declaracao, label: 'Declaração do inventário de bens', multiline: true },
+  { key: CHAVES_DOCUMENTO.termo_titulo, label: 'Termo de chaves: título' },
+  { key: CHAVES_DOCUMENTO.termo_endereco, label: 'Termo de chaves: identificação do imóvel', multiline: true },
+  { key: CHAVES_DOCUMENTO.termo_texto_entrega, label: 'Termo de chaves: texto de entrega (linha em branco separa parágrafos)', multiline: true },
+  { key: CHAVES_DOCUMENTO.termo_quem_recebe, label: 'Termo de chaves: quem recebe', opcoes: OPCOES_QUEM_RECEBE, soComUsuario: true },
+  { key: CHAVES_DOCUMENTO.termo_observacoes, label: 'Termo de chaves: observações', multiline: true },
+  { key: CHAVES_DOCUMENTO.termo_devolucao, label: 'Termo de chaves: texto de devolução', multiline: true },
+]
 
 // Campos editáveis da capa do contrato de locação
 const CAMPOS_CAPA_LOCACAO: Array<{ key: string; label: string; multiline?: boolean }> = [
@@ -117,7 +141,7 @@ const CAMPOS_CAPA_LOCACAO: Array<{ key: string; label: string; multiline?: boole
 
 const inputCls = "w-full px-3 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent text-gray-900 text-sm transition"
 
-export function EditorContrato({ contratoId, codigo, travado = false, garantiaTipo, seguroFiancaSeguradora, seguroFiancaContratacao, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes, capaAuto = {} }: Props) {
+export function EditorContrato({ contratoId, codigo, travado = false, garantiaTipo, seguroFiancaSeguradora, seguroFiancaContratacao, qtdChavesInicial, qtdControlesInicial, qtdTagsInicial, conjugeInquilinoNome, conjugePapelInicial, anotacoesInicial, geracao, todasClausulas, pessoas, documentosPartes, capaAuto = {}, automaticas = [], textosDocAuto = {}, temUsuarioAutorizado = false }: Props) {
   const router = useRouter()
   const [tipoSeguroIncendio, setTipoSeguroIncendio] = useState(geracao.tipo_seguro_incendio)
   const [saidaSemMulta12m, setSaidaSemMulta12m] = useState(geracao.saida_sem_multa_12m)
@@ -172,6 +196,13 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
     capaOverridesIniciais.garantia = geracao.capa_garantia_texto
   }
   const camposCapa = CAMPOS_CAPA_LOCACAO.map(c => ({ ...c, auto: capaAuto[c.key] ?? '' }))
+  // Cada editor recebe só as próprias chaves: a action mescla com o resto.
+  const chavesDoc = new Set(CAMPOS_DOCUMENTO.map(c => c.key))
+  const capaIniciaisSoCapa = Object.fromEntries(Object.entries(capaOverridesIniciais).filter(([k]) => !chavesDoc.has(k)))
+  const docIniciais = Object.fromEntries(Object.entries(capaOverridesIniciais).filter(([k]) => chavesDoc.has(k)))
+  const camposDocumento = CAMPOS_DOCUMENTO
+    .filter(c => !c.soComUsuario || temUsuarioAutorizado)
+    .map(c => ({ key: c.key, label: c.label, multiline: c.multiline, opcoes: c.opcoes, auto: textosDocAuto[c.key] ?? '' }))
 
   // Anotações internas do corretor (não vão no PDF)
   const [modalAnotacoes, setModalAnotacoes] = useState(false)
@@ -450,6 +481,41 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
       if (r.error) setErro(r.error)
     })
   }
+
+  // Automáticas: a personalizada vira cláusula do snapshot com `origem`; as
+  // demais aparecem só para consulta, na posição em que saem no PDF.
+  const automaticasAtivas = automaticas.filter(a => !clausulas.some(c => c.origem === a.origem))
+  const idxPartesEditor = clausulas.findIndex(c => /das partes/i.test(c.titulo))
+  const onPersonalizarAutomatica = (origem: string) => {
+    if (travado) return
+    setErro('')
+    startTransition(async () => {
+      const r = await personalizarClausulaAutomatica(geracao.id, origem)
+      if (r.error) { setErro(r.error); return }
+      if ('clausulas' in r && r.clausulas) setClausulas(r.clausulas as ClausulaSel[])
+    })
+  }
+  const onRestaurarAutomatica = (id: string) => {
+    if (travado) return
+    if (!confirm('Descartar o texto personalizado e voltar ao texto automático?')) return
+    setClausulas(curr => curr.filter(c => c.id !== id))
+    startTransition(async () => {
+      const r = await restaurarClausulaAutomatica(geracao.id, id)
+      if (r.error) setErro(r.error)
+    })
+  }
+  // Numeração como sai no PDF: automáticas entram após "Das partes" e
+  // cláusula vazia não conta.
+  const numeroPdf = (() => {
+    const mapa = new Map<string, number>()
+    let n = 0
+    clausulas.forEach((c, i) => {
+      if (!corpoVazio(c.corpo)) mapa.set(c.id, ++n)
+      if (i === idxPartesEditor) automaticasAtivas.forEach(a => mapa.set(`auto:${a.origem}`, ++n))
+    })
+    if (idxPartesEditor < 0) automaticasAtivas.forEach(a => mapa.set(`auto:${a.origem}`, ++n))
+    return mapa
+  })()
 
   // Inclui uma CÓPIA da cláusula do banco neste contrato (id novo de snapshot)
   const onIncluir = (banco: ClausulaLista) => {
@@ -889,12 +955,24 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
             <div className="pt-3 mt-2 border-t border-gray-100">
               <CapaOverridesEditor
                 campos={camposCapa}
-                iniciais={capaOverridesIniciais}
+                iniciais={capaIniciaisSoCapa}
                 onSalvar={ov => atualizarCapaOverrides(geracao.id, ov)}
                 disabled={travado}
               />
             </div>
           )}
+        </section>
+
+        {/* Textos do documento fora da capa: tabela, inventário, termo de chaves */}
+        <section className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+          <CapaOverridesEditor
+            titulo="Textos do documento"
+            ajuda="Personaliza só este contrato. Vazio = texto automático (em cinza). Os valores cobrados continuam vindo do financeiro."
+            campos={camposDocumento}
+            iniciais={docIniciais}
+            onSalvar={ov => atualizarCapaOverrides(geracao.id, ov)}
+            disabled={travado}
+          />
         </section>
 
         {/* Itens entregues — vão no Termo de Entrega de Chaves */}
@@ -1139,16 +1217,38 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
           >
             <div className="space-y-2">
               {clausulasSelecionadas.map((c, idx) => (
-                <ClausulaCardEditor
-                  key={c.id}
-                  numero={idx + 1}
-                  clausula={c}
+                <div key={c.id} className="space-y-2">
+                  <ClausulaCardEditor
+                    numero={numeroPdf.get(c.id) ?? null}
+                    clausula={c}
+                    isPending={isPending}
+                    travado={travado}
+                    modificada={!!c.modificada}
+                    onToggleModificada={v => onToggleModificada(c.id, v)}
+                    onSalvar={(t, b, cat, tp) => onAtualizarClausula(c.id, t, b, cat, tp)}
+                    onRemover={() => onRemover(c.id)}
+                    onRestaurarAutomatica={ehOrigemAutomatica(c.origem) ? () => onRestaurarAutomatica(c.id) : undefined}
+                  />
+                  {idx === idxPartesEditor && automaticasAtivas.map(a => (
+                    <ClausulaAutomaticaCard
+                      key={a.origem}
+                      numero={numeroPdf.get(`auto:${a.origem}`) ?? 0}
+                      clausula={a}
+                      isPending={isPending}
+                      travado={travado}
+                      onPersonalizar={() => onPersonalizarAutomatica(a.origem)}
+                    />
+                  ))}
+                </div>
+              ))}
+              {idxPartesEditor < 0 && automaticasAtivas.map(a => (
+                <ClausulaAutomaticaCard
+                  key={a.origem}
+                  numero={numeroPdf.get(`auto:${a.origem}`) ?? 0}
+                  clausula={a}
                   isPending={isPending}
                   travado={travado}
-                  modificada={!!c.modificada}
-                  onToggleModificada={v => onToggleModificada(c.id, v)}
-                  onSalvar={(t, b, cat, tp) => onAtualizarClausula(c.id, t, b, cat, tp)}
-                  onRemover={() => onRemover(c.id)}
+                  onPersonalizar={() => onPersonalizarAutomatica(a.origem)}
                 />
               ))}
             </div>
@@ -1306,9 +1406,10 @@ export function EditorContrato({ contratoId, codigo, travado = false, garantiaTi
 
 // ── Card de uma cláusula no editor (sortable + editável) ──
 function ClausulaCardEditor({
-  numero, clausula, isPending, travado = false, modificada, onToggleModificada, onSalvar, onRemover,
+  numero, clausula, isPending, travado = false, modificada, onToggleModificada, onSalvar, onRemover, onRestaurarAutomatica,
 }: {
-  numero: number
+  /** null = cláusula vazia, fica fora do PDF. */
+  numero: number | null
   clausula: ClausulaSel
   isPending: boolean
   travado?: boolean
@@ -1316,8 +1417,10 @@ function ClausulaCardEditor({
   onToggleModificada: (v: boolean) => void
   onSalvar: (titulo: string, corpo: string, categoria?: string, tipo?: TipoClausula) => void
   onRemover: () => void
+  onRestaurarAutomatica?: () => void
 }) {
   const [modalAberto, setModalAberto] = useState(false)
+  const vazia = numero === null
 
   const {
     attributes, listeners, setNodeRef, transform, transition, isDragging,
@@ -1355,7 +1458,7 @@ function ClausulaCardEditor({
             <GripVertical size={14} />
           </button>
           <span className="text-xs font-mono font-bold text-violet-700 px-1.5">
-            {numero}.
+            {vazia ? '–' : `${numero}.`}
           </span>
           {isCategoriaEssencial(clausula.categoria) && (
             <span title="Cláusula essencial">
@@ -1365,12 +1468,23 @@ function ClausulaCardEditor({
           <h3 className="flex-1 text-sm font-bold text-gray-900 py-0.5">
             {clausula.titulo}
           </h3>
+          {onRestaurarAutomatica ? (
+            <span className="text-[9px] font-bold uppercase tracking-wider text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded shrink-0" title="Texto automático personalizado neste contrato">
+              automática · personalizada
+            </span>
+          ) : (
           <span className="text-[9px] font-bold uppercase tracking-wider text-gray-400 bg-gray-200 px-1.5 py-0.5 rounded shrink-0">
             {clausula.tipo === 'generica' ? 'geral' : clausula.tipo}
           </span>
+          )}
         </div>
 
         <div className="p-3 overflow-hidden">
+          {vazia && (
+            <p className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-2">
+              Sem texto: fica fora do PDF e do sumário. Escreva o texto ou remova a cláusula.
+            </p>
+          )}
           <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed line-clamp-4 break-words">
             {clausula.corpo}
           </p>
@@ -1390,6 +1504,17 @@ function ClausulaCardEditor({
                 Modificada
               </label>
               <div className="flex gap-2">
+                {onRestaurarAutomatica && (
+                  <button
+                    type="button"
+                    onClick={onRestaurarAutomatica}
+                    disabled={isPending}
+                    className="text-xs font-semibold text-sky-700 hover:bg-sky-50 px-2 py-1 rounded disabled:opacity-50"
+                    title="Descarta a personalização e volta ao texto gerado pelos participantes"
+                  >
+                    Restaurar automática
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => setModalAberto(true)}
@@ -1421,6 +1546,55 @@ function ClausulaCardEditor({
         />
       )}
     </>
+  )
+}
+
+/** Cláusula automática ainda não personalizada: só consulta + "Personalizar". */
+function ClausulaAutomaticaCard({
+  numero, clausula, isPending, travado, onPersonalizar,
+}: {
+  numero: number
+  clausula: ClausulaAutomaticaView
+  isPending: boolean
+  travado: boolean
+  onPersonalizar: () => void
+}) {
+  const [aberta, setAberta] = useState(false)
+  const rotulo = ehOrigemAutomatica(clausula.origem) ? ORIGENS_AUTOMATICAS[clausula.origem].rotulo : 'Automática'
+  return (
+    <div className="bg-white rounded-xl border border-dashed border-sky-300 overflow-hidden">
+      <div className="flex items-start gap-1 px-3 py-2 border-b border-sky-100 bg-sky-50">
+        <span className="text-xs font-mono font-bold text-sky-700 px-1.5">{numero}.</span>
+        <h3 className="flex-1 text-sm font-bold text-gray-900 py-0.5">{clausula.titulo}</h3>
+        <span className="text-[9px] font-bold uppercase tracking-wider text-sky-700 bg-sky-100 px-1.5 py-0.5 rounded shrink-0" title={`Gerada dos participantes: ${rotulo}`}>
+          automática
+        </span>
+      </div>
+      <div className="p-3">
+        <p className={`text-xs text-gray-700 whitespace-pre-wrap leading-relaxed break-words ${aberta ? '' : 'line-clamp-4'}`}>
+          {clausula.corpo.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()}
+        </p>
+        <div className="flex items-center justify-between gap-2 mt-2">
+          <button type="button" onClick={() => setAberta(v => !v)} className="text-[11px] text-gray-500 hover:text-gray-800">
+            {aberta ? 'Recolher' : 'Ver texto completo'}
+          </button>
+          {!travado && (
+            <button
+              type="button"
+              onClick={onPersonalizar}
+              disabled={isPending}
+              className="text-xs font-semibold text-sky-700 hover:bg-sky-50 px-2 py-1 rounded disabled:opacity-50"
+              title="Copia o texto para este contrato; depois de personalizado ele não é mais regerado pelos participantes"
+            >
+              Personalizar texto
+            </button>
+          )}
+        </div>
+        <p className="text-[10px] text-gray-400 mt-1">
+          Gerada pelos participantes do contrato. Muda sozinha se o cadastro mudar, até ser personalizada.
+        </p>
+      </div>
+    </div>
   )
 }
 
