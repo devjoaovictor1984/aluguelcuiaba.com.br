@@ -26,12 +26,20 @@ próxima leitura.
 Especificação: <https://developers.grupozap.com/feeds/vrsync/>
 
 **Mão única:** o feed vai do site para o portal. Anúncios que o anunciante
-já tem cadastrados à mão no OLX/ZAP **não** são puxados para cá — não há API
-pública de leitura do Canal Pro. Quem já anuncia lá cadastra aqui o que quer
-manter e confirma com o gerente do Canal Pro, antes de ligar o feed, se os
-anúncios manuais serão substituídos ou duplicados. (Se o anunciante usa outro
-sistema que já gera um feed VRSync, dá para importar desse XML — não feito,
-ver Pendente.)
+já tem cadastrados à mão no Canal Pro **não** são puxados para cá (não há API
+pública de leitura). Regras do portal para quem já anuncia lá
+(`feeds/integration_rules.html`):
+
+- O feed **não apaga** anúncio manual; apagar é manual, no Canal Pro.
+- Se o anúncio do feed bate com um manual, o do feed é **recusado como
+  duplicado** até o manual ser apagado.
+- Anúncio que veio pelo feed **não pode ser editado à mão** no Canal Pro.
+- O que passar da grade do plano contratado é desativado automaticamente.
+
+Para migrar: cadastrar aqui, apagar o manual, ligar no feed (um por vez, se
+não quiser o imóvel fora do ar por até 12 h). Se o anunciante usa outro
+sistema que já gera um feed VRSync, dá para importar desse XML (não feito,
+ver Pendente).
 
 A tela *Portais* tem o bloco **"Como funciona"** (`_components/como-funciona.tsx`)
 com esta explicação em passo a passo, aberto enquanto a URL não foi gerada.
@@ -73,6 +81,13 @@ mostra "Última leitura" — é como saber se o portal já está puxando.
 
 O feed tem cache de CDN de 15 min (`s-maxage=900`).
 
+**Leitura pelo portal** (`feeds/connection_guideline.html`): a cada **12 h**,
+User-Agent `VivaRealBot/1.0`, timeout de 60 s para conectar e 20 min para
+baixar, até 50 mil anúncios por arquivo. Conferido em 21/11/2026 que a Vercel
+não bloqueia esse User-Agent (token inexistente responde 404, não 403). A
+doc também lista IPs do robô para liberar em firewall; aqui não há firewall
+próprio, então não se aplica.
+
 ## Regras do VRSync que o gerador aplica
 
 Um anúncio com problema **vermelho** não entra no feed (o portal recusaria);
@@ -84,7 +99,7 @@ Um anúncio com problema **vermelho** não entra no feed (o portal recusaria);
 | Foto identificada pela URL; mudou a foto, a URL tem que mudar | O site regrava `1.jpg`, `2.jpg`… no mesmo caminho; o feed põe `?v=<updated_at>` |
 | Título 10–100 caracteres | Bloqueia abaixo de 10; corta em 100 |
 | Descrição 50–3000, texto | O HTML do editor vira texto; se ficar curta, completa com quartos/área/bairro |
-| CEP obrigatório | Bloqueia sem `endereco_cep` (aba "Dados do contrato") |
+| CEP obrigatório | Bloqueia sem `endereco_cep` ou sem 8 dígitos; vai como `78000-000` |
 | Área (`LivingArea`) obrigatória | `area_m2`, senão `area_construida_m2`; terreno usa `area_terreno_m2` |
 | Valores inteiros, BRL | Arredonda |
 | IPTU | Vai como **mensal** (`period="Monthly"`), que é como o site cadastra |
@@ -109,18 +124,33 @@ fiador → `GUARANTOR`. Características: piscina → `Pool`, pets →
 
 ## Pendente / não confirmado
 
-- **Ainda não validado no validador oficial nem lido por um Canal Pro de
-  verdade.** O XML segue a documentação pública e é bem formado, mas a
-  documentação se contradiz em alguns pontos (onde fica o `ContactInfo`,
-  `Iptu` × `YearlyTax`). Ajustar no primeiro relatório de integração.
-- Frequência de leitura do portal e limite máximo de fotos: não constam nas
-  páginas lidas.
-- **Leads de volta** (contato feito no portal cair no sistema): o Grupo OLX
-  tem integração de leads separada do feed. Fica para quando o feed estiver
-  rodando.
+Doc pública relida em 21/11/2026 (header, listing, details, examples,
+connection_guideline, integration_rules, xml_validator, webhooks de leads).
+
+- **Ainda não lido por um Canal Pro de verdade.** O XML segue a doc e é bem
+  formado. O XSD oficial (`xml.vivareal.com/vrsync.xsd`) responde 403, então
+  não deu para validar contra o schema; o validador
+  (`/feeds/xml_validator/`) é só formulário de upload, sem API. Próximo passo:
+  subir um XML real nele (ou abrir no VS Code, que valida pelo
+  `schemaLocation`), e depois o relatório de integração do Canal Pro.
+- Pontos em que a doc se contradiz, resolvidos seguindo **os exemplos**:
+  `ContactInfo` dentro de cada `Listing` (o texto diz "no mesmo nível");
+  `Iptu` em vez de `YearlyTax` (este está em desuso, mas aparece nos exemplos).
+  O `Header` deveria ter o contato de quem **desenvolveu** o feed; hoje vai o
+  do anunciante. Trocar se o relatório reclamar.
+- Limite de fotos: mínimo 5, máximo 7 MB cada, só JPG; máximo de quantidade
+  não consta. Tamanho da foto não é conferido aqui.
+- **Leads de volta**: o Grupo OLX entrega por **webhook** (POST JSON, um
+  lead por requisição, `Authorization: Basic` com chave por CRM, até 3
+  tentativas, idempotência por `originLeadId`, imóvel em `clientListingId`
+  = nosso `ListingID`). Exige **homologação** do site como integrador:
+  formulário do Grupo OLX + chave enviada por eles
+  (`chamado.integracao@olxbr.com`). Não dá para fazer só do nosso lado. Ver
+  também a decisão de escopo: funil de leads é outro projeto.
 - **Importar anúncios existentes:** não há como ler do Canal Pro. Viável só
   a partir de um feed VRSync que o anunciante já tenha em outro sistema
   (ler o XML e criar os imóveis como rascunho, baixando as fotos). Só fazer
   se pedirem.
 - Características além de piscina/pets/mobiliado: o site não guarda outras
-  estruturadas (elevador, academia…), então não há o que mandar.
+  estruturadas (elevador, academia…), então não há o que mandar. A lista de
+  valores aceitos está em `feeds/vrsync/elements/details.html`.

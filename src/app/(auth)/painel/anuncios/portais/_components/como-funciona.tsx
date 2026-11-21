@@ -17,7 +17,7 @@ export function ComoFunciona({ aberto }: { aberto: boolean }) {
       <div className="px-4 pb-4 space-y-4">
         <p>
           Você não envia nada para o portal: o site deixa a lista dos seus anúncios num endereço
-          (a <strong>URL do feed</strong>) e o portal <strong>vem buscar sozinho</strong>, algumas vezes por dia.
+          (a <strong>URL do feed</strong>) e o portal <strong>vem buscar sozinho</strong>, a cada 12 horas.
           Um endereço só atende OLX, ZAP Imóveis e Viva Real (são do mesmo grupo).
         </p>
 
@@ -39,8 +39,8 @@ export function ComoFunciona({ aberto }: { aberto: boolean }) {
             <li>Pausou, alugou, venceu ou desligou → <strong>sai do ar</strong></li>
           </ul>
           <p className="text-xs text-gray-500 mt-1.5">
-            Leva algumas horas, porque o portal decide quando vem buscar. Edite sempre aqui: o que for mudado
-            direto no portal pode ser desfeito na próxima leitura.
+            Pode levar até 12 horas, porque o portal lê o feed duas vezes por dia. Edite sempre aqui: o Canal Pro
+            não deixa editar à mão um anúncio que veio pelo feed.
           </p>
         </div>
 
@@ -60,9 +60,16 @@ export function ComoFunciona({ aberto }: { aberto: boolean }) {
           <p className="font-semibold text-gray-900">Já tenho anúncios cadastrados no OLX/ZAP</p>
           <p className="mt-0.5">
             O feed vai <strong>daqui para lá</strong>; o site não puxa os anúncios que já estão no portal.
-            Cadastre aqui os imóveis que quer manter e, antes de ligar o feed, pergunte ao gerente do Canal Pro
-            como ficam os anúncios feitos à mão: em geral a integração passa a mandar e eles podem ser
-            substituídos ou duplicados.
+            Os anúncios feitos à mão continuam lá (o feed não apaga). Mas se o mesmo imóvel estiver nos dois,
+            o portal recusa o do feed como <strong>duplicado</strong>. Para passar a controlar por aqui:
+          </p>
+          <ol className="list-decimal pl-5 mt-1 space-y-0.5">
+            <li>Cadastre o imóvel aqui, com as 5 fotos JPG.</li>
+            <li>Apague o anúncio manual no Canal Pro.</li>
+            <li>Ligue o imóvel nesta tela. Na próxima leitura ele volta, agora pelo feed.</li>
+          </ol>
+          <p className="text-xs text-gray-500 mt-1">
+            Faça um por vez se não quiser ficar com o imóvel fora do ar por mais de 12 horas.
           </p>
         </div>
       </div>

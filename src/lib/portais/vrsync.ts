@@ -96,6 +96,12 @@ function fotosOrdenadas(im: ImovelPortal) {
   return fs.filter(f => ehJpg(f.url))
 }
 
+/** O portal usa o formato dos exemplos (`78000-000`); o site aceita com ou sem traço. */
+export function cepPortal(cep: string | null): string | null {
+  const d = (cep ?? '').replace(/\D/g, '')
+  return d.length === 8 ? `${d.slice(0, 5)}-${d.slice(5)}` : null
+}
+
 function area(im: ImovelPortal) {
   const v = im.area_m2 ?? im.area_construida_m2 ?? null
   return v ? Math.round(v) : null
@@ -112,6 +118,7 @@ export function validarParaPortal(im: ImovelPortal): Problema[] {
   if (!area(im) && !(im.tipo === 'terreno' && im.area_terreno_m2)) p.push({ nivel: 'erro', texto: 'Falta a área (m²)' })
   if (!im.bairro?.nome) p.push({ nivel: 'erro', texto: 'Falta o bairro' })
   if (!im.endereco_cep) p.push({ nivel: 'erro', texto: 'Falta o CEP (aba "Dados do contrato")' })
+  else if (!cepPortal(im.endereco_cep)) p.push({ nivel: 'erro', texto: 'CEP inválido — precisa ter 8 dígitos' })
   if (!im.preco || im.preco <= 0) p.push({ nivel: 'erro', texto: 'Falta o valor do aluguel' })
   if (im.titulo.trim().length < 10) p.push({ nivel: 'erro', texto: 'Título com menos de 10 caracteres' })
   if (textoPlano(im.descricao).length < 50) p.push({ nivel: 'aviso', texto: 'Descrição curta — completamos com os dados do imóvel' })
@@ -243,7 +250,8 @@ function listingXml(im: ImovelPortal, contato: ContatoPortal, siteUrl: string): 
   L.push(`        <Neighborhood>${cdata(im.bairro?.nome ?? '')}</Neighborhood>`)
   if (im.endereco_completo) L.push(`        <Address>${cdata(im.endereco_completo)}</Address>`)
   if (im.endereco_numero) L.push(`        <StreetNumber>${esc(im.endereco_numero)}</StreetNumber>`)
-  if (im.endereco_cep) L.push(`        <PostalCode>${esc(im.endereco_cep)}</PostalCode>`)
+  const cep = cepPortal(im.endereco_cep)
+  if (cep) L.push(`        <PostalCode>${cep}</PostalCode>`)
   if (im.lat != null && im.lng != null) {
     L.push(`        <Latitude>${im.lat}</Latitude>`)
     L.push(`        <Longitude>${im.lng}</Longitude>`)
