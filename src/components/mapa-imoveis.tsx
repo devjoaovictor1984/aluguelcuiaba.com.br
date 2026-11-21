@@ -134,12 +134,23 @@ function criarIconeUsuario(): L.DivIcon {
   })
 }
 
-// Componente filho que observa movimento do mapa e dispara onBoundsChange
+// Componente filho que observa movimento do mapa e dispara onBoundsChange.
+//
+// Só reporta movimento que o USUÁRIO fez (arrastar, zoom pelos botões, roda
+// depois de clicar no mapa). Antes, o próprio posicionamento inicial
+// (flyTo/fitBounds) disparava `moveend` → `?bbox=` na URL → a home inteira
+// renderizava de novo no servidor e o navegador voltava pro topo — o "recarrega
+// sozinho" que se via ao rolar a página (nov/2026, ver docs/mapa-home.md).
 function MapEventsHandler({ onBoundsChange }: { onBoundsChange?: (bbox: [number, number, number, number]) => void }) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const interagiu = useRef(false)
   const map = useMapEvents({
+    // Roda do mouse só dá zoom depois que a pessoa clica no mapa; até lá,
+    // rolar por cima dele rola a página (o mapa ocupa meia tela no hero).
+    click: () => { map.scrollWheelZoom.enable() },
+    mouseout: () => { map.scrollWheelZoom.disable() },
     moveend: () => {
-      if (!onBoundsChange) return
+      if (!onBoundsChange || !interagiu.current) return
       if (debounceRef.current) clearTimeout(debounceRef.current)
       debounceRef.current = setTimeout(() => {
         const b = map.getBounds()
@@ -147,6 +158,19 @@ function MapEventsHandler({ onBoundsChange }: { onBoundsChange?: (bbox: [number,
       }, 600)
     },
   })
+  useEffect(() => {
+    const el = map.getContainer()
+    const marcar = () => { interagiu.current = true }
+    // pointerdown cobre arrastar, pinça e os botões +/−; wheel só conta com
+    // o zoom por roda já liberado pelo clique acima.
+    const roda = () => { if (map.scrollWheelZoom.enabled()) interagiu.current = true }
+    el.addEventListener('pointerdown', marcar)
+    el.addEventListener('wheel', roda, { passive: true })
+    return () => {
+      el.removeEventListener('pointerdown', marcar)
+      el.removeEventListener('wheel', roda)
+    }
+  }, [map])
   return null
 }
 
@@ -240,7 +264,7 @@ export default function MapaImoveis({ imoveis, height = 360, containerClassName,
       <MapContainer
         center={center}
         zoom={12}
-        scrollWheelZoom={true}
+        scrollWheelZoom={false}
         className="w-full h-full"
       >
         {/* OpenStreetMap padrão — mapa de ruas detalhado (nomes, POIs, quadras). Free. */}

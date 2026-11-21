@@ -59,7 +59,9 @@ export function MapaImoveisWrapper({ imoveis, filtraAoMover = true, focusCenter,
     if (!filtraAoMover) return
     const params = new URLSearchParams(searchParams.toString())
     params.set('bbox', bbox.map(n => n.toFixed(4)).join(','))
-    startTransition(() => router.push(`${pathname}?${params.toString()}`))
+    // replace + scroll:false: mover o mapa não pode jogar a página pro topo
+    // nem empilhar uma entrada no histórico a cada arrasto.
+    startTransition(() => router.replace(`${pathname}?${params.toString()}`, { scroll: false }))
   }
 
   if (!pinsAtuais.length && !focusCenter) {

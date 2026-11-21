@@ -80,8 +80,16 @@ const buscarImoveisSemFiltro = unstable_cache(
   { revalidate: 60, tags: [TAG_IMOVEIS] },
 )
 
+// A home monta `filtros` com TODAS as chaves, a maioria `undefined`. Contar
+// chaves (`Object.keys(...).length === 0`) nunca dava zero, então o cache sem
+// filtro nunca era usado: toda visita à home ia direto no banco (lista e
+// mapa). O que importa é se algum filtro tem valor.
+function semFiltro(filtros: FiltrosBusca): boolean {
+  return Object.values(filtros).every(v => v === undefined || v === null || v === '')
+}
+
 export async function getImoveis(filtros: FiltrosBusca = {}, pagina = 1, porPagina = 24) {
-  if (Object.keys(filtros).length === 0) {
+  if (semFiltro(filtros)) {
     return buscarImoveisSemFiltro(pagina, porPagina)
   }
   return buscarImoveis(filtros, pagina, porPagina)
@@ -168,7 +176,7 @@ const buscarMapaSemFiltro = unstable_cache(
 )
 
 export async function getImoveisParaMapa(filtros: FiltrosBusca = {}) {
-  if (Object.keys(filtros).length === 0) return buscarMapaSemFiltro()
+  if (semFiltro(filtros)) return buscarMapaSemFiltro()
   return buscarImoveisParaMapa(filtros)
 }
 
