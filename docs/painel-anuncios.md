@@ -19,6 +19,32 @@ as fotos e filtrava em memória, sem busca nem paginação.
 Publicar e salvar agora voltam para `/painel/anuncios` com o aviso
 (`?publicado=1`, `?atualizado=1`, `?excluido=1`).
 
+## Visão geral (`/painel`)
+
+Reformulada em 21/11/2026, logo depois da lista. Responde, de cima pra baixo:
+"tem algo pra eu resolver?", "como estão meus anúncios?", "pra onde eu vou?".
+
+1. **Saudação** + "Ver site" e "Novo anúncio" (vira "Ver planos" no limite).
+2. **Precisa da sua atenção** — um bloco só, cada linha leva aonde resolve:
+   cadastro incompleto, anúncios a renovar (vencidos ou vencendo em 7 dias),
+   anúncios no ar sem atualização há 30+ dias (respeita o "silenciar avisos"),
+   limite do plano atingido. Sem pendência: "Tudo em dia".
+3. **Indicadores** No ar / Alugados / A renovar / Visitas, que abrem a lista filtrada.
+4. **Atalhos** (Meus anúncios, Portais, CRM se tiver acesso, Perfil) e
+   **Sua conta** (foto, plano com barra de vagas, upgrade ou admin).
+5. **Mexidos por último** — os 4 anúncios editados mais recentemente.
+
+O que saiu e por quê:
+
+- Os avisos de anúncio parado apareciam **duas vezes** (banner do topo e
+  "Ações necessárias"). Agora são uma linha só.
+- "Sair" e "Ver site" no topo repetiam o menu lateral; "Sair" ficou só no menu.
+- O contador do plano mostrava `total/limite`, mas o limite conta só
+  **ativo + alugado** (mesma regra do `/painel/anuncios/novo`). Agora mostra
+  as vagas ocupadas, com barra.
+- A página carregava todos os anúncios com **todas** as fotos (`getMeusImoveis`)
+  só pra contar. Agora busca as colunas que usa e uma foto por anúncio.
+
 ## A lista (`/painel/anuncios`)
 
 Tudo que filtra fica na URL, então dá para recarregar, voltar e mandar o link:
