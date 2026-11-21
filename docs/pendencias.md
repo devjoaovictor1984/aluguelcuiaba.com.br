@@ -247,3 +247,28 @@ arquivo final; não há prévia embutida no editor.
 **8. Ocultar cláusula automática sem personalizar.** Hoje dá para
 personalizar e enxugar o texto; ocultar por completo uma cláusula que protege
 o locador ficou de fora de propósito.
+
+## Contrato de administração: base mínima para quem não é do ramo
+
+Pedido do João em 12/11/2026, **em stand by** (não começar sem ele pedir).
+Módulo: `/painel/administracoes` (editor em
+`[id]/gerar/_components/editor-contrato-adm.tsx`, PDF em
+`src/app/api/contratos-admin/[id]/pdf/route.ts`).
+
+Ideia: um leigo que monta um contrato de administração precisa partir de uma
+base completa e ver na hora o que falta.
+
+**1. Cláusulas obrigatórias.** Conjunto que todo contrato de administração
+deve ter: dados das partes, dados do imóvel, prazo, remuneração/taxa,
+multa, rescisão, comunicações entre as partes, entre outras. Falta definir a
+lista final e se o editor deve impedir (ou só alertar) a remoção delas.
+
+**2. Placeholders faltando em vermelho.** Campo sem dado aparece destacado
+no editor (e no checklist), e o operador resolve de dois jeitos: preenche o
+dado ou apaga o trecho no texto.
+
+**3. Entrega de chaves e acesso ao imóvel** entre proprietário e
+administradora.
+
+**4. Dados do proprietário e do imóvel:** matrícula, inscrição do IPTU, UC de
+energia; se mobiliado, a lista de inventário.
