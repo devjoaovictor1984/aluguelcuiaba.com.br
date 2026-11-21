@@ -272,3 +272,42 @@ administradora.
 
 **4. Dados do proprietário e do imóvel:** matrícula, inscrição do IPTU, UC de
 energia; se mobiliado, a lista de inventário.
+
+---
+
+## Excluir anúncio não apaga as fotos do Storage nem vai pra lixeira
+
+Levantado em 21/11/2026, na reforma de "Meus anúncios" (`docs/painel-anuncios.md`).
+**Onde:** `excluirAnuncio` em `src/app/(auth)/painel/anuncios/actions-crud.ts`.
+
+A exclusão apaga as linhas de `fotos` e `imoveis`, mas os arquivos em
+`fotos-imoveis/<user>/<imovel>/` ficam no bucket ocupando espaço. E não há
+volta: contratos e pessoas têm lixeira de 30 dias (`deleted_at`), anúncio não.
+
+**O que fazer:** (1) remover a pasta do imóvel no Storage depois do delete;
+(2) se quiser lixeira, `imoveis.deleted_at` + filtro em todas as leituras da
+vitrine — é a parte cara, por isso ficou de fora.
+
+**Por que ficou pra depois:** o comportamento é o mesmo de antes (a tela de
+edição já excluía assim); a reforma foi de tela e permissão.
+
+---
+
+## `/admin/imoveis` e "Todos os anúncios" fazem a mesma coisa
+
+Desde 21/11/2026 o admin vê todos os anúncios em
+`/painel/anuncios?escopo=todos`, com busca, abas certas (inclusive `alugado`)
+e as mesmas ações. O `/admin/imoveis` antigo continua lá, com o problema das
+abas descrito no primeiro item desta lista.
+
+**O que fazer:** decidir se o `/admin/imoveis` vira um redirecionamento para
+`/painel/anuncios?escopo=todos` (resolve o item das abas junto) ou se fica
+para algo que só o admin faz (banir anunciante, destaque pago).
+
+---
+
+## Portais: validar o feed com um Canal Pro de verdade
+
+Ver `docs/integracoes/portais/README.md`, seção "Pendente". O XML segue a
+documentação pública do VRSync, mas só um relatório de integração do Canal
+Pro confirma. Depende de o anunciante ter o plano contratado.
