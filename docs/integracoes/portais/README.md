@@ -25,6 +25,18 @@ próxima leitura.
 
 Especificação: <https://developers.grupozap.com/feeds/vrsync/>
 
+**Mão única:** o feed vai do site para o portal. Anúncios que o anunciante
+já tem cadastrados à mão no OLX/ZAP **não** são puxados para cá — não há API
+pública de leitura do Canal Pro. Quem já anuncia lá cadastra aqui o que quer
+manter e confirma com o gerente do Canal Pro, antes de ligar o feed, se os
+anúncios manuais serão substituídos ou duplicados. (Se o anunciante usa outro
+sistema que já gera um feed VRSync, dá para importar desse XML — não feito,
+ver Pendente.)
+
+A tela *Portais* tem o bloco **"Como funciona"** (`_components/como-funciona.tsx`)
+com esta explicação em passo a passo, aberto enquanto a URL não foi gerada.
+Mudou a regra aqui, muda o texto lá.
+
 ## O que o anunciante precisa ter
 
 1. **Conta no Canal Pro com plano contratado.** É comercial e pago, negociado
@@ -106,5 +118,9 @@ fiador → `GUARANTOR`. Características: piscina → `Pool`, pets →
 - **Leads de volta** (contato feito no portal cair no sistema): o Grupo OLX
   tem integração de leads separada do feed. Fica para quando o feed estiver
   rodando.
+- **Importar anúncios existentes:** não há como ler do Canal Pro. Viável só
+  a partir de um feed VRSync que o anunciante já tenha em outro sistema
+  (ler o XML e criar os imóveis como rascunho, baixando as fotos). Só fazer
+  se pedirem.
 - Características além de piscina/pets/mobiliado: o site não guarda outras
   estruturadas (elevador, academia…), então não há o que mandar.

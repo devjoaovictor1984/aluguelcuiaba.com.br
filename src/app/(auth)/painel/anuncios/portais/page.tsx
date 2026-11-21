@@ -7,6 +7,7 @@ import { COLUNAS_PORTAL, SITE_URL } from '@/lib/portais/consulta'
 import { validarParaPortal, type ImovelPortal } from '@/lib/portais/vrsync'
 import { UrlFeed } from './_components/url-feed'
 import { LinhaPortal } from './_components/linha-portal'
+import { ComoFunciona } from './_components/como-funciona'
 
 export const dynamic = 'force-dynamic'
 
@@ -65,6 +66,8 @@ export default async function PortaisPage() {
         Publique seus anúncios no <strong>OLX</strong>, <strong>ZAP Imóveis</strong> e <strong>Viva Real</strong> com um feed só.
       </p>
 
+      <ComoFunciona aberto={!feed?.token} />
+
       <UrlFeed
         urlBase={`${SITE_URL}/api/portais/vrsync/`}
         token={feed?.token ?? null}
@@ -103,7 +106,7 @@ export default async function PortaisPage() {
       )}
 
       <p className="text-xs text-gray-400 mt-4 flex items-center gap-1">
-        Como funciona e o que contratar no Canal Pro:
+        Contratar ou falar com o suporte:
         <a href="https://canalpro.grupozap.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-violet-600 hover:underline">
           Canal Pro <ExternalLink size={10} />
         </a>
