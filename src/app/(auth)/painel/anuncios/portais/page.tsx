@@ -8,6 +8,7 @@ import { validarParaPortal, type ImovelPortal } from '@/lib/portais/vrsync'
 import { UrlFeed } from './_components/url-feed'
 import { LinhaPortal } from './_components/linha-portal'
 import { ComoFunciona } from './_components/como-funciona'
+import { Preparar } from './_components/preparar'
 
 export const dynamic = 'force-dynamic'
 
@@ -21,7 +22,7 @@ export default async function PortaisPage() {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/entrar')
 
-  const [{ data: feed, error: erroFeed }, { data: dados, error: erroImoveis }] = await Promise.all([
+  const [{ data: feed, error: erroFeed }, { data: dados, error: erroImoveis }, { data: perfil }] = await Promise.all([
     createAdminClient().from('portais_feed').select('token, criado_em, lido_em, lido_por').eq('user_id', user.id).maybeSingle(),
     supabase
       .from('imoveis')
@@ -29,6 +30,7 @@ export default async function PortaisPage() {
       .eq('user_id', user.id)
       .in('status', ['ativo', 'pausado', 'alugado', 'expirado'])
       .order('created_at', { ascending: false }),
+    supabase.from('perfis').select('nome').eq('id', user.id).maybeSingle(),
   ])
 
   // Migration v107 ainda não rodada: as colunas/tabela não existem.
@@ -52,6 +54,7 @@ export default async function PortaisPage() {
     return { im, noAr, problemas: validarParaPortal(im) }
   })
   const noFeed = imoveis.filter(x => x.im.publicar_portais && x.noAr && !x.problemas.some(p => p.nivel === 'erro')).length
+  const prontos = imoveis.filter(x => x.noAr && !x.problemas.some(p => p.nivel === 'erro')).length
   const ligadosComErro = imoveis.filter(x => x.im.publicar_portais && x.noAr && x.problemas.some(p => p.nivel === 'erro')).length
 
   return (
@@ -74,6 +77,13 @@ export default async function PortaisPage() {
         lidoEm={feed?.lido_em ?? null}
         lidoPor={feed?.lido_por ?? null}
         noFeed={noFeed}
+      />
+
+      <Preparar
+        prontos={prontos}
+        ligados={noFeed}
+        url={feed?.token ? `${SITE_URL}/api/portais/vrsync/${feed.token}` : null}
+        nome={perfil?.nome || user.email || ''}
       />
 
       {ligadosComErro > 0 && (

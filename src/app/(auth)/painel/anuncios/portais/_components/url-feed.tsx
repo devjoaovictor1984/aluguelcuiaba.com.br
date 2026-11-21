@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Copy, Check, KeyRound, Loader2, RotateCcw, CircleCheck, CircleDashed } from 'lucide-react'
 import { gerarTokenFeed } from '../../actions-crud'
+import { ehRoboDoPortal } from '@/lib/portais/vrsync'
 
 /** Caixa da URL do feed: gerar, copiar, trocar (revoga a anterior). */
 export function UrlFeed({ urlBase, token, lidoEm, lidoPor, noFeed }: {
@@ -69,8 +70,11 @@ export function UrlFeed({ urlBase, token, lidoEm, lidoPor, noFeed }: {
             <span className={`inline-flex items-center gap-1 ${lidoEm ? 'text-green-700' : 'text-gray-500'}`}>
               {lidoEm ? <CircleCheck size={13} /> : <CircleDashed size={13} />}
               {lidoEm
-                ? <>Última leitura: {new Date(lidoEm).toLocaleString('pt-BR')}{lidoPor ? <span className="text-gray-400"> · {lidoPor.slice(0, 40)}</span> : null}</>
-                : 'Ainda não foi lido por nenhum portal'}
+                ? <>
+                    {ehRoboDoPortal(lidoPor) ? 'Portal conectado · última leitura' : 'Última leitura'}: {new Date(lidoEm).toLocaleString('pt-BR')}
+                    {!ehRoboDoPortal(lidoPor) && lidoPor ? <span className="text-gray-400"> · {lidoPor.slice(0, 40)}</span> : null}
+                  </>
+                : 'Aguardando o portal ler pela primeira vez (abrir no navegador não conta)'}
             </span>
             {confirmarTroca ? (
               <span className="inline-flex items-center gap-2">

@@ -45,6 +45,28 @@ A tela *Portais* tem o bloco **"Como funciona"** (`_components/como-funciona.tsx
 com esta explicação em passo a passo, aberto enquanto a URL não foi gerada.
 Mudou a regra aqui, muda o texto lá.
 
+## Deixar pronto sem ter plano no Canal Pro
+
+O dono do site não tem plano; os clientes podem ter. Então tudo fica pronto
+para quem contratar, e dá para testar antes:
+
+1. **Portais → "Testar sem plano" → Baixar arquivo de teste**
+   (`/painel/anuncios/portais/arquivo-teste`). É o mesmo XML que o portal leria.
+   Sem nenhum anúncio ligado, leva todos os que passam nas regras (`?todos=1`);
+   com ligados, só os ligados. Exige login; não grava leitura.
+2. Subir o arquivo no validador oficial
+   (<https://developers.grupozap.com/feeds/xml_validator/>, não pede conta).
+   Erro lá → corrigir `src/lib/portais/vrsync.ts`.
+3. Quem contratar: **"Mensagem para o Canal Pro"** já vem pronta com a URL,
+   é só copiar e mandar ao gerente.
+4. O admin acompanha em **/admin/portais**: quem gerou URL, quantos anúncios
+   ligados e se o Canal Pro já está lendo (sem mostrar o token).
+
+**"Última leitura" só conta robô.** A rota do feed só grava `lido_em` quando
+o User-Agent não é de navegador comum; abrir a URL no navegador para conferir
+não finge que o portal leu nem apaga a leitura dele. Se quem leu foi o
+VivaRealBot, a tela mostra "Portal conectado".
+
 ## O que o anunciante precisa ter
 
 1. **Conta no Canal Pro com plano contratado.** É comercial e pago, negociado
@@ -62,6 +84,9 @@ Mudou a regra aqui, muda o texto lá.
 | Gerador do XML (funções puras) | `src/lib/portais/vrsync.ts` |
 | Consulta dos anúncios do feed | `src/lib/portais/consulta.ts` |
 | Rota pública do feed | `src/app/api/portais/vrsync/[token]/route.ts` |
+| Monta o XML de um anunciante (rota + teste) | `montarFeed()` em `src/lib/portais/consulta.ts` |
+| Arquivo de teste (logado) | `src/app/(auth)/painel/anuncios/portais/arquivo-teste/route.ts` |
+| Acompanhamento do admin | `src/app/admin/portais/page.tsx` |
 | Tela | `src/app/(auth)/painel/anuncios/portais/` |
 | Ações (ligar, destaque, gerar/trocar URL) | `src/app/(auth)/painel/anuncios/actions-crud.ts` |
 

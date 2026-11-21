@@ -127,6 +127,11 @@ export function validarParaPortal(im: ImovelPortal): Problema[] {
   return p
 }
 
+/** O robô do Grupo OLX se identifica como VivaRealBot (feeds/connection_guideline). */
+export function ehRoboDoPortal(userAgent: string | null | undefined) {
+  return /vivarealbot|grupozap|olx/i.test(userAgent ?? '')
+}
+
 export function podeIrProPortal(im: ImovelPortal) {
   return !validarParaPortal(im).some(x => x.nivel === 'erro')
 }

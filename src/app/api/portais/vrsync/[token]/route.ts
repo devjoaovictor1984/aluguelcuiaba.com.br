@@ -1,7 +1,6 @@
 import { after } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { gerarFeedVRSync } from '@/lib/portais/vrsync'
-import { imoveisDoFeed, SITE_URL } from '@/lib/portais/consulta'
+import { montarFeed } from '@/lib/portais/consulta'
 
 /**
  * Feed VRSync de UM anunciante — a URL que se cadastra no Canal Pro
@@ -25,27 +24,16 @@ export async function GET(req: Request, { params }: Props) {
   const { data: feed } = await db.from('portais_feed').select('user_id').eq('token', token).maybeSingle()
   if (!feed) return new Response('Not found', { status: 404 })
 
-  const [{ data: perfil }, { data: auth }, imoveis] = await Promise.all([
-    db.from('perfis').select('nome, telefone').eq('id', feed.user_id).single(),
-    db.auth.admin.getUserById(feed.user_id),
-    imoveisDoFeed(feed.user_id),
-  ])
-
-  const xml = gerarFeedVRSync(
-    imoveis,
-    {
-      nome: perfil?.nome || 'AluguelCuiabá',
-      email: auth?.user?.email || 'contato@aluguelcuiaba.com.br',
-      telefone: perfil?.telefone ?? null,
-    },
-    SITE_URL,
-  )
+  const { xml } = await montarFeed(feed.user_id)
 
   // Registra a leitura: responde "o portal já está puxando?" na tela.
+  // Só conta robô: se o anunciante abre a URL no navegador pra conferir,
+  // isso não pode parecer que o portal leu (nem apagar a leitura do portal).
   // `after`: roda depois de responder, sem atrasar o portal (e sem o risco
   // de a função congelar antes de gravar, que um `void promise` teria).
   const ua = (req.headers.get('user-agent') ?? '').slice(0, 200)
-  after(async () => {
+  const navegador = /mozilla/i.test(ua) && !/bot|crawler|spider/i.test(ua)
+  if (!navegador) after(async () => {
     await db.from('portais_feed')
       .update({ lido_em: new Date().toISOString(), lido_por: ua })
       .eq('user_id', feed.user_id)
