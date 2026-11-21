@@ -462,7 +462,7 @@ export function NovoAnuncioForm({ bairros, userId, telefoneInicial = '', inicial
       }).catch(() => {})
 
       await invalidarVitrine()
-      router.push('/painel?publicado=1')
+      router.push('/painel/anuncios?publicado=1')
     } catch (err: unknown) {
       setErro(err instanceof Error ? err.message : 'Erro inesperado. Tente novamente.')
       setEnviando(false)

@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FileSignature, Briefcase, Users, MessageCircle, Wallet,
   FileText, Cake, Receipt, Trash2, Home, Plus, LogOut, Menu, X, List,
-  UserCheck, Flame,
+  UserCheck, Flame, ShieldCheck, Radio,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -35,10 +35,21 @@ const GRUPO_SEGUROS: ItemNav[] = [
   { href: '/painel/seguros/incendio', label: 'Seguro incêndio', icon: Flame,     match: ['/painel/seguros/incendio'] },
 ]
 
+// Antes eram "Meus anúncios" (que abria o resumo da conta) e "Listar
+// anúncios" (a lista de verdade) — dois nomes pra mesma ideia. Agora o resumo
+// se chama pelo que é, e "Meus anúncios" é a lista. Ver docs/painel-anuncios.md.
 const GRUPO_ANUNCIOS: ItemNav[] = [
-  { href: '/painel',               label: 'Meus anúncios',  icon: Home, match: ['/painel'] },
-  { href: '/painel/anuncios',      label: 'Listar anúncios', icon: List, match: ['/painel/anuncios'], notMatch: ['/painel/anuncios/novo'] },
+  { href: '/painel',               label: 'Visão geral',    icon: Home, match: ['/painel'] },
+  { href: '/painel/anuncios',      label: 'Meus anúncios',  icon: List, match: ['/painel/anuncios'], notMatch: ['/painel/anuncios/novo', '/painel/anuncios/portais'] },
   { href: '/painel/anuncios/novo', label: 'Novo anúncio',   icon: Plus, match: ['/painel/anuncios/novo'] },
+  { href: '/painel/anuncios/portais', label: 'Portais',     icon: Radio, match: ['/painel/anuncios/portais'] },
+]
+
+// Só aparece pra role=admin. O /admin tem a própria checagem no servidor;
+// esconder aqui é só pra não mostrar porta que não abre.
+const GRUPO_ADMIN: ItemNav[] = [
+  { href: '/admin',                         label: 'Painel admin',      icon: ShieldCheck, match: ['/admin'] },
+  { href: '/painel/anuncios?escopo=todos',  label: 'Todos os anúncios', icon: Users,       match: [] },
 ]
 
 const GRUPO_CONTA: ItemNav[] = [
@@ -143,6 +154,7 @@ export function SidebarPainel({
             {isAdmin && segurosLigado && renderGrupo('Seguros', GRUPO_SEGUROS)}
             {renderGrupo('Anúncios', GRUPO_ANUNCIOS)}
             {renderGrupo('Conta', GRUPO_CONTA)}
+            {isAdmin && renderGrupo('Administração', GRUPO_ADMIN)}
           </>
         )}
       </nav>

@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { comprimirImagem as comprimirFoto, PERFIL_FOTO_ANUNCIO } from '@/lib/imagens/comprimir'
 import { invalidarVitrine } from '@/app/(auth)/painel/anuncios/actions-cache'
+import { excluirAnuncio } from '@/app/(auth)/painel/anuncios/actions-crud'
 
 const MAX_FOTOS = 20
 
@@ -721,10 +722,11 @@ export function EditarAnuncioForm({ imovel, bairros, userId, telefoneInicial = '
           type="button"
           onClick={async () => {
             if (!confirm('Excluir este anúncio permanentemente?')) return
-            const supabase = createClient()
-            await supabase.from('imoveis').delete().eq('id', imovel.id)
-            await invalidarVitrine()
-            router.push('/painel/anuncios')
+            // Pela action: confere dono/admin no servidor e funciona também
+            // quando o admin edita o anúncio de outro anunciante.
+            const r = await excluirAnuncio(imovel.id)
+            if (r.error) { setErro(r.error); return }
+            router.push('/painel/anuncios?excluido=1')
           }}
           className="text-sm text-red-500 hover:text-red-700 hover:underline flex items-center gap-1.5 mx-auto"
         >
