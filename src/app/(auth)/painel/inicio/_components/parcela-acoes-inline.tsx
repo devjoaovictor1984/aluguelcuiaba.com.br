@@ -118,7 +118,8 @@ export function ParcelaAcoesInline({ parcela: p, anuncianteNome }: Props) {
     if (pago) {
       if (!confirm(`Desfazer o pagamento da parcela #${p.numero}?`)) return
       startTransition(async () => {
-        await desfazerPagamento(p.id)
+        const r = await desfazerPagamento(p.id)
+        if (r.error) alert(r.error)
         router.refresh()
       })
     } else {

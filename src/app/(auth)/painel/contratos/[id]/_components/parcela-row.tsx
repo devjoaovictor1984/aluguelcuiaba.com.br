@@ -36,6 +36,8 @@ export interface Parcela {
   observacoes: string | null
   /** v102 — quem pagou. 'seguradora' = coberta por sinistro. */
   pago_por?: 'locatario' | 'seguradora' | null
+  /** v109 — quitada num acordo de quitação. */
+  acordo_id?: string | null
 }
 
 interface Props {
@@ -62,7 +64,8 @@ export function ParcelaRow({ parcela, codigoContrato, sinistroAberto = false }: 
     if (parcela.status_pagamento === 'pago') {
       if (!confirm('Desfazer este pagamento?')) return
       startTransition(async () => {
-        await desfazerPagamento(parcela.id)
+        const r = await desfazerPagamento(parcela.id)
+        if (r.error) alert(r.error)
         router.refresh()
       })
     } else {
@@ -109,6 +112,14 @@ export function ParcelaRow({ parcela, codigoContrato, sinistroAberto = false }: 
           {formatarData(parcela.vencimento)}
           {cancelada && (
             <span className="ml-1 text-[10px] font-bold uppercase text-gray-400">cancelada</span>
+          )}
+          {parcela.acordo_id && (
+            <span
+              className="ml-1 text-[10px] font-bold uppercase text-amber-800 bg-amber-50 px-1 py-0.5 rounded"
+              title={`Quitada em acordo: pagou ${formatarBRL(parcela.valor_pago ?? 0)}, desconto de ${formatarBRL(parcela.desconto ?? 0)}`}
+            >
+              acordo
+            </span>
           )}
           {pagaPelaSeguradora && (
             <span

@@ -352,6 +352,13 @@ export async function marcarPagamento(input: MarcarPagamentoInput) {
 export async function desfazerPagamento(parcelaId: string) {
   await exigirAcessoCRM()
   const supabase = await createClient()
+  // Parcela quitada por acordo (v109) tem comissão/repasse recalculados:
+  // desfazer só ela deixaria esses valores errados. Desfaz-se o acordo.
+  const { data: atual } = await supabase
+    .from('parcelas_aluguel').select('acordo_id').eq('id', parcelaId).maybeSingle()
+  if (atual?.acordo_id) {
+    return { error: 'Esta parcela foi quitada num acordo. Para desfazer, use "Desfazer acordo" na página do contrato.' }
+  }
   const { error } = await supabase
     .from('parcelas_aluguel')
     .update({

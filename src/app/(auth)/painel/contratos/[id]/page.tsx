@@ -31,6 +31,7 @@ import { TimelineEventos, type EventoRow } from './_components/timeline-eventos'
 import { DocsPartesContrato } from './_components/docs-partes'
 import { BotaoExcluirContrato } from './_components/botao-excluir'
 import { QuitarAVista } from './_components/quitar-a-vista'
+import { AcordoQuitacao, AcordosFeitos, type AcordoRow } from './_components/acordo-quitacao'
 
 const STATUS_COR: Record<string, string> = {
   ativo: 'bg-green-100 text-green-700',
@@ -330,6 +331,27 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
   const valorAbertoTotal = parcelasAbertas.reduce((s, p) => s + Number(p.valor_total ?? 0), 0)
   const dataSugeridaAVista = contrato.data_pagamento_antecipado || new Date().toISOString().slice(0, 10)
 
+  // Acordo de quitação (v109): só parcela realmente em aberto (pendente/atrasada).
+  const parcelasNegociaveis = lista
+    .filter(p => ['pendente', 'atrasado'].includes(p.status_pagamento) && !p.acordo_id)
+    .map(p => ({
+      id: p.id, numero: p.numero, vencimento: p.vencimento,
+      valor_aluguel: Number(p.valor_aluguel ?? 0), valor_seguro: Number(p.valor_seguro ?? 0),
+      valor_iptu: Number(p.valor_iptu ?? 0), valor_condominio: Number(p.valor_condominio ?? 0),
+      valor_total: Number(p.valor_total ?? 0), valor_comissao: Number(p.valor_comissao ?? 0),
+    }))
+  // Sem a v109 a tabela não existe: a consulta falha e a lista fica vazia.
+  const { data: acordosDb } = await supabase
+    .from('contratos_acordos')
+    .select('id, data_pagamento, valor_original, valor_acordado, observacao, parcelas')
+    .eq('contrato_id', id)
+    .order('created_at')
+  const acordos: AcordoRow[] = (acordosDb ?? []).map(a => ({
+    id: a.id, data_pagamento: a.data_pagamento, observacao: a.observacao,
+    valor_original: Number(a.valor_original), valor_acordado: Number(a.valor_acordado),
+    numeros: ((a.parcelas ?? []) as Array<{ numero: number }>).map(x => x.numero).sort((x, y) => x - y),
+  }))
+
   const imovel = Array.isArray(contrato.imovel) ? contrato.imovel[0] : contrato.imovel
   const inquilino = Array.isArray(contrato.inquilino) ? contrato.inquilino[0] : contrato.inquilino
   const proprietario = Array.isArray(contrato.proprietario) ? contrato.proprietario[0] : contrato.proprietario
@@ -612,9 +634,18 @@ export default async function ContratoDetalhePage({ params }: { params: Promise<
                 dataSugerida={dataSugeridaAVista}
               />
             )}
+            {parcelasNegociaveis.length > 0 && (
+              <AcordoQuitacao
+                contratoId={id}
+                parcelasAbertas={parcelasNegociaveis}
+                base={(contrato.taxa_admin_base ?? 'aluguel') as BaseComissao}
+                encerrado={['encerrado', 'rescindido'].includes(contrato.status)}
+              />
+            )}
             <p className="text-[11px] text-gray-400">Clique nos ícones para marcar/desmarcar</p>
           </div>
         </div>
+        <AcordosFeitos acordos={acordos} />
         <div className="max-h-[600px] overflow-y-auto overflow-x-auto">
           <table className="w-full text-sm min-w-[700px]">
             <thead className="bg-gray-50 sticky top-0 z-10">
