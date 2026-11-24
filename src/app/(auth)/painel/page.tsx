@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import {
   Plus, ExternalLink, Eye, Megaphone, KeyRound, RefreshCw, AlertCircle, CheckCircle2,
-  ShieldCheck, List, Radio, Briefcase, UserCircle2, ChevronRight, Clock,
+  ShieldCheck, List, Radio, Briefcase, UserCircle2, ChevronRight, Clock, Download,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { getPerfil } from '@/lib/supabase/queries'
@@ -209,6 +209,7 @@ export default async function PainelPage() {
           <div className="grid sm:grid-cols-2 gap-3">
             <Atalho href="/painel/anuncios" icone={<List size={18} />} titulo="Meus anúncios" texto={`${lista.length} no total · editar, pausar, renovar`} />
             <Atalho href="/painel/anuncios/portais" icone={<Radio size={18} />} titulo="Portais" texto="Publicar no OLX, ZAP e Viva Real" />
+            <Atalho href="/painel/anuncios/importar" icone={<Download size={18} />} titulo="Importar anúncios" texto="Trazer imóveis de outro sistema pelo XML" />
             {podeUsarCRM && (
               <Atalho href="/painel/inicio" icone={<Briefcase size={18} />} titulo="CRM Locação" texto="Contratos, parcelas, recibos e repasses" destaque />
             )}

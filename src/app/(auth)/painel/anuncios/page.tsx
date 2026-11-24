@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Plus, Home, CheckCircle2, Eye, RefreshCw, Megaphone, KeyRound, ShieldCheck } from 'lucide-react'
+import { Plus, Home, CheckCircle2, Eye, RefreshCw, Megaphone, KeyRound, ShieldCheck, Download } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { BarraAnuncios } from './_components/barra-anuncios'
@@ -194,12 +194,20 @@ export default async function MeusAnunciosPage({ searchParams }: Props) {
             {verTodos ? 'Anúncios de todos os anunciantes da plataforma.' : 'Publique, edite e acompanhe seus imóveis.'}
           </p>
         </div>
-        <Link
-          href="/painel/anuncios/novo"
-          className="inline-flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors"
-        >
-          <Plus size={16} /> Novo anúncio
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/painel/anuncios/importar"
+            className="inline-flex items-center gap-1.5 bg-white ring-1 ring-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors"
+          >
+            <Download size={16} /> Importar
+          </Link>
+          <Link
+            href="/painel/anuncios/novo"
+            className="inline-flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold px-4 py-2.5 rounded-xl shadow-sm transition-colors"
+          >
+            <Plus size={16} /> Novo anúncio
+          </Link>
+        </div>
       </div>
 
       {/* Indicadores — cada um é um atalho de filtro */}
@@ -247,6 +255,9 @@ export default async function MeusAnunciosPage({ searchParams }: Props) {
               <Link href="/painel/anuncios/novo" className="inline-flex items-center gap-1.5 bg-violet-700 hover:bg-violet-800 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
                 <Plus size={15} /> Publicar anúncio
               </Link>
+              <p className="text-xs text-gray-400 mt-3">
+                Já tem os imóveis em outro sistema? <Link href="/painel/anuncios/importar" className="text-violet-700 font-semibold hover:underline">Importe pelo XML</Link>
+              </p>
             </>
           ) : (
             <>

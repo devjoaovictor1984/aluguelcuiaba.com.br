@@ -38,8 +38,8 @@ pública de leitura). Regras do portal para quem já anuncia lá
 
 Para migrar: cadastrar aqui, apagar o manual, ligar no feed (um por vez, se
 não quiser o imóvel fora do ar por até 12 h). Se o anunciante usa outro
-sistema que já gera um feed VRSync, dá para importar desse XML (não feito,
-ver Pendente).
+sistema que já gera um feed VRSync, dá para importar desse XML: ver
+`docs/integracoes/importacao/README.md` (v108).
 
 A tela *Portais* tem o bloco **"Como funciona"** (`_components/como-funciona.tsx`)
 com esta explicação em passo a passo, aberto enquanto a URL não foi gerada.
@@ -172,10 +172,9 @@ connection_guideline, integration_rules, xml_validator, webhooks de leads).
   formulário do Grupo OLX + chave enviada por eles
   (`chamado.integracao@olxbr.com`). Não dá para fazer só do nosso lado. Ver
   também a decisão de escopo: funil de leads é outro projeto.
-- **Importar anúncios existentes:** não há como ler do Canal Pro. Viável só
-  a partir de um feed VRSync que o anunciante já tenha em outro sistema
-  (ler o XML e criar os imóveis como rascunho, baixando as fotos). Só fazer
-  se pedirem.
+- **Importar anúncios existentes:** não há como ler do Canal Pro. A partir
+  do feed VRSync (ou ZAP antigo) que o anunciante já tem em outro sistema,
+  **feito na v108**: ver `docs/integracoes/importacao/README.md`.
 - Características além de piscina/pets/mobiliado: o site não guarda outras
   estruturadas (elevador, academia…), então não há o que mandar. A lista de
   valores aceitos está em `feeds/vrsync/elements/details.html`.

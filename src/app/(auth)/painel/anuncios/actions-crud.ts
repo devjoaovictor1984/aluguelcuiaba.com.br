@@ -80,9 +80,19 @@ export async function excluirAnuncio(imovelId: string): Promise<Resultado> {
   const acesso = await acessoAnuncio(imovelId)
   if ('erro' in acesso) return { error: acesso.erro }
 
+  // Veio de importação (v108)? Anota o código: a próxima importação do
+  // mesmo XML não traz de volta o que a pessoa apagou de propósito.
+  const { data: origem } = await createAdminClient().from('imoveis')
+    .select('user_id, importacao_codigo').eq('id', imovelId).maybeSingle()
+
   await acesso.db.from('fotos').delete().eq('imovel_id', imovelId)
   const { error } = await acesso.db.from('imoveis').delete().eq('id', imovelId)
   if (error) return { error: error.message }
+  if (origem?.importacao_codigo) {
+    await createAdminClient().from('importacao_descartados')
+      .upsert({ user_id: origem.user_id, codigo: origem.importacao_codigo }, { onConflict: 'user_id,codigo' })
+      .then(() => {}, () => {})
+  }
   await invalidarVitrine()
   return { success: true }
 }

@@ -7,7 +7,7 @@ import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, FileSignature, Briefcase, Users, MessageCircle, Wallet,
   FileText, Cake, Receipt, Trash2, Home, Plus, LogOut, Menu, X, List,
-  UserCheck, Flame, ShieldCheck, Radio,
+  UserCheck, Flame, ShieldCheck, Radio, Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -40,9 +40,10 @@ const GRUPO_SEGUROS: ItemNav[] = [
 // se chama pelo que é, e "Meus anúncios" é a lista. Ver docs/painel-anuncios.md.
 const GRUPO_ANUNCIOS: ItemNav[] = [
   { href: '/painel',               label: 'Visão geral',    icon: Home, match: ['/painel'] },
-  { href: '/painel/anuncios',      label: 'Meus anúncios',  icon: List, match: ['/painel/anuncios'], notMatch: ['/painel/anuncios/novo', '/painel/anuncios/portais'] },
+  { href: '/painel/anuncios',      label: 'Meus anúncios',  icon: List, match: ['/painel/anuncios'], notMatch: ['/painel/anuncios/novo', '/painel/anuncios/portais', '/painel/anuncios/importar'] },
   { href: '/painel/anuncios/novo', label: 'Novo anúncio',   icon: Plus, match: ['/painel/anuncios/novo'] },
   { href: '/painel/anuncios/portais', label: 'Portais',     icon: Radio, match: ['/painel/anuncios/portais'] },
+  { href: '/painel/anuncios/importar', label: 'Importar',   icon: Download, match: ['/painel/anuncios/importar'] },
 ]
 
 // Só aparece pra role=admin. O /admin tem a própria checagem no servidor;

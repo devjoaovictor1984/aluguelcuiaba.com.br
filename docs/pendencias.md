@@ -311,3 +311,12 @@ para algo que só o admin faz (banir anunciante, destaque pago).
 Ver `docs/integracoes/portais/README.md`, seção "Pendente". O XML segue a
 documentação pública do VRSync, mas só um relatório de integração do Canal
 Pro confirma. Depende de o anunciante ter o plano contratado.
+
+---
+
+## Importação de XML: testar com o arquivo de uma imobiliária de verdade
+
+Ver `docs/integracoes/importacao/README.md`, seção "Pendente". O leitor segue
+a documentação do VRSync e foi testado com o XML que o próprio site gera e
+com exemplos montados à mão; o primeiro arquivo real de outro sistema é que
+mostra o que ajustar no `src/lib/importacao/mapear.ts`.
