@@ -353,7 +353,7 @@ function Campo({
   label: string; chave: string; valor: string; onChange: (v: string) => void
 }) {
   const tipo = chave === 'email' ? 'email'
-    : chave === 'data_nascimento' ? 'date'
+    : chave === 'data_nascimento' || chave === 'conjuge_data_nascimento' ? 'date'
     : 'text'
 
   if (chave === 'estado_civil') {
@@ -407,7 +407,8 @@ function Campo({
         value={valor}
         onChange={e => onChange(e.target.value)}
         className={inputCls}
-        placeholder={label}
+        inputMode={chave === 'renda_mensal' ? 'decimal' : undefined}
+        placeholder={chave === 'renda_mensal' ? 'Ex: 5.000,00' : label}
       />
     </label>
   )

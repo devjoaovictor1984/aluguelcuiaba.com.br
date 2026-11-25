@@ -6,6 +6,7 @@ import { Loader2, Save, AlertCircle, Trash2 } from 'lucide-react'
 import { criarPessoa, atualizarPessoa, excluirPessoa, type PessoaInput, type TipoPessoa, type TipoPix } from '../actions'
 import { InputCpfCnpj, InputTelefone, InputCep } from '@/components/inputs/input-mascarado'
 import { maskCep } from '@/lib/formatters'
+import { parseValorBR } from '@/lib/utils'
 
 interface Props {
   modo: 'novo' | 'editar'
@@ -126,8 +127,8 @@ export function PessoaForm({ modo, id, inicial = {}, redirectApos = '/painel/cli
       regime_bens: ehPJ ? null : (regimeBens || null),
       profissao: ehPJ ? null : profissao,
       renda_mensal: ehPJ ? null : (() => {
-        const v = parseFloat(rendaMensal.replace(',', '.'))
-        return Number.isFinite(v) && v >= 0 ? v : null
+        const v = parseValorBR(rendaMensal)
+        return v != null && v >= 0 ? v : null
       })(),
       nacionalidade: ehPJ ? null : nacionalidade,
       nome_pai: ehPJ ? null : (nomePai || null),

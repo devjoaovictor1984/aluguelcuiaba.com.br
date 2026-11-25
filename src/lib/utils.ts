@@ -99,3 +99,21 @@ export function slugify(text: string): string {
     .trim()
     .replace(/^-|-$/g, '')
 }
+
+/**
+ * Lê um valor em reais digitado à mão: "R$ 50.000", "50.000,00", "1.234,5",
+ * "50000.00" (o que vem do banco). Ponto seguido de 3 dígitos é milhar; com
+ * vírgula, a vírgula é o decimal. Devolve null se não houver número.
+ */
+export function parseValorBR(entrada: string | null | undefined): number | null {
+  if (entrada == null) return null
+  let s = String(entrada).replace(/[^\d,.-]/g, '')
+  if (!/\d/.test(s)) return null
+  if (s.includes(',')) {
+    s = s.replace(/\./g, '').replace(',', '.')
+  } else if (/^-?\d{1,3}(\.\d{3})+$/.test(s)) {
+    s = s.replace(/\./g, '')
+  }
+  const v = Number(s)
+  return Number.isFinite(v) ? v : null
+}

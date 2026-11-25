@@ -6,6 +6,7 @@ import { updateTag } from 'next/cache'
 import { LABELS_DOC, TIPOS_DOC_VALIDOS } from '@/lib/crm/tipos-documento'
 import { CHAVES_CAMPO_IMOVEL, dadosImovelParaColunas } from '@/lib/crm/campos-imovel'
 import { TAG_IMOVEIS } from '@/lib/supabase/public'
+import { parseValorBR } from '@/lib/utils'
 
 const BUCKET = 'documentos-pessoas'
 const MIMES_PERMITIDOS = ['image/jpeg','image/jpg','image/png','image/webp','image/heic','application/pdf']
@@ -71,6 +72,12 @@ export async function submitAtualizacaoCadastro(token: string, formData: FormDat
       const trimmed = raw.trim()
       payload[campo] = trimmed === '' ? null : trimmed
     }
+  }
+  // Coluna numérica: a pessoa digita "R$ 50.000" e o Postgres recusa o texto.
+  if ('renda_mensal' in payload && payload.renda_mensal != null) {
+    const v = parseValorBR(payload.renda_mensal as string)
+    if (v == null || v < 0) return { error: 'Renda mensal: informe só o valor, ex: 5.000,00' }
+    payload.renda_mensal = v
   }
 
   if (Object.keys(payload).length > 0) {
